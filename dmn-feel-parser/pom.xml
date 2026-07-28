@@ -48,7 +48,6 @@
     <profiles>
         <profile>
             <id>generate-code</id>
-
             <build>
                 <plugins>
                     <!--
@@ -90,30 +89,32 @@
                             </execution>
                         </executions>
                     </plugin>
-
-                    <!-- Adds src/gen/java to the Java compiler source roots. -->
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>build-helper-maven-plugin</artifactId>
-                        <version>${build-helper-maven-plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>add-antlr-generated-sources</id>
-                                <phase>generate-sources</phase>
-                                <goals>
-                                    <goal>add-source</goal>
-                                </goals>
-                                <configuration>
-                                    <sources>
-                                        <source>${antlr.generated.directory}</source>
-                                    </sources>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
                 </plugins>
             </build>
         </profile>
     </profiles>
-
+    <build>
+        <plugins>
+            <!-- Adds src/gen/java to the Java compiler source roots. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${build-helper-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>add-antlr-generated-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${antlr.generated.directory}</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
