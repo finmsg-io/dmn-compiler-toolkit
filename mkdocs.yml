@@ -1,0 +1,68 @@
+site_name: DMN Compiler Toolkit
+site_description: High-performance compiler infrastructure for DMN 1.5
+site_url: https://finmsg-io.github.io/dmn-compiler-toolkit/
+repo_name: finmsg-io/dmn-compiler-toolkit
+repo_url: https://github.com/finmsg-io/dmn-compiler-toolkit
+edit_uri: edit/main/docs/
+
+copyright: Copyright © finmsg.io
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+
+  - Architecture:
+      - Overview: architecture.md
+      - Architecture Specification: architecture/architecture-spec.md
+      - Architecture Decisions: architecture/adr/adrs-all.md
+
+      - Chapters:
+          - Vision: "architecture/chapters/01-Vision.md"
+          - Architecture Principles: "architecture/chapters/02-Architecture Principles.md"
+          - Overall Architecture: "architecture/chapters/03-Overall Architecture.md"
+          - Logical Component Architecture: "architecture/chapters/04-Logical Component Architecture.md"
+          - Maven Modules: "architecture/chapters/05-Maven Modules.md"
+          - Package Layout: "architecture/chapters/06-Package Layout.md"
+          - Semantic Model: "architecture/chapters/07-Semantic Model.md"
+          - FEEL AST: "architecture/chapters/08-FEEL AST.md"
+          - Runtime IR: "architecture/chapters/09-Runtime IR.md"
+          - Compiler Passes: "architecture/chapters/10-Compiler Passes.md"
+          - XML Frontend: "architecture/chapters/11-XML Frontend.md"
+          - FEEL Parser: "architecture/chapters/12-FEEL Parser.md"
+          - Java Generator: "architecture/chapters/13-Java Generator.md"
+          - Future Generators: "architecture/chapters/14-Future Generators.md"
+          - Testing Strategy: "architecture/chapters/15-Testing Strategy.md"
+          - Performance: "architecture/chapters/16-Performance.md"
+          - Public API: "architecture/chapters/17-Public API.md"
+          - Roadmap: "architecture/chapters/18-Roadmap.md"
+          - Internal Compiler Architecture: "architecture/chapters/19-Internal Compiler Architecture.md"
+          - Appendices: "architecture/chapters/20-Appendices.md"
+
+  - Modules: modules.md
+  - Development:
+      - Style Guide: dev/style.md
+      - CI and Publishing: ci-and-publishing.md
+  - Roadmap: roadmap.md
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+
+plugins:
+  - search
