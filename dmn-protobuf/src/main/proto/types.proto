@@ -1,0 +1,146 @@
+syntax = "proto3";
+
+package io.finmsg.dmn;
+
+option java_package = "io.finmsg.dmn.model";
+option java_multiple_files = true;
+option java_outer_classname = "TypesProtos";
+
+import "common.proto";
+import "core.proto";
+
+//
+// ============================================================================
+// DMN Type System
+// ============================================================================
+//
+// This file describes the semantic DMN type system.
+// It is independent of XML serialization and runtime implementation.
+//
+
+//
+// Built-in FEEL/DMN types
+//
+enum BuiltinType {
+  BUILTIN_TYPE_UNSPECIFIED = 0;
+  BUILTIN_TYPE_ANY = 1;
+  BUILTIN_TYPE_NUMBER = 2;
+  BUILTIN_TYPE_STRING = 3;
+  BUILTIN_TYPE_BOOLEAN = 4;
+  BUILTIN_TYPE_DATE = 5;
+  BUILTIN_TYPE_TIME = 6;
+  BUILTIN_TYPE_DATE_AND_TIME = 7;
+  BUILTIN_TYPE_DURATION = 8;
+  BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION = 9;
+  BUILTIN_TYPE_DAYS_AND_TIME_DURATION = 10;
+  BUILTIN_TYPE_RANGE = 11;
+  BUILTIN_TYPE_NULL = 12;
+}
+
+//
+// Generic type reference
+//
+// A reference to a semantic DMN type.
+//
+// Resolution of NamedTypeReference happens during semantic analysis.
+//
+message TypeReference {
+  oneof kind {
+    // FEEL built-in type
+    BuiltinType builtin = 1;
+    // Reference to a named DMN type
+    // Example:
+    //   tViolation
+    NamedTypeReference named = 2;
+    // FEEL list<T>
+    ListTypeReference list = 3;
+    // FEEL function type
+    FunctionTypeReference function = 4;
+  }
+}
+
+//
+// Named type reference
+//
+// Resolved later against ItemDefinition registry.
+//
+message NamedTypeReference {
+
+  string name = 1;
+
+  //
+  // Optional namespace
+  //
+  string namespace = 2;
+}
+
+
+//
+// Collection type
+//
+// Example:
+//   list<string>
+//   list<tViolation>
+//
+message ListTypeReference {
+
+  TypeReference element_type = 1;
+}
+
+
+//
+// Function type
+//
+// Example:
+//   function(number,string)->boolean
+//
+message FunctionTypeReference {
+
+  repeated TypeReference parameter_type = 1;
+
+  TypeReference return_type = 2;
+}
+
+//
+// Variable / parameter declaration
+//
+message InformationItem {
+  Node node = 1;
+  TypeReference type = 2;
+}
+
+enum FunctionKind {
+  FUNCTION_KIND_UNSPECIFIED = 0;
+  FUNCTION_KIND_FEEL = 1;
+  FUNCTION_KIND_JAVA = 2;
+  FUNCTION_KIND_PMML = 3;
+}
+
+//
+// Type constraints
+//
+message TypeConstraint {
+  repeated string allowed_values = 1;
+  string expression = 2;
+}
+
+//
+// Compiler inferred type
+//
+message InferredType {
+  TypeReference type = 1;
+  bool nullable = 2;
+  bool collection = 3;
+}
+
+//
+// Type compatibility
+//
+enum TypeCompatibility {
+  TYPE_COMPATIBILITY_UNSPECIFIED = 0;
+  TYPE_COMPATIBILITY_EQUAL = 1;
+  TYPE_COMPATIBILITY_ASSIGNABLE = 2;
+  TYPE_COMPATIBILITY_CONVERTIBLE = 3;
+  TYPE_COMPATIBILITY_INCOMPATIBLE = 4;
+}
+

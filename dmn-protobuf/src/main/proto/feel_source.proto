@@ -1,0 +1,146 @@
+syntax = "proto3";
+
+package io.finmsg.dmn;
+
+option java_package = "io.finmsg.dmn.model";
+option java_multiple_files = true;
+option java_outer_classname = "FeelSourceProtos";
+
+import "types.proto";
+
+//
+// ============================================================================
+// FEEL Source Model
+// ============================================================================
+//
+// This model represents FEEL expressions and DMN boxed expressions exactly as
+// they appear in a DMN model.
+//
+// It is:
+//
+//   • produced by the DMN XML reader
+//   • serialized by the DMN XML writer
+//   • consumed later by the FEEL parser
+//
+// It is NOT the FEEL Abstract Syntax Tree (AST).
+//
+// ============================================================================
+
+//
+// -----------------------------------------------------------------------------
+// FEEL source text
+// -----------------------------------------------------------------------------
+//
+// Input to the FEEL parser.
+//
+
+message FeelSource {
+  string text = 1;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Expression source
+// -----------------------------------------------------------------------------
+//
+// Either plain FEEL source text or a boxed expression.
+//
+
+message ExpressionSource {
+  oneof type {
+    FeelSource feel = 1;
+    BoxedExpressionSource boxed = 2;
+  }
+}
+
+//
+// -----------------------------------------------------------------------------
+// Boxed expression source
+// -----------------------------------------------------------------------------
+//
+
+message BoxedExpressionSource {
+  oneof type {
+    ContextSource context = 1;
+    RelationSource relation = 2;
+    ListExpressionSource list = 3;
+    FunctionDefinitionSource function_definition = 4;
+  }
+}
+
+//
+// -----------------------------------------------------------------------------
+// Context
+// -----------------------------------------------------------------------------
+//
+
+message ContextSource {
+
+  repeated ContextEntrySource entries = 1;
+}
+
+message ContextEntrySource {
+
+  //
+  // Optional variable declaration.
+  //
+  InformationItem variable = 1;
+
+  //
+  // Context entry expression.
+  //
+  ExpressionSource expression = 2;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Relation
+// -----------------------------------------------------------------------------
+//
+
+message RelationSource {
+
+  repeated RelationColumn columns = 1;
+
+  repeated RelationRow rows = 2;
+}
+
+message RelationColumn {
+
+  InformationItem variable = 1;
+}
+
+message RelationRow {
+
+  repeated ExpressionSource expressions = 1;
+}
+
+//
+// -----------------------------------------------------------------------------
+// List
+// -----------------------------------------------------------------------------
+//
+
+message ListExpressionSource {
+
+  repeated ExpressionSource elements = 1;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Function Definition
+// -----------------------------------------------------------------------------
+//
+
+message FunctionDefinitionSource {
+
+  //
+  // Formal parameters.
+  //
+  repeated InformationItem parameters = 1;
+
+  //
+  // Function body.
+  //
+  ExpressionSource body = 2;
+}

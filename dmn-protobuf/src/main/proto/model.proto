@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package io.finmsg.dmn;
+
+option java_package = "io.finmsg.dmn.model";
+option java_multiple_files = true;
+option java_outer_classname = "ModelProtos";
+
+import "types.proto";
+import "common.proto";
+import "core.proto";
+import "drg.proto";
+
+//
+// ============================================================================
+// Core DMN Model
+// ============================================================================
+
+//
+// DMN Definitions (root element)
+//
+message Definitions {
+
+  Node node = 1;
+
+  string namespace = 2;
+  string expression_language = 3;
+  string type_language = 4;
+  string exporter = 5;
+  string exporter_version = 6;
+
+  repeated Namespace namespaces = 20;
+  repeated Import imports = 21;
+  repeated ItemDefinition item_definitions = 22;
+  // Decision Requirements Graph
+  repeated DrgElement drg_elements = 23;
+}
+
+//
+// DMN Import
+//
+message Import {
+  Node node = 1;
+  string namespace = 2;
+  string name = 3;
+//  string import_type = 4;
+}
+
+//
+// User-defined type
+//
+message ItemDefinition {
+  Node node = 1;
+  TypeReference type = 2;
+  bool is_collection = 3;
+  repeated ItemComponent components = 4;
+  TypeConstraint constraint = 5;
+}
+
+//
+// Component of a structured ItemDefinition
+//
+message ItemComponent {
+  Node node = 1;
+  TypeReference type = 2;
+  bool is_collection = 3;
+  TypeConstraint constraint = 4;
+}

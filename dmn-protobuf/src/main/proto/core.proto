@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package io.finmsg.dmn;
+
+option java_package = "io.finmsg.dmn.model";
+option java_multiple_files = true;
+option java_outer_classname = "CoreProtos";
+
+import "common.proto";
+
+//
+// ============================================================================
+// Core Model
+//
+// Fundamental building blocks shared by the complete semantic model.
+//
+// This file intentionally contains only small, reusable types.
+// It must never depend on higher-level DMN concepts.
+// ============================================================================
+//
+
+//
+// Base information shared by every named DMN element.
+//
+// Composition is preferred over inheritance.
+//
+message Node {
+  //
+  // XML attributes
+  //
+  string id = 1;
+  string name = 2;
+  string label = 3;
+  //
+  // Common child elements
+  //
+  Documentation documentation = 10;
+  ExtensionElements extension_elements = 11;
+  //
+  // Compiler metadata
+  // (not part of the DMN specification)
+  //
+  SourceLocation source_location = 20;
+}
+
+//
+// Generic reference to another model element.
+//
+message Reference {
+  string id = 1;
+}

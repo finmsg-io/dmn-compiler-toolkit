@@ -1,0 +1,246 @@
+syntax = "proto3";
+
+package io.finmsg.dmn;
+
+option java_package = "io.finmsg.dmn.model";
+option java_multiple_files = true;
+option java_outer_classname = "DrgProtos";
+
+import "common.proto";
+import "core.proto";
+import "types.proto";
+import "feel_source.proto";
+import "decision_table.proto";
+
+//
+// ============================================================================
+// Decision Requirements Graph (DRG)
+// ============================================================================
+//
+//
+// Semantic DMN model.
+//
+// FEEL expressions are preserved as source.
+// FEEL parsing happens later.
+//
+// ============================================================================
+//
+
+//
+// -----------------------------------------------------------------------------
+// Generic DRG Element
+// -----------------------------------------------------------------------------
+//
+
+message DrgElement {
+  oneof element {
+    InputData input_data = 1;
+    Decision decision = 2;
+    BusinessKnowledgeModel business_knowledge_model = 3;
+    KnowledgeSource knowledge_source = 4;
+    DecisionService decision_service = 5;
+  }
+}
+
+//
+// -----------------------------------------------------------------------------
+// Input Data
+// -----------------------------------------------------------------------------
+//
+
+message InputData {
+  Node node = 1;
+  InformationItem variable = 2;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Decision
+// -----------------------------------------------------------------------------
+//
+
+message Decision {
+  Node node = 1;
+  InformationItem variable = 2;
+  //
+  // Decision logic.
+  //
+  DecisionLogic logic = 3;
+  repeated InformationRequirement information_requirements = 10;
+  repeated KnowledgeRequirement knowledge_requirements = 11;
+  repeated AuthorityRequirement authority_requirements = 12;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Decision Logic
+// -----------------------------------------------------------------------------
+//
+
+message DecisionLogic {
+  oneof type {
+    //
+    // Literal FEEL expression
+    //
+    FeelSource literal_expression = 1;
+    //
+    // Decision table
+    //
+    DecisionTable decision_table = 2;
+    //
+    // Boxed expression.
+    //
+    // FEEL parsing happens later.
+    //
+    BoxedExpressionSource boxed_expression = 3;
+    //
+    // Invocation
+    //
+    Invocation invocation = 4;
+  }
+}
+
+//
+// -----------------------------------------------------------------------------
+// Business Knowledge Model
+// -----------------------------------------------------------------------------
+//
+
+message BusinessKnowledgeModel {
+  Node node = 1;
+  InformationItem variable = 2;
+  //
+  // Encapsulated logic
+  //
+  FunctionDefinition function = 3;
+  repeated KnowledgeRequirement knowledge_requirements = 10;
+  repeated AuthorityRequirement authority_requirements = 11;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Knowledge Source
+// -----------------------------------------------------------------------------
+//
+
+message KnowledgeSource {
+  Node node = 1;
+  //
+  // External authority/reference
+  //
+  string authority = 2;
+  //
+  // Optional external location
+  //
+  string location_uri = 3;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Decision Service
+// -----------------------------------------------------------------------------
+//
+
+message DecisionService {
+  Node node = 1;
+  repeated ElementReference output_decisions = 10;
+  repeated ElementReference encapsulated_decisions = 11;
+  repeated ElementReference input_decisions = 12;
+  repeated ElementReference input_data = 13;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Function Definition
+// -----------------------------------------------------------------------------
+//
+
+message FunctionDefinition {
+  //
+  // Function parameters
+  //
+  repeated InformationItem formal_parameters = 1;
+  //
+  // FEEL function body
+  //
+  FeelSource logic = 2;
+  //
+  // FEEL / Java / external
+  //
+  FunctionKind kind = 3;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Invocation
+// -----------------------------------------------------------------------------
+//
+
+message Invocation {
+  //
+  // Callable expression
+  //
+  // Example:
+  //
+  // RiskCalculation
+  //
+  FeelSource expression = 1;
+  //
+  // Arguments
+  //
+  repeated Binding bindings = 10;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Invocation Binding
+// -----------------------------------------------------------------------------
+//
+
+message Binding {
+  //
+  // Parameter name
+  //
+  string parameter = 1;
+  //
+  // Argument expression
+  //
+  FeelSource expression = 2;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Information Requirement
+// -----------------------------------------------------------------------------
+//
+
+message InformationRequirement {
+  oneof required {
+    ElementReference input = 1;
+    ElementReference decision = 2;
+  }
+}
+
+//
+// -----------------------------------------------------------------------------
+// Knowledge Requirement
+// -----------------------------------------------------------------------------
+//
+
+message KnowledgeRequirement {
+  ElementReference required_knowledge = 1;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Authority Requirement
+// -----------------------------------------------------------------------------
+//
+
+message AuthorityRequirement {
+  ElementReference required_authority = 1;
+  oneof source {
+    ElementReference decision = 2;
+    ElementReference input = 3;
+  }
+}

@@ -1,0 +1,207 @@
+syntax = "proto3";
+
+package io.finmsg.dmn;
+
+option java_package = "io.finmsg.dmn.model";
+option java_multiple_files = true;
+option java_outer_classname = "FeelAstProtos";
+
+import "common.proto";
+import "core.proto";
+import "types.proto";
+
+
+//
+// ============================================================================
+// FEEL Abstract Syntax Tree
+// ============================================================================
+
+//
+// Every expression is represented by one AST node.
+//
+message Expression {
+  oneof node {
+    LiteralExpression literal = 1;
+    NameExpression name = 2;
+    UnaryExpression unary = 3;
+    BinaryExpression binary = 4;
+    FunctionCall function_call = 5;
+    IfExpression if_expression = 6;
+    ContextExpression context = 7;
+    ListExpression list = 8;
+    ForExpression for_expression = 9;
+    QuantifiedExpression quantified = 10;
+    FilterExpression filter = 11;
+    PathExpression path = 12;
+    InvocationExpression invocation = 13;
+    DecisionTableExpression decision_table = 14;
+  }
+  TypeReference inferred_type = 100;
+}
+
+//
+// Literal
+//
+message LiteralExpression {
+  LiteralKind kind = 1;
+  string value = 2;
+}
+
+enum LiteralKind {
+  LITERAL_KIND_UNSPECIFIED = 0;
+  LITERAL_KIND_NULL = 1;
+  LITERAL_KIND_BOOLEAN = 2;
+  LITERAL_KIND_NUMBER = 3;
+  LITERAL_KIND_STRING = 4;
+  LITERAL_KIND_DATE = 5;
+  LITERAL_KIND_TIME = 6;
+  LITERAL_KIND_DATE_TIME = 7;
+  LITERAL_KIND_DURATION = 8;
+}
+
+//
+// Variable reference
+//
+message NameExpression {
+  string name = 1;
+}
+
+//
+// Unary operator
+//
+message UnaryExpression {
+  UnaryOperator operator = 1;
+  Expression expression = 2;
+}
+
+enum UnaryOperator {
+  UNARY_OPERATOR_UNSPECIFIED = 0;
+  UNARY_OPERATOR_PLUS = 1;
+  UNARY_OPERATOR_MINUS = 2;
+  UNARY_OPERATOR_NOT = 3;
+}
+
+//
+// Binary operator
+//
+message BinaryExpression {
+  BinaryOperator operator = 1;
+  Expression left = 2;
+  Expression right = 3;
+}
+
+enum BinaryOperator {
+  BINARY_OPERATOR_UNSPECIFIED = 0;
+  BINARY_OPERATOR_ADD = 1;
+  BINARY_OPERATOR_SUBTRACT = 2;
+  BINARY_OPERATOR_MULTIPLY = 3;
+  BINARY_OPERATOR_DIVIDE = 4;
+  BINARY_OPERATOR_POWER = 5;
+  BINARY_OPERATOR_EQUAL = 6;
+  BINARY_OPERATOR_NOT_EQUAL = 7;
+  BINARY_OPERATOR_LESS = 8;
+  BINARY_OPERATOR_LESS_EQUAL = 9;
+  BINARY_OPERATOR_GREATER = 10;
+  BINARY_OPERATOR_GREATER_EQUAL = 11;
+  BINARY_OPERATOR_AND = 12;
+  BINARY_OPERATOR_OR = 13;
+}
+
+//
+// Function call
+//
+message FunctionCall {
+  string function = 1;
+  repeated Expression arguments = 2;
+}
+
+//
+// If expression
+//
+message IfExpression {
+  Expression condition = 1;
+  Expression then_expression = 2;
+  Expression else_expression = 3;
+}
+
+//
+// Context
+//
+message ContextExpression {
+  repeated ContextEntry entries = 1;
+}
+
+message ContextEntry {
+  string name = 1;
+  Expression expression = 2;
+}
+
+//
+// List
+//
+message ListExpression {
+  repeated Expression elements = 1;
+}
+
+//
+// for-expression
+//
+message ForExpression {
+  string variable = 1;
+  Expression in = 2;
+  Expression return_expression = 3;
+}
+
+//
+// some/every
+//
+message QuantifiedExpression {
+  Quantifier quantifier = 1;
+  string variable = 2;
+  Expression in = 3;
+  Expression satisfies = 4;
+}
+
+enum Quantifier {
+  QUANTIFIER_UNSPECIFIED = 0;
+  QUANTIFIER_SOME = 1;
+  QUANTIFIER_EVERY = 2;
+}
+
+//
+// Filter
+//
+message FilterExpression {
+  Expression source = 1;
+  Expression filter = 2;
+}
+
+//
+// Path
+//
+message PathExpression {
+  Expression source = 1;
+  string member = 2;
+}
+
+//
+// Invocation
+//
+message InvocationExpression {
+  Expression target = 1;
+  repeated NamedArgument arguments = 2;
+}
+
+message NamedArgument {
+  string name = 1;
+  Expression expression = 2;
+}
+
+//
+// Decision table placeholder.
+//
+// Real definition is located in decisiontable.proto.
+//
+message DecisionTableExpression {
+  string decision_table_id = 1;
+}
