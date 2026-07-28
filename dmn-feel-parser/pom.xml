@@ -117,12 +117,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <distributionManagement>
-        <repository>
-            <id>github</id>
-            <name>GitHub finmsg.io Apache Maven Packages</name>
-            <url>https://maven.pkg.github.com/finmsg-io/dmn-compiler-toolkit</url>
-        </repository>
-    </distributionManagement>
 </project>
