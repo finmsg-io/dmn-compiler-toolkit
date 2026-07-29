@@ -1,0 +1,40 @@
+package io.finmsg.dmn.frontend.xml.dmn.reader;
+
+import io.finmsg.dmn.frontend.xml.XmlCursor;
+import io.finmsg.dmn.model.ExpressionNode;
+import io.finmsg.dmn.model.ExpressionText;
+
+public final class ExpressionNodeReader {
+
+  private final ReaderRegistry readers;
+
+  ExpressionNodeReader(ReaderRegistry readers) {
+    this.readers = readers;
+  }
+
+  public ExpressionNode read(XmlCursor cursor) {
+    return ExpressionNode.newBuilder()
+        .setText(readText(cursor))
+        .build();
+  }
+
+  public ExpressionText readText(XmlCursor cursor) {
+
+    ExpressionText.Builder builder = ExpressionText.newBuilder();
+
+    switch (cursor.localName()) {
+      case "literalExpression", "inputExpression", "inputValues", "outputValues",
+          "inputEntry", "outputEntry", "defaultOutputEntry", "expression" ->
+          builder.setFeel(readers.feelReader().readText(cursor));
+
+      case "context", "relation", "list", "functionDefinition" ->
+          builder.setBoxed(readers.boxedExpressionReader().readText(cursor));
+
+      default ->
+          throw new IllegalArgumentException(
+              "Unsupported expression text: " + cursor.localName());
+    }
+
+    return builder.build();
+  }
+}

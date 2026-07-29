@@ -6,7 +6,7 @@ import io.finmsg.dmn.model.Invocation;
 
 public final class InvocationReader {
 
-  private final FeelSourceReader feelSourceReader = new FeelSourceReader();
+  private final FeelReader feelReader = new FeelReader();
 
   public Invocation read(XmlCursor cursor) {
 
@@ -16,7 +16,7 @@ public final class InvocationReader {
       do {
         switch (cursor.localName()) {
           case "expression" -> {
-            builder.setExpression(feelSourceReader.read(cursor)).build();
+            builder.setExpression(feelReader.read(cursor)).build();
           }
 
           case "binding" -> {
@@ -45,7 +45,7 @@ public final class InvocationReader {
           }
 
           case "expression" -> {
-            builder.setExpression(feelSourceReader.read(cursor)).build();
+            builder.setExpression(feelReader.read(cursor)).build();
           }
 
           default -> {}

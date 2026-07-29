@@ -8,8 +8,8 @@ import io.finmsg.dmn.model.UnaryTest;
 public final class DecisionRuleReader {
 
     private final NodeReader nodeReader = new NodeReader();
-    private final FeelSourceReader feelSourceReader =
-            new FeelSourceReader();
+    private final FeelReader feelReader =
+            new FeelReader();
 
     public DecisionRule read(XmlCursor cursor) {
 
@@ -22,12 +22,12 @@ public final class DecisionRuleReader {
                     case "inputEntry" ->
                             builder.addInputEntries(
                                     UnaryTest.newBuilder()
-                                            .setExpression(feelSourceReader.read(cursor))
+                                            .setExpression(feelReader.read(cursor))
                                             .build());
 
                     case "outputEntry" ->
                             builder.addOutputEntries(
-                                    feelSourceReader.read(cursor));
+                                    feelReader.read(cursor));
 
                     case "annotationEntry" ->
                             builder.addAnnotationEntries(

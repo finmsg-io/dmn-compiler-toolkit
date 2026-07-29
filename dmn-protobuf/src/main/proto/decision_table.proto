@@ -6,18 +6,17 @@ option java_package = "io.finmsg.dmn.model";
 option java_multiple_files = true;
 option java_outer_classname = "DecisionTableProtos";
 
-import "common.proto";
 import "core.proto";
 import "types.proto";
-import "feel_source.proto";
+import "feel.proto";
 
 //
 // ============================================================================
 // DMN Decision Tables
 //
 // Semantic DMN model.
-// FEEL expressions are preserved as source text.
-// FEEL parsing happens in later compiler phases.
+// FEEL expressions start as text and are replaced by parsed nodes
+// during the FEEL parsing phase.
 //
 // ============================================================================
 //
@@ -70,8 +69,8 @@ message HitPolicySpec {
 message InputClause {
   Node node = 1;
 
-  FeelSource input_expression = 2;
-  FeelSource input_values = 3;
+  Feel input_expression = 2;
+  Feel input_values = 3;
 
   TypeReference type = 4;
 }
@@ -93,11 +92,11 @@ message OutputClause {
   //
   // Allowed output values
   //
-  FeelSource output_values = 3;
+  Feel output_values = 3;
   //
   // Default output expression
   //
-  ExpressionSource default_output_entry = 4;
+  ExpressionNode default_output_entry = 4;
 }
 
 //
@@ -132,7 +131,7 @@ message DecisionRule {
   //
   // Output expressions
   //
-  repeated FeelSource output_entries = 4;
+  repeated Feel output_entries = 4;
   //
   // Rule annotations
   //
@@ -146,8 +145,8 @@ message DecisionRule {
 //
 // IMPORTANT:
 //
-// This is NOT parsed FEEL.
-// It stores the DMN unary test expression.
+// Initially this stores the textual DMN unary test expression.
+// The FEEL parser later replaces it with the parsed representation.
 //
 // Examples:
 //
@@ -162,7 +161,7 @@ message DecisionRule {
 // -----------------------------------------------------------------------------
 //
 message UnaryTest {
-  FeelSource expression = 1;
+  Feel expression = 1;
 }
 
 //

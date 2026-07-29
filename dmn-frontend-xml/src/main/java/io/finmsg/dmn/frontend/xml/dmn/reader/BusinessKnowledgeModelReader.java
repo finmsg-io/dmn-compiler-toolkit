@@ -11,7 +11,7 @@ public final class BusinessKnowledgeModelReader {
       new KnowledgeRequirementReader();
   private final AuthorityRequirementReader authorityRequirementReader =
       new AuthorityRequirementReader();
-  private final FeelSourceReader feelSourceReader = new FeelSourceReader();
+  private final FeelReader feelReader = new FeelReader();
   private final FunctionDefinitionReader functionDefinitionReader = new FunctionDefinitionReader();
 
   public BusinessKnowledgeModel read(XmlCursor cursor) {

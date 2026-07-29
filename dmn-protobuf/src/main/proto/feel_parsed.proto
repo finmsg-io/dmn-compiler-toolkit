@@ -4,21 +4,75 @@ package io.finmsg.dmn;
 
 option java_package = "io.finmsg.dmn.model";
 option java_multiple_files = true;
-option java_outer_classname = "FeelAstProtos";
+option java_outer_classname = "FeelParsedProtos";
 
-import "common.proto";
-import "core.proto";
 import "types.proto";
 
+//
+// ============================================================================
+// Parsed FEEL Model
+// ============================================================================
+//
+// Represents parsed FEEL expressions and parsed DMN boxed expressions.
+// This model has no dependency on the FEEL text model.
+//
+
+message FeelParsed {
+  Expression ast = 1;
+}
+
+message ExpressionParsed {
+  oneof type {
+    FeelParsed feel = 1;
+    BoxedExpressionParsed boxed = 2;
+  }
+}
+
+message BoxedExpressionParsed {
+  oneof type {
+    ContextParsed context = 1;
+    RelationParsed relation = 2;
+    ListExpressionParsed list = 3;
+    FunctionDefinitionParsed function_definition = 4;
+  }
+}
+
+message ContextParsed {
+  repeated ContextEntryParsed entries = 1;
+}
+
+message ContextEntryParsed {
+  InformationItem variable = 1;
+  ExpressionParsed expression = 2;
+}
+
+message RelationParsed {
+  repeated RelationColumnParsed columns = 1;
+  repeated RelationRowParsed rows = 2;
+}
+
+message RelationColumnParsed {
+  InformationItem variable = 1;
+}
+
+message RelationRowParsed {
+  repeated ExpressionParsed expressions = 1;
+}
+
+message ListExpressionParsed {
+  repeated ExpressionParsed elements = 1;
+}
+
+message FunctionDefinitionParsed {
+  repeated InformationItem parameters = 1;
+  ExpressionParsed body = 2;
+}
 
 //
 // ============================================================================
 // FEEL Abstract Syntax Tree
 // ============================================================================
 
-//
-// Every expression is represented by one AST node.
-//
 message Expression {
   oneof node {
     LiteralExpression literal = 1;
@@ -36,12 +90,10 @@ message Expression {
     InvocationExpression invocation = 13;
     DecisionTableExpression decision_table = 14;
   }
+
   TypeReference inferred_type = 100;
 }
 
-//
-// Literal
-//
 message LiteralExpression {
   LiteralKind kind = 1;
   string value = 2;
@@ -59,16 +111,10 @@ enum LiteralKind {
   LITERAL_KIND_DURATION = 8;
 }
 
-//
-// Variable reference
-//
 message NameExpression {
   string name = 1;
 }
 
-//
-// Unary operator
-//
 message UnaryExpression {
   UnaryOperator operator = 1;
   Expression expression = 2;
@@ -81,9 +127,6 @@ enum UnaryOperator {
   UNARY_OPERATOR_NOT = 3;
 }
 
-//
-// Binary operator
-//
 message BinaryExpression {
   BinaryOperator operator = 1;
   Expression left = 2;
@@ -107,26 +150,17 @@ enum BinaryOperator {
   BINARY_OPERATOR_OR = 13;
 }
 
-//
-// Function call
-//
 message FunctionCall {
   string function = 1;
   repeated Expression arguments = 2;
 }
 
-//
-// If expression
-//
 message IfExpression {
   Expression condition = 1;
   Expression then_expression = 2;
   Expression else_expression = 3;
 }
 
-//
-// Context
-//
 message ContextExpression {
   repeated ContextEntry entries = 1;
 }
@@ -136,25 +170,16 @@ message ContextEntry {
   Expression expression = 2;
 }
 
-//
-// List
-//
 message ListExpression {
   repeated Expression elements = 1;
 }
 
-//
-// for-expression
-//
 message ForExpression {
   string variable = 1;
   Expression in = 2;
   Expression return_expression = 3;
 }
 
-//
-// some/every
-//
 message QuantifiedExpression {
   Quantifier quantifier = 1;
   string variable = 2;
@@ -168,25 +193,16 @@ enum Quantifier {
   QUANTIFIER_EVERY = 2;
 }
 
-//
-// Filter
-//
 message FilterExpression {
   Expression source = 1;
   Expression filter = 2;
 }
 
-//
-// Path
-//
 message PathExpression {
   Expression source = 1;
   string member = 2;
 }
 
-//
-// Invocation
-//
 message InvocationExpression {
   Expression target = 1;
   repeated NamedArgument arguments = 2;
@@ -197,11 +213,6 @@ message NamedArgument {
   Expression expression = 2;
 }
 
-//
-// Decision table placeholder.
-//
-// Real definition is located in decisiontable.proto.
-//
 message DecisionTableExpression {
   string decision_table_id = 1;
 }

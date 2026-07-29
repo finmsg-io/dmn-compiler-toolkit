@@ -6,8 +6,9 @@ import io.finmsg.dmn.model.OutputClause;
 public final class OutputClauseReader {
 
   private final NodeReader nodeReader = new NodeReader();
-  private final FeelSourceReader feelSourceReader = new FeelSourceReader();
-  private final ExpressionSourceReader expressionSourceReader = new ExpressionSourceReader();
+  private final FeelReader feelReader = new FeelReader();
+  private final ExpressionNodeReader expressionReader =
+      ReaderRegistry.shared().expressionNodeReader();
   private final TypeReferenceReader typeReferenceReader = new TypeReferenceReader();
 
   public OutputClause read(XmlCursor cursor) {
@@ -23,10 +24,10 @@ public final class OutputClauseReader {
     if (cursor.firstChild()) {
       do {
         switch (cursor.localName()) {
-          case "outputValues" -> builder.setOutputValues(feelSourceReader.read(cursor));
+          case "outputValues" -> builder.setOutputValues(feelReader.read(cursor));
 
           case "defaultOutputEntry" ->
-              builder.setDefaultOutputEntry(expressionSourceReader.read(cursor));
+              builder.setDefaultOutputEntry(expressionReader.read(cursor));
 
           default -> {}
         }

@@ -9,7 +9,7 @@ option java_outer_classname = "DrgProtos";
 import "common.proto";
 import "core.proto";
 import "types.proto";
-import "feel_source.proto";
+import "feel.proto";
 import "decision_table.proto";
 
 //
@@ -20,8 +20,8 @@ import "decision_table.proto";
 //
 // Semantic DMN model.
 //
-// FEEL expressions are preserved as source.
-// FEEL parsing happens later.
+// FEEL expressions start as text and are replaced by parsed nodes
+// during the FEEL parsing phase.
 //
 // ============================================================================
 //
@@ -82,7 +82,7 @@ message DecisionLogic {
     //
     // Literal FEEL expression
     //
-    FeelSource literal_expression = 1;
+    Feel literal_expression = 1;
     //
     // Decision table
     //
@@ -92,7 +92,7 @@ message DecisionLogic {
     //
     // FEEL parsing happens later.
     //
-    BoxedExpressionSource boxed_expression = 3;
+    BoxedExpression boxed_expression = 3;
     //
     // Invocation
     //
@@ -163,7 +163,7 @@ message FunctionDefinition {
   //
   // FEEL function body
   //
-  FeelSource logic = 2;
+  Feel logic = 2;
   //
   // FEEL / Java / external
   //
@@ -184,7 +184,7 @@ message Invocation {
   //
   // RiskCalculation
   //
-  FeelSource expression = 1;
+  Feel expression = 1;
   //
   // Arguments
   //
@@ -205,7 +205,7 @@ message Binding {
   //
   // Argument expression
   //
-  FeelSource expression = 2;
+  Feel expression = 2;
 }
 
 //

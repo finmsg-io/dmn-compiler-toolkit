@@ -6,7 +6,7 @@ import io.finmsg.dmn.model.InputClause;
 public final class InputClauseReader {
 
   private final NodeReader nodeReader = new NodeReader();
-  private final FeelSourceReader feelSourceReader = new FeelSourceReader();
+  private final FeelReader feelReader = new FeelReader();
   private final TypeReferenceReader typeReferenceReader = new TypeReferenceReader();
 
   public InputClause read(XmlCursor cursor) {
@@ -19,14 +19,14 @@ public final class InputClauseReader {
       do {
         switch (cursor.localName()) {
           case "inputExpression" -> {
-            builder.setInputExpression(feelSourceReader.read(cursor));
+            builder.setInputExpression(feelReader.read(cursor));
 
             if (cursor.hasAttribute("typeRef")) {
               builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef")));
             }
           }
 
-          case "inputValues" -> builder.setInputValues(feelSourceReader.read(cursor));
+          case "inputValues" -> builder.setInputValues(feelReader.read(cursor));
 
           default -> {}
         }

@@ -1,34 +1,24 @@
 package io.finmsg.dmn.frontend.xml.dmn.reader;
 
 import io.finmsg.dmn.frontend.xml.XmlCursor;
-import io.finmsg.dmn.model.RelationColumn;
+import io.finmsg.dmn.model.RelationColumnText;
 
-public final class RelationColumnReader {
+public final class RelationColumnTextReader {
 
   private final VariableReader variableReader = new VariableReader();
 
-  public RelationColumn read(XmlCursor cursor) {
+  public RelationColumnText read(XmlCursor cursor) {
 
-    RelationColumn.Builder builder = RelationColumn.newBuilder();
+    RelationColumnText.Builder builder = RelationColumnText.newBuilder();
 
     if (cursor.firstChild()) {
       do {
-
         switch (cursor.localName()) {
           case "variable" -> builder.setVariable(variableReader.read(cursor));
-
-          //
-          // Extension points
-          //
-          case "extensionElements" -> {}
-
-          default -> {
-            // ignore unknown elements
-          }
+          case "extensionElements" -> { }
+          default -> { }
         }
-
       } while (cursor.nextSibling());
-
       cursor.parent();
     }
 

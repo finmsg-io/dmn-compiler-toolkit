@@ -7,7 +7,7 @@ import io.finmsg.dmn.model.FunctionKind;
 public final class FunctionDefinitionReader {
 
   private final InformationItemReader informationItemReader = new InformationItemReader();
-  private final FeelSourceReader feelSourceReader = new FeelSourceReader();
+  private final FeelReader feelReader = new FeelReader();
 
   public FunctionDefinition read(XmlCursor cursor) {
     FunctionDefinition.Builder builder = FunctionDefinition.newBuilder();
@@ -34,7 +34,7 @@ public final class FunctionDefinitionReader {
 
     if (cursor.firstChild()) {
       builder.setLogic(
-              feelSourceReader.read(cursor));
+              feelReader.read(cursor));
       cursor.parent();
     }    return builder.build();
   }
