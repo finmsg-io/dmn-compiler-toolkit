@@ -25,11 +25,7 @@ if (-not $projectName)
 $files = Get-ChildItem -Path $projectRoot -Recurse -File |
         Where-Object {
             $_.Name -eq "pom.xml" -or
-                    ($_.FullName -like "*\src\main\java\*") -or
-                    ($_.FullName -like "*\src\main\resources\*" -and
-                            $_.FullName -notlike "*\src\main\resources\app-ui\*" -and
-                            $_.FullName -notlike "*\src\main\resources\swagger-ui\*" -and
-                            $_.FullName -notlike "*\src\main\resources\pdfjs\*")
+                    ($_.FullName -like "*\src\main\*")
         }
 
 # Build one big string with header and delimiters
