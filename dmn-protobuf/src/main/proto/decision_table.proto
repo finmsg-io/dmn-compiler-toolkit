@@ -9,6 +9,8 @@ option java_outer_classname = "DecisionTableProtos";
 import "core.proto";
 import "types.proto";
 import "feel.proto";
+import "feel_text.proto";
+import "feel_parsed.proto";
 
 //
 // ============================================================================
@@ -145,8 +147,8 @@ message DecisionRule {
 //
 // IMPORTANT:
 //
-// Initially this stores the textual DMN unary test expression.
-// The FEEL parser later replaces it with the parsed representation.
+// The XML frontend creates the text representation.
+// The FEEL parser replaces it with the parsed representation in a copied model.
 //
 // Examples:
 //
@@ -161,7 +163,10 @@ message DecisionRule {
 // -----------------------------------------------------------------------------
 //
 message UnaryTest {
-  Feel expression = 1;
+  oneof representation {
+    FeelText text = 1;
+    UnaryTestParsed parsed = 2;
+  }
 }
 
 //

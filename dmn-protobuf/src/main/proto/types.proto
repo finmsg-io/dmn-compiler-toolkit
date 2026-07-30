@@ -116,14 +116,6 @@ enum FunctionKind {
 }
 
 //
-// Type constraints
-//
-message TypeConstraint {
-  repeated string allowed_values = 1;
-  string expression = 2;
-}
-
-//
 // Compiler inferred type
 //
 message InferredType {
@@ -142,4 +134,3 @@ enum TypeCompatibility {
   TYPE_COMPATIBILITY_CONVERTIBLE = 3;
   TYPE_COMPATIBILITY_INCOMPATIBLE = 4;
 }
-

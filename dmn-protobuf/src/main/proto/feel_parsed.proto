@@ -89,6 +89,13 @@ message Expression {
     PathExpression path = 12;
     InvocationExpression invocation = 13;
     DecisionTableExpression decision_table = 14;
+    RangeExpression range = 15;
+    BetweenExpression between = 16;
+    InExpression in = 17;
+    InstanceOfExpression instance_of = 18;
+    DescendantExpression descendant = 19;
+    FunctionDefinitionExpression function_definition = 20;
+    UnaryTestsExpression unary_tests = 21;
   }
 
   TypeReference inferred_type = 100;
@@ -175,16 +182,46 @@ message ListExpression {
 }
 
 message ForExpression {
+  //
+  // Legacy single-binding representation.
+  //
+  // New AST builders must populate iterations instead.
+  //
   string variable = 1;
   Expression in = 2;
   Expression return_expression = 3;
+
+  repeated IterationContext iterations = 4;
 }
 
 message QuantifiedExpression {
   Quantifier quantifier = 1;
+  //
+  // Legacy single-binding representation.
+  //
+  // New AST builders must populate bindings instead.
+  //
   string variable = 2;
   Expression in = 3;
   Expression satisfies = 4;
+
+  repeated IterationBinding bindings = 5;
+}
+
+message IterationContext {
+  string variable = 1;
+  Expression start = 2;
+  //
+  // Present for the FEEL iteration form:
+  //
+  //   for x in 1..10 return x
+  //
+  Expression end = 3;
+}
+
+message IterationBinding {
+  string variable = 1;
+  Expression in = 2;
 }
 
 enum Quantifier {
@@ -206,6 +243,7 @@ message PathExpression {
 message InvocationExpression {
   Expression target = 1;
   repeated NamedArgument arguments = 2;
+  repeated Expression positional_arguments = 3;
 }
 
 message NamedArgument {
@@ -215,4 +253,148 @@ message NamedArgument {
 
 message DecisionTableExpression {
   string decision_table_id = 1;
+}
+
+//
+// ============================================================================
+// Additional FEEL expression nodes
+// ============================================================================
+
+message RangeExpression {
+  //
+  // Missing lower or upper messages represent an unbounded range.
+  //
+  Expression lower = 1;
+  Expression upper = 2;
+  RangeBoundary lower_boundary = 3;
+  RangeBoundary upper_boundary = 4;
+}
+
+enum RangeBoundary {
+  RANGE_BOUNDARY_UNSPECIFIED = 0;
+  RANGE_BOUNDARY_OPEN = 1;
+  RANGE_BOUNDARY_CLOSED = 2;
+}
+
+message BetweenExpression {
+  Expression value = 1;
+  Expression lower = 2;
+  Expression upper = 3;
+}
+
+message InExpression {
+  Expression value = 1;
+  UnaryTestsExpression tests = 2;
+}
+
+message InstanceOfExpression {
+  Expression expression = 1;
+  FeelType type = 2;
+}
+
+message DescendantExpression {
+  Expression source = 1;
+  string member = 2;
+}
+
+message FunctionDefinitionExpression {
+  repeated FormalParameter parameters = 1;
+  Expression body = 2;
+  bool external = 3;
+}
+
+message FormalParameter {
+  string name = 1;
+  FeelType type = 2;
+}
+
+//
+// ============================================================================
+// Parsed unary tests
+// ============================================================================
+
+message UnaryTestParsed {
+  UnaryTestsExpression tests = 1;
+}
+
+message UnaryTestsExpression {
+  //
+  // true for:
+  //
+  //   not(< 10, [20..30])
+  //
+  bool negated = 1;
+
+  //
+  // true for the wildcard unary test:
+  //
+  //   -
+  //
+  bool wildcard = 2;
+
+  repeated PositiveUnaryTest tests = 3;
+}
+
+message PositiveUnaryTest {
+  oneof type {
+    ComparisonUnaryTest comparison = 1;
+    RangeExpression range = 2;
+    Expression expression = 3;
+  }
+}
+
+message ComparisonUnaryTest {
+  UnaryTestOperator operator = 1;
+  Expression endpoint = 2;
+}
+
+enum UnaryTestOperator {
+  UNARY_TEST_OPERATOR_UNSPECIFIED = 0;
+  UNARY_TEST_OPERATOR_EQUAL = 1;
+  UNARY_TEST_OPERATOR_NOT_EQUAL = 2;
+  UNARY_TEST_OPERATOR_LESS = 3;
+  UNARY_TEST_OPERATOR_LESS_EQUAL = 4;
+  UNARY_TEST_OPERATOR_GREATER = 5;
+  UNARY_TEST_OPERATOR_GREATER_EQUAL = 6;
+}
+
+//
+// ============================================================================
+// Parsed FEEL types
+// ============================================================================
+//
+// This is the syntactic FEEL type representation used by "instance of" and
+// typed function parameters. TypeReference remains the semantic/resolved type.
+//
+
+message FeelType {
+  oneof type {
+    string qualified_name = 1;
+    RangeType range = 2;
+    ListType list = 3;
+    ContextType context = 4;
+    FunctionType function = 5;
+  }
+}
+
+message RangeType {
+  FeelType element_type = 1;
+}
+
+message ListType {
+  FeelType element_type = 1;
+}
+
+message ContextType {
+  repeated ContextTypeEntry entries = 1;
+}
+
+message ContextTypeEntry {
+  string name = 1;
+  FeelType type = 2;
+}
+
+message FunctionType {
+  repeated FeelType parameter_types = 1;
+  FeelType return_type = 2;
 }

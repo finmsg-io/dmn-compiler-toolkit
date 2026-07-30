@@ -22,7 +22,7 @@ public final class DecisionRuleReader {
                     case "inputEntry" ->
                             builder.addInputEntries(
                                     UnaryTest.newBuilder()
-                                            .setExpression(feelReader.read(cursor))
+                                            .setText(feelReader.readText(cursor))
                                             .build());
 
                     case "outputEntry" ->

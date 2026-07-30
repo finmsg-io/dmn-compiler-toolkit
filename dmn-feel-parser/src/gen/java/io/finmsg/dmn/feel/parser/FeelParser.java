@@ -2427,13 +2427,13 @@ public class FeelParser extends Parser {
 
 	@SuppressWarnings("CheckReturnValue")
 	public static class UnaryTestsContext extends ParserRuleContext {
-		public PositiveUnaryTestsContext positiveUnaryTests() {
-			return getRuleContext(PositiveUnaryTestsContext.class,0);
-		}
 		public NegatedUnaryTestsContext negatedUnaryTests() {
 			return getRuleContext(NegatedUnaryTestsContext.class,0);
 		}
 		public TerminalNode MINUS() { return getToken(FeelParser.MINUS, 0); }
+		public PositiveUnaryTestsContext positiveUnaryTests() {
+			return getRuleContext(PositiveUnaryTestsContext.class,0);
+		}
 		public UnaryTestsContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
 		}
@@ -2456,21 +2456,21 @@ public class FeelParser extends Parser {
 				enterOuterAlt(_localctx, 1);
 				{
 				setState(388);
-				positiveUnaryTests();
+				negatedUnaryTests();
 				}
 				break;
 			case 2:
 				enterOuterAlt(_localctx, 2);
 				{
 				setState(389);
-				negatedUnaryTests();
+				match(MINUS);
 				}
 				break;
 			case 3:
 				enterOuterAlt(_localctx, 3);
 				{
 				setState(390);
-				match(MINUS);
+				positiveUnaryTests();
 				}
 				break;
 			}
@@ -3891,8 +3891,8 @@ public class FeelParser extends Parser {
 		"\u017f\u0003\b\u0004\u0000\u017fG\u0001\u0000\u0000\u0000\u0180\u0183"+
 		"\u0003j5\u0000\u0181\u0183\u00053\u0000\u0000\u0182\u0180\u0001\u0000"+
 		"\u0000\u0000\u0182\u0181\u0001\u0000\u0000\u0000\u0183I\u0001\u0000\u0000"+
-		"\u0000\u0184\u0188\u0003N\'\u0000\u0185\u0188\u0003L&\u0000\u0186\u0188"+
-		"\u0005\u000f\u0000\u0000\u0187\u0184\u0001\u0000\u0000\u0000\u0187\u0185"+
+		"\u0000\u0184\u0188\u0003L&\u0000\u0185\u0188\u0005\u000f\u0000\u0000\u0186"+
+		"\u0188\u0003N\'\u0000\u0187\u0184\u0001\u0000\u0000\u0000\u0187\u0185"+
 		"\u0001\u0000\u0000\u0000\u0187\u0186\u0001\u0000\u0000\u0000\u0188K\u0001"+
 		"\u0000\u0000\u0000\u0189\u018a\u0005*\u0000\u0000\u018a\u018b\u0005\u0015"+
 		"\u0000\u0000\u018b\u018c\u0003N\'\u0000\u018c\u018d\u0005\u0016\u0000"+

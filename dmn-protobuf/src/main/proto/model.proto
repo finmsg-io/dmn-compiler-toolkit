@@ -10,6 +10,8 @@ import "types.proto";
 import "common.proto";
 import "core.proto";
 import "drg.proto";
+import "feel_text.proto";
+import "feel_parsed.proto";
 
 //
 // ============================================================================
@@ -65,4 +67,17 @@ message ItemComponent {
   TypeReference type = 2;
   bool is_collection = 3;
   TypeConstraint constraint = 4;
+}
+
+//
+// Item-definition constraint.
+//
+// The XML frontend creates the textual unary-test representation.
+// The FEEL parser replaces it with the parsed representation in a copied model.
+//
+message TypeConstraint {
+  oneof representation {
+    FeelText text = 1;
+    UnaryTestParsed parsed = 2;
+  }
 }

@@ -1,5 +1,7 @@
 package io.finmsg.dmn.feel.parser;
 
+import io.finmsg.dmn.model.FeelParsed;
+import io.finmsg.dmn.model.UnaryTestParsed;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -34,6 +36,22 @@ public final class FeelParserFacade {
             throw new FeelParseException(source, result.diagnostics());
         }
         return result.tree();
+    }
+
+    public FeelParser.UnaryTestsRootContext requireUnaryTests(String source) {
+        FeelParseResult<FeelParser.UnaryTestsRootContext> result = parseUnaryTests(source);
+        if (!result.isValid()) {
+            throw new FeelParseException(source, result.diagnostics());
+        }
+        return result.tree();
+    }
+
+    public FeelParsed parseExpressionAst(String source) {
+        return new FeelAstBuilder().build(requireExpression(source));
+    }
+
+    public UnaryTestParsed parseUnaryTestsAst(String source) {
+        return new FeelAstBuilder().build(requireUnaryTests(source));
     }
 
     private static <T extends ParserRuleContext> FeelParseResult<T> parse(

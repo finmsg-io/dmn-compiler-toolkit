@@ -1,6 +1,7 @@
 package io.finmsg.dmn.frontend.xml.dmn.reader;
 
 import io.finmsg.dmn.frontend.xml.XmlCursor;
+import io.finmsg.dmn.model.FeelText;
 import io.finmsg.dmn.model.TypeConstraint;
 
 public final class TypeConstraintReader {
@@ -11,7 +12,10 @@ public final class TypeConstraintReader {
 
     if (cursor.firstChild("text")) {
       if (cursor.hasText()) {
-        builder.setExpression(cursor.text().trim());
+        builder.setText(
+            FeelText.newBuilder()
+                .setText(cursor.text().trim())
+                .build());
       }
 
       cursor.parent();

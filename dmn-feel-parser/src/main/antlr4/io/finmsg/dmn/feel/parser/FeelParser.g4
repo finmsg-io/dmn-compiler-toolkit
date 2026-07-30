@@ -181,9 +181,9 @@ key
     ;
 
 unaryTests
-    : positiveUnaryTests
-    | negatedUnaryTests
+    : negatedUnaryTests
     | MINUS
+    | positiveUnaryTests
     ;
 
 negatedUnaryTests

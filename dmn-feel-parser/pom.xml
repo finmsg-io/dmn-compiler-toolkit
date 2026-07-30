@@ -27,6 +27,12 @@
 
     <dependencies>
         <dependency>
+            <groupId>io.finmsg.dmn</groupId>
+            <artifactId>dmn-protobuf</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr4-runtime</artifactId>
             <version>${antlr4.version}</version>
