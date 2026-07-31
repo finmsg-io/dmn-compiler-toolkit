@@ -1,104 +1,62 @@
-# Chapter 15 --- Testing Strategy \[PROVISIONAL\]
+# Chapter 15 — Testing Strategy [IMPLEMENTED BASELINE]
 
-## 15.1 Current Baseline
+## 15.1 Current test layers
 
-The active frontend module declares JUnit Jupiter and AssertJ test
-dependencies and contains the Traffic Violation DMN as a representative
-resource. The current validation has primarily been performed by reading
-the model and inspecting protobuf text output.
-
-This is sufficient for bootstrap development but not for regression
-protection.
-
-## 15.2 Immediate Test Scope
-
-The next test suite should assert the current implementation exactly.
-
-### Definitions
-
--   root id and name
--   namespace
--   expression language
--   type language
-
-### Item definitions
-
--   three item definitions
--   five `tDriver` components
--   five `tViolation` components
--   two `tFine` components
--   built-in type normalization
--   allowed-values constraint preservation
-
-### DRG
-
--   two input-data elements
--   two decisions
--   typed variables
--   information-requirement hrefs
-
-### Decision table
-
--   UNIQUE hit policy
--   Rule-as-Row orientation
--   two typed inputs
--   two typed outputs
--   four ordered rules
--   unary-test and output source preservation
-
-### Context
-
--   two context entries
--   local `TotalPoints` variable
--   both FEEL source expressions
-
-## 15.3 Test Layers
-
-``` text
-1. XmlCursor unit tests
-2. individual reader tests
-3. complete DmnXmlReader integration tests
-4. protobuf serialization determinism tests
-5. negative XML and exception tests
-6. later FEEL parser tests
-7. later semantic analysis and Runtime IR equivalence tests
+```text
+1. FEEL grammar conformance tests
+2. FeelParserFacade tests
+3. FeelAstBuilder structure tests
+4. DmnFeelParser traversal and idempotency tests
+5. model-aware multi-error diagnostic tests
+6. XML writer tests
+7. Traffic Violation XML-to-FEEL integration test
+8. semantic-analysis unit tests
+9. Traffic Violation full frontend-to-semantic-analysis test
 ```
 
-## 15.4 Golden Output
+## 15.2 Traffic Violation pipeline
 
-A normalized protobuf text or binary fixture may be used as a golden
-result, but focused semantic assertions remain preferable because
-additive protobuf fields should not unnecessarily break every test.
+The representative integration path is:
 
-## 15.5 Determinism
+```text
+TrafficViolation.dmn
+  → DmnXmlReader
+  → semantic Definitions with text
+  → DmnFeelParser
+  → parsed Definitions
+  → DmnSemanticAnalyzer
+  → successful semantic result
+```
 
-Reading identical bytes must produce byte-identical deterministic
-protobuf serialization when the same serialization mode is used. Rule
-indexes, repeated-field order, and DRG-element order must remain stable.
+Assertions cover input-model immutability, decision-table expressions, unary tests, type constraints, boxed context expressions, AST structure, name resolution, property resolution, and parser idempotency.
 
-## 15.6 Unsupported Content Tests
+## 15.3 Diagnostic tests
 
-Tests should document intentionally unsupported content. Silent ignoring
-is acceptable only while explicitly covered by a test and roadmap item.
-Once diagnostics are implemented, unsupported semantic content should
-produce structured diagnostics.
+FEEL diagnostic tests verify:
 
-## 15.7 Security Tests
+- collection of multiple independent syntax errors
+- precise semantic-model paths
+- preservation of invalid text branches
+- continued parsing of valid branches
+- strict API exception behavior
 
-Before production use, add tests for:
+Semantic-analysis tests verify:
 
--   external entities
--   entity expansion
--   malformed namespace declarations
--   excessive nesting
--   oversized attributes and text
--   invalid numeric and boolean attributes
--   malformed UTF-8
+- unknown names
+- names unavailable through requirements
+- duplicate global declarations
+- invalid structured properties
+- successful Traffic Violation resolution
 
-## 15.8 Future Cross-Engine Tests
+## 15.4 Next test priorities
 
-After execution exists, compare results with an established DMN
-implementation for compliance models. Performance measurements must be
-separated from semantic correctness tests.
+- XML reader unit and negative tests
+- complete XML writer round-trip tests
+- source-location assertions
+- import and namespace tests
+- semantic type-inference tests
+- dependency-cycle tests
+- broader DMN and FEEL conformance fixtures
+- security tests for hostile XML
+- deterministic protobuf serialization tests
 
-------------------------------------------------------------------------

@@ -1,90 +1,49 @@
 # Architecture
 
-## Architectural direction
+## Implemented architecture
 
-The toolkit is designed as a compiler rather than as an XML-centric interpreter.
+The toolkit is a staged compiler rather than an XML-centric interpreter.
 
-The central design decision is that the runtime should not depend on DMN XML structures. XML is an input format handled by the frontend. The compiler operates on a semantic model.
+```text
+DMN XML
+  → XML Frontend
+  → immutable protobuf Semantic Model with FEEL text
+  → FEEL Parser pass
+  → copied protobuf model with FEEL AST
+  → Semantic Analysis
+  → validated model and diagnostics
+```
 
-## Main stages
+The first four Maven modules implement this pipeline through initial name resolution.
+
+## Stage boundaries
 
 ### XML frontend
 
-Reads DMN XML and creates the semantic model.
-
-Responsibilities:
-
-- Namespace handling
-- DMN element reading
-- Source-location capture
-- Structural mapping
-- Preservation of FEEL source text for later parsing
+Maps supported DMN XML structures to protobuf messages. It preserves FEEL text and performs no FEEL parsing or semantic resolution.
 
 ### Semantic model
 
-Represents DMN concepts independently from XML.
-
-The model is defined with Protobuf and generated as Java classes.
-
-Benefits:
-
-- Stable contracts between compiler stages
-- Efficient serialization
-- Explicit schema evolution
-- Generated accessors
-- Language-independent representation
+Uses generated protobuf messages as the canonical representation. Replaceable nodes use text/parsed `oneof` branches.
 
 ### FEEL parser
 
-Parses FEEL source text into a compiler-friendly representation.
-
-ANTLR4 is used for lexer and parser generation.
+Uses ANTLR4 and `FeelAstBuilder` to create protobuf AST nodes. `DmnFeelParser` traverses the model depth-first with generated getters, keeps the input immutable, and provides model-path diagnostics.
 
 ### Semantic analysis
 
-Planned responsibilities:
+The implemented first pass creates requirement-aware scopes and validates FEEL names and structured properties. Type inference and the remaining DMN validation passes follow next.
 
-- Symbol resolution
-- Type resolution
-- Function resolution
-- Dependency validation
-- Expression validation
-- Decision-table validation
+### Future stages
 
-### Optimizer
+Optimizer, Runtime IR, code generators, and runtime execution are not implemented.
 
-Planned optimization passes include:
+## Core rules
 
-- Constant folding
-- Dead-expression elimination
-- Reuse of resolved references
-- Decision-table specialization
-- Precomputed dependency ordering
+1. XML-specific code remains in `dmn-frontend-xml`.
+2. Compiler passes consume generated protobuf contracts.
+3. Every pass treats its input as immutable.
+4. Traversal uses generated getters instead of protobuf reflection.
+5. Diagnostics identify the semantic-model path and source location where available.
+6. Runtime modules must not depend on XML or ANTLR.
 
-### Runtime IR
-
-The runtime intermediate representation will contain only the information required for efficient execution.
-
-It should be:
-
-- Independent from XML
-- Independent from frontend implementation details
-- Suitable for multiple code generators
-- Compact and execution-oriented
-
-### Code generators
-
-The first backend is expected to generate optimized Java code.
-
-Future backends may target other execution environments.
-
-## Design principles
-
-1. Semantic model over XML model
-2. Compile before execute
-3. Explicit compiler passes
-4. Runtime independence
-5. Performance-first implementation
-6. Extensible backends
-7. Generated, strongly typed model access
-8. Small modules with focused responsibilities

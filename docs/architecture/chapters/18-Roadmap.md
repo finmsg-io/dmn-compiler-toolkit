@@ -1,128 +1,79 @@
-# Chapter 18 --- Roadmap \[IMPLEMENTATION-ALIGNED\]
+# Chapter 18 — Roadmap [IMPLEMENTATION-ALIGNED]
 
-## 18.1 Current State --- July 2026
+## 18.1 Current state — August 2026
 
-Completed foundation:
-
-``` text
-[done] Maven parent and module baseline
-[done] dmn-protobuf module
-[done] protobuf semantic schemas
-[done] FEEL source schema
-[done] provisional FEEL AST schema
-[done] dmn-frontend-xml module
-[done] VTD-XML cursor abstraction and implementation
-[done] DMN version detection
-[done] root Definitions reader
-[done] item definitions and item components
-[done] type references and constraints
-[done] primary DRG readers
-[done] decision logic dispatch
-[done] decision tables and rules
-[done] hit policy, aggregation, and orientation extraction
-[done] boxed context source extraction
-[done] Traffic Violation end-to-end XML-to-protobuf read
+```text
+[done] dmn-protobuf
+[done] FEEL text/parsed schema separation
+[done] replaceable protobuf node pattern
+[done] dmn-frontend-xml reader
+[done] initial DmnWriter and individual writers
+[done] dmn-feel-parser and ANTLR generation
+[done] FeelAstBuilder
+[done] depth-first DmnFeelParser
+[done] UnaryTest and TypeConstraint parsing
+[done] model-aware multi-error FEEL diagnostics
+[done] Traffic Violation FEEL integration test
+[done] dmn-semantic-analysis module
+[done] first name and structured-property resolution pass
+[done] Traffic Violation semantic-analysis test
 ```
 
-## 18.2 Milestone 1 --- XML Frontend Completeness
+## 18.2 Next milestone — semantic type analysis
 
-Next work within the current modules:
-
-``` text
-[ ] automated Traffic Violation assertions
-[ ] namespace declaration extraction
-[ ] documentation extraction
-[ ] extension-element preservation
-[ ] source-location population
-[ ] decision question and allowed answers
-[ ] requirement identity where required
-[ ] expression identity where required
-[ ] recursive item components decision
-[ ] complete import handling
-[ ] explicit unsupported-element diagnostics
+```text
+[ ] expose or persist resolved symbol bindings
+[ ] resolve named types comprehensively
+[ ] infer types for FEEL expressions
+[ ] validate unary and binary operators
+[ ] resolve and validate function calls
+[ ] validate decision-table input/output types
+[ ] add model-aware type diagnostics
 ```
 
-The frontend should be considered functionally useful before it is fully
-round-trip complete.
+## 18.3 Dependency analysis
 
-## 18.3 Milestone 2 --- FEEL Parser
-
-``` text
-[ ] create dmn-feel-parser
-[ ] integrate ANTLR grammar
-[ ] parse literal expressions
-[ ] parse unary tests
-[ ] build protobuf FEEL AST
-[ ] implement generic depth-first model enrichment
-[ ] attach syntax diagnostics
-[ ] parse every FEEL source in Traffic Violation
+```text
+[ ] build DRG dependency graph
+[ ] validate href targets
+[ ] detect unavailable dependencies
+[ ] detect cycles
+[ ] establish deterministic evaluation order
 ```
 
-## 18.4 Milestone 3 --- Semantic Analysis
+## 18.4 XML completeness
 
-``` text
-[ ] named type registry
-[ ] element ID registry
-[ ] href resolution
-[ ] DRG dependency graph
-[ ] cycle detection
-[ ] FEEL name resolution
-[ ] type inference and checking
-[ ] decision-table structural validation
-[ ] validated compiler model
+```text
+[ ] complete invocation and decision-service coverage
+[ ] populate source locations
+[ ] preserve documentation and extension elements
+[ ] complete imports
+[ ] complete writer coverage
+[ ] add lossless round-trip tests
+[ ] add XML security tests
 ```
 
-## 18.5 Milestone 4 --- Runtime IR
+## 18.5 Runtime and generation
 
-``` text
-[ ] finalize Runtime IR architecture
-[ ] assign integer IDs
+```text
+[ ] define Runtime IR
 [ ] lower typed FEEL AST
 [ ] lower decision tables
-[ ] create execution graph
-[ ] define deterministic serialization
+[ ] implement Java generator
+[ ] activate generated models without application recompilation
+[ ] add public compiler API
 ```
 
-## 18.6 Milestone 5 --- Java Generation
+## 18.6 Optimization and performance
 
-``` text
-[ ] code-generator API
-[ ] Java expression emitter
-[ ] decision-table emitter
-[ ] generated input/output bindings
-[ ] Java compilation integration
-[ ] runtime activation without DMN recompilation
-```
-
-## 18.7 Milestone 6 --- Optimization and Additional Backends
-
-Only after the Java correctness baseline:
-
-``` text
+```text
 [ ] constant folding
-[ ] dead decision elimination
+[ ] expression simplification
 [ ] dependency pruning
 [ ] decision-table specialization
-[ ] Spark SQL backend
-[ ] ByteBuddy or direct bytecode ADR
-[ ] Rust, Go, WebAssembly evaluation
+[ ] JMH benchmarks
+[ ] cross-engine correctness and performance comparisons
 ```
 
-## 18.8 Milestone 7 --- Tooling
+Correctness, explicit diagnostics, and deterministic tests remain prerequisites for Runtime IR and code generation.
 
-``` text
-[ ] compiler public API
-[ ] CLI
-[ ] Maven plugin
-[ ] diagnostics output
-[ ] model and IR inspection tools
-[ ] benchmarking suite
-```
-
-## 18.9 Roadmap Rule
-
-Correct semantic extraction and deterministic tests take priority over
-adding modules. New stages should consume the real protobuf contracts
-rather than examples from the original architecture draft.
-
-------------------------------------------------------------------------

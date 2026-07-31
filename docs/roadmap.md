@@ -1,60 +1,47 @@
 # Roadmap
 
-## Phase 1 — Semantic model
+## Completed foundation
 
-- Complete Protobuf model coverage
-- Stabilize type references
-- Complete invocation model
-- Complete item-definition constraints
-- Add source-location coverage
+- [x] Protobuf semantic model
+- [x] FEEL text and parsed schemas without reverse dependency
+- [x] Replaceable FEEL, expression, boxed-expression, unary-test, and type-constraint nodes
+- [x] VTD-XML DMN reader
+- [x] Initial DMN XML writer infrastructure and writer tests
+- [x] ANTLR4 FEEL grammar and generated parser
+- [x] Protobuf FEEL AST builder
+- [x] Depth-first `DmnFeelParser` pass
+- [x] Model-aware, multi-error FEEL diagnostics
+- [x] Traffic Violation XML-to-FEEL integration test
+- [x] `dmn-semantic-analysis` module
+- [x] First FEEL name/property-resolution pass
+- [x] Traffic Violation semantic-analysis test
 
-## Phase 2 — XML frontend
+## Next: semantic analysis
 
-- Complete all required DMN readers
-- Add namespace-version tests
-- Add invalid-document tests
-- Add representative DMN 1.5 model fixtures
+- [ ] Persist or expose resolved symbol bindings
+- [ ] Resolve named type references comprehensively
+- [ ] Infer expression types
+- [ ] Validate operators and function calls
+- [ ] Validate decision tables
+- [ ] Build the DRG dependency graph
+- [ ] Detect dependency cycles
+- [ ] Validate imports and cross-model references
 
-## Phase 3 — FEEL frontend
+## XML frontend completion
 
-- Complete grammar coverage
-- Build FEEL AST mapping
-- Improve syntax diagnostics
-- Add parser conformance tests
+- [ ] Complete invocation coverage
+- [ ] Complete writer coverage and round-trip tests
+- [ ] Populate source locations
+- [ ] Preserve documentation and extension elements
+- [ ] Complete imports and decision services
+- [ ] Add malformed and hostile XML tests
 
-## Phase 4 — Semantic analysis
+## Later stages
 
-- Resolve symbols and dependencies
-- Resolve types
-- Validate function calls
-- Validate decision tables
-- Detect dependency cycles
+- [ ] Runtime IR
+- [ ] Constant folding and expression simplification
+- [ ] Java code generation
+- [ ] Runtime activation
+- [ ] Public compiler API and CLI
+- [ ] JMH performance benchmarks
 
-## Phase 5 — Runtime IR
-
-- Define execution-oriented IR
-- Remove frontend-only metadata
-- Precompute dependency order
-- Represent optimized expressions
-
-## Phase 6 — Optimization
-
-- Constant folding
-- Expression simplification
-- Dead-code elimination
-- Decision-table specialization
-- Common subexpression reuse
-
-## Phase 7 — Java code generation
-
-- Generate Java evaluators
-- Support isolated class loading
-- Add runtime activation without application recompilation
-- Add generated-code diagnostics
-
-## Phase 8 — Performance
-
-- Add JMH benchmarks
-- Compare with established DMN engines
-- Measure startup, compilation, throughput, latency, and memory
-- Add regression thresholds to CI

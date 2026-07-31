@@ -15,6 +15,13 @@ correctness.
 The objective is to maximize maintainability, extensibility,
 testability, and performance.
 
+Current implementation status:
+
+- XML frontend and canonical semantic model are implemented.
+- FEEL parsing and protobuf AST construction are implemented.
+- The semantic analyzer currently implements name and structured-property resolution.
+- The model validator, dependency graph builder, optimizer, Runtime IR, generators, and runtime remain target components.
+
 ------------------------------------------------------------------------
 
 # 4.2 Component Overview
@@ -229,7 +236,7 @@ Used for
 
 # 4.9 Compiler Pass Framework
 
-All optimizations are implemented as compiler passes.
+All optimizations will be implemented as compiler passes.
 
 Every pass
 

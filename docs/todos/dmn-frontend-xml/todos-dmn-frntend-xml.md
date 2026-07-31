@@ -1,119 +1,58 @@
-Known gaps in `dmn-frontend-xml`:
+# Known gaps in `dmn-frontend-xml`
 
-1. **Invocation parsing**
+The frontend now reads the Traffic Violation model, produces text-based FEEL nodes for the parser stage, and contains an initial `DmnWriter` with individual writer classes.
 
-    * `InvocationReader` is still incomplete.
-    * Binding names and binding expressions need full support.
+## Highest priority
 
-2. **ItemDefinition completeness**
+1. Complete writer coverage and add semantic read/write/read round-trip tests.
+2. Populate `SourceLocation` from the XML cursor.
+3. Complete invocation and binding coverage.
+4. Complete import and cross-namespace handling.
+5. Add negative and security-focused XML tests.
 
-    * Nested `itemComponent` structures are not fully implemented.
-    * `allowedValues` / type constraints are incomplete.
-    * More complete handling of `typeRef`, collection types, and nested components is needed.
+## Reader completeness
 
-3. **Boxed expressions**
+- Verify all invocation callable and binding forms.
+- Verify decision services, BKMs, knowledge sources, and authority requirements with dedicated fixtures.
+- Complete import type, location URI, namespace resolution, and imported-model linking.
+- Decide whether recursive item components require a protobuf schema extension.
+- Complete `defaultOutputEntry`, annotations, and remaining clause attributes.
+- Represent or deliberately document decision questions, allowed answers, and expression/requirement IDs.
+- Preserve documentation, mixed content, extension elements, and vendor namespaces.
 
-    * Context, relation, list, and function-definition structures exist, but need broader DMN coverage and validation.
-    * Some boxed-expression variants may still be represented only partially.
+## Writer completeness
 
-4. **Decision table completeness**
+The writer infrastructure is no longer missing, but coverage is partial.
 
-    * `defaultOutputEntry` needs complete support.
-    * Input/output clause attributes may not all be mapped.
-    * Annotation handling is minimal.
-    * Hit-policy aggregation combinations need validation.
+- Cover all supported readers with corresponding writers.
+- Preserve namespaces and DMN version correctly.
+- Cover decision tables, boxed expressions, invocations, BKMs, services, imports, and extensions.
+- Add XML escaping and whitespace tests.
+- Add read → write → read semantic-equivalence tests.
+- Define expected behavior when the model contains parsed FEEL rather than text.
 
-5. **FEEL handling**
+## Diagnostics and validation
 
-    * The frontend only creates the `text` branch.
-    * FEEL parsing and population of the `parsed` branch belong to the later parser/compiler stage.
-    * Unary tests and expressions are not validated by the XML frontend.
+- Populate line, column, offset, length, and system ID where available.
+- Introduce a consistent policy for unsupported XML.
+- Validate required children and attributes comprehensively.
+- Detect duplicate IDs and malformed references or delegate them explicitly to semantic analysis.
+- Keep frontend errors separate from FEEL and semantic diagnostics.
 
-6. **Imports**
+## Testing and hardening
 
-    * DMN `<import>` parsing is basic.
-    * Import type, location URI, namespace resolution, and imported-model linking are not complete.
+- Add focused tests for every reader and writer.
+- Add namespace-prefix and multiple-version fixtures.
+- Add malformed UTF-8, attributes, nesting, and numeric/boolean tests.
+- Verify DTD and external-entity behavior.
+- Add resource limits for oversized and deeply nested XML.
+- Add large-model allocation and throughput benchmarks.
 
-7. **Decision requirements**
+## Architectural constraints
 
-    * Information, knowledge, and authority requirements are read, but reference resolution is not performed.
-    * `href` targets are not yet linked to actual model elements.
+- The frontend creates text representations only.
+- FEEL parsing belongs to `dmn-feel-parser`.
+- Reference and type resolution belong to `dmn-semantic-analysis`.
+- Shared readers and writers must remain stateless and thread-safe.
+- XML implementation types must not escape into later compiler stages.
 
-8. **Decision services**
-
-    * Full parsing of output decisions, encapsulated decisions, and input data/decisions needs verification or completion.
-
-9. **Business knowledge models**
-
-    * Encapsulated logic and parameter handling need broader test coverage.
-    * Function definitions are not yet semantically validated.
-
-10. **Knowledge sources**
-
-    * Authority and ownership references may not be fully mapped or resolved.
-
-11. **Extension elements**
-
-    * `extensionElements` are not fully preserved.
-    * Vendor-specific XML content is likely ignored or only partially captured.
-
-12. **Documentation and mixed content**
-
-    * XML documentation content may lose formatting or nested markup.
-    * Whitespace handling needs explicit tests.
-
-13. **Namespace handling**
-
-    * Multiple DMN versions need broader verification.
-    * Namespace-prefix variations should be tested.
-    * Foreign namespaces need predictable handling.
-
-14. **Source locations**
-
-    * Line and column information is not fully populated.
-    * Precise diagnostics therefore remain limited.
-
-15. **Validation**
-
-    * Required attributes and child elements are not comprehensively validated.
-    * Duplicate IDs, invalid references, and structural errors are not detected consistently.
-
-16. **Unsupported elements**
-
-    * Unsupported DMN elements currently need a consistent policy:
-
-        * fail immediately;
-        * preserve them;
-        * or emit diagnostics and continue.
-
-17. **Testing**
-
-    * More unit tests are needed for every reader.
-    * Missing negative tests for malformed XML.
-    * Missing round-trip or reference-model comparison tests.
-    * More DMN conformance examples should be added.
-
-18. **Reader registry**
-
-    * Shared readers must remain stateless.
-    * This constraint is currently architectural rather than enforced.
-    * Mutable fields added later could introduce thread-safety problems.
-
-19. **Performance tests**
-
-    * No benchmarks yet for large DMN files.
-    * No memory-allocation or deep-recursion tests.
-
-20. **XML security**
-
-    * External entities, DTD handling, and hostile XML inputs need explicit verification and tests.
-
-The highest-priority next gaps are:
-
-```text
-1. InvocationReader
-2. ItemDefinition components and allowedValues
-3. Decision-table defaultOutputEntry
-4. reference resolution
-5. reader tests
-```

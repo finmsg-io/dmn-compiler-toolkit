@@ -1,203 +1,112 @@
-# Chapter 5 --- Maven Modules \[IMPLEMENTED / TARGET\]
+# Chapter 5 — Maven Modules [IMPLEMENTED / TARGET]
 
-## 5.1 Purpose
+## 5.1 Current project structure
 
-The Maven structure is introduced incrementally. Modules are added only
-when an architectural stage has a concrete implementation and a stable
-dependency boundary.
-
-The implementation currently contains two active child modules. The
-larger module graph remains the target architecture.
-
-## 5.2 Current Project Structure
-
-``` text
+```text
 dmn-compiler-toolkit
-│
 ├── pom.xml
-│
 ├── dmn-protobuf
-│   ├── common.proto
-│   ├── core.proto
-│   ├── types.proto
-│   ├── feel_source.proto
-│   ├── feel_ast.proto
-│   ├── decision_table.proto
-│   ├── drg.proto
-│   └── model.proto
-│
-└── dmn-frontend-xml
-    ├── XmlCursor
-    ├── VtdXmlCursor
-    ├── DmnXmlReader
-    ├── DmnVersionDetector
-    └── DMN element readers
+├── dmn-frontend-xml
+├── dmn-feel-parser
+└── dmn-semantic-analysis
 ```
 
-Both modules use:
+All modules use:
 
-``` text
-groupId:    io.finmsg.dmn
-version:    1.0.0-SNAPSHOT
-Java:       generated protobuf Java classes and JDK 25 compilation
+```text
+groupId: io.finmsg.dmn
+version: 1.0.0-SNAPSHOT
+Java:    25
 ```
 
-## 5.3 Module: dmn-protobuf \[IMPLEMENTED\]
+## 5.2 `dmn-protobuf`
 
-### Responsibility
+Defines generated contracts in `io.finmsg.dmn.model`.
 
-Defines the current canonical Semantic Model, FEEL source
-representation, provisional FEEL AST schema, common metadata, and DMN
-type system.
-
-The generated Java classes use:
-
-``` text
-io.finmsg.dmn.model
-```
-
-The module currently contains no compiler logic.
-
-### Implemented schema dependency order
-
-``` text
+```text
 common.proto
-    |
-    v
 core.proto
-    |
-    +------------------+
-    |                  |
-    v                  v
-types.proto       feel_source.proto
-    |                  |
-    +--------+---------+
-             |
-             v
+types.proto
+feel_text.proto
+feel_parsed.proto
+feel.proto
 decision_table.proto
-             |
-             v
 drg.proto
-             |
-             v
 model.proto
-
-feel_ast.proto is currently an independent provisional compiler schema.
 ```
 
-### Implemented model areas
+The text schema does not depend on the parsed schema. `feel.proto` composes both through replaceable wrapper messages.
 
--   common node metadata
--   definitions, imports, namespaces
--   item definitions and item components
--   built-in, named, list, and function type references
--   type constraints
--   DRG elements
--   decisions and input data
--   business knowledge models
--   knowledge sources
--   decision services
--   decision tables, clauses, rules, hit policies, aggregations, and
-    orientation
--   FEEL source text
--   boxed-expression source structures
--   invocation source structures
--   provisional FEEL AST structures
+## 5.3 `dmn-frontend-xml`
 
-## 5.4 Module: dmn-frontend-xml \[IMPLEMENTED\]
+Production dependencies:
 
-### Responsibility
-
-Reads DMN XML with VTD-XML and constructs the protobuf Semantic Model.
-
-Dependencies:
-
-``` text
-dmn-frontend-xml
-    |
-    +-- dmn-protobuf
-    +-- vtd-xml 2.13.4
-    +-- slf4j-api
+```text
+dmn-protobuf
+vtd-xml
+slf4j-api
 ```
 
-The active package root is:
+Responsibilities:
 
-``` text
-io.finmsg.dmn.frontend.xml
+- DMN version detection
+- XML cursor abstraction
+- element-specific readers
+- semantic protobuf construction
+- partial DMN XML writing
+
+## 5.4 `dmn-feel-parser`
+
+Production dependencies:
+
+```text
+dmn-protobuf
+antlr4-runtime
 ```
 
-The module name is intentionally `dmn-frontend-xml`; references to a
-module named `dmn-xml` elsewhere in older plans should be interpreted as
-the same architectural frontend stage.
+Responsibilities:
 
-## 5.5 Current Dependency Direction
+- FEEL grammar
+- parse-tree creation
+- protobuf AST construction
+- depth-first semantic-model parsing pass
+- strict and diagnostic parsing APIs
 
-``` text
-dmn-frontend-xml
-        |
-        v
+`dmn-frontend-xml` is test-scoped for the Traffic Violation integration test.
+
+## 5.5 `dmn-semantic-analysis`
+
+Production dependency:
+
+```text
 dmn-protobuf
 ```
 
-`dmn-protobuf` has no dependency on XML or VTD-XML.
+Responsibilities currently implemented:
 
-This satisfies the current stage boundary:
+- declaration collection
+- requirement-aware scopes
+- FEEL name and property resolution
+- semantic diagnostics
 
-``` text
-XML frontend -> Semantic Model
-```
+`dmn-feel-parser` and `dmn-frontend-xml` are test-scoped dependencies only.
 
-## 5.6 Target Modules
+## 5.6 Target modules
 
-The following modules remain planned and must not be described as
-implemented:
-
-``` text
-dmn-feel-parser
-dmn-semantic
-dmn-graph
-dmn-optimizer
+```text
 dmn-runtime-ir
-dmn-runtime
-dmn-codegen-api
+dmn-optimizer
 dmn-codegen-java
-dmn-codegen-rust
-dmn-codegen-go
-dmn-codegen-spark
+dmn-runtime
 dmn-compiler-api
-dmn-compiler-cli
-dmn-maven-plugin
+dmn-benchmarks
 ```
 
-A separate `dmn-model` module is not currently required because the
-generated classes from `dmn-protobuf` are the canonical Semantic Model,
-as established by ADR-0002. Such a module should only be introduced by a
-new ADR if generated protobuf classes cease to be the canonical
-representation.
+## 5.7 Module rules
 
-## 5.7 Incremental Module Roadmap
+1. One architectural responsibility per module.
+2. Production dependencies point toward lower-level contracts.
+3. Protobuf schemas contain no compiler logic.
+4. XML and ANTLR types never cross into later compiler or runtime APIs.
+5. Cross-module integration dependencies may remain test-scoped.
 
-Recommended next module sequence:
-
-``` text
-1. dmn-protobuf                 implemented
-2. dmn-frontend-xml             implemented
-3. dmn-feel-parser              next compiler stage
-4. dmn-semantic                 reference and type analysis
-5. dmn-runtime-ir               executable lowering contract
-6. dmn-codegen-java             first production backend
-7. dmn-runtime / compiler API   execution and integration
-8. optimizer and other backends after correctness baseline
-```
-
-## 5.8 Module Design Rules
-
-1.  One architectural responsibility per module.
-2.  Dependencies flow toward lower-level contracts.
-3.  Protobuf schemas contain no compiler logic.
-4.  XML classes never enter runtime artifacts.
-5.  New modules are introduced only when their boundary is testable.
-6.  The current two-module implementation remains valid while later
-    phases are developed.
-
-------------------------------------------------------------------------
