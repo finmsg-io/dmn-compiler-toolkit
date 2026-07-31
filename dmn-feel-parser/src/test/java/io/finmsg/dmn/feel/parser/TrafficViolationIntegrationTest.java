@@ -18,8 +18,7 @@ class TrafficViolationIntegrationTest {
   private final DmnFeelParser feelParser = new DmnFeelParser();
 
   @Test
-  void
-  parsesAllFeelExpressionsInTrafficViolationModel() {
+  void parsesAllFeelExpressionsInTrafficViolationModel() {
     Definitions semanticModel = readTrafficViolation();
 
     Decision semanticFine = decision(semanticModel, "Fine");
