@@ -62,9 +62,7 @@ public final class FeelAstBuilder {
 
   private Expression textualExpression(FeelParser.TextualExpressionContext context) {
     if (context.negatedUnaryTests() != null) {
-      return Expression.newBuilder()
-          .setUnaryTests(negatedUnaryTests(context.negatedUnaryTests()))
-          .build();
+      return negatedUnaryTestsExpression(context.negatedUnaryTests());
     }
     if (context.forExpression() != null) {
       return forExpression(context.forExpression());
@@ -333,9 +331,7 @@ public final class FeelAstBuilder {
       return functionDefinition(context.functionDefinition());
     }
     if (context.negatedUnaryTests() != null) {
-      return Expression.newBuilder()
-          .setUnaryTests(negatedUnaryTests(context.negatedUnaryTests()))
-          .build();
+      return negatedUnaryTestsExpression(context.negatedUnaryTests());
     }
     if (context.expression() != null) {
       return expression(context.expression());
@@ -455,6 +451,25 @@ public final class FeelAstBuilder {
         .setNegated(true)
         .addAllTests(positiveUnaryTests(context.positiveUnaryTests()))
         .build();
+  }
+
+  private Expression negatedUnaryTestsExpression(
+      FeelParser.NegatedUnaryTestsContext context) {
+    List<FeelParser.PositiveUnaryTestContext> tests =
+        context.positiveUnaryTests().positiveUnaryTest();
+    boolean functionInvocation = tests.stream().allMatch(test -> test.expression() != null);
+
+    if (functionInvocation) {
+      InvocationExpression.Builder invocation = InvocationExpression.newBuilder()
+          .setTarget(Expression.newBuilder()
+              .setName(NameExpression.newBuilder().setName("not")));
+      for (FeelParser.PositiveUnaryTestContext test : tests) {
+        invocation.addPositionalArguments(expression(test.expression()));
+      }
+      return Expression.newBuilder().setInvocation(invocation).build();
+    }
+
+    return Expression.newBuilder().setUnaryTests(negatedUnaryTests(context)).build();
   }
 
   private List<PositiveUnaryTest> positiveUnaryTests(

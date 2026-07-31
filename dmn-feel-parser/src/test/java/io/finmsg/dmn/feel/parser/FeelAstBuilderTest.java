@@ -44,6 +44,27 @@ class FeelAstBuilderTest {
   }
 
   @Test
+  void buildsNotAsInvocationInExpressionContext() {
+    var invocation = parser.parseExpressionAst("not(true)").getAst().getInvocation();
+    var invalidArity = parser.parseExpressionAst("not(true, false)").getAst().getInvocation();
+
+    assertThat(invocation.getTarget().getName().getName()).isEqualTo("not");
+    assertThat(invocation.getPositionalArgumentsCount()).isEqualTo(1);
+    assertThat(invocation.getPositionalArguments(0).getLiteral().getValue()).isEqualTo("true");
+    assertThat(invalidArity.getTarget().getName().getName()).isEqualTo("not");
+    assertThat(invalidArity.getPositionalArgumentsCount()).isEqualTo(2);
+  }
+
+  @Test
+  void keepsNotAsNegatedTestsWhenUnaryTestSyntaxIsUsedInExpressionContext() {
+    var expression = parser.parseExpressionAst("not(< 10, [20..30])").getAst();
+
+    assertThat(expression.hasUnaryTests()).isTrue();
+    assertThat(expression.getUnaryTests().getNegated()).isTrue();
+    assertThat(expression.getUnaryTests().getTestsCount()).isEqualTo(2);
+  }
+
+  @Test
   void buildsPostfixAndDescendantExpressions() {
     var path = parser.parseExpressionAst("orders[1].amount").getAst();
     var descendant = parser.parseExpressionAst("applicant...age").getAst();

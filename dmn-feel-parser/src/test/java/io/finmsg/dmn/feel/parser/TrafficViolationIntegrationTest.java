@@ -68,9 +68,6 @@ class TrafficViolationIntegrationTest {
 
     // A second pass must not alter already parsed nodes.
     assertThat(feelParser.parse(parsedModel)).isEqualTo(parsedModel);
-
-    System.out.println("---> semantic model \n" + semanticModel + "\n---| semantic model");
-    System.out.println("---> parsed model \n" + parsedModel + "\n---| parsed model");
   }
 
   private Definitions readTrafficViolation() {
