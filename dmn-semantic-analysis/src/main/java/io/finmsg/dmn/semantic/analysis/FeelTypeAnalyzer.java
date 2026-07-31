@@ -14,6 +14,15 @@ public final class FeelTypeAnalyzer {
   private static final TypeReference STRING = builtin(BuiltinType.BUILTIN_TYPE_STRING);
   private static final TypeReference NULL = builtin(BuiltinType.BUILTIN_TYPE_NULL);
   private static final TypeReference RANGE = builtin(BuiltinType.BUILTIN_TYPE_RANGE);
+  private final FeelFunctionRegistry functions;
+
+  public FeelTypeAnalyzer() {
+    this(new BuiltinFeelFunctionRegistry());
+  }
+
+  public FeelTypeAnalyzer(FeelFunctionRegistry functions) {
+    this.functions = Objects.requireNonNull(functions, "functions");
+  }
 
   public FeelTypeAnalysisResult analyze(
       Expression expression,
@@ -36,7 +45,7 @@ public final class FeelTypeAnalyzer {
     return new FeelTypeAnalysisResult(result.expression, session.diagnostics);
   }
 
-  private static final class Session {
+  private final class Session {
 
     private final FeelTypeEnvironment environment;
     private final SourceLocation sourceLocation;
@@ -325,28 +334,99 @@ public final class FeelTypeAnalyzer {
     private TypedExpression inferFunctionCall(Expression input, String path) {
       FunctionCall value = input.getFunctionCall();
       FunctionCall.Builder builder = value.toBuilder().clearArguments();
+      List<TypeReference> argumentTypes = new ArrayList<>();
       for (int i = 0; i < value.getArgumentsCount(); i++) {
-        builder.addArguments(infer(value.getArguments(i), path + "/argument[" + i + "]").expression);
+        TypedExpression argument = infer(value.getArguments(i), path + "/argument[" + i + "]");
+        builder.addArguments(argument.expression);
+        argumentTypes.add(argument.type);
       }
-      return typed(input.toBuilder().setFunctionCall(builder).build(), ANY);
+      TypeReference returnType = resolveFunction(value.getFunction(), argumentTypes, path);
+      if (isAny(returnType) && (value.getFunction().equals("min") || value.getFunction().equals("max"))
+          && argumentTypes.size() == 1 && argumentTypes.getFirst().hasList()) {
+        returnType = argumentTypes.getFirst().getList().getElementType();
+      }
+      return typed(input.toBuilder().setFunctionCall(builder).build(), returnType);
+    }
+
+    private TypeReference resolveFunction(
+        String name, List<TypeReference> argumentTypes, String path) {
+      List<FeelFunctionSignature> named = functions.find(name);
+      if (named.isEmpty()) {
+        error("UNKNOWN_FUNCTION", path, "Unknown FEEL function '" + name + "'.");
+        return ANY;
+      }
+      List<FeelFunctionSignature> arity = named.stream()
+          .filter(signature -> acceptsCount(signature, argumentTypes.size()))
+          .toList();
+      if (arity.isEmpty()) {
+        error("INVALID_ARGUMENT_COUNT", path,
+            "Function '" + name + "' does not accept " + argumentTypes.size() + " arguments.");
+        return ANY;
+      }
+      List<FeelFunctionSignature> compatible = arity.stream()
+          .filter(signature -> acceptsTypes(signature, argumentTypes))
+          .toList();
+      if (compatible.isEmpty()) {
+        error("INVALID_ARGUMENT_TYPE", path,
+            "Arguments do not match a signature of function '" + name + "'.");
+        return ANY;
+      }
+      if (compatible.size() > 1) {
+        error("AMBIGUOUS_FUNCTION", path,
+            "Function call '" + name + "' matches multiple signatures.");
+        return ANY;
+      }
+      return compatible.getFirst().returnType();
+    }
+
+    private boolean acceptsCount(FeelFunctionSignature signature, int count) {
+      return signature.variadic()
+          ? count >= signature.parameterTypes().size() - 1
+          : count == signature.parameterTypes().size();
+    }
+
+    private boolean acceptsTypes(
+        FeelFunctionSignature signature, List<TypeReference> arguments) {
+      for (int i = 0; i < arguments.size(); i++) {
+        int parameterIndex = signature.variadic()
+            ? Math.min(i, signature.parameterTypes().size() - 1) : i;
+        if (!assignable(arguments.get(i), signature.parameterTypes().get(parameterIndex))) {
+          return false;
+        }
+      }
+      return true;
     }
 
     private TypedExpression inferInvocation(Expression input, String path) {
       InvocationExpression value = input.getInvocation();
+      boolean namedFunction = value.getTarget().hasName();
+      TypedExpression target = namedFunction
+          ? typed(value.getTarget(), ANY)
+          : infer(value.getTarget(), path + "/target");
       InvocationExpression.Builder builder = value.toBuilder()
-          .setTarget(infer(value.getTarget(), path + "/target").expression)
-          .clearArguments()
-          .clearPositionalArguments();
+          .setTarget(target.expression).clearArguments().clearPositionalArguments();
+      List<TypeReference> argumentTypes = new ArrayList<>();
       for (int i = 0; i < value.getArgumentsCount(); i++) {
         NamedArgument argument = value.getArguments(i);
-        builder.addArguments(argument.toBuilder().setExpression(
-            infer(argument.getExpression(), path + "/argument[" + i + "]").expression));
+        TypedExpression typedArgument = infer(
+            argument.getExpression(), path + "/argument[" + i + "]");
+        builder.addArguments(argument.toBuilder().setExpression(typedArgument.expression));
+        argumentTypes.add(typedArgument.type);
       }
       for (int i = 0; i < value.getPositionalArgumentsCount(); i++) {
-        builder.addPositionalArguments(infer(value.getPositionalArguments(i),
-            path + "/argument[" + i + "]").expression);
+        TypedExpression argument = infer(value.getPositionalArguments(i),
+            path + "/argument[" + i + "]");
+        builder.addPositionalArguments(argument.expression);
+        argumentTypes.add(argument.type);
       }
-      return typed(input.toBuilder().setInvocation(builder).build(), ANY);
+      TypeReference result = namedFunction
+          ? resolveFunction(value.getTarget().getName().getName(), argumentTypes, path) : ANY;
+      String functionName = namedFunction ? value.getTarget().getName().getName() : "";
+      if (isAny(result) && (functionName.equals("min") || functionName.equals("max"))
+          && argumentTypes.size() == 1 && argumentTypes.getFirst().hasList()) {
+        result = argumentTypes.getFirst().getList().getElementType();
+      }
+      return typed(input.toBuilder().setInvocation(builder).build(), result);
     }
 
     private TypedExpression inferRange(Expression input, String path) {
@@ -470,6 +550,14 @@ public final class FeelTypeAnalyzer {
   private static boolean compatible(TypeReference left, TypeReference right) {
     return isAny(left) || isAny(right) || left.equals(right)
         || is(left, NULL) || is(right, NULL);
+  }
+
+  private static boolean assignable(TypeReference actual, TypeReference expected) {
+    if (isAny(actual) || isAny(expected) || actual.equals(expected)) {
+      return true;
+    }
+    return actual.hasList() && expected.hasList()
+        && assignable(actual.getList().getElementType(), expected.getList().getElementType());
   }
 
   private static TypeReference commonType(TypeReference left, TypeReference right) {

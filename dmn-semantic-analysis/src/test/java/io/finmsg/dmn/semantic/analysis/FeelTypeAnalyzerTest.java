@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.finmsg.dmn.feel.parser.FeelParserFacade;
 import io.finmsg.dmn.model.BuiltinType;
 import io.finmsg.dmn.model.Expression;
+import io.finmsg.dmn.model.FunctionCall;
 import io.finmsg.dmn.model.ItemComponent;
 import io.finmsg.dmn.model.ItemDefinition;
 import io.finmsg.dmn.model.NamedTypeReference;
@@ -113,6 +114,25 @@ class FeelTypeAnalyzerTest {
         .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_ANY));
   }
 
+  @Test
+  void resolvesBuiltInFunctionCalls() {
+    assertFunctionType(functionCall("not", parse("true")), BuiltinType.BUILTIN_TYPE_BOOLEAN);
+    assertFunctionType("string(10)", BuiltinType.BUILTIN_TYPE_STRING);
+    assertFunctionType("count([1, 2, 3])", BuiltinType.BUILTIN_TYPE_NUMBER);
+    assertFunctionType("sum([1, 2, 3])", BuiltinType.BUILTIN_TYPE_NUMBER);
+    assertFunctionType("date(2026, 8, 1)", BuiltinType.BUILTIN_TYPE_DATE);
+    assertFunctionType("duration(\"P2D\")", BuiltinType.BUILTIN_TYPE_DURATION);
+  }
+
+  @Test
+  void reportsFunctionCallErrors() {
+    assertFunctionError(functionCall("unknownFn", parse("1")), "UNKNOWN_FUNCTION");
+    assertFunctionError(functionCall("not", parse("true"), parse("false")),
+        "INVALID_ARGUMENT_COUNT");
+    assertFunctionError(functionCall("not", parse("1")), "INVALID_ARGUMENT_TYPE");
+    assertFunctionError(functionCall("sum", parse("[\"a\"]")), "INVALID_ARGUMENT_TYPE");
+  }
+
   private Expression parse(String source) {
     return parser.parseExpressionAst(source).getAst();
   }
@@ -121,6 +141,29 @@ class FeelTypeAnalyzerTest {
     FeelTypeAnalysisResult result = analyzer.analyze(parse(source), FeelTypeEnvironment.empty());
     assertThat(result.diagnostics()).isEmpty();
     assertThat(result.expression().getInferredType()).isEqualTo(builtin(expected));
+  }
+
+  private void assertFunctionType(String source, BuiltinType expected) {
+    assertFunctionType(parse(source), expected);
+  }
+
+  private void assertFunctionType(Expression expression, BuiltinType expected) {
+    FeelTypeAnalysisResult result = analyzer.analyze(expression, FeelTypeEnvironment.empty());
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.expression().getInferredType()).isEqualTo(builtin(expected));
+  }
+
+  private void assertFunctionError(Expression expression, String code) {
+    FeelTypeAnalysisResult result = analyzer.analyze(expression, FeelTypeEnvironment.empty());
+    assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code).containsExactly(code);
+  }
+
+  private static Expression functionCall(String name, Expression... arguments) {
+    return Expression.newBuilder()
+        .setFunctionCall(FunctionCall.newBuilder()
+            .setFunction(name)
+            .addAllArguments(java.util.List.of(arguments)))
+        .build();
   }
 
   private static ItemDefinition itemDefinition(String name, ItemComponent... components) {
