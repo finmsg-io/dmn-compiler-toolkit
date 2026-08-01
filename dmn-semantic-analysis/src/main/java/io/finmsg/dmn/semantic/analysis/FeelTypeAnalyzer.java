@@ -17,7 +17,6 @@ public final class FeelTypeAnalyzer {
   private static final TypeReference NUMBER = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
   private static final TypeReference STRING = builtin(BuiltinType.BUILTIN_TYPE_STRING);
   private static final TypeReference NULL = builtin(BuiltinType.BUILTIN_TYPE_NULL);
-  private static final TypeReference RANGE = builtin(BuiltinType.BUILTIN_TYPE_RANGE);
   private final FeelFunctionRegistry functions;
 
   public FeelTypeAnalyzer() {
@@ -239,6 +238,22 @@ public final class FeelTypeAnalyzer {
       if (isAny(source)) {
         return ANY;
       }
+      if (source.hasContext()) {
+        List<ContextEntryTypeReference> matches = source.getContext().getEntriesList().stream()
+            .filter(entry -> entry.getName().equals(member))
+            .toList();
+        if (matches.isEmpty()) {
+          error("INVALID_PROPERTY", path,
+              "Context has no property '" + member + "'.");
+          return ANY;
+        }
+        if (matches.size() > 1) {
+          error("AMBIGUOUS_PROPERTY", path,
+              "Property '" + member + "' is ambiguous in context.");
+          return ANY;
+        }
+        return matches.getFirst().getType();
+      }
       if (!source.hasNamed()) {
         error("INVALID_PROPERTY_ACCESS", path,
             "Cannot access property '" + member + "' on " + typeName(source) + ".");
@@ -285,6 +300,7 @@ public final class FeelTypeAnalyzer {
     private TypedExpression inferContext(Expression input, String path) {
       ContextExpression value = input.getContext();
       ContextExpression.Builder builder = value.toBuilder().clearEntries();
+      ContextTypeReference.Builder contextType = ContextTypeReference.newBuilder();
       pushScope();
       try {
         for (int i = 0; i < value.getEntriesCount(); i++) {
@@ -293,11 +309,15 @@ public final class FeelTypeAnalyzer {
               entry.getExpression(), path + "/entry[" + i + "]");
           builder.addEntries(entry.toBuilder().setExpression(expression.expression));
           define(entry.getName(), expression.type);
+          contextType.addEntries(ContextEntryTypeReference.newBuilder()
+              .setName(entry.getName())
+              .setType(expression.type));
         }
       } finally {
         popScope();
       }
-      return typed(input.toBuilder().setContext(builder).build(), ANY);
+      return typed(input.toBuilder().setContext(builder).build(),
+          TypeReference.newBuilder().setContext(contextType).build());
     }
 
     private TypedExpression inferFor(Expression input, String path) {
@@ -354,11 +374,38 @@ public final class FeelTypeAnalyzer {
     private TypedExpression inferFilter(Expression input, String path) {
       FilterExpression value = input.getFilter();
       TypedExpression source = infer(value.getSource(), path + "/source");
-      TypedExpression filter = infer(value.getFilter(), path + "/filter");
+      TypeReference elementType = source.type.hasList()
+          ? source.type.getList().getElementType() : ANY;
+      pushScope();
+      TypedExpression filter;
+      try {
+        define("item", elementType);
+        filter = infer(value.getFilter(), path + "/filter");
+      } finally {
+        popScope();
+      }
       Expression expression = input.toBuilder()
           .setFilter(value.toBuilder().setSource(source.expression).setFilter(filter.expression))
           .build();
-      return typed(expression, source.type);
+      if (!source.type.hasList()) {
+        if (!isAny(source.type)) {
+          error("INVALID_FILTER_SOURCE", path + "/source",
+              "Filter source must be a list, found " + typeName(source.type) + ".");
+        }
+        return typed(expression, ANY);
+      }
+      if (is(filter.type, NUMBER)) {
+        return typed(expression, elementType);
+      }
+      if (is(filter.type, BOOLEAN)) {
+        return typed(expression, source.type);
+      }
+      if (!isAny(filter.type)) {
+        error("INVALID_FILTER_TYPE", path + "/filter",
+            "Filter must be a numeric index or boolean predicate, found "
+                + typeName(filter.type) + ".");
+      }
+      return typed(expression, ANY);
     }
 
     private TypedExpression inferFunctionCall(Expression input, String path) {
@@ -479,7 +526,9 @@ public final class FeelTypeAnalyzer {
             "Range endpoints have incompatible types " + typeName(lower)
                 + " and " + typeName(upper) + ".");
       }
-      return typed(input.toBuilder().setRange(builder).build(), RANGE);
+      TypeReference elementType = isAny(lower) ? upper
+          : isAny(upper) ? lower : commonType(lower, upper);
+      return typed(input.toBuilder().setRange(builder).build(), range(elementType));
     }
 
     private TypedExpression inferBetween(Expression input, String path) {
@@ -616,13 +665,19 @@ public final class FeelTypeAnalyzer {
   }
 
   private static TypeReference iterationValueType(TypeReference source) {
-    return source.hasList() ? source.getList().getElementType() : source;
+    if (source.hasList()) {
+      return source.getList().getElementType();
+    }
+    if (source.hasRange()) {
+      return source.getRange().getElementType();
+    }
+    return source;
   }
 
   private static TypeReference semanticType(FeelType type) {
     return switch (type.getTypeCase()) {
       case QUALIFIED_NAME -> namedOrBuiltin(type.getQualifiedName());
-      case RANGE -> RANGE;
+      case RANGE -> range(semanticType(type.getRange().getElementType()));
       case LIST -> list(semanticType(type.getList().getElementType()));
       case FUNCTION -> {
         FunctionTypeReference.Builder function = FunctionTypeReference.newBuilder();
@@ -632,7 +687,17 @@ public final class FeelTypeAnalyzer {
         function.setReturnType(semanticType(type.getFunction().getReturnType()));
         yield TypeReference.newBuilder().setFunction(function).build();
       }
-      case CONTEXT, TYPE_NOT_SET -> ANY;
+      case CONTEXT -> {
+        ContextTypeReference.Builder context = ContextTypeReference.newBuilder();
+        for (ContextTypeEntry entry : type.getContext().getEntriesList()) {
+          context.addEntries(ContextEntryTypeReference.newBuilder()
+              .setName(entry.getName())
+              .setType(semanticType(entry.getType())));
+        }
+        yield TypeReference.newBuilder().setContext(context).build();
+      }
+      case TYPE_NOT_SET -> ANY;
+      default -> ANY;
     };
   }
 
@@ -650,7 +715,7 @@ public final class FeelTypeAnalyzer {
           builtin(BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION);
       case "days and time duration" ->
           builtin(BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION);
-      case "range" -> RANGE;
+      case "range" -> range(ANY);
       case "null" -> NULL;
       default -> TypeReference.newBuilder()
           .setNamed(NamedTypeReference.newBuilder().setName(name))
@@ -664,6 +729,12 @@ public final class FeelTypeAnalyzer {
         .build();
   }
 
+  private static TypeReference range(TypeReference elementType) {
+    return TypeReference.newBuilder()
+        .setRange(RangeTypeReference.newBuilder().setElementType(elementType))
+        .build();
+  }
+
   private static boolean compatible(TypeReference left, TypeReference right) {
     return isAny(left) || isAny(right) || left.equals(right)
         || is(left, NULL) || is(right, NULL);
@@ -673,8 +744,26 @@ public final class FeelTypeAnalyzer {
     if (isAny(actual) || isAny(expected) || actual.equals(expected)) {
       return true;
     }
-    return actual.hasList() && expected.hasList()
-        && assignable(actual.getList().getElementType(), expected.getList().getElementType());
+    return (actual.hasList() && expected.hasList()
+        && assignable(actual.getList().getElementType(), expected.getList().getElementType()))
+        || (actual.hasRange() && expected.hasRange()
+        && assignable(actual.getRange().getElementType(), expected.getRange().getElementType()))
+        || (actual.hasContext() && expected.hasContext()
+        && contextAssignable(actual.getContext(), expected.getContext()));
+  }
+
+  private static boolean contextAssignable(
+      ContextTypeReference actual, ContextTypeReference expected) {
+    for (ContextEntryTypeReference expectedEntry : expected.getEntriesList()) {
+      ContextEntryTypeReference actualEntry = actual.getEntriesList().stream()
+          .filter(entry -> entry.getName().equals(expectedEntry.getName()))
+          .findFirst()
+          .orElse(null);
+      if (actualEntry == null || !assignable(actualEntry.getType(), expectedEntry.getType())) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private static TypeReference commonType(TypeReference left, TypeReference right) {
@@ -709,6 +798,7 @@ public final class FeelTypeAnalyzer {
 
   private static boolean isAny(TypeReference type) {
     return !type.hasBuiltin() && !type.hasNamed() && !type.hasList() && !type.hasFunction()
+        && !type.hasRange() && !type.hasContext()
         || type.hasBuiltin() && type.getBuiltin() == BuiltinType.BUILTIN_TYPE_ANY;
   }
 
@@ -723,7 +813,10 @@ public final class FeelTypeAnalyzer {
       case NAMED -> type.getNamed().getName();
       case LIST -> "list<" + typeName(type.getList().getElementType()) + ">";
       case FUNCTION -> "function";
+      case RANGE -> "range<" + typeName(type.getRange().getElementType()) + ">";
+      case CONTEXT -> "context";
       case KIND_NOT_SET -> "any";
+      default -> "any";
     };
   }
 

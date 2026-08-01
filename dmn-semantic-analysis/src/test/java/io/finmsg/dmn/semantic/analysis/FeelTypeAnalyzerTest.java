@@ -200,6 +200,70 @@ class FeelTypeAnalyzerTest {
         .containsExactly("UNKNOWN_NAME");
   }
 
+  @Test
+  void infersRangeElementTypes() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("[1..10]"), FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.expression().getInferredType().getRange().getElementType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+  }
+
+  @Test
+  void infersStructuralContextTypes() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("{amount: 100, valid: true}"), FeelTypeEnvironment.empty());
+    FeelTypeAnalysisResult property = analyzer.analyze(
+        parse("({amount: 100}).amount"), FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.expression().getInferredType().getContext().getEntries(0).getName())
+        .isEqualTo("amount");
+    assertThat(result.expression().getInferredType().getContext().getEntries(0).getType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+    assertThat(result.expression().getInferredType().getContext().getEntries(1).getType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_BOOLEAN));
+    assertThat(property.diagnostics()).isEmpty();
+    assertThat(property.expression().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+  }
+
+  @Test
+  void infersIndexAndPredicateFilterTypes() {
+    FeelTypeAnalysisResult index = analyzer.analyze(
+        parse("[1, 2][1]"), FeelTypeEnvironment.empty());
+    FeelTypeAnalysisResult predicate = analyzer.analyze(
+        parse("[1, 2][item > 1]"), FeelTypeEnvironment.empty());
+
+    assertThat(index.diagnostics()).isEmpty();
+    assertThat(index.expression().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+    assertThat(predicate.diagnostics()).isEmpty();
+    assertThat(predicate.expression().getInferredType())
+        .isEqualTo(listOf(BuiltinType.BUILTIN_TYPE_NUMBER));
+  }
+
+  @Test
+  void infersRangeIterationVariables() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("for x in [1..3] return x + 1"), FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.expression().getInferredType())
+        .isEqualTo(listOf(BuiltinType.BUILTIN_TYPE_NUMBER));
+  }
+
+  @Test
+  void preservesConcreteListTypeAcrossNullElements() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("[1, null, 2]"), FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.expression().getInferredType())
+        .isEqualTo(listOf(BuiltinType.BUILTIN_TYPE_NUMBER));
+  }
+
   private Expression parse(String source) {
     return parser.parseExpressionAst(source).getAst();
   }

@@ -55,6 +55,10 @@ message TypeReference {
     ListTypeReference list = 3;
     // FEEL function type
     FunctionTypeReference function = 4;
+    // FEEL range<T>
+    RangeTypeReference range = 5;
+    // Structural FEEL context type
+    ContextTypeReference context = 6;
   }
 }
 
@@ -98,6 +102,29 @@ message FunctionTypeReference {
   repeated TypeReference parameter_type = 1;
 
   TypeReference return_type = 2;
+}
+
+//
+// FEEL range<T>
+//
+message RangeTypeReference {
+
+  TypeReference element_type = 1;
+}
+
+//
+// Structural FEEL context type
+//
+message ContextTypeReference {
+
+  repeated ContextEntryTypeReference entries = 1;
+}
+
+message ContextEntryTypeReference {
+
+  string name = 1;
+
+  TypeReference type = 2;
 }
 
 //
