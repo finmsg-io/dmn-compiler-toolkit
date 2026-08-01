@@ -606,6 +606,106 @@ class RuntimeIrLowererTest {
         runtimeOwner.resultSlot(), RuntimeType.scalar(RuntimeTypeKind.NUMBER)));
   }
 
+  @Test
+  void lowersRecursiveBoxedLogicAndDmnInvocation() {
+    TypeReference any = builtin(BuiltinType.BUILTIN_TYPE_ANY);
+    TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
+    TypeReference anyList = TypeReference.newBuilder()
+        .setList(ListTypeReference.newBuilder().setElementType(any)).build();
+    TypeReference functionType = TypeReference.newBuilder()
+        .setFunction(FunctionTypeReference.newBuilder()
+            .addParameterType(number).setReturnType(number)).build();
+    InformationItem first = InformationItem.newBuilder()
+        .setNode(Node.newBuilder().setName("first")).setType(number).build();
+    InformationItem second = InformationItem.newBuilder()
+        .setNode(Node.newBuilder().setName("second")).setType(number).build();
+    BoxedExpressionParsed context = BoxedExpressionParsed.newBuilder()
+        .setContext(ContextParsed.newBuilder()
+            .addEntries(ContextEntryParsed.newBuilder().setVariable(first)
+                .setExpression(parsed(literal(
+                    LiteralKind.LITERAL_KIND_NUMBER, "1", number))))
+            .addEntries(ContextEntryParsed.newBuilder().setVariable(second)
+                .setExpression(parsed(name("first", number)))))
+        .build();
+    InformationItem column = InformationItem.newBuilder()
+        .setNode(Node.newBuilder().setName("value")).setType(number).build();
+    BoxedExpressionParsed relation = BoxedExpressionParsed.newBuilder()
+        .setRelation(RelationParsed.newBuilder()
+            .addColumns(RelationColumnParsed.newBuilder().setVariable(column))
+            .addRows(RelationRowParsed.newBuilder().addExpressions(parsed(literal(
+                LiteralKind.LITERAL_KIND_NUMBER, "2", number)))))
+        .build();
+    InformationItem parameter = InformationItem.newBuilder()
+        .setNode(Node.newBuilder().setName("p")).setType(number).build();
+    BoxedExpressionParsed function = BoxedExpressionParsed.newBuilder()
+        .setFunctionDefinition(FunctionDefinitionParsed.newBuilder()
+            .addParameters(parameter).setBody(parsed(name("p", number))))
+        .build();
+    BoxedExpressionParsed boxedList = BoxedExpressionParsed.newBuilder()
+        .setList(ListExpressionParsed.newBuilder()
+            .addElements(ExpressionParsed.newBuilder().setBoxed(context))
+            .addElements(ExpressionParsed.newBuilder().setBoxed(relation))
+            .addElements(ExpressionParsed.newBuilder().setBoxed(function)))
+        .build();
+    DrgElement boxedDecision = DrgElement.newBuilder().setDecision(Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("boxed-id").setName("Boxed"))
+        .setVariable(InformationItem.newBuilder().setType(anyList))
+        .setLogic(DecisionLogic.newBuilder().setBoxedExpression(
+            BoxedExpression.newBuilder().setParsed(boxedList)))).build();
+    DrgElement functionInput = DrgElement.newBuilder().setInputData(InputData.newBuilder()
+        .setNode(Node.newBuilder().setId("function-id").setName("Calculator"))
+        .setVariable(InformationItem.newBuilder().setType(functionType))).build();
+    DrgElement invocationDecision = DrgElement.newBuilder().setDecision(Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("invocation-id").setName("Invoked"))
+        .setVariable(InformationItem.newBuilder().setType(number))
+        .addInformationRequirements(
+            InformationRequirement.newBuilder().setInput(ref("#function-id")))
+        .setLogic(DecisionLogic.newBuilder().setInvocation(Invocation.newBuilder()
+            .setExpression(Feel.newBuilder().setParsed(FeelParsed.newBuilder()
+                .setAst(name("Calculator", functionType))))
+            .addBindings(Binding.newBuilder().setParameter("p")
+                .setExpression(Feel.newBuilder().setParsed(FeelParsed.newBuilder().setAst(
+                    literal(LiteralKind.LITERAL_KIND_NUMBER, "3", number)))))))).build();
+    String boxedRoot = "definitions/decision[Boxed]/logic/boxedExpression";
+    List<DmnSymbolBinding> bindings = List.of(
+        new DmnSymbolBinding(
+            boxedRoot + "/list/element[0]/context/entry[1]/expression",
+            boxedRoot + "/list/element[0]/context/entry[0]", "first", "",
+            DmnSymbolKind.LOCAL_VARIABLE, number),
+        new DmnSymbolBinding(boxedRoot + "/list/element[2]/body",
+            boxedRoot + "/list/element[2]/parameter[0]", "p", "",
+            DmnSymbolKind.PARAMETER, number),
+        new DmnSymbolBinding("definitions/decision[Invoked]/logic/invocation/expression",
+            "definitions/inputData[Calculator]", "Calculator", "function-id",
+            DmnSymbolKind.INPUT_DATA, functionType));
+    Definitions model = Definitions.newBuilder().addDrgElements(functionInput)
+        .addDrgElements(boxedDecision).addDrgElements(invocationDecision).build();
+
+    RuntimeModel lowered = lowerer.lower(new DmnSemanticPipelineResult(
+        model, List.of(boxedDecision, invocationDecision), List.of(), bindings));
+
+    RuntimeListExpression list = (RuntimeListExpression) lowered.decisions().get(0)
+        .expression().orElseThrow();
+    RuntimeContextExpression runtimeContext = (RuntimeContextExpression) list.elements().get(0);
+    assertThat(runtimeContext.entries()).hasSize(2);
+    assertThat(runtimeContext.entries().get(1).expression())
+        .isInstanceOf(RuntimeLocalReference.class);
+    RuntimeRelationExpression runtimeRelation =
+        (RuntimeRelationExpression) list.elements().get(1);
+    assertThat(runtimeRelation.columns()).singleElement()
+        .extracting(RuntimeRelationColumn::name).isEqualTo("value");
+    assertThat(runtimeRelation.rows()).singleElement().satisfies(row ->
+        assertThat(row).singleElement().isInstanceOf(RuntimeConstant.class));
+    RuntimeFunctionDefinition runtimeFunction =
+        (RuntimeFunctionDefinition) list.elements().get(2);
+    assertThat(runtimeFunction.body()).containsInstanceOf(RuntimeLocalReference.class);
+    RuntimeInvocationExpression runtimeInvocation =
+        (RuntimeInvocationExpression) lowered.decisions().get(1).expression().orElseThrow();
+    assertThat(runtimeInvocation.target()).containsInstanceOf(RuntimeValueReference.class);
+    assertThat(runtimeInvocation.namedArguments()).singleElement()
+        .extracting(RuntimeNamedArgument::name).isEqualTo("p");
+  }
+
   private static DrgElement decisionWithExpression(
       String id, String name, TypeReference type, Expression expression) {
     return DrgElement.newBuilder().setDecision(Decision.newBuilder()
@@ -627,6 +727,11 @@ class RuntimeIrLowererTest {
   private static Expression name(String value, TypeReference type) {
     return Expression.newBuilder().setName(NameExpression.newBuilder().setName(value))
         .setInferredType(type).build();
+  }
+
+  private static ExpressionParsed parsed(Expression expression) {
+    return ExpressionParsed.newBuilder()
+        .setFeel(FeelParsed.newBuilder().setAst(expression)).build();
   }
 
   private static ElementReference ref(String href) {

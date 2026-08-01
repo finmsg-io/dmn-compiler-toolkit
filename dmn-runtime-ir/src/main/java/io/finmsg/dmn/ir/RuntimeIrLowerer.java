@@ -111,17 +111,177 @@ public final class RuntimeIrLowerer {
     if (decision.getLogic().hasDecisionTable()) {
       return Optional.empty();
     }
-    if (!decision.getLogic().hasLiteralExpression()
-        || !decision.getLogic().getLiteralExpression().hasParsed()) {
-      throw new RuntimeIrLoweringException(
-          "Decision '" + decision.getNode().getName()
-              + "' requires supported parsed literal logic for expression lowering.");
+    String basePath = "definitions/decision[" + decision.getNode().getName() + "]/logic";
+    Map<String, Integer> localSlots = new HashMap<>();
+    int[] nextLocalSlot = {0};
+    return switch (decision.getLogic().getTypeCase()) {
+      case LITERAL_EXPRESSION -> {
+        if (!decision.getLogic().getLiteralExpression().hasParsed()) {
+          throw new RuntimeIrLoweringException(
+              "Decision '" + decision.getNode().getName() + "' requires parsed FEEL logic.");
+        }
+        yield Optional.of(lowerExpression(
+            decision.getLogic().getLiteralExpression().getParsed().getAst(),
+            basePath + "/literalExpression", bindings, slots, itemTypes,
+            localSlots, nextLocalSlot));
+      }
+      case BOXED_EXPRESSION -> {
+        if (!decision.getLogic().getBoxedExpression().hasParsed()) {
+          throw new RuntimeIrLoweringException(
+              "Decision '" + decision.getNode().getName() + "' requires parsed boxed logic.");
+        }
+        RuntimeType expected = lowerType(
+            decision.getVariable().getType(), itemTypes, new HashSet<>());
+        yield Optional.of(lowerBoxedExpression(
+            decision.getLogic().getBoxedExpression().getParsed(), basePath + "/boxedExpression",
+            bindings, slots, itemTypes, localSlots, nextLocalSlot, expected));
+      }
+      case INVOCATION -> Optional.of(lowerDmnInvocation(
+          decision.getLogic().getInvocation(), basePath + "/invocation", bindings, slots,
+          itemTypes, localSlots, nextLocalSlot,
+          lowerType(decision.getVariable().getType(), itemTypes, new HashSet<>())));
+      case DECISION_TABLE, TYPE_NOT_SET -> Optional.empty();
+    };
+  }
+
+  private static RuntimeExpression lowerDmnInvocation(
+      Invocation invocation,
+      String path,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, Integer> localSlots,
+      int[] nextLocalSlot,
+      RuntimeType type) {
+    if (!invocation.hasExpression() || !invocation.getExpression().hasParsed()) {
+      throw new RuntimeIrLoweringException("DMN invocation requires a parsed target at " + path);
     }
-    Expression expression = decision.getLogic().getLiteralExpression().getParsed().getAst();
-    String path = "definitions/decision[" + decision.getNode().getName()
-        + "]/logic/literalExpression";
-    return Optional.of(lowerExpression(
-        expression, path, bindings, slots, itemTypes, new HashMap<>(), new int[] {0}));
+    RuntimeExpression target = lowerExpression(invocation.getExpression().getParsed().getAst(),
+        path + "/expression", bindings, slots, itemTypes, localSlots, nextLocalSlot);
+    List<RuntimeNamedArgument> arguments = new ArrayList<>();
+    for (int index = 0; index < invocation.getBindingsCount(); index++) {
+      Binding binding = invocation.getBindings(index);
+      if (!binding.hasExpression() || !binding.getExpression().hasParsed()) {
+        throw new RuntimeIrLoweringException(
+            "DMN invocation binding requires parsed FEEL at " + path + "/binding[" + index + "]");
+      }
+      arguments.add(new RuntimeNamedArgument(binding.getParameter(), lowerExpression(
+          binding.getExpression().getParsed().getAst(), path + "/binding[" + index + "]",
+          bindings, slots, itemTypes, localSlots, nextLocalSlot)));
+    }
+    return new RuntimeInvocationExpression(
+        Optional.empty(), Optional.of(target), arguments, List.of(), type);
+  }
+
+  private static RuntimeExpression lowerParsedExpression(
+      ExpressionParsed parsed,
+      String path,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, Integer> localSlots,
+      int[] nextLocalSlot) {
+    return switch (parsed.getTypeCase()) {
+      case FEEL -> lowerExpression(parsed.getFeel().getAst(), path, bindings, slots, itemTypes,
+          localSlots, nextLocalSlot);
+      case BOXED -> lowerBoxedExpression(parsed.getBoxed(), path, bindings, slots, itemTypes,
+          localSlots, nextLocalSlot, null);
+      case TYPE_NOT_SET -> throw new RuntimeIrLoweringException(
+          "Empty parsed boxed expression at " + path + ".");
+    };
+  }
+
+  private static RuntimeExpression lowerBoxedExpression(
+      BoxedExpressionParsed boxed,
+      String path,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, Integer> localSlots,
+      int[] nextLocalSlot,
+      RuntimeType expectedType) {
+    return switch (boxed.getTypeCase()) {
+      case CONTEXT -> {
+        List<RuntimeContextEntry> entries = new ArrayList<>();
+        Map<String, Integer> contextSlots = new HashMap<>(localSlots);
+        List<RuntimeType> fieldTypes = new ArrayList<>();
+        for (int index = 0; index < boxed.getContext().getEntriesCount(); index++) {
+          ContextEntryParsed entry = boxed.getContext().getEntries(index);
+          String entryPath = path + "/context/entry[" + index + "]";
+          if (!entry.hasVariable() || !entry.hasExpression()) {
+            throw new RuntimeIrLoweringException("Incomplete boxed context entry at " + entryPath);
+          }
+          RuntimeExpression expression = lowerParsedExpression(entry.getExpression(),
+              entryPath + "/expression", bindings, slots, itemTypes,
+              contextSlots, nextLocalSlot);
+          int localSlot = nextLocalSlot[0]++;
+          contextSlots.put(path + "/context/entry[" + index + "]", localSlot);
+          entries.add(new RuntimeContextEntry(
+              entry.getVariable().getNode().getName(), localSlot, expression));
+          fieldTypes.add(expression.type());
+        }
+        yield new RuntimeContextExpression(entries,
+            expectedType == null ? RuntimeType.context(fieldTypes) : expectedType);
+      }
+      case LIST -> {
+        List<RuntimeExpression> elements = new ArrayList<>();
+        for (int index = 0; index < boxed.getList().getElementsCount(); index++) {
+          elements.add(lowerParsedExpression(boxed.getList().getElements(index),
+              path + "/list/element[" + index + "]", bindings, slots, itemTypes,
+              localSlots, nextLocalSlot));
+        }
+        RuntimeType type = expectedType == null
+            ? RuntimeType.element(RuntimeTypeKind.LIST, RuntimeType.scalar(RuntimeTypeKind.ANY))
+            : expectedType;
+        yield new RuntimeListExpression(elements, type);
+      }
+      case RELATION -> {
+        List<RuntimeRelationColumn> columns = boxed.getRelation().getColumnsList().stream()
+            .map(column -> new RuntimeRelationColumn(
+                column.getVariable().getNode().getName(),
+                lowerType(column.getVariable().getType(), itemTypes, new HashSet<>())))
+            .toList();
+        List<List<RuntimeExpression>> rows = new ArrayList<>();
+        for (int rowIndex = 0; rowIndex < boxed.getRelation().getRowsCount(); rowIndex++) {
+          RelationRowParsed row = boxed.getRelation().getRows(rowIndex);
+          List<RuntimeExpression> cells = new ArrayList<>();
+          for (int columnIndex = 0; columnIndex < row.getExpressionsCount(); columnIndex++) {
+            cells.add(lowerParsedExpression(row.getExpressions(columnIndex),
+                path + "/relation/row[" + rowIndex + "]/cell[" + columnIndex + "]",
+                bindings, slots, itemTypes, localSlots, nextLocalSlot));
+          }
+          rows.add(cells);
+        }
+        RuntimeType relationType = expectedType == null
+            ? RuntimeType.element(RuntimeTypeKind.LIST,
+                RuntimeType.context(columns.stream().map(RuntimeRelationColumn::type).toList()))
+            : expectedType;
+        yield new RuntimeRelationExpression(columns, rows, relationType);
+      }
+      case FUNCTION_DEFINITION -> {
+        FunctionDefinitionParsed function = boxed.getFunctionDefinition();
+        List<RuntimeFunctionParameter> parameters = new ArrayList<>();
+        Map<String, Integer> parameterSlots = new HashMap<>(localSlots);
+        for (int index = 0; index < function.getParametersCount(); index++) {
+          InformationItem parameter = function.getParameters(index);
+          int localSlot = nextLocalSlot[0]++;
+          parameterSlots.put(path + "/parameter[" + index + "]", localSlot);
+          parameters.add(new RuntimeFunctionParameter(parameter.getNode().getName(), localSlot,
+              lowerType(parameter.getType(), itemTypes, new HashSet<>())));
+        }
+        if (!function.hasBody()) {
+          throw new RuntimeIrLoweringException("Boxed function requires a body at " + path + ".");
+        }
+        RuntimeExpression body = lowerParsedExpression(function.getBody(), path + "/body",
+            bindings, slots, itemTypes, parameterSlots, nextLocalSlot);
+        RuntimeType functionType = expectedType == null
+            ? RuntimeType.function(parameters.stream().map(RuntimeFunctionParameter::type).toList(),
+                body.type()) : expectedType;
+        yield new RuntimeFunctionDefinition(parameters, Optional.of(body), false, functionType);
+      }
+      case TYPE_NOT_SET -> throw new RuntimeIrLoweringException(
+          "Empty boxed expression at " + path + ".");
+    };
   }
 
   private static Optional<RuntimeDecisionTable> lowerDecisionTable(

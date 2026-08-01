@@ -38,7 +38,7 @@ DmnSemanticAnalyzer
 Semantic-analysis result and diagnostics
 ```
 
-Cross-model semantic linking, QName-safe XML type references, structural Runtime IR lowering, all protobuf FEEL AST expression variants, and boxed decision-table Runtime IR are implemented. Remaining non-table boxed logic, linked model-set lowering, optimization, code generation, and execution stages remain future work.
+Cross-model semantic linking, QName-safe XML type references, structural Runtime IR lowering, all protobuf FEEL AST expression variants, boxed decision tables, recursive boxed contexts/relations/lists/functions, and DMN invocation decisions are implemented. Executable BKM function bodies, linked model-set lowering, optimization, code generation, and execution stages remain future work.
 
 ## Design goals
 

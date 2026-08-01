@@ -122,8 +122,9 @@ Typed constants, bound global and lexical-local references, recursive unary/bina
 conditional expressions, list and context literals, named function calls, path/property access,
 ranges, filters, comparison/test expressions, iteration, quantification, function definitions,
 static/dynamic invocation, descendant access, and boxed decision tables are implemented. All
-protobuf FEEL AST variants now lower. Non-table boxed logic, constant pools, and model-set
-lowering remain future work.
+protobuf FEEL AST variants now lower. Decision logic also covers recursive boxed
+contexts/relations/lists/functions and DMN invocations. Executable BKM bodies, constant pools,
+and model-set lowering remain future work.
 
 ## 5.7 Target modules
 
