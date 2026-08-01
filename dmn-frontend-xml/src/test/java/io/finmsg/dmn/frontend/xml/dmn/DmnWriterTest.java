@@ -40,6 +40,7 @@ import io.finmsg.dmn.model.InputData;
 import io.finmsg.dmn.model.InputClause;
 import io.finmsg.dmn.model.Import;
 import io.finmsg.dmn.model.ItemDefinition;
+import io.finmsg.dmn.model.ItemComponent;
 import io.finmsg.dmn.model.KnowledgeRequirement;
 import io.finmsg.dmn.model.KnowledgeSource;
 import io.finmsg.dmn.model.Invocation;
@@ -54,12 +55,57 @@ import io.finmsg.dmn.model.RelationColumnText;
 import io.finmsg.dmn.model.RelationRowText;
 import io.finmsg.dmn.model.RelationText;
 import io.finmsg.dmn.model.TypeReference;
+import io.finmsg.dmn.model.TypeConstraint;
 import io.finmsg.dmn.model.UnaryTest;
 import io.finmsg.dmn.frontend.xml.exception.XmlWriteException;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
 class DmnWriterTest {
+
+  @Test
+  void writesStructuredItemDefinitionsAndConstraintsRoundTrip() {
+    ItemDefinition applicant =
+        ItemDefinition.newBuilder()
+            .setNode(Node.newBuilder().setId("type-applicant").setName("Applicant"))
+            .setIsCollection(true)
+            .setConstraint(
+                TypeConstraint.newBuilder()
+                    .setText(FeelText.newBuilder().setText("count(?) > 0")))
+            .addComponents(
+                ItemComponent.newBuilder()
+                    .setNode(Node.newBuilder().setId("component-age").setName("age"))
+                    .setType(
+                        TypeReference.newBuilder()
+                            .setBuiltin(BuiltinType.BUILTIN_TYPE_NUMBER))
+                    .setConstraint(
+                        TypeConstraint.newBuilder()
+                            .setText(FeelText.newBuilder().setText("[0..120]"))))
+            .addComponents(
+                ItemComponent.newBuilder()
+                    .setNode(Node.newBuilder().setId("component-tags").setName("tags"))
+                    .setIsCollection(true)
+                    .setType(
+                        TypeReference.newBuilder()
+                            .setBuiltin(BuiltinType.BUILTIN_TYPE_STRING)))
+            .build();
+    Definitions definitions = Definitions.newBuilder()
+        .setNode(Node.getDefaultInstance())
+        .setNamespace("https://finmsg.io/dmn/types")
+        .addItemDefinitions(applicant)
+        .build();
+
+    byte[] bytes = new DmnWriter().write(definitions);
+    String xml = new String(bytes, StandardCharsets.UTF_8);
+
+    assertThat(xml)
+        .contains("<itemDefinition")
+        .contains("isCollection=\"true\"")
+        .contains("<itemComponent")
+        .contains("<typeRef>number</typeRef>")
+        .contains("<allowedValues><text>[0..120]</text></allowedValues>");
+    assertThat(new DmnXmlReader().read(bytes)).isEqualTo(definitions);
+  }
 
   @Test
   void writesDefinitionsAndReadsThemBack() {
