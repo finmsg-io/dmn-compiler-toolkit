@@ -118,9 +118,10 @@ Implemented baseline responsibilities:
 - integer dependency references and evaluation order
 - rejection of unsuccessful semantic-analysis results
 
-Typed constants, bound value-slot references, recursive unary/binary operators, conditional
-expressions, list literals, and named function calls are implemented. Remaining compound and
-boxed expressions, constant pools, decision tables, and model-set lowering remain future work.
+Typed constants, bound global and lexical-local references, recursive unary/binary operators,
+conditional expressions, list and context literals, named function calls, and path/property
+access are implemented. Remaining FEEL and boxed expressions, constant pools, decision tables,
+and model-set lowering remain future work.
 
 ## 5.7 Target modules
 

@@ -108,7 +108,8 @@ public final class RuntimeIrLowerer {
     Expression expression = decision.getLogic().getLiteralExpression().getParsed().getAst();
     String path = "definitions/decision[" + decision.getNode().getName()
         + "]/logic/literalExpression";
-    return Optional.of(lowerExpression(expression, path, bindings, slots, itemTypes));
+    return Optional.of(lowerExpression(
+        expression, path, bindings, slots, itemTypes, new HashMap<>(), new int[] {0}));
   }
 
   private static RuntimeExpression lowerExpression(
@@ -116,7 +117,9 @@ public final class RuntimeIrLowerer {
       String path,
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
-      Map<String, ItemDefinition> itemTypes) {
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, Integer> localSlots,
+      int[] nextLocalSlot) {
     RuntimeType type = lowerType(expression.getInferredType(), itemTypes, new HashSet<>());
     return switch (expression.getNodeCase()) {
       case LITERAL -> new RuntimeConstant(
@@ -127,6 +130,15 @@ public final class RuntimeIrLowerer {
             .findFirst()
             .orElseThrow(() -> new RuntimeIrLoweringException(
                 "Missing semantic binding for decision expression at " + path + "."));
+        if (binding.kind()
+            == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE) {
+          Integer localSlot = localSlots.get(binding.declarationPath());
+          if (localSlot == null) {
+            throw new RuntimeIrLoweringException(
+                "Local expression binding is not in scope at " + path + ".");
+          }
+          yield new RuntimeLocalReference(localSlot, type);
+        }
         Integer slot = slots.get(binding.symbolId());
         if (slot == null) {
           throw new RuntimeIrLoweringException(
@@ -138,32 +150,35 @@ public final class RuntimeIrLowerer {
       case UNARY -> new RuntimeUnaryExpression(
           unaryOperator(expression.getUnary().getOperator()),
           lowerExpression(
-              expression.getUnary().getExpression(), path + "/unary", bindings, slots, itemTypes),
+              expression.getUnary().getExpression(), path + "/unary", bindings, slots, itemTypes,
+              localSlots, nextLocalSlot),
           type);
       case BINARY -> new RuntimeBinaryExpression(
           binaryOperator(expression.getBinary().getOperator()),
           lowerExpression(
-              expression.getBinary().getLeft(), path + "/left", bindings, slots, itemTypes),
+              expression.getBinary().getLeft(), path + "/left", bindings, slots, itemTypes,
+              localSlots, nextLocalSlot),
           lowerExpression(
-              expression.getBinary().getRight(), path + "/right", bindings, slots, itemTypes),
+              expression.getBinary().getRight(), path + "/right", bindings, slots, itemTypes,
+              localSlots, nextLocalSlot),
           type);
       case IF_EXPRESSION -> new RuntimeConditionalExpression(
           lowerExpression(
               expression.getIfExpression().getCondition(),
-              path + "/condition", bindings, slots, itemTypes),
+              path + "/condition", bindings, slots, itemTypes, localSlots, nextLocalSlot),
           lowerExpression(
               expression.getIfExpression().getThenExpression(),
-              path + "/then", bindings, slots, itemTypes),
+              path + "/then", bindings, slots, itemTypes, localSlots, nextLocalSlot),
           lowerExpression(
               expression.getIfExpression().getElseExpression(),
-              path + "/else", bindings, slots, itemTypes),
+              path + "/else", bindings, slots, itemTypes, localSlots, nextLocalSlot),
           type);
       case LIST -> {
         List<RuntimeExpression> elements = new ArrayList<>();
         for (int index = 0; index < expression.getList().getElementsCount(); index++) {
           elements.add(lowerExpression(
               expression.getList().getElements(index), path + "/element[" + index + "]",
-              bindings, slots, itemTypes));
+              bindings, slots, itemTypes, localSlots, nextLocalSlot));
         }
         yield new RuntimeListExpression(elements, type);
       }
@@ -172,11 +187,30 @@ public final class RuntimeIrLowerer {
         for (int index = 0; index < expression.getFunctionCall().getArgumentsCount(); index++) {
           arguments.add(lowerExpression(
               expression.getFunctionCall().getArguments(index), path + "/argument[" + index + "]",
-              bindings, slots, itemTypes));
+              bindings, slots, itemTypes, localSlots, nextLocalSlot));
         }
         yield new RuntimeFunctionCall(
             expression.getFunctionCall().getFunction(), arguments, type);
       }
+      case CONTEXT -> {
+        List<RuntimeContextEntry> entries = new ArrayList<>();
+        Map<String, Integer> contextSlots = new HashMap<>(localSlots);
+        for (int index = 0; index < expression.getContext().getEntriesCount(); index++) {
+          ContextEntry entry = expression.getContext().getEntries(index);
+          String entryPath = path + "/entry[" + index + "]";
+          RuntimeExpression value = lowerExpression(
+              entry.getExpression(), entryPath, bindings, slots, itemTypes,
+              contextSlots, nextLocalSlot);
+          int localSlot = nextLocalSlot[0]++;
+          contextSlots.put(entryPath, localSlot);
+          entries.add(new RuntimeContextEntry(entry.getName(), localSlot, value));
+        }
+        yield new RuntimeContextExpression(entries, type);
+      }
+      case PATH -> new RuntimePathExpression(
+          lowerExpression(expression.getPath().getSource(), path + "/source", bindings, slots,
+              itemTypes, localSlots, nextLocalSlot),
+          expression.getPath().getMember(), type);
       default -> throw new RuntimeIrLoweringException(
           "Unsupported Runtime IR expression " + expression.getNodeCase()
               + " at " + path + ".");

@@ -8,6 +8,9 @@ public sealed interface RuntimeExpression permits
     RuntimeBinaryExpression,
     RuntimeConditionalExpression,
     RuntimeListExpression,
-    RuntimeFunctionCall {
+    RuntimeFunctionCall,
+    RuntimeContextExpression,
+    RuntimeLocalReference,
+    RuntimePathExpression {
   RuntimeType type();
 }

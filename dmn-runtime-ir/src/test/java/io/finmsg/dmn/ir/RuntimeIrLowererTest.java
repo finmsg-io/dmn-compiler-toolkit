@@ -235,6 +235,61 @@ class RuntimeIrLowererTest {
     assertThat(runtimeConditional.elseExpression()).isInstanceOf(RuntimeConstant.class);
   }
 
+  @Test
+  void lowersContextLocalBindingsAndPathAccess() {
+    TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
+    TypeReference contextType = TypeReference.newBuilder()
+        .setContext(ContextTypeReference.newBuilder()
+            .addEntries(ContextEntryTypeReference.newBuilder().setName("a").setType(number))
+            .addEntries(ContextEntryTypeReference.newBuilder().setName("b").setType(number)))
+        .build();
+    Expression localName = Expression.newBuilder()
+        .setName(NameExpression.newBuilder().setName("a"))
+        .setInferredType(number).build();
+    Expression sum = Expression.newBuilder()
+        .setBinary(BinaryExpression.newBuilder()
+            .setOperator(BinaryOperator.BINARY_OPERATOR_ADD)
+            .setLeft(localName)
+            .setRight(literal(LiteralKind.LITERAL_KIND_NUMBER, "1", number)))
+        .setInferredType(number).build();
+    Expression context = Expression.newBuilder()
+        .setContext(ContextExpression.newBuilder()
+            .addEntries(ContextEntry.newBuilder().setName("a")
+                .setExpression(literal(LiteralKind.LITERAL_KIND_NUMBER, "1", number)))
+            .addEntries(ContextEntry.newBuilder().setName("b").setExpression(sum)))
+        .setInferredType(contextType).build();
+    Expression path = Expression.newBuilder()
+        .setPath(PathExpression.newBuilder().setSource(context).setMember("b"))
+        .setInferredType(number).build();
+    DrgElement decision = decisionWithExpression(
+        "decision-id", "Result", number, path);
+    Definitions model = Definitions.newBuilder().addDrgElements(decision).build();
+    String root = "definitions/decision[Result]/logic/literalExpression";
+    DmnSymbolBinding localBinding = new DmnSymbolBinding(
+        root + "/source/entry[1]/left", root + "/source/entry[0]", "a", "",
+        DmnSymbolKind.LOCAL_VARIABLE, number);
+
+    RuntimeExpression lowered = lowerer.lower(new DmnSemanticPipelineResult(
+        model, List.of(decision), List.of(), List.of(localBinding)))
+        .decisions().getFirst().expression().orElseThrow();
+
+    assertThat(lowered).isInstanceOf(RuntimePathExpression.class);
+    RuntimePathExpression runtimePath = (RuntimePathExpression) lowered;
+    assertThat(runtimePath.member()).isEqualTo("b");
+    assertThat(runtimePath.type().kind()).isEqualTo(RuntimeTypeKind.NUMBER);
+    assertThat(runtimePath.source()).isInstanceOf(RuntimeContextExpression.class);
+    RuntimeContextExpression runtimeContext =
+        (RuntimeContextExpression) runtimePath.source();
+    assertThat(runtimeContext.entries()).extracting(RuntimeContextEntry::name)
+        .containsExactly("a", "b");
+    assertThat(runtimeContext.entries()).extracting(RuntimeContextEntry::localSlot)
+        .containsExactly(0, 1);
+    RuntimeBinaryExpression second =
+        (RuntimeBinaryExpression) runtimeContext.entries().get(1).expression();
+    assertThat(second.left()).isEqualTo(new RuntimeLocalReference(
+        0, RuntimeType.scalar(RuntimeTypeKind.NUMBER)));
+  }
+
   private static DrgElement decisionWithExpression(
       String id, String name, TypeReference type, Expression expression) {
     return DrgElement.newBuilder().setDecision(Decision.newBuilder()
