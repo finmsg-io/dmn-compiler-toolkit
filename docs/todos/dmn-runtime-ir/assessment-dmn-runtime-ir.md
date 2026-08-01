@@ -55,9 +55,11 @@ body, and a two-model XML import with an imported structured type and value refe
 `RuntimeModelIndex` now owns model-set validation, deterministic source IDs/value slots, local and
 qualified address aliases, and named-type catalogs. `RuntimeTypeLowerer` owns protobuf and FEEL
 structural type lowering, indexed field layouts, and static member-index resolution.
-`RuntimeIrLowerer` still owns expression lowering, boxed lowering, decision-table lowering, and
-lexical-frame allocation. Extract expression and decision-table components next while keeping the
-public orchestration facade stable.
+`RuntimeExpressionLowerer` now owns recursive FEEL expression, unary-test, operator, invocation,
+iteration, quantified-expression, nested-function, and lexical-local lowering.
+`RuntimeLexicalFrame` centralizes child and captured scope transitions shared with boxed lowering.
+`RuntimeIrLowerer` still owns boxed and decision-table lowering. Extract the decision-table
+component next while keeping the public orchestration facade stable.
 
 ### 3. Canonicalize constants and built-ins
 
@@ -87,7 +89,7 @@ Do not yet:
 
 ## Recommended implementation order
 
-1. Extract expression and decision-table lowering components.
+1. Extract decision-table lowering.
 2. Add canonicalization/constant-pool and optimization passes.
 3. Define serialization only when a concrete cache or deployment use case requires it.
 

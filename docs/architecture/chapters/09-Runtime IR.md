@@ -6,7 +6,9 @@ Implementation baseline as of August 2026: `dmn-runtime-ir` provides immutable r
 
 Internal lowering is separated by responsibility: `RuntimeModelIndex` owns linked-model source
 addresses and type catalogs, while `RuntimeTypeLowerer` owns DMN/FEEL structural types and member
-indices. `RuntimeIrLowerer` remains the public orchestration facade.
+indices. `RuntimeExpressionLowerer` owns recursive FEEL expressions and lexical-local allocation,
+with child and closure-capture transitions shared through `RuntimeLexicalFrame`.
+`RuntimeIrLowerer` remains the public orchestration facade.
 
 The Runtime Intermediate Representation (Runtime IR) is the central
 execution representation of the DMN Compiler Toolkit.
