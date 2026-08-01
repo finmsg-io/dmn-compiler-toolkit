@@ -74,7 +74,7 @@ Contains the semantic-analysis pipeline:
 - persisted/exposed symbol and named-type bindings
 - namespace-indexed cross-model imports, references, and dependency ordering
 
-Linked model-set Runtime IR lowering remains future work.
+These linked semantic results now feed combined model-set Runtime IR lowering.
 
 ## `dmn-runtime-ir`
 

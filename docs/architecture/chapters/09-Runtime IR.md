@@ -692,40 +692,43 @@ Benefits:
 
 # 9.15 Runtime IR Serialization
 
-Runtime IR supports persistence.
+Current policy: Runtime IR is process-local. The Java records are immutable compiler/runtime
+contracts, but they are not a persistence or wire format and do not implement Java
+`Serializable`. Their record shape, enum ordering, expression ordinals, and Java class names must
+not be stored as durable compatibility identifiers.
 
-Example:
+No versioned persistence schema is implemented because the repository currently has no persistent
+compilation cache, runtime artifact loader, or deployment transport that consumes Runtime IR.
+In-memory compilation and the optimized companion model are the only active use cases.
 
-``` text
-traffic.dmn
+Introduce a persistence schema only when one of these concrete consumers is implemented:
 
-        |
+- a compilation cache that survives process or compiler restarts;
+- deployment of precompiled IR independently from generated code;
+- transport of IR between compiler and runtime processes or languages.
 
-        v
+When triggered, persistence must use a separate versioned schema owned by `dmn-runtime-ir`; it
+must not reuse the semantic protobuf model and must not serialize Java records directly. The
+envelope must contain at least:
 
-traffic.runtime.ir
-```
+- schema major/minor version;
+- required feature/capability identifiers;
+- compiler version and deterministic source/model-set fingerprint;
+- the lossless or optimized IR payload kind;
+- integrity metadata and configured size/depth limits.
 
-Possible formats:
+Compatibility rules:
 
--   protobuf
--   flatbuffers
--   custom binary format
+- readers reject unknown major versions and unsupported required capabilities;
+- readers may accept newer minor versions only when unknown fields are safely ignorable;
+- stable numeric IDs must be explicitly assigned in the schema, never derived from Java enum
+  ordinals;
+- migrations occur between persistence messages, not by mutating historical Java records;
+- deterministic byte serialization and read/write/read equivalence require conformance tests;
+- deserialization is untrusted input and must enforce bounds before allocation.
 
-------------------------------------------------------------------------
-
-Recommended initial format:
-
-``` text
-Protocol Buffers
-```
-
-Reasons:
-
--   language support
--   schema evolution
--   debugging tools
--   compact representation
+Protocol Buffers is the preferred first candidate once a consumer exists, subject to a dedicated
+ADR covering that consumer's compatibility lifetime and deployment constraints.
 
 ------------------------------------------------------------------------
 

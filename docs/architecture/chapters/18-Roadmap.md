@@ -69,6 +69,7 @@
 
 ```text
 [done] typed Runtime IR constant pooling and stable built-in operation IDs
+[done] define process-local Runtime IR compatibility and persistence policy (ADR-0025)
 [ ] constant folding and expression simplification
 [ ] dependency pruning and decision-table specialization
 [ ] Java generator and runtime activation

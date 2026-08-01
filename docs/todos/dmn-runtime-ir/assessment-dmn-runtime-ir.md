@@ -71,11 +71,14 @@ companion with deduplicated typed constants, expression-to-pool uses, and stable
 static built-ins. Numeric, boolean, string, date, time, date-time, and duration values are parsed
 once. Unknown and dynamic calls remain unbound for later extension/runtime dispatch.
 
-### 4. Define serialization and compatibility policy
+### 4. Serialization and compatibility policy
 
-The architecture discusses Runtime IR serialization, but the current contracts are Java records
-with no versioning boundary. Decide whether Runtime IR is process-local only, Java-serializable,
-or mapped to a separate versioned persistence schema. Do not reuse the semantic protobuf model.
+ADR-0025 defines current Runtime IR as process-local. Java records, enum ordinals, and expression
+ordinals are not persistence contracts. A separate versioned schema is intentionally deferred
+until a durable compilation cache, artifact loader, or compiler/runtime transport is implemented.
+The policy defines version/capability negotiation, explicit IDs, deterministic serialization,
+integrity metadata, bounded decoding, migrations, and conformance requirements for that future
+schema. The semantic protobuf model and Java native serialization are explicitly excluded.
 
 ## Improvements to avoid for now
 
@@ -89,7 +92,7 @@ Do not yet:
 
 ## Recommended implementation order
 
-1. Define serialization only when a concrete cache or deployment use case requires it.
+1. Choose the next execution consumer: interpreter/runtime or Java code generation.
 
 ## Verification baseline
 
