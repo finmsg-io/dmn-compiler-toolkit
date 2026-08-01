@@ -38,7 +38,7 @@ DmnSemanticAnalyzer
 Semantic-analysis result and diagnostics
 ```
 
-Cross-model semantic linking, QName-safe XML type references, structural Runtime IR lowering, typed constants, and bound value-slot references are implemented. Compound expression lowering, optimization, code generation, and execution remain future stages.
+Cross-model semantic linking, QName-safe XML type references, structural Runtime IR lowering, typed constants, bound value-slot references, and unary/binary operators are implemented. Conditional, collection, call, decision-table, optimization, code-generation, and execution stages remain future work.
 
 ## Design goals
 

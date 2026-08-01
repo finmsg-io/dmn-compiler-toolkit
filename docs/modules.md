@@ -78,7 +78,7 @@ Expression and decision-table Runtime IR lowering remain future work.
 
 ## `dmn-runtime-ir`
 
-Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer node IDs and value slots, lowers structural types, preserves dependency order through integer references, and rejects semantic results containing diagnostics. It also lowers typed FEEL constants and semantically bound global names to value-slot references. Operators, compound expressions, decision tables, constant pooling, and model-set lowering remain future work.
+Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer node IDs and value slots, lowers structural types, preserves dependency order through integer references, and rejects semantic results containing diagnostics. It also recursively lowers typed FEEL constants, semantically bound global names, unary operators, and all binary operators. Conditionals, collections, function calls, decision tables, constant pooling, and model-set lowering remain future work.
 
 ## Planned modules
 

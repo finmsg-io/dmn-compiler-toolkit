@@ -135,6 +135,56 @@ class RuntimeIrLowererTest {
     assertThat(reference.type().kind()).isEqualTo(RuntimeTypeKind.NUMBER);
   }
 
+  @Test
+  void lowersNestedUnaryAndBinaryExpressions() {
+    TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
+    DrgElement input = DrgElement.newBuilder().setInputData(InputData.newBuilder()
+        .setNode(Node.newBuilder().setId("input-id").setName("Input"))
+        .setVariable(InformationItem.newBuilder().setType(number))).build();
+    Expression left = Expression.newBuilder()
+        .setName(NameExpression.newBuilder().setName("Input"))
+        .setInferredType(number).build();
+    Expression literal = Expression.newBuilder()
+        .setLiteral(LiteralExpression.newBuilder()
+            .setKind(LiteralKind.LITERAL_KIND_NUMBER).setValue("2"))
+        .setInferredType(number).build();
+    Expression right = Expression.newBuilder()
+        .setUnary(UnaryExpression.newBuilder()
+            .setOperator(UnaryOperator.UNARY_OPERATOR_MINUS).setExpression(literal))
+        .setInferredType(number).build();
+    Expression sum = Expression.newBuilder()
+        .setBinary(BinaryExpression.newBuilder()
+            .setOperator(BinaryOperator.BINARY_OPERATOR_ADD)
+            .setLeft(left).setRight(right))
+        .setInferredType(number).build();
+    Decision value = decisionWithExpression("decision-id", "Result", number, sum)
+        .getDecision().toBuilder()
+        .addInformationRequirements(
+            InformationRequirement.newBuilder().setInput(ref("#input-id")))
+        .build();
+    DrgElement decision = DrgElement.newBuilder().setDecision(value).build();
+    Definitions model = Definitions.newBuilder()
+        .addDrgElements(input).addDrgElements(decision).build();
+    DmnSymbolBinding binding = new DmnSymbolBinding(
+        "definitions/decision[Result]/logic/literalExpression/left",
+        "definitions/inputData[Input]", "Input", "input-id",
+        DmnSymbolKind.INPUT_DATA, number);
+
+    RuntimeExpression lowered = lowerer.lower(new DmnSemanticPipelineResult(
+        model, List.of(decision), List.of(), List.of(binding)))
+        .decisions().getFirst().expression().orElseThrow();
+
+    assertThat(lowered).isInstanceOf(RuntimeBinaryExpression.class);
+    RuntimeBinaryExpression binary = (RuntimeBinaryExpression) lowered;
+    assertThat(binary.operator()).isEqualTo(RuntimeBinaryOperator.ADD);
+    assertThat(binary.left()).isInstanceOf(RuntimeValueReference.class);
+    assertThat(binary.right()).isInstanceOf(RuntimeUnaryExpression.class);
+    RuntimeUnaryExpression unary = (RuntimeUnaryExpression) binary.right();
+    assertThat(unary.operator()).isEqualTo(RuntimeUnaryOperator.NEGATE);
+    assertThat(unary.operand()).isInstanceOf(RuntimeConstant.class);
+    assertThat(binary.type().kind()).isEqualTo(RuntimeTypeKind.NUMBER);
+  }
+
   private static DrgElement decisionWithExpression(
       String id, String name, TypeReference type, Expression expression) {
     return DrgElement.newBuilder().setDecision(Decision.newBuilder()

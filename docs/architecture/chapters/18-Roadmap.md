@@ -16,6 +16,7 @@
 [done] namespace-indexed cross-model import/reference linking and ordering
 [done] structural Runtime IR with deterministic IDs, slots, types, and dependencies
 [done] typed FEEL constants and bound value-slot references in Runtime IR
+[done] recursive unary and binary FEEL operators in Runtime IR
 ```
 
 ## 18.2 Immediate completion gate
@@ -35,7 +36,7 @@
 [ ] add a compiler facade and phase-aware diagnostic aggregation
 [ ] add an import source/model resolver boundary
 [ ] stabilize linked semantic results as Runtime IR input
-[ ] lower operators and compound typed FEEL AST to Runtime IR instructions
+[ ] lower conditional, collection, and call expressions to Runtime IR
 [ ] lower decision tables and complete linked model sets
 ```
 

@@ -106,13 +106,22 @@ public final class RuntimeIrLowerer {
               + "' requires supported parsed literal logic for expression lowering.");
     }
     Expression expression = decision.getLogic().getLiteralExpression().getParsed().getAst();
+    String path = "definitions/decision[" + decision.getNode().getName()
+        + "]/logic/literalExpression";
+    return Optional.of(lowerExpression(expression, path, bindings, slots, itemTypes));
+  }
+
+  private static RuntimeExpression lowerExpression(
+      Expression expression,
+      String path,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes) {
     RuntimeType type = lowerType(expression.getInferredType(), itemTypes, new HashSet<>());
-    return Optional.of(switch (expression.getNodeCase()) {
+    return switch (expression.getNodeCase()) {
       case LITERAL -> new RuntimeConstant(
           constantKind(expression.getLiteral().getKind()), expression.getLiteral().getValue(), type);
       case NAME -> {
-        String path = "definitions/decision[" + decision.getNode().getName()
-            + "]/logic/literalExpression";
         var binding = bindings.stream()
             .filter(value -> value.referencePath().equals(path))
             .findFirst()
@@ -126,10 +135,52 @@ public final class RuntimeIrLowerer {
         }
         yield new RuntimeValueReference(slot, type);
       }
+      case UNARY -> new RuntimeUnaryExpression(
+          unaryOperator(expression.getUnary().getOperator()),
+          lowerExpression(
+              expression.getUnary().getExpression(), path + "/unary", bindings, slots, itemTypes),
+          type);
+      case BINARY -> new RuntimeBinaryExpression(
+          binaryOperator(expression.getBinary().getOperator()),
+          lowerExpression(
+              expression.getBinary().getLeft(), path + "/left", bindings, slots, itemTypes),
+          lowerExpression(
+              expression.getBinary().getRight(), path + "/right", bindings, slots, itemTypes),
+          type);
       default -> throw new RuntimeIrLoweringException(
           "Unsupported Runtime IR expression " + expression.getNodeCase()
-              + " in decision '" + decision.getNode().getName() + "'.");
-    });
+              + " at " + path + ".");
+    };
+  }
+
+  private static RuntimeUnaryOperator unaryOperator(UnaryOperator operator) {
+    return switch (operator) {
+      case UNARY_OPERATOR_PLUS -> RuntimeUnaryOperator.POSITIVE;
+      case UNARY_OPERATOR_MINUS -> RuntimeUnaryOperator.NEGATE;
+      case UNARY_OPERATOR_NOT -> RuntimeUnaryOperator.NOT;
+      case UNARY_OPERATOR_UNSPECIFIED, UNRECOGNIZED -> throw new RuntimeIrLoweringException(
+          "Unsupported FEEL unary operator " + operator + ".");
+    };
+  }
+
+  private static RuntimeBinaryOperator binaryOperator(BinaryOperator operator) {
+    return switch (operator) {
+      case BINARY_OPERATOR_ADD -> RuntimeBinaryOperator.ADD;
+      case BINARY_OPERATOR_SUBTRACT -> RuntimeBinaryOperator.SUBTRACT;
+      case BINARY_OPERATOR_MULTIPLY -> RuntimeBinaryOperator.MULTIPLY;
+      case BINARY_OPERATOR_DIVIDE -> RuntimeBinaryOperator.DIVIDE;
+      case BINARY_OPERATOR_POWER -> RuntimeBinaryOperator.POWER;
+      case BINARY_OPERATOR_EQUAL -> RuntimeBinaryOperator.EQUAL;
+      case BINARY_OPERATOR_NOT_EQUAL -> RuntimeBinaryOperator.NOT_EQUAL;
+      case BINARY_OPERATOR_LESS -> RuntimeBinaryOperator.LESS;
+      case BINARY_OPERATOR_LESS_EQUAL -> RuntimeBinaryOperator.LESS_EQUAL;
+      case BINARY_OPERATOR_GREATER -> RuntimeBinaryOperator.GREATER;
+      case BINARY_OPERATOR_GREATER_EQUAL -> RuntimeBinaryOperator.GREATER_EQUAL;
+      case BINARY_OPERATOR_AND -> RuntimeBinaryOperator.AND;
+      case BINARY_OPERATOR_OR -> RuntimeBinaryOperator.OR;
+      case BINARY_OPERATOR_UNSPECIFIED, UNRECOGNIZED -> throw new RuntimeIrLoweringException(
+          "Unsupported FEEL binary operator " + operator + ".");
+    };
   }
 
   private static RuntimeConstantKind constantKind(LiteralKind kind) {
