@@ -8,10 +8,14 @@ import io.finmsg.dmn.model.Aggregation;
 import io.finmsg.dmn.model.AnnotationClause;
 import io.finmsg.dmn.model.BusinessKnowledgeModel;
 import io.finmsg.dmn.model.Binding;
+import io.finmsg.dmn.model.BoxedExpression;
+import io.finmsg.dmn.model.BoxedExpressionText;
 import io.finmsg.dmn.model.Decision;
 import io.finmsg.dmn.model.DecisionLogic;
 import io.finmsg.dmn.model.DecisionRule;
 import io.finmsg.dmn.model.DecisionTable;
+import io.finmsg.dmn.model.ContextEntryText;
+import io.finmsg.dmn.model.ContextText;
 import io.finmsg.dmn.model.Definitions;
 import io.finmsg.dmn.model.DecisionService;
 import io.finmsg.dmn.model.DrgElement;
@@ -22,6 +26,7 @@ import io.finmsg.dmn.model.Feel;
 import io.finmsg.dmn.model.FeelText;
 import io.finmsg.dmn.model.FunctionDefinition;
 import io.finmsg.dmn.model.FunctionKind;
+import io.finmsg.dmn.model.FunctionDefinitionText;
 import io.finmsg.dmn.model.HitPolicy;
 import io.finmsg.dmn.model.HitPolicySpec;
 import io.finmsg.dmn.model.InformationItem;
@@ -33,11 +38,15 @@ import io.finmsg.dmn.model.ItemDefinition;
 import io.finmsg.dmn.model.KnowledgeRequirement;
 import io.finmsg.dmn.model.KnowledgeSource;
 import io.finmsg.dmn.model.Invocation;
+import io.finmsg.dmn.model.ListExpressionText;
 import io.finmsg.dmn.model.NamedTypeReference;
 import io.finmsg.dmn.model.Node;
 import io.finmsg.dmn.model.Orientation;
 import io.finmsg.dmn.model.OutputClause;
 import io.finmsg.dmn.model.RuleAnnotation;
+import io.finmsg.dmn.model.RelationColumnText;
+import io.finmsg.dmn.model.RelationRowText;
+import io.finmsg.dmn.model.RelationText;
 import io.finmsg.dmn.model.TypeReference;
 import io.finmsg.dmn.model.UnaryTest;
 import java.nio.charset.StandardCharsets;
@@ -306,11 +315,95 @@ class DmnWriterTest {
     assertThat(readBack).isEqualTo(definitions);
   }
 
+  @Test
+  void writesAllBoxedExpressionFormsRoundTrip() {
+    BoxedExpressionText context =
+        BoxedExpressionText.newBuilder()
+            .setContext(
+                ContextText.newBuilder()
+                    .addEntries(
+                        ContextEntryText.newBuilder()
+                            .setVariable(
+                                InformationItem.newBuilder()
+                                    .setNode(Node.newBuilder().setId("context-variable").setName("x")))
+                            .setExpression(expression("1"))))
+            .build();
+    BoxedExpressionText list =
+        BoxedExpressionText.newBuilder()
+            .setList(
+                ListExpressionText.newBuilder()
+                    .addElements(expression("1"))
+                    .addElements(expression("2")))
+            .build();
+    BoxedExpressionText relation =
+        BoxedExpressionText.newBuilder()
+            .setRelation(
+                RelationText.newBuilder()
+                    .addColumns(
+                        RelationColumnText.newBuilder()
+                            .setVariable(
+                                InformationItem.newBuilder()
+                                    .setNode(Node.newBuilder().setId("column-1").setName("amount"))))
+                    .addRows(
+                        RelationRowText.newBuilder().addExpressions(expression("100"))))
+            .build();
+    BoxedExpressionText function =
+        BoxedExpressionText.newBuilder()
+            .setFunctionDefinition(
+                FunctionDefinitionText.newBuilder()
+                    .addParameters(
+                        InformationItem.newBuilder()
+                            .setNode(Node.newBuilder().setId("function-parameter").setName("value")))
+                    .setBody(expression("value + 1")))
+            .build();
+    Definitions definitions =
+        Definitions.newBuilder()
+            .setNode(Node.getDefaultInstance())
+            .setNamespace("https://example.com/boxed")
+            .addDrgElements(boxedDecision("context-decision", context))
+            .addDrgElements(boxedDecision("list-decision", list))
+            .addDrgElements(boxedDecision("relation-decision", relation))
+            .addDrgElements(boxedDecision("function-decision", function))
+            .build();
+
+    byte[] xml = new DmnWriter().write(definitions);
+    Definitions readBack = new DmnXmlReader().read(xml);
+
+    assertThat(new String(xml, StandardCharsets.UTF_8))
+        .contains("<context>")
+        .contains("<contextEntry>")
+        .contains("<list>")
+        .contains("<relation>")
+        .contains("<column>")
+        .contains("<row>")
+        .contains("<functionDefinition>")
+        .contains("<formalParameter");
+    assertThat(readBack).isEqualTo(definitions);
+  }
+
   private static ElementReference reference(String href) {
     return ElementReference.newBuilder().setHref(href).build();
   }
 
   private static Feel feel(String source) {
     return Feel.newBuilder().setText(FeelText.newBuilder().setText(source)).build();
+  }
+
+  private static ExpressionText expression(String source) {
+    return ExpressionText.newBuilder()
+        .setFeel(FeelText.newBuilder().setText(source))
+        .build();
+  }
+
+  private static DrgElement boxedDecision(String id, BoxedExpressionText expression) {
+    return DrgElement.newBuilder()
+        .setDecision(
+            Decision.newBuilder()
+                .setNode(Node.newBuilder().setId(id))
+                .setLogic(
+                    DecisionLogic.newBuilder()
+                        .setBoxedExpression(
+                            BoxedExpression.newBuilder().setText(expression))))
+        .build();
   }
 }
