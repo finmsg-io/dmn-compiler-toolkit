@@ -30,8 +30,8 @@ Diagnostics currently distinguish oversized input (`DMN-XML-001`), I/O failures
 - the writer emits ordinary unprefixed DMN or collision-free prefixed DMN when the business
   model owns the default namespace.
 
-QName `typeRef` values are the remaining namespace defect: the reader currently retains the
-local type name but not the resolved namespace URI.
+QName `typeRef` values are resolved in the element's namespace scope and stored as a local type
+name plus namespace URI. The writer reuses an existing prefix or declares a collision-free one.
 
 ## 11.4 Symmetric reader/writer coverage
 
@@ -67,9 +67,8 @@ protobuf model. Adding them requires a semantic-model decision rather than reade
 
 Before the current subset is declared compiler-grade complete:
 
-1. preserve QName `typeRef` namespaces during reading and writing;
-2. apply unsupported-DMN diagnostics consistently across all readers;
-3. add the multi-version, namespace-shadowing, conformance, and hostile-input matrix;
-4. run the complete Maven reactor.
+1. apply unsupported-DMN diagnostics consistently across all readers;
+2. add the multi-version, namespace-shadowing, conformance, and hostile-input matrix;
+3. run the complete Maven reactor.
 
 See [the XML completeness audit](../../audits/dmn-frontend-xml-completeness.md).

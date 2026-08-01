@@ -267,6 +267,34 @@ public final class VtdXmlCursor implements XmlCursor {
   }
 
   @Override
+  public Optional<String> namespaceUri(String prefix) {
+    String wanted = prefix == null || prefix.isEmpty() ? "xmlns" : "xmlns:" + prefix;
+    try {
+      nav.push();
+      do {
+        int depth = nav.getCurrentDepth();
+        for (int i = nav.getCurrentIndex() + 1; i < nav.getTokenCount(); i++) {
+          int type = nav.getTokenType(i);
+          if (nav.getTokenDepth(i) != depth
+              || (type != VTDNav.TOKEN_ATTR_NAME && type != VTDNav.TOKEN_ATTR_NS)) {
+            break;
+          }
+          if (type == VTDNav.TOKEN_ATTR_NS && wanted.equals(nav.toString(i))) {
+            String uri = nav.toString(i + 1);
+            nav.pop();
+            return Optional.of(uri);
+          }
+          i++;
+        }
+      } while (nav.toElement(VTDNav.PARENT));
+      nav.pop();
+      return Optional.empty();
+    } catch (NavException ex) {
+      throw new XmlException(ex);
+    }
+  }
+
+  @Override
   public String documentNamespaceUri() {
     return documentNamespaceUri;
   }

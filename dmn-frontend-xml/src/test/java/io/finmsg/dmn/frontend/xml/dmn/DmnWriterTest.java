@@ -62,6 +62,64 @@ import org.junit.jupiter.api.Test;
 class DmnWriterTest {
 
   @Test
+  void preservesQNameTypeReferenceNamespaceRoundTrip() {
+    String riskNamespace = "https://example.com/risk";
+    Definitions definitions =
+        Definitions.newBuilder()
+            .setNode(Node.getDefaultInstance())
+            .setNamespace("https://example.com/model")
+            .addNamespaces(Namespace.newBuilder().setPrefix("risk").setUri(riskNamespace))
+            .addDrgElements(
+                DrgElement.newBuilder()
+                    .setInputData(
+                        InputData.newBuilder()
+                            .setNode(Node.newBuilder().setId("input-1"))
+                            .setVariable(
+                                InformationItem.newBuilder()
+                                    .setNode(Node.newBuilder().setName("Applicant"))
+                                    .setType(
+                                        TypeReference.newBuilder()
+                                            .setNamed(
+                                                NamedTypeReference.newBuilder()
+                                                    .setName("Applicant")
+                                                    .setNamespace(riskNamespace))))))
+            .build();
+
+    byte[] bytes = new DmnWriter().write(definitions);
+    String xml = new String(bytes, StandardCharsets.UTF_8);
+
+    assertThat(xml).contains("typeRef=\"risk:Applicant\"");
+    assertThat(new DmnXmlReader().read(bytes)).isEqualTo(definitions);
+  }
+
+  @Test
+  void declaresPrefixForQNameTypeReferenceWhenNoneExists() {
+    String riskNamespace = "https://example.com/risk";
+    Definitions definitions =
+        Definitions.newBuilder()
+            .setNode(Node.getDefaultInstance())
+            .addItemDefinitions(
+                ItemDefinition.newBuilder()
+                    .setNode(Node.newBuilder().setName("Alias"))
+                    .setType(
+                        TypeReference.newBuilder()
+                            .setNamed(
+                                NamedTypeReference.newBuilder()
+                                    .setName("Applicant")
+                                    .setNamespace(riskNamespace))))
+            .build();
+
+    byte[] bytes = new DmnWriter().write(definitions);
+    String xml = new String(bytes, StandardCharsets.UTF_8);
+
+    assertThat(xml)
+        .contains("xmlns:ns=\"https://example.com/risk\"")
+        .contains("typeRef=\"ns:Applicant\"");
+    assertThat(new DmnXmlReader().read(bytes).getItemDefinitions(0))
+        .isEqualTo(definitions.getItemDefinitions(0));
+  }
+
+  @Test
   void writesStructuredItemDefinitionsAndConstraintsRoundTrip() {
     ItemDefinition applicant =
         ItemDefinition.newBuilder()

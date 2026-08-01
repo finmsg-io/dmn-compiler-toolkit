@@ -18,7 +18,7 @@ public final class OutputClauseReader {
     builder.setNode(nodeReader.read(cursor));
 
     if (cursor.hasAttribute("typeRef")) {
-      builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef")));
+      builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef"), cursor));
     }
 
     if (cursor.firstChild()) {

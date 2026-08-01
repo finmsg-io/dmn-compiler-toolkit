@@ -13,7 +13,7 @@ final class OutputClauseWriter {
     xml.startElement("output");
     nodeWriter.writeAttributes(xml, value.getNode());
     if (value.hasType()) {
-      xml.attribute("typeRef", typeWriter.write(value.getType()));
+      xml.attribute("typeRef", typeWriter.write(xml, value.getType()));
     }
     nodeWriter.writeChildren(xml, value.getNode());
     if (value.hasOutputValues()) {

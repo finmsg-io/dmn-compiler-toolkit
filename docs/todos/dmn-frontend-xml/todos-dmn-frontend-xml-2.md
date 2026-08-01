@@ -40,11 +40,10 @@ The stable compiler-facing boundary is `DmnXmlReader`, `DmnWriter`, `DmnReadOpti
 `DmnReadResult`. Internal reader/writer classes remain public in places; reducing visibility is
 cleanup rather than a correctness blocker.
 
-## Newly identified blocker
+## QName type-reference resolution
 
-QName type references remain namespace-lossy: `risk:Applicant` becomes a named type called
-`Applicant` without its resolved namespace. Fixing scoped QName reading/writing is required
-before the subset is declared complete for cross-model types.
+Resolved: `risk:Applicant` is now resolved using the element's in-scope namespace declarations,
+stored as `Applicant` plus its namespace URI, and written using an existing or generated prefix.
 
 ## Deferred model scope
 

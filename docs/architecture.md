@@ -21,7 +21,7 @@ Five Maven modules implement this pipeline through cross-model typed semantic an
 
 ### XML frontend
 
-Maps the current protobuf-supported DMN subset to and from XML. It preserves FEEL text, namespaces, imports, node documentation/extensions, and optional source locations while performing no FEEL parsing or semantic resolution. QName `typeRef` namespace preservation remains open.
+Maps the current protobuf-supported DMN subset to and from XML. It preserves FEEL text, scoped QName type namespaces, imports, node documentation/extensions, and optional source locations while performing no FEEL parsing or semantic resolution.
 
 ### Semantic model
 

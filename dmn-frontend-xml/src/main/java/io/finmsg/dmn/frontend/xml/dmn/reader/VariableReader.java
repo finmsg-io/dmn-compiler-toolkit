@@ -16,7 +16,7 @@ public final class VariableReader {
 
     if (cursor.hasAttribute("typeRef")) {
 
-      builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef")));
+      builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef"), cursor));
     }
 
     return builder.build();

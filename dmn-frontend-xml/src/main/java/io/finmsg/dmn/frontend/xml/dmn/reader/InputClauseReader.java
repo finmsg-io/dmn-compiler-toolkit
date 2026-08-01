@@ -22,7 +22,7 @@ public final class InputClauseReader {
             builder.setInputExpression(feelReader.read(cursor));
 
             if (cursor.hasAttribute("typeRef")) {
-              builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef")));
+              builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef"), cursor));
             }
           }
 

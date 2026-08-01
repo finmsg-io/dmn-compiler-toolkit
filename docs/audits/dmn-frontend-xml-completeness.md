@@ -5,9 +5,9 @@ Status: audited 2026-08-01 against the current protobuf model and the reader/wri
 ## Conclusion
 
 `dmn-frontend-xml` is feature-complete for the XML-representable portion of the current
-`dmn-protobuf` core model, with one important namespace gap: QName type references lose
-their namespace during reading. The module should therefore not yet be called complete for
-cross-model type references or for the entire DMN specification.
+`dmn-protobuf` core model. QName type references are namespace-safe in both directions. The
+module should not yet be called complete for the entire DMN specification because unsupported
+content diagnostics and the conformance/security matrix remain incomplete.
 
 The reader and writer currently round-trip definitions metadata and namespaces, imports,
 item definitions and constraints, all five modeled DRG element variants, requirements,
@@ -32,19 +32,18 @@ Node documentation and structured extension elements are also preserved.
 | Context, list, relation, boxed function | yes | yes | yes | complete for text representation |
 | Documentation and structured extensions | yes | yes | yes | one-level extension structure |
 | Source locations | opt-in | compiler metadata | not applicable | complete |
-| QName type-reference namespace | partial | partial | no | blocking gap |
+| QName type-reference namespace | yes | yes | yes | complete |
 
 Parsed FEEL, inferred types, and resolved semantic bindings are compiler products rather than
 source XML. Writers correctly reject parsed-only values when source text is unavailable.
 
 ## Remaining implementation gaps
 
-### P0 — QName type-reference namespace preservation
+### Completed — QName type-reference namespace preservation
 
-`TypeReferenceReader` currently strips a prefix from values such as `risk:Applicant` and
-stores only `Applicant`. It must resolve the prefix in the element's namespace scope and set
-`NamedTypeReference.namespace`. The writer must select or declare the corresponding prefix
-when serializing the named reference. This is required for reliable cross-model type linking.
+`TypeReferenceReader` resolves values such as `risk:Applicant` in element scope and stores
+both `Applicant` and the namespace URI. The writer reuses an existing prefix or declares a
+collision-free prefix when serializing the named reference.
 
 ### P1 — Consistent unsupported-content diagnostics
 
@@ -73,7 +72,6 @@ These are extensions to the semantic model, not reader/writer glue-code defects.
 
 ## Completion gate
 
-The current frontend subset can be declared complete after QName type references are
-namespace-safe, unsupported DMN content is diagnosed consistently, the conformance matrix
-passes, and the full reactor succeeds. Full DMN-spec completeness additionally requires an
+The current frontend subset can be declared complete after unsupported DMN content is diagnosed
+consistently, the conformance matrix passes, and the full reactor succeeds. Full DMN-spec completeness additionally requires an
 explicit decision about each model-extension item above.

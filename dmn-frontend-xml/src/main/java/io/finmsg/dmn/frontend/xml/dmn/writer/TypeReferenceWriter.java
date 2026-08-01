@@ -3,16 +3,28 @@ package io.finmsg.dmn.frontend.xml.dmn.writer;
 import io.finmsg.dmn.frontend.xml.exception.XmlWriteException;
 import io.finmsg.dmn.model.BuiltinType;
 import io.finmsg.dmn.model.TypeReference;
+import io.finmsg.dmn.frontend.xml.XmlEmitter;
 
 public final class TypeReferenceWriter {
 
   public String write(TypeReference value) {
+    return write(null, value);
+  }
+
+  public String write(XmlEmitter xml, TypeReference value) {
     if (value.hasBuiltin()) {
       return writeBuiltin(value.getBuiltin());
     }
 
     if (value.hasNamed()) {
-      return value.getNamed().getName();
+      if (value.getNamed().getNamespace().isEmpty()) {
+        return value.getNamed().getName();
+      }
+      if (xml == null) {
+        throw new XmlWriteException(
+            "A namespace-qualified type reference requires an XML emitter.");
+      }
+      return xml.qualifiedName(value.getNamed().getNamespace(), value.getNamed().getName());
     }
 
     if (value.equals(TypeReference.getDefaultInstance())) {

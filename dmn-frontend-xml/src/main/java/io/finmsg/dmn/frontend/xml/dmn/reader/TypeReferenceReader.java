@@ -1,5 +1,7 @@
 package io.finmsg.dmn.frontend.xml.dmn.reader;
 
+import io.finmsg.dmn.frontend.xml.XmlCursor;
+import io.finmsg.dmn.frontend.xml.exception.XmlException;
 import io.finmsg.dmn.model.BuiltinType;
 import io.finmsg.dmn.model.FunctionTypeReference;
 import io.finmsg.dmn.model.ListTypeReference;
@@ -9,6 +11,10 @@ import io.finmsg.dmn.model.TypeReference;
 public final class TypeReferenceReader {
 
   public TypeReference read(String typeRef) {
+    return read(typeRef, null);
+  }
+
+  public TypeReference read(String typeRef, XmlCursor cursor) {
 
     if (typeRef == null || typeRef.isBlank()) {
       return TypeReference.getDefaultInstance();
@@ -18,8 +24,19 @@ public final class TypeReferenceReader {
 
     // remove namespace prefix (feel:string -> string)
     int idx = type.indexOf(':');
+    String namespace = "";
     if (idx >= 0) {
+      String prefix = type.substring(0, idx);
+      if (cursor != null) {
+        namespace = cursor.namespaceUri(prefix).orElseThrow(() ->
+            new XmlException("Unknown namespace prefix '" + prefix + "' in typeRef."));
+      }
       type = type.substring(idx + 1);
+      if (!namespace.isEmpty() && !namespace.endsWith("/FEEL/")) {
+        return TypeReference.newBuilder()
+            .setNamed(NamedTypeReference.newBuilder().setName(type).setNamespace(namespace))
+            .build();
+      }
     }
 
     TypeReference.Builder builder = TypeReference.newBuilder();
@@ -111,6 +128,7 @@ public final class TypeReferenceReader {
         builder.setNamed(
                 NamedTypeReference.newBuilder()
                         .setName(type)
+                        .setNamespace(namespace)
                         .build()
         );
         break;

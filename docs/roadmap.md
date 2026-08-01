@@ -41,7 +41,7 @@
 
 ## Next: frontend completion gate
 
-- [ ] Preserve QName `typeRef` namespaces during XML read/write
+- [x] Preserve QName `typeRef` namespaces during XML read/write
 - [ ] Diagnose unsupported DMN-namespace content consistently across readers
 - [ ] Add the multi-version, conformance, namespace-shadowing, and hostile-input matrix
 - [ ] Run and stabilize the complete reactor

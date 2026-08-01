@@ -12,7 +12,7 @@ public final class InformationItemWriter {
     xml.startElement(elementName);
     nodeWriter.writeAttributes(xml, value.getNode());
     if (value.hasType()) {
-      xml.attribute("typeRef", typeReferenceWriter.write(value.getType()));
+      xml.attribute("typeRef", typeReferenceWriter.write(xml, value.getType()));
     }
     nodeWriter.writeChildren(xml, value.getNode());
     xml.endElement();

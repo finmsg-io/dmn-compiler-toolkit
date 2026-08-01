@@ -12,7 +12,7 @@ public final class InformationItemReader {
     InformationItem.Builder builder = InformationItem.newBuilder();
     builder.setNode(nodeReader.read(cursor));
     if (cursor.hasAttribute("typeRef")) {
-      builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef")));
+      builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef"), cursor));
     }
     return builder.build();
   }

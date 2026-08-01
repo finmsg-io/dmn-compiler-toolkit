@@ -10,7 +10,7 @@ The project is under active development.
 
 Current focus:
 
-- namespace-safe QName type references in the DMN XML frontend
+- consistent unsupported-content diagnostics in the DMN XML frontend
 - XML conformance and security hardening
 - Runtime IR expression and decision-table lowering
 - compiler facade and model-resolution glue
@@ -190,7 +190,7 @@ mkdocs build
 
 ## Roadmap
 
-- Preserve QName namespaces in XML type references
+- Complete XML unsupported-content diagnostics
 - Complete XML conformance and hostile-input coverage
 - Lower FEEL expressions and decision tables into Runtime IR instructions
 - Add optimizer passes

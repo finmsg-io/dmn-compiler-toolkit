@@ -98,7 +98,6 @@ The analyzer also exposes persisted symbol and named-type bindings, links namesp
 
 Not yet implemented:
 
-- QName namespace preservation at the XML `typeRef` boundary
 - Runtime IR expression and decision-table instruction lowering
 
 ## 3.6 Runtime boundary

@@ -174,4 +174,24 @@ class DmnXmlReaderTest {
         assertEquals("DMN-XML-004", result.diagnostics().get(0).getCode());
         assertTrue(result.diagnostics().get(0).getMessage().contains("conditional"));
     }
+
+    @Test
+    void resolvesQNameTypeReferenceInElementScope() {
+        String xml = """
+                <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                    xmlns:risk="https://example.com/root-risk"
+                    namespace="https://example.com/model">
+                  <inputData id="input-1">
+                    <variable xmlns:risk="https://example.com/imported-risk"
+                        name="Applicant" typeRef="risk:Applicant"/>
+                  </inputData>
+                </definitions>
+                """;
+
+        var named = new DmnXmlReader().read(xml.getBytes())
+                .getDrgElements(0).getInputData().getVariable().getType().getNamed();
+
+        assertEquals("Applicant", named.getName());
+        assertEquals("https://example.com/imported-risk", named.getNamespace());
+    }
 }

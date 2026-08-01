@@ -38,6 +38,9 @@ public interface XmlCursor extends AutoCloseable {
    */
   String namespaceUri();
 
+  /** Resolves a namespace prefix in the scope of the current element. */
+  Optional<String> namespaceUri(String prefix);
+
   /** Namespace URI of the document element. */
   String documentNamespaceUri();
 

@@ -5,12 +5,16 @@ import java.io.OutputStream;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class XmlEmitter implements AutoCloseable {
 
   private final XMLStreamWriter writer;
   private String elementNamespace = "";
   private String elementPrefix = "";
+  private final Map<String, String> prefixNamespaces = new LinkedHashMap<>();
+  private final Map<String, String> namespacePrefixes = new LinkedHashMap<>();
 
   public XmlEmitter(OutputStream output) {
     try {
@@ -65,7 +69,26 @@ public final class XmlEmitter implements AutoCloseable {
         writer.setPrefix(prefix, namespace);
         writer.writeNamespace(prefix, namespace);
       });
+      prefixNamespaces.put(prefix, namespace);
+      namespacePrefixes.putIfAbsent(namespace, prefix);
     }
+  }
+
+  /** Returns a namespace-qualified lexical QName, declaring a prefix when necessary. */
+  public String qualifiedName(String namespace, String localName) {
+    if (namespace == null || namespace.isEmpty()) {
+      return localName;
+    }
+    String prefix = namespacePrefixes.get(namespace);
+    if (prefix == null) {
+      prefix = "ns";
+      int suffix = 1;
+      while (prefixNamespaces.containsKey(prefix)) {
+        prefix = "ns" + suffix++;
+      }
+      namespace(prefix, namespace);
+    }
+    return prefix + ":" + localName;
   }
 
   public void attribute(String name, String value) {

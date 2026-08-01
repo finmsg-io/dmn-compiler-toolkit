@@ -38,7 +38,7 @@ DmnSemanticAnalyzer
 Semantic-analysis result and diagnostics
 ```
 
-Cross-model semantic linking and structural Runtime IR graph/type lowering are implemented. QName namespace preservation in XML type references, Runtime IR expression lowering, optimization, code generation, and execution remain future stages.
+Cross-model semantic linking, QName-safe XML type references, and structural Runtime IR graph/type lowering are implemented. Runtime IR expression lowering, optimization, code generation, and execution remain future stages.
 
 ## Design goals
 

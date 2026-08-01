@@ -16,7 +16,7 @@ public final class ItemDefinitionWriter implements XmlWriter<ItemDefinition> {
     xml.startElement("itemDefinition");
     nodeWriter.writeAttributes(xml, value.getNode());
     if (value.hasType()) {
-      xml.attribute("typeRef", typeReferenceWriter.write(value.getType()));
+      xml.attribute("typeRef", typeReferenceWriter.write(xml, value.getType()));
     }
     if (value.getIsCollection()) {
       xml.attribute("isCollection", "true");
@@ -38,7 +38,7 @@ public final class ItemDefinitionWriter implements XmlWriter<ItemDefinition> {
     nodeWriter.writeChildren(xml, value.getNode());
     if (value.hasType()) {
       xml.startElement("typeRef");
-      xml.text(typeReferenceWriter.write(value.getType()));
+      xml.text(typeReferenceWriter.write(xml, value.getType()));
       xml.endElement();
     }
     if (value.hasConstraint()) {

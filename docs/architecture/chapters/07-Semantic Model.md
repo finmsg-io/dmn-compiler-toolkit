@@ -78,7 +78,7 @@ The current AST includes literals, names, unary and binary operators, calls, inv
 Current boundaries include:
 
 - XML source locations are captured only when explicitly enabled, preserving default semantic round-trip equality
-- QName `typeRef` namespaces are not yet preserved by the XML frontend
+- QName `typeRef` namespaces are resolved in element scope and retained in named type references
 - some XML expression and requirement IDs are not represented
 - recursive item components, DMNDI, artifacts, and business-context metadata require schema extensions
 - resolved symbols and named types are persisted/exposed through semantic binding tables rather than embedded into FEEL AST nodes

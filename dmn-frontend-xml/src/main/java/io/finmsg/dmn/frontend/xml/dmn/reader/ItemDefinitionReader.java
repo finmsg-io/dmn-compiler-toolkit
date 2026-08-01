@@ -17,7 +17,7 @@ public final class ItemDefinitionReader {
     builder.setNode(nodeReader.read(cursor));
 
     if (cursor.hasAttribute("typeRef")) {
-      builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef")));
+      builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef"), cursor));
     }
 
     if (cursor.hasAttribute("isCollection")) {
@@ -27,7 +27,7 @@ public final class ItemDefinitionReader {
     if (cursor.firstChild()) {
       do {
         switch (cursor.documentLocalName()) {
-          case "typeRef" -> builder.setType(typeReferenceReader.read(cursor.text()));
+          case "typeRef" -> builder.setType(typeReferenceReader.read(cursor.text(), cursor));
 
           case "itemComponent" -> builder.addComponents(itemComponentReader.read(cursor));
 
