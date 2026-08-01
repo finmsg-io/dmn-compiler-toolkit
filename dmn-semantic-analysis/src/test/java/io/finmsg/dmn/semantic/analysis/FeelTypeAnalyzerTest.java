@@ -5,12 +5,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.finmsg.dmn.feel.parser.FeelParserFacade;
 import io.finmsg.dmn.model.BuiltinType;
 import io.finmsg.dmn.model.Expression;
+import io.finmsg.dmn.model.DecisionTableExpression;
+import io.finmsg.dmn.model.ForExpression;
 import io.finmsg.dmn.model.FunctionCall;
 import io.finmsg.dmn.model.ItemComponent;
 import io.finmsg.dmn.model.ItemDefinition;
 import io.finmsg.dmn.model.NamedTypeReference;
 import io.finmsg.dmn.model.Node;
+import io.finmsg.dmn.model.QuantifiedExpression;
+import io.finmsg.dmn.model.Quantifier;
 import io.finmsg.dmn.model.TypeReference;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -129,6 +134,48 @@ class FeelTypeAnalyzerTest {
 
     assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
         .containsExactly("UNKNOWN_TYPE");
+  }
+
+  @Test
+  void resolvesDecisionTableExpressionContractsById() {
+    Expression reference = Expression.newBuilder().setDecisionTable(
+        DecisionTableExpression.newBuilder().setDecisionTableId("table-id")).build();
+    FeelTypeEnvironment environment = new FeelTypeEnvironment(
+        Map.of(), Map.of(), Map.of("table-id",
+            List.of(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))));
+
+    FeelTypeAnalysisResult resolved = analyzer.analyze(reference, environment);
+    FeelTypeAnalysisResult unknown = analyzer.analyze(
+        reference.toBuilder().setDecisionTable(
+            DecisionTableExpression.newBuilder().setDecisionTableId("missing")).build(),
+        environment);
+
+    assertThat(resolved.diagnostics()).isEmpty();
+    assertThat(resolved.expression().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+    assertThat(unknown.diagnostics()).extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("UNKNOWN_DECISION_TABLE_REFERENCE");
+  }
+
+  @Test
+  void supportsLegacySingleBindingLoopRepresentations() {
+    Expression legacyFor = Expression.newBuilder().setForExpression(ForExpression.newBuilder()
+        .setVariable("x").setIn(parse("[1, 2]")).setReturnExpression(parse("x + 1"))).build();
+    Expression legacyQuantified = Expression.newBuilder().setQuantified(
+        QuantifiedExpression.newBuilder().setQuantifier(Quantifier.QUANTIFIER_SOME)
+            .setVariable("x").setIn(parse("[1, 2]")).setSatisfies(parse("x > 1"))).build();
+
+    FeelTypeAnalysisResult forResult = analyzer.analyze(
+        legacyFor, FeelTypeEnvironment.empty());
+    FeelTypeAnalysisResult quantifiedResult = analyzer.analyze(
+        legacyQuantified, FeelTypeEnvironment.empty());
+
+    assertThat(forResult.diagnostics()).isEmpty();
+    assertThat(forResult.expression().getInferredType())
+        .isEqualTo(listOf(BuiltinType.BUILTIN_TYPE_NUMBER));
+    assertThat(quantifiedResult.diagnostics()).isEmpty();
+    assertThat(quantifiedResult.expression().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_BOOLEAN));
   }
 
   @Test

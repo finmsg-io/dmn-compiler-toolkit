@@ -28,11 +28,11 @@
 - [x] Range, between, and `in` unary-test validation
 - [x] FEEL temporal and duration arithmetic
 - [x] `instance of` named-type validation
+- [x] Model-indexed decision-table-reference typing and diagnostics
+- [x] Legacy single-binding loop compatibility
 
 ## Next: semantic-analysis completion
 
-- [ ] Define the semantic contract for provisional decision-table-reference AST nodes
-- [ ] Decide whether legacy single-binding loop AST fields remain supported
 - [ ] Stabilize the semantic pipeline as an input to Runtime IR
 
 ## XML frontend completion

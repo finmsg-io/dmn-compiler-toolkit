@@ -13,6 +13,7 @@ import io.finmsg.dmn.model.Decision;
 import io.finmsg.dmn.model.DecisionLogic;
 import io.finmsg.dmn.model.DecisionRule;
 import io.finmsg.dmn.model.DecisionTable;
+import io.finmsg.dmn.model.DecisionTableExpression;
 import io.finmsg.dmn.model.Definitions;
 import io.finmsg.dmn.model.DrgElement;
 import io.finmsg.dmn.model.Feel;
@@ -340,6 +341,36 @@ class DmnTypeAnalyzerTest {
     assertThat(analyzer.analyze(modelWithRelation(relation)).diagnostics())
         .extracting(DmnSemanticDiagnostic::code)
         .containsExactly("MISSING_RELATION_COLUMN_NAME", "DUPLICATE_RELATION_COLUMN_NAME");
+  }
+
+  @Test
+  void typesDecisionTableReferencesFromIndexedOutputContracts() {
+    DecisionTable table = DecisionTable.newBuilder()
+        .setNode(Node.newBuilder().setId("table-id"))
+        .addOutputs(OutputClause.newBuilder()
+            .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+        .build();
+    Decision owner = Decision.newBuilder()
+        .setNode(Node.newBuilder().setName("Table owner"))
+        .setLogic(DecisionLogic.newBuilder().setDecisionTable(table))
+        .build();
+    Decision consumer = Decision.newBuilder()
+        .setNode(Node.newBuilder().setName("Consumer"))
+        .setLogic(DecisionLogic.newBuilder().setLiteralExpression(
+            Feel.newBuilder().setParsed(FeelParsed.newBuilder().setAst(
+                Expression.newBuilder().setDecisionTable(
+                    DecisionTableExpression.newBuilder().setDecisionTableId("table-id"))))))
+        .build();
+
+    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setDecision(owner))
+        .addDrgElements(DrgElement.newBuilder().setDecision(consumer))
+        .build());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.model().getDrgElements(1).getDecision().getLogic()
+        .getLiteralExpression().getParsed().getAst().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
   }
 
   private DrgElement decision(String name, TypeReference declaredType, String expression) {

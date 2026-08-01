@@ -33,6 +33,7 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
     private final DmnModelRepository repository;
     private final List<DmnSemanticDiagnostic> diagnostics = new ArrayList<>();
     private final Map<String, ItemDefinition> itemTypes = new LinkedHashMap<>();
+    private final Map<String, List<TypeReference>> decisionTables = new LinkedHashMap<>();
     private final Map<String, Symbol> symbolsById = new LinkedHashMap<>();
     private final Map<String, List<BusinessKnowledgeModel>> bkmsByName = new LinkedHashMap<>();
 
@@ -41,6 +42,7 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
       this.repository = repository;
       repository.visibleModels(input).forEach(model -> model.getItemDefinitionsList().forEach(item ->
           itemTypes.putIfAbsent(item.getNode().getName(), item)));
+      repository.visibleModels(input).forEach(this::indexDecisionTables);
       for (DrgElement element : input.getDrgElementsList()) {
         switch (element.getElementCase()) {
           case INPUT_DATA -> addSymbol(element.getInputData().getNode(),
@@ -56,6 +58,21 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
             }
           }
           default -> { }
+        }
+      }
+    }
+
+    private void indexDecisionTables(Definitions model) {
+      for (DrgElement element : model.getDrgElementsList()) {
+        if (!element.hasDecision() || !element.getDecision().hasLogic()
+            || !element.getDecision().getLogic().hasDecisionTable()) {
+          continue;
+        }
+        DecisionTable table = element.getDecision().getLogic().getDecisionTable();
+        String id = table.getNode().getId();
+        if (!id.isBlank()) {
+          decisionTables.computeIfAbsent(id, ignored -> new ArrayList<>())
+              .add(decisionTableType(table));
         }
       }
     }
@@ -889,7 +906,7 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
     private FeelTypeAnalysisResult infer(Expression expression, Map<String, TypeReference> scope,
         String path, SourceLocation location) {
       FeelTypeAnalysisResult result = feelTypes.analyze(expression,
-          new FeelTypeEnvironment(scope, itemTypes), path, location);
+          new FeelTypeEnvironment(scope, itemTypes, decisionTables), path, location);
       diagnostics.addAll(result.diagnostics());
       return result;
     }

@@ -868,6 +868,11 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
     private TypeReference analyzeFor(
         ForExpression value, Scope parent, String path, SourceLocation location) {
       Scope scope = new Scope(parent);
+      if (value.getIterationsCount() == 0 && !value.getVariable().isBlank()) {
+        TypeReference type = analyzeExpression(value.getIn(), scope, path + "/in", location);
+        define(scope, value.getVariable(), type, SymbolKind.LOCAL, path, location);
+        return analyzeExpression(value.getReturnExpression(), scope, path + "/return", location);
+      }
       for (int i = 0; i < value.getIterationsCount(); i++) {
         IterationContext iteration = value.getIterations(i);
         TypeReference type = analyzeExpression(iteration.getStart(), scope,
@@ -885,6 +890,12 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
     private TypeReference analyzeQuantified(
         QuantifiedExpression value, Scope parent, String path, SourceLocation location) {
       Scope scope = new Scope(parent);
+      if (value.getBindingsCount() == 0 && !value.getVariable().isBlank()) {
+        TypeReference type = analyzeExpression(value.getIn(), scope, path + "/in", location);
+        define(scope, value.getVariable(), type, SymbolKind.LOCAL, path, location);
+        analyzeExpression(value.getSatisfies(), scope, path + "/satisfies", location);
+        return TypeReference.getDefaultInstance();
+      }
       for (int i = 0; i < value.getBindingsCount(); i++) {
         IterationBinding binding = value.getBindings(i);
         TypeReference type = analyzeExpression(binding.getIn(), scope,

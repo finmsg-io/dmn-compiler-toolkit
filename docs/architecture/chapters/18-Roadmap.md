@@ -31,13 +31,13 @@
 [done] range, between, and in-expression validation
 [done] temporal and duration arithmetic
 [done] instance-of named-type validation
+[done] model-indexed decision-table-reference typing and diagnostics
+[done] legacy single-binding loop compatibility
 ```
 
 ## 18.2 Next milestone — semantic-analysis completion
 
 ```text
-[ ] define the semantic contract for provisional decision-table-reference AST nodes
-[ ] decide whether legacy single-binding loop AST fields remain supported
 [ ] stabilize the typed model contract for Runtime IR lowering
 ```
 

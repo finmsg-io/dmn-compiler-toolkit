@@ -86,7 +86,8 @@ public final class FeelTypeAnalyzer {
         case INSTANCE_OF -> inferInstanceOf(input, path);
         case FUNCTION_DEFINITION -> inferFunctionDefinition(input, path);
         case UNARY_TESTS -> inferUnaryTests(input, path);
-        case DECISION_TABLE, NODE_NOT_SET -> typed(input, ANY);
+        case DECISION_TABLE -> inferDecisionTableReference(input, path);
+        case NODE_NOT_SET -> typed(input, ANY);
       };
     }
 
@@ -378,6 +379,19 @@ public final class FeelTypeAnalyzer {
 
     private TypedExpression inferFor(Expression input, String path) {
       ForExpression value = input.getForExpression();
+      if (value.getIterationsCount() == 0 && !value.getVariable().isBlank()) {
+        TypedExpression source = infer(value.getIn(), path + "/in");
+        pushScope();
+        try {
+          define(value.getVariable(), iterationValueType(source.type));
+          TypedExpression result = infer(value.getReturnExpression(), path + "/return");
+          return typed(input.toBuilder().setForExpression(value.toBuilder()
+              .setIn(source.expression).setReturnExpression(result.expression)).build(),
+              list(result.type));
+        } finally {
+          popScope();
+        }
+      }
       ForExpression.Builder builder = value.toBuilder().clearIterations();
       pushScope();
       try {
@@ -407,6 +421,20 @@ public final class FeelTypeAnalyzer {
 
     private TypedExpression inferQuantified(Expression input, String path) {
       QuantifiedExpression value = input.getQuantified();
+      if (value.getBindingsCount() == 0 && !value.getVariable().isBlank()) {
+        TypedExpression source = infer(value.getIn(), path + "/in");
+        pushScope();
+        try {
+          define(value.getVariable(), iterationValueType(source.type));
+          TypedExpression satisfies = infer(value.getSatisfies(), path + "/satisfies");
+          require(satisfies.type, BOOLEAN, path + "/satisfies",
+              "Quantified expression condition must be boolean.");
+          return typed(input.toBuilder().setQuantified(value.toBuilder()
+              .setIn(source.expression).setSatisfies(satisfies.expression)).build(), BOOLEAN);
+        } finally {
+          popScope();
+        }
+      }
       QuantifiedExpression.Builder builder = value.toBuilder().clearBindings();
       pushScope();
       try {
@@ -480,6 +508,27 @@ public final class FeelTypeAnalyzer {
         returnType = argumentTypes.getFirst().getList().getElementType();
       }
       return typed(input.toBuilder().setFunctionCall(builder).build(), returnType);
+    }
+
+    private TypedExpression inferDecisionTableReference(Expression input, String path) {
+      String id = input.getDecisionTable().getDecisionTableId();
+      if (id.isBlank()) {
+        error("MISSING_DECISION_TABLE_REFERENCE", path,
+            "Decision-table reference ID is required.");
+        return typed(input, ANY);
+      }
+      List<TypeReference> matches = environment.decisionTables().get(id);
+      if (matches == null || matches.isEmpty()) {
+        error("UNKNOWN_DECISION_TABLE_REFERENCE", path,
+            "No decision table has ID '" + id + "'.");
+        return typed(input, ANY);
+      }
+      if (matches.size() > 1) {
+        error("AMBIGUOUS_DECISION_TABLE_REFERENCE", path,
+            "Multiple decision tables have ID '" + id + "'.");
+        return typed(input, ANY);
+      }
+      return typed(input, matches.getFirst());
     }
 
     private TypeReference resolveFunction(
