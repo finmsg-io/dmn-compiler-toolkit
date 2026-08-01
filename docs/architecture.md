@@ -14,7 +14,7 @@ DMN XML
   → validated model and diagnostics
 ```
 
-The first four Maven modules implement this pipeline through initial name resolution.
+The first four Maven modules implement this pipeline through typed semantic analysis and deterministic dependency ordering for the current single-model scope.
 
 ## Stage boundaries
 
@@ -46,4 +46,3 @@ Optimizer, Runtime IR, code generators, and runtime execution are not implemente
 4. Traversal uses generated getters instead of protobuf reflection.
 5. Diagnostics identify the semantic-model path and source location where available.
 6. Runtime modules must not depend on XML or ANTLR.
-

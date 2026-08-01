@@ -17,28 +17,33 @@
 [done] dmn-semantic-analysis module
 [done] first name and structured-property resolution pass
 [done] Traffic Violation semantic-analysis test
+[done] unified semantic-analysis pipeline
+[done] named-type resolution and declared-type validation
+[done] FEEL and boxed-expression type inference
+[done] operator and built-in function validation
+[done] decision-table, BKM, item-definition, and decision-service validation
+[done] DRG dependency validation and cycle detection
+[done] deterministic compilation order
 ```
 
-## 18.2 Next milestone — semantic type analysis
+## 18.2 Next milestone — semantic-analysis completion
 
 ```text
 [ ] expose or persist resolved symbol bindings
-[ ] resolve named types comprehensively
-[ ] infer types for FEEL expressions
-[ ] validate unary and binary operators
-[ ] resolve and validate function calls
-[ ] validate decision-table input/output types
-[ ] add model-aware type diagnostics
+[ ] link imports and cross-model references
+[ ] close remaining DMN 1.5 expression and validation edge cases
+[ ] stabilize the typed model contract for Runtime IR lowering
 ```
 
-## 18.3 Dependency analysis
+## 18.3 Dependency analysis — completed baseline
 
 ```text
-[ ] build DRG dependency graph
-[ ] validate href targets
-[ ] detect unavailable dependencies
-[ ] detect cycles
-[ ] establish deterministic evaluation order
+[done] build the single-model DRG dependency graph
+[done] validate local href targets
+[done] detect unavailable dependencies
+[done] detect cycles
+[done] establish deterministic compilation order
+[ ] extend dependency analysis across imported models
 ```
 
 ## 18.4 XML completeness
@@ -76,4 +81,3 @@
 ```
 
 Correctness, explicit diagnostics, and deterministic tests remain prerequisites for Runtime IR and code generation.
-

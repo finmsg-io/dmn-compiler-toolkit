@@ -80,5 +80,5 @@ Known gaps include:
 - recursive item components are not represented
 - imports and cross-model linking are incomplete
 - resolved symbol IDs are not yet persisted in the AST
-- inferred types are not yet populated comprehensively
 
+Semantic analysis populates `Expression.inferred_type` across the currently supported FEEL and boxed-expression forms. Unsupported or invalid expressions retain an unknown type and produce diagnostics where applicable.

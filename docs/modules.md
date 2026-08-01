@@ -55,7 +55,7 @@ The pass returns a copied `Definitions` message. The input semantic model remain
 
 ## `dmn-semantic-analysis`
 
-Contains the first semantic-analysis pass:
+Contains the semantic-analysis pipeline:
 
 - global symbol collection
 - requirement-aware decision scopes
@@ -64,8 +64,13 @@ Contains the first semantic-analysis pass:
 - FEEL name resolution
 - structured item-definition property validation
 - diagnostics for unknown, unavailable, duplicate, and ambiguous names
+- named-type resolution and declared-type validation
+- FEEL and boxed-expression type inference
+- operator and built-in function validation
+- decision-table, BKM, item-definition, and decision-service validation
+- dependency validation, cycle detection, and deterministic compilation order
 
-Type inference, function validation, dependency-cycle detection, and decision-table validation remain future passes.
+Persisted resolved bindings, import/cross-model linking, and Runtime IR lowering remain future work.
 
 ## Planned modules
 
@@ -77,4 +82,3 @@ dmn-runtime
 dmn-compiler-api
 dmn-benchmarks
 ```
-

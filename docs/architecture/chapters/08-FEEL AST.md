@@ -57,7 +57,7 @@ The parsed representation does not redundantly retain FEEL text. The original se
 
 ## 8.6 Semantic state
 
-The current semantic analyzer validates names and structured paths without yet storing resolved symbol IDs in AST nodes. `Expression.inferred_type` exists but comprehensive type inference remains future work.
+The semantic pipeline validates names and structured paths, resolves named types, checks operators and built-in function calls, and populates `Expression.inferred_type` across the currently supported FEEL and boxed-expression forms. Resolved symbol IDs are not yet stored in AST nodes; unsupported or invalid expressions use an unknown type and diagnostics rather than a persisted binding.
 
 ## 8.7 Design rules
 
@@ -66,4 +66,3 @@ The current semantic analyzer validates names and structured paths without yet s
 3. Failed nodes remain text-based in diagnostic parsing mode.
 4. AST traversal uses exhaustive generated `oneof` switches.
 5. Schema changes follow protobuf compatibility rules.
-

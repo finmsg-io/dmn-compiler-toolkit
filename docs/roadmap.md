@@ -15,17 +15,19 @@
 - [x] `dmn-semantic-analysis` module
 - [x] First FEEL name/property-resolution pass
 - [x] Traffic Violation semantic-analysis test
+- [x] Unified semantic-analysis pipeline
+- [x] Named-type resolution and declared-type validation
+- [x] FEEL expression and boxed-expression type inference
+- [x] Operator and built-in function validation
+- [x] Decision-table, BKM, item-definition, and decision-service validation
+- [x] DRG dependency analysis, cycle detection, and deterministic compilation order
 
-## Next: semantic analysis
+## Next: semantic-analysis completion
 
 - [ ] Persist or expose resolved symbol bindings
-- [ ] Resolve named type references comprehensively
-- [ ] Infer expression types
-- [ ] Validate operators and function calls
-- [ ] Validate decision tables
-- [ ] Build the DRG dependency graph
-- [ ] Detect dependency cycles
 - [ ] Validate imports and cross-model references
+- [ ] Close remaining DMN 1.5 expression and validation edge cases
+- [ ] Stabilize the semantic pipeline as an input to Runtime IR
 
 ## XML frontend completion
 
@@ -44,4 +46,3 @@
 - [ ] Runtime activation
 - [ ] Public compiler API and CLI
 - [ ] JMH performance benchmarks
-

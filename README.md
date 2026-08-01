@@ -55,8 +55,9 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-protobuf` | Protobuf definitions and generated Java classes for the semantic model |
 | `dmn-frontend-xml` | DMN XML reader based on VTD-XML |
 | `dmn-feel-parser` | ANTLR4 parser for DMN FEEL expressions |
+| `dmn-semantic-analysis` | Reference resolution, type analysis, DMN validation, and dependency ordering |
 
-Planned modules include semantic analysis, optimization, runtime IR, Java code generation, and runtime support.
+Planned modules include optimization, runtime IR, Java code generation, compiler API, and runtime support.
 
 ## Requirements
 
@@ -191,9 +192,8 @@ mkdocs build
 
 - Complete DMN XML frontend coverage
 - Complete FEEL grammar and AST mapping
-- Add semantic validation
-- Add type resolution
-- Add dependency analysis
+- Complete import and cross-model semantic analysis
+- Persist or expose resolved symbol bindings
 - Introduce runtime IR
 - Add optimizer passes
 - Generate optimized Java code

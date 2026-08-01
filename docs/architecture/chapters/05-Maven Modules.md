@@ -88,6 +88,12 @@ Responsibilities currently implemented:
 - requirement-aware scopes
 - FEEL name and property resolution
 - semantic diagnostics
+- named-type resolution and declared-type validation
+- FEEL and boxed-expression type inference
+- operator and built-in function validation
+- decision-table, BKM, item-definition, and decision-service validation
+- DRG dependency validation, cycle detection, and deterministic compilation order
+- unified pass orchestration
 
 `dmn-feel-parser` and `dmn-frontend-xml` are test-scoped dependencies only.
 
@@ -109,4 +115,3 @@ dmn-benchmarks
 3. Protobuf schemas contain no compiler logic.
 4. XML and ANTLR types never cross into later compiler or runtime APIs.
 5. Cross-module integration dependencies may remain test-scoped.
-

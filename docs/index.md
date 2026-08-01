@@ -11,7 +11,7 @@ The repository currently contains four active Maven modules:
 - `dmn-protobuf` — semantic model, replaceable FEEL text/parsed nodes, and FEEL AST
 - `dmn-frontend-xml` — VTD-XML reader and partial DMN XML writer
 - `dmn-feel-parser` — ANTLR4 grammar, AST builder, complete DMN FEEL parsing pass, and model-aware diagnostics
-- `dmn-semantic-analysis` — first semantic-analysis pass for FEEL name and structured-property resolution
+- `dmn-semantic-analysis` — reference resolution, type analysis, DMN validation, and deterministic dependency ordering
 
 The implemented pipeline is:
 
@@ -49,4 +49,3 @@ Optimization, Runtime IR, code generation, and execution remain future stages.
 - Efficient Java code generation
 - Extensible backend architecture
 - Predictable runtime performance
-

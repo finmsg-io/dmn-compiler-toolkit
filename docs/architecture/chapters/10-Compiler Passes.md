@@ -20,11 +20,11 @@ Responsibilities:
 
 The strict `parse(Definitions)` API throws `DmnFeelParseException` after collection.
 
-### Initial semantic-analysis pass
+### Semantic-analysis pipeline
 
 ```java
-DmnSemanticAnalysisResult result =
-    new DmnSemanticAnalyzer().analyze(parsedModel);
+DmnSemanticPipelineResult result =
+    new DmnSemanticPipeline().analyze(parsedModel);
 ```
 
 Responsibilities currently implemented:
@@ -34,9 +34,14 @@ Responsibilities currently implemented:
 - create function and context scopes
 - resolve FEEL names
 - validate structured property access
-- report duplicate, ambiguous, unavailable, and unknown symbols
+- resolve named types and infer expression types
+- validate operators and built-in function calls
+- validate declared types, item definitions, BKMs, decision services, and decision tables
+- validate DRG dependencies and detect cycles
+- produce a deterministic compilation order
+- aggregate and deduplicate structured diagnostics
 
-The analyzer currently returns the same immutable parsed model plus diagnostics. Persisted resolved bindings and inferred types are future work.
+The pipeline runs `DmnSemanticAnalyzer`, `DmnTypeAnalyzer`, and `DmnDependencyAnalyzer` in dependency order. It returns a copied model containing inferred expression types, a deterministic compilation order, and diagnostics. Persisted resolved bindings and import/cross-model linking remain future work.
 
 ## 10.2 Pass principles
 
@@ -55,11 +60,15 @@ DmnXmlReader
 DmnFeelParser
    ↓
 DmnSemanticAnalyzer
+   ↓
+DmnTypeAnalyzer
+   ↓
+DmnDependencyAnalyzer
 ```
 
 FEEL parsing must precede semantic analysis.
 
-## 10.4 Next semantic passes
+## 10.4 Implemented semantic pass order
 
 ```text
 name resolution
@@ -72,12 +81,18 @@ operator and function validation
    ↓
 dependency graph and cycle detection
    ↓
-decision-table validation
+deterministic compilation order
+```
+
+Decision-table and other DMN structure validation run within `DmnTypeAnalyzer`. The next semantic work is:
+
+```text
+persist or expose resolved symbol bindings
+   ↓
+import and cross-model linking
    ↓
 Runtime IR lowering
 ```
-
-Name resolution is the currently implemented first step.
 
 ## 10.5 Future pass infrastructure
 

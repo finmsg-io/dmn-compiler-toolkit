@@ -32,11 +32,11 @@ DMN XML
   → Definitions with FEEL text
   → DmnFeelParser
   → Definitions with parsed FEEL AST
-  → DmnSemanticAnalyzer
-  → semantic diagnostics
+  → DmnSemanticPipeline
+  → typed model, deterministic compilation order, and semantic diagnostics
 ```
 
-The semantic-analysis stage currently implements initial name and structured-property resolution. Optimization, Runtime IR, code generation, and runtime execution remain future stages.
+The semantic-analysis stage implements reference and structured-property resolution, named-type and expression analysis, operator and function validation, DMN structure validation, and DRG dependency analysis with cycle detection. Resolved symbol bindings are not yet persisted, and import/cross-model linking remains incomplete. Optimization, Runtime IR, code generation, and runtime execution remain future stages.
 
 ## Table of contents
 
@@ -60,4 +60,3 @@ The semantic-analysis stage currently implements initial name and structured-pro
 18. [Roadmap](./chapters/18-Roadmap.md)
 19. [Internal Compiler Architecture](./chapters/19-Internal%20Compiler%20Architecture.md)
 20. [Appendices](./chapters/20-Appendices.md)
-
