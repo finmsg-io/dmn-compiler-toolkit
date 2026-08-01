@@ -38,7 +38,8 @@
 [ ] stabilize linked semantic results as Runtime IR input
 [done] lower conditional expressions, list literals, and named function calls to Runtime IR
 [done] lower context expressions, lexical-local bindings, and path/property access to Runtime IR
-[ ] lower ranges, filters, and remaining comparison/test expressions to Runtime IR
+[done] lower ranges, filters, and remaining comparison/test expressions to Runtime IR
+[ ] lower iteration, quantified, and function-definition expressions to Runtime IR
 [ ] lower decision tables and complete linked model sets
 ```
 

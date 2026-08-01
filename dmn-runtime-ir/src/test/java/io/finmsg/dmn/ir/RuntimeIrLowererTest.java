@@ -290,6 +290,90 @@ class RuntimeIrLowererTest {
         0, RuntimeType.scalar(RuntimeTypeKind.NUMBER)));
   }
 
+  @Test
+  void lowersRangesFiltersAndTestExpressions() {
+    TypeReference any = builtin(BuiltinType.BUILTIN_TYPE_ANY);
+    TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
+    TypeReference booleanType = builtin(BuiltinType.BUILTIN_TYPE_BOOLEAN);
+    TypeReference numberList = TypeReference.newBuilder()
+        .setList(ListTypeReference.newBuilder().setElementType(number)).build();
+    TypeReference anyList = TypeReference.newBuilder()
+        .setList(ListTypeReference.newBuilder().setElementType(any)).build();
+    TypeReference numberRange = TypeReference.newBuilder()
+        .setRange(RangeTypeReference.newBuilder().setElementType(number)).build();
+    Expression range = Expression.newBuilder().setRange(RangeExpression.newBuilder()
+            .setLower(literal(LiteralKind.LITERAL_KIND_NUMBER, "1", number))
+            .setUpper(literal(LiteralKind.LITERAL_KIND_NUMBER, "10", number))
+            .setLowerBoundary(RangeBoundary.RANGE_BOUNDARY_CLOSED)
+            .setUpperBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN))
+        .setInferredType(numberRange).build();
+    Expression filter = Expression.newBuilder().setFilter(FilterExpression.newBuilder()
+            .setSource(Expression.newBuilder().setList(ListExpression.newBuilder()
+                    .addElements(literal(LiteralKind.LITERAL_KIND_NUMBER, "1", number)))
+                .setInferredType(numberList))
+            .setFilter(literal(LiteralKind.LITERAL_KIND_BOOLEAN, "true", booleanType)))
+        .setInferredType(numberList).build();
+    Expression between = Expression.newBuilder().setBetween(BetweenExpression.newBuilder()
+            .setValue(literal(LiteralKind.LITERAL_KIND_NUMBER, "5", number))
+            .setLower(literal(LiteralKind.LITERAL_KIND_NUMBER, "1", number))
+            .setUpper(literal(LiteralKind.LITERAL_KIND_NUMBER, "10", number)))
+        .setInferredType(booleanType).build();
+    RangeExpression unaryRange = RangeExpression.newBuilder()
+        .setLower(literal(LiteralKind.LITERAL_KIND_NUMBER, "20", number))
+        .setUpper(literal(LiteralKind.LITERAL_KIND_NUMBER, "30", number))
+        .setLowerBoundary(RangeBoundary.RANGE_BOUNDARY_CLOSED)
+        .setUpperBoundary(RangeBoundary.RANGE_BOUNDARY_CLOSED).build();
+    Expression in = Expression.newBuilder().setIn(InExpression.newBuilder()
+            .setValue(literal(LiteralKind.LITERAL_KIND_NUMBER, "5", number))
+            .setTests(UnaryTestsExpression.newBuilder()
+                .addTests(PositiveUnaryTest.newBuilder().setComparison(
+                    ComparisonUnaryTest.newBuilder()
+                        .setOperator(UnaryTestOperator.UNARY_TEST_OPERATOR_LESS)
+                        .setEndpoint(literal(
+                            LiteralKind.LITERAL_KIND_NUMBER, "10", number))))
+                .addTests(PositiveUnaryTest.newBuilder().setRange(unaryRange))))
+        .setInferredType(booleanType).build();
+    Expression instanceOf = Expression.newBuilder()
+        .setInstanceOf(InstanceOfExpression.newBuilder()
+            .setExpression(literal(LiteralKind.LITERAL_KIND_NUMBER, "5", number))
+            .setType(FeelType.newBuilder().setQualifiedName("number")))
+        .setInferredType(booleanType).build();
+    Expression standaloneTests = Expression.newBuilder()
+        .setUnaryTests(UnaryTestsExpression.newBuilder().setWildcard(true))
+        .setInferredType(booleanType).build();
+    Expression expressions = Expression.newBuilder().setList(ListExpression.newBuilder()
+            .addElements(range).addElements(filter).addElements(between)
+            .addElements(in).addElements(instanceOf).addElements(standaloneTests))
+        .setInferredType(anyList).build();
+    DrgElement decision = decisionWithExpression(
+        "decision-id", "Result", anyList, expressions);
+
+    RuntimeListExpression lowered = (RuntimeListExpression) lowerer.lower(
+        new DmnSemanticPipelineResult(
+            Definitions.newBuilder().addDrgElements(decision).build(),
+            List.of(decision), List.of()))
+        .decisions().getFirst().expression().orElseThrow();
+
+    RuntimeRangeExpression runtimeRange = (RuntimeRangeExpression) lowered.elements().get(0);
+    assertThat(runtimeRange.lower()).isPresent();
+    assertThat(runtimeRange.upper()).isPresent();
+    assertThat(runtimeRange.lowerBoundary()).isEqualTo(RuntimeRangeBoundary.CLOSED);
+    assertThat(runtimeRange.upperBoundary()).isEqualTo(RuntimeRangeBoundary.OPEN);
+    assertThat(lowered.elements().get(1)).isInstanceOf(RuntimeFilterExpression.class);
+    assertThat(lowered.elements().get(2)).isInstanceOf(RuntimeBetweenExpression.class);
+    RuntimeInExpression runtimeIn = (RuntimeInExpression) lowered.elements().get(3);
+    assertThat(runtimeIn.tests().tests()).hasSize(2);
+    assertThat(runtimeIn.tests().tests().get(0))
+        .isInstanceOf(RuntimeComparisonUnaryTest.class);
+    assertThat(runtimeIn.tests().tests().get(1)).isInstanceOf(RuntimeRangeUnaryTest.class);
+    RuntimeInstanceOfExpression runtimeInstance =
+        (RuntimeInstanceOfExpression) lowered.elements().get(4);
+    assertThat(runtimeInstance.testedType().kind()).isEqualTo(RuntimeTypeKind.NUMBER);
+    RuntimeUnaryTestsExpression runtimeTests =
+        (RuntimeUnaryTestsExpression) lowered.elements().get(5);
+    assertThat(runtimeTests.tests().wildcard()).isTrue();
+  }
+
   private static DrgElement decisionWithExpression(
       String id, String name, TypeReference type, Expression expression) {
     return DrgElement.newBuilder().setDecision(Decision.newBuilder()

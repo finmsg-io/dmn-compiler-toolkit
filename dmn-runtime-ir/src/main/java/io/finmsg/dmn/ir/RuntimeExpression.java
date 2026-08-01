@@ -11,6 +11,12 @@ public sealed interface RuntimeExpression permits
     RuntimeFunctionCall,
     RuntimeContextExpression,
     RuntimeLocalReference,
-    RuntimePathExpression {
+    RuntimePathExpression,
+    RuntimeRangeExpression,
+    RuntimeFilterExpression,
+    RuntimeBetweenExpression,
+    RuntimeInExpression,
+    RuntimeInstanceOfExpression,
+    RuntimeUnaryTestsExpression {
   RuntimeType type();
 }

@@ -211,9 +211,117 @@ public final class RuntimeIrLowerer {
           lowerExpression(expression.getPath().getSource(), path + "/source", bindings, slots,
               itemTypes, localSlots, nextLocalSlot),
           expression.getPath().getMember(), type);
+      case RANGE -> lowerRange(expression.getRange(), type, path, bindings, slots, itemTypes,
+          localSlots, nextLocalSlot);
+      case FILTER -> new RuntimeFilterExpression(
+          lowerExpression(expression.getFilter().getSource(), path + "/source", bindings, slots,
+              itemTypes, localSlots, nextLocalSlot),
+          lowerExpression(expression.getFilter().getFilter(), path + "/filter", bindings, slots,
+              itemTypes, localSlots, nextLocalSlot),
+          type);
+      case BETWEEN -> new RuntimeBetweenExpression(
+          lowerExpression(expression.getBetween().getValue(), path + "/value", bindings, slots,
+              itemTypes, localSlots, nextLocalSlot),
+          lowerExpression(expression.getBetween().getLower(), path + "/lower", bindings, slots,
+              itemTypes, localSlots, nextLocalSlot),
+          lowerExpression(expression.getBetween().getUpper(), path + "/upper", bindings, slots,
+              itemTypes, localSlots, nextLocalSlot),
+          type);
+      case IN -> new RuntimeInExpression(
+          lowerExpression(expression.getIn().getValue(), path + "/value", bindings, slots,
+              itemTypes, localSlots, nextLocalSlot),
+          lowerUnaryTests(expression.getIn().getTests(), path + "/tests", bindings, slots,
+              itemTypes, localSlots, nextLocalSlot),
+          type);
+      case INSTANCE_OF -> new RuntimeInstanceOfExpression(
+          lowerExpression(expression.getInstanceOf().getExpression(), path + "/expression",
+              bindings, slots, itemTypes, localSlots, nextLocalSlot),
+          lowerFeelType(expression.getInstanceOf().getType(), itemTypes), type);
+      case UNARY_TESTS -> new RuntimeUnaryTestsExpression(
+          lowerUnaryTests(expression.getUnaryTests(), path, bindings, slots, itemTypes,
+              localSlots, nextLocalSlot), type);
       default -> throw new RuntimeIrLoweringException(
           "Unsupported Runtime IR expression " + expression.getNodeCase()
               + " at " + path + ".");
+    };
+  }
+
+  private static RuntimeRangeExpression lowerRange(
+      RangeExpression range,
+      RuntimeType type,
+      String path,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, Integer> localSlots,
+      int[] nextLocalSlot) {
+    Optional<RuntimeExpression> lower = range.hasLower()
+        ? Optional.of(lowerExpression(range.getLower(), path + "/lower", bindings, slots,
+            itemTypes, localSlots, nextLocalSlot)) : Optional.empty();
+    Optional<RuntimeExpression> upper = range.hasUpper()
+        ? Optional.of(lowerExpression(range.getUpper(), path + "/upper", bindings, slots,
+            itemTypes, localSlots, nextLocalSlot)) : Optional.empty();
+    return new RuntimeRangeExpression(lower, upper,
+        rangeBoundary(range.getLowerBoundary()), rangeBoundary(range.getUpperBoundary()), type);
+  }
+
+  private static RuntimeUnaryTests lowerUnaryTests(
+      UnaryTestsExpression tests,
+      String path,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, Integer> localSlots,
+      int[] nextLocalSlot) {
+    List<RuntimeUnaryTest> lowered = new ArrayList<>();
+    for (int index = 0; index < tests.getTestsCount(); index++) {
+      PositiveUnaryTest test = tests.getTests(index);
+      String testPath = path + "/test[" + index + "]";
+      lowered.add(switch (test.getTypeCase()) {
+        case COMPARISON -> new RuntimeComparisonUnaryTest(
+            unaryTestOperator(test.getComparison().getOperator()),
+            lowerExpression(test.getComparison().getEndpoint(), testPath, bindings, slots,
+                itemTypes, localSlots, nextLocalSlot));
+        case RANGE -> {
+          RuntimeType elementType = test.getRange().hasLower()
+              ? lowerType(test.getRange().getLower().getInferredType(), itemTypes, new HashSet<>())
+              : test.getRange().hasUpper()
+                  ? lowerType(test.getRange().getUpper().getInferredType(), itemTypes,
+                      new HashSet<>())
+                  : RuntimeType.scalar(RuntimeTypeKind.ANY);
+          yield new RuntimeRangeUnaryTest(lowerRange(test.getRange(),
+              RuntimeType.element(RuntimeTypeKind.RANGE, elementType), testPath, bindings, slots,
+              itemTypes, localSlots, nextLocalSlot));
+        }
+        case EXPRESSION -> new RuntimeExpressionUnaryTest(lowerExpression(
+            test.getExpression(), testPath, bindings, slots, itemTypes, localSlots, nextLocalSlot));
+        case TYPE_NOT_SET -> throw new RuntimeIrLoweringException(
+            "Unsupported empty unary test at " + testPath + ".");
+      });
+    }
+    return new RuntimeUnaryTests(tests.getNegated(), tests.getWildcard(), lowered);
+  }
+
+  private static RuntimeRangeBoundary rangeBoundary(RangeBoundary boundary) {
+    return switch (boundary) {
+      case RANGE_BOUNDARY_OPEN -> RuntimeRangeBoundary.OPEN;
+      case RANGE_BOUNDARY_CLOSED -> RuntimeRangeBoundary.CLOSED;
+      case RANGE_BOUNDARY_UNSPECIFIED, UNRECOGNIZED -> throw new RuntimeIrLoweringException(
+          "Unsupported FEEL range boundary " + boundary + ".");
+    };
+  }
+
+  private static RuntimeUnaryTestOperator unaryTestOperator(UnaryTestOperator operator) {
+    return switch (operator) {
+      case UNARY_TEST_OPERATOR_EQUAL -> RuntimeUnaryTestOperator.EQUAL;
+      case UNARY_TEST_OPERATOR_NOT_EQUAL -> RuntimeUnaryTestOperator.NOT_EQUAL;
+      case UNARY_TEST_OPERATOR_LESS -> RuntimeUnaryTestOperator.LESS;
+      case UNARY_TEST_OPERATOR_LESS_EQUAL -> RuntimeUnaryTestOperator.LESS_EQUAL;
+      case UNARY_TEST_OPERATOR_GREATER -> RuntimeUnaryTestOperator.GREATER;
+      case UNARY_TEST_OPERATOR_GREATER_EQUAL -> RuntimeUnaryTestOperator.GREATER_EQUAL;
+      case UNARY_TEST_OPERATOR_UNSPECIFIED, UNRECOGNIZED ->
+          throw new RuntimeIrLoweringException("Unsupported FEEL unary-test operator "
+              + operator + ".");
     };
   }
 
@@ -321,6 +429,40 @@ public final class RuntimeIrLowerer {
           lowerType(type.getFunction().getReturnType(), items, new HashSet<>(resolving)));
       case NAMED -> lowerNamed(type.getNamed(), items, resolving);
       case KIND_NOT_SET -> RuntimeType.scalar(RuntimeTypeKind.ANY);
+    };
+  }
+
+  private static RuntimeType lowerFeelType(
+      FeelType type, Map<String, ItemDefinition> items) {
+    return switch (type.getTypeCase()) {
+      case QUALIFIED_NAME -> switch (type.getQualifiedName()) {
+        case "any" -> RuntimeType.scalar(RuntimeTypeKind.ANY);
+        case "null" -> RuntimeType.scalar(RuntimeTypeKind.NULL);
+        case "boolean" -> RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+        case "number" -> RuntimeType.scalar(RuntimeTypeKind.NUMBER);
+        case "string" -> RuntimeType.scalar(RuntimeTypeKind.STRING);
+        case "date" -> RuntimeType.scalar(RuntimeTypeKind.DATE);
+        case "time" -> RuntimeType.scalar(RuntimeTypeKind.TIME);
+        case "date and time" -> RuntimeType.scalar(RuntimeTypeKind.DATE_TIME);
+        case "duration" -> RuntimeType.scalar(RuntimeTypeKind.DURATION);
+        case "years and months duration" ->
+            RuntimeType.scalar(RuntimeTypeKind.YEARS_MONTHS_DURATION);
+        case "days and time duration" -> RuntimeType.scalar(RuntimeTypeKind.DAYS_TIME_DURATION);
+        case "range" -> RuntimeType.element(
+            RuntimeTypeKind.RANGE, RuntimeType.scalar(RuntimeTypeKind.ANY));
+        default -> lowerNamed(NamedTypeReference.newBuilder()
+            .setName(type.getQualifiedName()).build(), items, new HashSet<>());
+      };
+      case RANGE -> RuntimeType.element(RuntimeTypeKind.RANGE,
+          lowerFeelType(type.getRange().getElementType(), items));
+      case LIST -> RuntimeType.element(RuntimeTypeKind.LIST,
+          lowerFeelType(type.getList().getElementType(), items));
+      case CONTEXT -> RuntimeType.context(type.getContext().getEntriesList().stream()
+          .map(entry -> lowerFeelType(entry.getType(), items)).toList());
+      case FUNCTION -> RuntimeType.function(type.getFunction().getParameterTypesList().stream()
+              .map(parameter -> lowerFeelType(parameter, items)).toList(),
+          lowerFeelType(type.getFunction().getReturnType(), items));
+      case TYPE_NOT_SET -> RuntimeType.scalar(RuntimeTypeKind.ANY);
     };
   }
 
