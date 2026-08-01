@@ -125,12 +125,79 @@ class FeelTypeAnalyzerTest {
   }
 
   @Test
+  void resolvesAndValidatesParsedNotFunctionCalls() {
+    assertThat(parse("not(true)").hasInvocation()).isTrue();
+    assertFunctionType("not(true)", BuiltinType.BUILTIN_TYPE_BOOLEAN);
+    assertFunctionError(parse("not(true, false)"), "INVALID_ARGUMENT_COUNT");
+    assertFunctionError(parse("not(1)"), "INVALID_ARGUMENT_TYPE");
+  }
+
+  @Test
   void reportsFunctionCallErrors() {
     assertFunctionError(functionCall("unknownFn", parse("1")), "UNKNOWN_FUNCTION");
     assertFunctionError(functionCall("not", parse("true"), parse("false")),
         "INVALID_ARGUMENT_COUNT");
     assertFunctionError(functionCall("not", parse("1")), "INVALID_ARGUMENT_TYPE");
     assertFunctionError(functionCall("sum", parse("[\"a\"]")), "INVALID_ARGUMENT_TYPE");
+  }
+
+  @Test
+  void resolvesForVariablesAndSequentialIterations() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("for x in [1, 2], y in [x + 1] return y * 2"),
+        FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.expression().getInferredType())
+        .isEqualTo(listOf(BuiltinType.BUILTIN_TYPE_NUMBER));
+    assertThat(result.expression().getForExpression().getReturnExpression().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+  }
+
+  @Test
+  void resolvesQuantifiedVariables() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("some x in [1, 2], y in [x + 1] satisfies y > x"),
+        FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.expression().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_BOOLEAN));
+  }
+
+  @Test
+  void exposesEarlierContextEntriesToLaterEntries() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("{a: 1, b: a + 1}"), FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.expression().getContext().getEntries(1)
+        .getExpression().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+  }
+
+  @Test
+  void resolvesTypedFunctionParameters() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("function(x: number) x + 1"), FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.expression().getFunctionDefinition().getBody().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+    assertThat(result.expression().getInferredType().getFunction().getParameterType(0))
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+    assertThat(result.expression().getInferredType().getFunction().getReturnType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+  }
+
+  @Test
+  void doesNotLeakNestedVariables() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("[for x in [1] return x, x]"), FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("UNKNOWN_NAME");
   }
 
   private Expression parse(String source) {
@@ -188,6 +255,13 @@ class FeelTypeAnalyzerTest {
 
   private static TypeReference builtin(BuiltinType type) {
     return TypeReference.newBuilder().setBuiltin(type).build();
+  }
+
+  private static TypeReference listOf(BuiltinType type) {
+    return TypeReference.newBuilder()
+        .setList(io.finmsg.dmn.model.ListTypeReference.newBuilder()
+            .setElementType(builtin(type)))
+        .build();
   }
 
   private static io.finmsg.dmn.model.SourceLocation nullLocation() {

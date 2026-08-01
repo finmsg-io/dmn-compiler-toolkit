@@ -1,8 +1,12 @@
 package io.finmsg.dmn.semantic.analysis;
 
 import io.finmsg.dmn.model.*;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /** Infers types for one parsed FEEL expression and returns a typed AST copy. */
@@ -50,6 +54,7 @@ public final class FeelTypeAnalyzer {
     private final FeelTypeEnvironment environment;
     private final SourceLocation sourceLocation;
     private final List<DmnSemanticDiagnostic> diagnostics = new ArrayList<>();
+    private final Deque<Map<String, TypeReference>> scopes = new ArrayDeque<>();
 
     private Session(FeelTypeEnvironment environment, SourceLocation sourceLocation) {
       this.environment = environment;
@@ -84,7 +89,7 @@ public final class FeelTypeAnalyzer {
 
     private TypedExpression inferName(Expression input, String path) {
       String name = input.getName().getName();
-      TypeReference type = environment.symbols().get(name);
+      TypeReference type = lookup(name);
       if (type == null) {
         error("UNKNOWN_NAME", path, "No type is available for name '" + name + "'.");
         type = ANY;
@@ -280,10 +285,17 @@ public final class FeelTypeAnalyzer {
     private TypedExpression inferContext(Expression input, String path) {
       ContextExpression value = input.getContext();
       ContextExpression.Builder builder = value.toBuilder().clearEntries();
-      for (int i = 0; i < value.getEntriesCount(); i++) {
-        io.finmsg.dmn.model.ContextEntry entry = value.getEntries(i);
-        TypedExpression expression = infer(entry.getExpression(), path + "/entry[" + i + "]");
-        builder.addEntries(entry.toBuilder().setExpression(expression.expression));
+      pushScope();
+      try {
+        for (int i = 0; i < value.getEntriesCount(); i++) {
+          io.finmsg.dmn.model.ContextEntry entry = value.getEntries(i);
+          TypedExpression expression = infer(
+              entry.getExpression(), path + "/entry[" + i + "]");
+          builder.addEntries(entry.toBuilder().setExpression(expression.expression));
+          define(entry.getName(), expression.type);
+        }
+      } finally {
+        popScope();
       }
       return typed(input.toBuilder().setContext(builder).build(), ANY);
     }
@@ -291,34 +303,52 @@ public final class FeelTypeAnalyzer {
     private TypedExpression inferFor(Expression input, String path) {
       ForExpression value = input.getForExpression();
       ForExpression.Builder builder = value.toBuilder().clearIterations();
-      for (int i = 0; i < value.getIterationsCount(); i++) {
-        IterationContext iteration = value.getIterations(i);
-        TypedExpression start = infer(iteration.getStart(), path + "/iteration[" + i + "]/start");
-        IterationContext.Builder typedIteration = iteration.toBuilder().setStart(start.expression);
-        if (iteration.hasEnd()) {
-          typedIteration.setEnd(infer(iteration.getEnd(),
-              path + "/iteration[" + i + "]/end").expression);
+      pushScope();
+      try {
+        for (int i = 0; i < value.getIterationsCount(); i++) {
+          IterationContext iteration = value.getIterations(i);
+          TypedExpression start = infer(
+              iteration.getStart(), path + "/iteration[" + i + "]/start");
+          IterationContext.Builder typedIteration =
+              iteration.toBuilder().setStart(start.expression);
+          TypeReference variableType = iterationValueType(start.type);
+          if (iteration.hasEnd()) {
+            TypedExpression end = infer(
+                iteration.getEnd(), path + "/iteration[" + i + "]/end");
+            typedIteration.setEnd(end.expression);
+            variableType = commonType(start.type, end.type);
+          }
+          builder.addIterations(typedIteration);
+          define(iteration.getVariable(), variableType);
         }
-        builder.addIterations(typedIteration);
+        TypedExpression result = infer(value.getReturnExpression(), path + "/return");
+        builder.setReturnExpression(result.expression);
+        return typed(input.toBuilder().setForExpression(builder).build(), list(result.type));
+      } finally {
+        popScope();
       }
-      TypedExpression result = infer(value.getReturnExpression(), path + "/return");
-      builder.setReturnExpression(result.expression);
-      return typed(input.toBuilder().setForExpression(builder).build(), result.type);
     }
 
     private TypedExpression inferQuantified(Expression input, String path) {
       QuantifiedExpression value = input.getQuantified();
       QuantifiedExpression.Builder builder = value.toBuilder().clearBindings();
-      for (int i = 0; i < value.getBindingsCount(); i++) {
-        IterationBinding binding = value.getBindings(i);
-        builder.addBindings(binding.toBuilder().setIn(
-            infer(binding.getIn(), path + "/binding[" + i + "]").expression));
+      pushScope();
+      try {
+        for (int i = 0; i < value.getBindingsCount(); i++) {
+          IterationBinding binding = value.getBindings(i);
+          TypedExpression source = infer(
+              binding.getIn(), path + "/binding[" + i + "]/in");
+          builder.addBindings(binding.toBuilder().setIn(source.expression));
+          define(binding.getVariable(), iterationValueType(source.type));
+        }
+        TypedExpression satisfies = infer(value.getSatisfies(), path + "/satisfies");
+        require(satisfies.type, BOOLEAN, path + "/satisfies",
+            "Quantified expression condition must be boolean.");
+        builder.setSatisfies(satisfies.expression);
+        return typed(input.toBuilder().setQuantified(builder).build(), BOOLEAN);
+      } finally {
+        popScope();
       }
-      TypedExpression satisfies = infer(value.getSatisfies(), path + "/satisfies");
-      require(satisfies.type, BOOLEAN, path + "/satisfies",
-          "Quantified expression condition must be boolean.");
-      builder.setSatisfies(satisfies.expression);
-      return typed(input.toBuilder().setQuantified(builder).build(), BOOLEAN);
     }
 
     private TypedExpression inferFilter(Expression input, String path) {
@@ -485,9 +515,47 @@ public final class FeelTypeAnalyzer {
 
     private TypedExpression inferFunctionDefinition(Expression input, String path) {
       FunctionDefinitionExpression value = input.getFunctionDefinition();
-      TypedExpression body = infer(value.getBody(), path + "/body");
-      return typed(input.toBuilder().setFunctionDefinition(
-          value.toBuilder().setBody(body.expression)).build(), ANY);
+      List<TypeReference> parameterTypes = new ArrayList<>();
+      pushScope();
+      try {
+        for (FormalParameter parameter : value.getParametersList()) {
+          TypeReference parameterType = semanticType(parameter.getType());
+          parameterTypes.add(parameterType);
+          define(parameter.getName(), parameterType);
+        }
+        TypedExpression body = infer(value.getBody(), path + "/body");
+        TypeReference functionType = TypeReference.newBuilder()
+            .setFunction(FunctionTypeReference.newBuilder()
+                .addAllParameterType(parameterTypes)
+                .setReturnType(body.type))
+            .build();
+        return typed(input.toBuilder().setFunctionDefinition(
+            value.toBuilder().setBody(body.expression)).build(), functionType);
+      } finally {
+        popScope();
+      }
+    }
+
+    private TypeReference lookup(String name) {
+      for (Map<String, TypeReference> scope : scopes) {
+        TypeReference type = scope.get(name);
+        if (type != null) {
+          return type;
+        }
+      }
+      return environment.symbols().get(name);
+    }
+
+    private void pushScope() {
+      scopes.push(new HashMap<>());
+    }
+
+    private void popScope() {
+      scopes.pop();
+    }
+
+    private void define(String name, TypeReference type) {
+      scopes.getFirst().put(name, type);
     }
 
     private TypedExpression inferUnaryTests(Expression input, String path) {
@@ -545,6 +613,55 @@ public final class FeelTypeAnalyzer {
       case LITERAL_KIND_DURATION -> builtin(BuiltinType.BUILTIN_TYPE_DURATION);
       case LITERAL_KIND_UNSPECIFIED, UNRECOGNIZED -> ANY;
     };
+  }
+
+  private static TypeReference iterationValueType(TypeReference source) {
+    return source.hasList() ? source.getList().getElementType() : source;
+  }
+
+  private static TypeReference semanticType(FeelType type) {
+    return switch (type.getTypeCase()) {
+      case QUALIFIED_NAME -> namedOrBuiltin(type.getQualifiedName());
+      case RANGE -> RANGE;
+      case LIST -> list(semanticType(type.getList().getElementType()));
+      case FUNCTION -> {
+        FunctionTypeReference.Builder function = FunctionTypeReference.newBuilder();
+        for (FeelType parameter : type.getFunction().getParameterTypesList()) {
+          function.addParameterType(semanticType(parameter));
+        }
+        function.setReturnType(semanticType(type.getFunction().getReturnType()));
+        yield TypeReference.newBuilder().setFunction(function).build();
+      }
+      case CONTEXT, TYPE_NOT_SET -> ANY;
+    };
+  }
+
+  private static TypeReference namedOrBuiltin(String name) {
+    return switch (name) {
+      case "any" -> ANY;
+      case "number" -> NUMBER;
+      case "string" -> STRING;
+      case "boolean" -> BOOLEAN;
+      case "date" -> builtin(BuiltinType.BUILTIN_TYPE_DATE);
+      case "time" -> builtin(BuiltinType.BUILTIN_TYPE_TIME);
+      case "date and time" -> builtin(BuiltinType.BUILTIN_TYPE_DATE_AND_TIME);
+      case "duration" -> builtin(BuiltinType.BUILTIN_TYPE_DURATION);
+      case "years and months duration" ->
+          builtin(BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION);
+      case "days and time duration" ->
+          builtin(BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION);
+      case "range" -> RANGE;
+      case "null" -> NULL;
+      default -> TypeReference.newBuilder()
+          .setNamed(NamedTypeReference.newBuilder().setName(name))
+          .build();
+    };
+  }
+
+  private static TypeReference list(TypeReference elementType) {
+    return TypeReference.newBuilder()
+        .setList(ListTypeReference.newBuilder().setElementType(elementType))
+        .build();
   }
 
   private static boolean compatible(TypeReference left, TypeReference right) {
