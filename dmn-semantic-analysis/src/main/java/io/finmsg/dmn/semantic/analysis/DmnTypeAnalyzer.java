@@ -141,14 +141,44 @@ public final class DmnTypeAnalyzer {
       DecisionTable.Builder output = table.toBuilder();
       for (int i = 0; i < table.getInputsCount(); i++) {
         InputClause inputClause = table.getInputs(i);
+        InputClause.Builder typedInput = inputClause.toBuilder();
         if (inputClause.hasInputExpression()) {
-          output.setInputs(i, inputClause.toBuilder().setInputExpression(typeFeel(
-              inputClause.getInputExpression(), scope, path + "/input[" + i + "]", location)));
+          typedInput.setInputExpression(typeFeel(inputClause.getInputExpression(), scope,
+              path + "/input[" + i + "]/expression", location));
         }
+        if (inputClause.hasInputValues()) {
+          typedInput.setInputValues(typeFeel(inputClause.getInputValues(), scope,
+              path + "/input[" + i + "]/inputValues", location));
+        }
+        output.setInputs(i, typedInput);
+      }
+      validateOutputNames(table, path, location);
+      for (int i = 0; i < table.getOutputsCount(); i++) {
+        OutputClause clause = table.getOutputs(i);
+        OutputClause.Builder typedOutput = clause.toBuilder();
+        if (clause.hasOutputValues()) {
+          typedOutput.setOutputValues(typeFeel(clause.getOutputValues(), scope,
+              path + "/output[" + i + "]/outputValues", location));
+        }
+        if (clause.hasDefaultOutputEntry()) {
+          typedOutput.setDefaultOutputEntry(typeExpressionNode(clause.getDefaultOutputEntry(), scope,
+              path + "/output[" + i + "]/defaultOutputEntry", location));
+        }
+        output.setOutputs(i, typedOutput);
       }
       for (int i = 0; i < table.getRulesCount(); i++) {
         DecisionRule rule = table.getRules(i);
         DecisionRule.Builder typedRule = rule.toBuilder();
+        if (rule.getInputEntriesCount() != table.getInputsCount()) {
+          diagnostic("INVALID_INPUT_ENTRY_COUNT", path + "/rule[" + i + "]",
+              "Rule has " + rule.getInputEntriesCount() + " input entries but the table has "
+                  + table.getInputsCount() + " input clauses.", location);
+        }
+        if (rule.getOutputEntriesCount() != table.getOutputsCount()) {
+          diagnostic("INVALID_OUTPUT_ENTRY_COUNT", path + "/rule[" + i + "]",
+              "Rule has " + rule.getOutputEntriesCount() + " output entries but the table has "
+                  + table.getOutputsCount() + " output clauses.", location);
+        }
         for (int j = 0; j < rule.getInputEntriesCount(); j++) {
           UnaryTest test = rule.getInputEntries(j);
           if (test.hasParsed()) {
@@ -157,15 +187,29 @@ public final class DmnTypeAnalyzer {
                 path + "/rule[" + i + "]/inputEntry[" + j + "]", location);
             typedRule.setInputEntries(j, test.toBuilder().setParsed(
                 test.getParsed().toBuilder().setTests(typed.expression().getUnaryTests())));
+            if (j < output.getInputsCount()) {
+              TypeReference subject = inputClauseType(output.getInputs(j));
+              validateUnaryTests(typed.expression().getUnaryTests(), subject,
+                  path + "/rule[" + i + "]/inputEntry[" + j + "]", location);
+            }
           }
         }
         for (int j = 0; j < rule.getOutputEntriesCount(); j++) {
-          typedRule.setOutputEntries(j, typeFeel(rule.getOutputEntries(j), scope,
-              path + "/rule[" + i + "]/outputEntry[" + j + "]", location));
+          Feel typedEntry = typeFeel(rule.getOutputEntries(j), scope,
+              path + "/rule[" + i + "]/outputEntry[" + j + "]", location);
+          typedRule.setOutputEntries(j, typedEntry);
+          if (j < output.getOutputsCount()) {
+            validateValueType(feelType(typedEntry), output.getOutputs(j).getType(),
+                "RULE_OUTPUT_TYPE_MISMATCH",
+                path + "/rule[" + i + "]/outputEntry[" + j + "]", location);
+          }
         }
         output.setRules(i, typedRule);
       }
-      return output.build();
+      DecisionTable typedTable = output.build();
+      validateClauseValueTypes(typedTable, path, location);
+      validateHitPolicy(typedTable, path, location);
+      return typedTable;
     }
 
     private BoxedExpression typeBoxed(BoxedExpression boxed, Map<String, TypeReference> scope,
@@ -221,6 +265,194 @@ public final class DmnTypeAnalyzer {
       }
       FeelTypeAnalysisResult result = infer(feel.getParsed().getAst(), scope, path, location);
       return feel.toBuilder().setParsed(feel.getParsed().toBuilder().setAst(result.expression())).build();
+    }
+
+    private ExpressionNode typeExpressionNode(
+        ExpressionNode node, Map<String, TypeReference> scope,
+        String path, SourceLocation location) {
+      if (!node.hasParsed()) {
+        return node;
+      }
+      ExpressionParsed parsed = node.getParsed();
+      return switch (parsed.getTypeCase()) {
+        case FEEL -> {
+          FeelTypeAnalysisResult result = infer(parsed.getFeel().getAst(), scope, path, location);
+          yield node.toBuilder().setParsed(parsed.toBuilder().setFeel(
+              parsed.getFeel().toBuilder().setAst(result.expression()))).build();
+        }
+        case BOXED -> {
+          BoxedExpression typed = typeBoxed(
+              BoxedExpression.newBuilder().setParsed(parsed.getBoxed()).build(),
+              scope, path, location);
+          yield node.toBuilder().setParsed(parsed.toBuilder().setBoxed(typed.getParsed())).build();
+        }
+        case TYPE_NOT_SET -> node;
+      };
+    }
+
+    private void validateOutputNames(
+        DecisionTable table, String path, SourceLocation location) {
+      if (table.getOutputsCount() <= 1) {
+        return;
+      }
+      Map<String, Integer> names = new LinkedHashMap<>();
+      for (int i = 0; i < table.getOutputsCount(); i++) {
+        String name = table.getOutputs(i).getNode().getName();
+        if (name.isBlank()) {
+          diagnostic("MISSING_OUTPUT_NAME", path + "/output[" + i + "]",
+              "Every output clause in a multi-output decision table must have a name.", location);
+        } else if (names.putIfAbsent(name, i) != null) {
+          diagnostic("DUPLICATE_OUTPUT_NAME", path + "/output[" + i + "]",
+              "Duplicate output clause name '" + name + "'.", location);
+        }
+      }
+    }
+
+    private void validateClauseValueTypes(
+        DecisionTable table, String path, SourceLocation location) {
+      for (int i = 0; i < table.getInputsCount(); i++) {
+        InputClause clause = table.getInputs(i);
+        if (clause.hasInputValues() && clause.getInputValues().hasParsed()
+            && clause.getInputValues().getParsed().getAst().hasUnaryTests()) {
+          validateUnaryTests(clause.getInputValues().getParsed().getAst().getUnaryTests(),
+              inputClauseType(clause), path + "/input[" + i + "]/inputValues", location);
+        }
+      }
+      for (int i = 0; i < table.getOutputsCount(); i++) {
+        OutputClause clause = table.getOutputs(i);
+        if (clause.hasOutputValues() && clause.getOutputValues().hasParsed()
+            && clause.getOutputValues().getParsed().getAst().hasUnaryTests()) {
+          validateUnaryTests(clause.getOutputValues().getParsed().getAst().getUnaryTests(),
+              clause.getType(), path + "/output[" + i + "]/outputValues", location);
+        }
+        if (clause.hasDefaultOutputEntry()) {
+          validateValueType(expressionNodeType(clause.getDefaultOutputEntry()), clause.getType(),
+              "DEFAULT_OUTPUT_TYPE_MISMATCH",
+              path + "/output[" + i + "]/defaultOutputEntry", location);
+        }
+      }
+    }
+
+    private void validateUnaryTests(
+        UnaryTestsExpression tests, TypeReference subject,
+        String path, SourceLocation location) {
+      if (isUnknown(subject)) {
+        return;
+      }
+      for (int i = 0; i < tests.getTestsCount(); i++) {
+        PositiveUnaryTest test = tests.getTests(i);
+        switch (test.getTypeCase()) {
+          case COMPARISON -> validateValueType(
+              test.getComparison().getEndpoint().getInferredType(), subject,
+              "UNARY_TEST_TYPE_MISMATCH", path + "/test[" + i + "]", location);
+          case RANGE -> {
+            if (test.getRange().hasLower()) {
+              validateValueType(test.getRange().getLower().getInferredType(), subject,
+                  "UNARY_TEST_TYPE_MISMATCH", path + "/test[" + i + "]/lower", location);
+            }
+            if (test.getRange().hasUpper()) {
+              validateValueType(test.getRange().getUpper().getInferredType(), subject,
+                  "UNARY_TEST_TYPE_MISMATCH", path + "/test[" + i + "]/upper", location);
+            }
+          }
+          case EXPRESSION -> validateValueType(test.getExpression().getInferredType(), subject,
+              "UNARY_TEST_TYPE_MISMATCH", path + "/test[" + i + "]", location);
+          case TYPE_NOT_SET -> { }
+        }
+      }
+    }
+
+    private void validateValueType(
+        TypeReference actual, TypeReference expected, String code,
+        String path, SourceLocation location) {
+      if (!isUnknown(actual) && !isUnknown(expected) && !assignable(actual, expected)) {
+        diagnostic(code, path,
+            "Expected " + typeName(expected) + " but found " + typeName(actual) + ".",
+            location);
+      }
+    }
+
+    private void validateHitPolicy(
+        DecisionTable table, String path, SourceLocation location) {
+      HitPolicy policy = table.getHitPolicy().getPolicy();
+      Aggregation aggregation = table.getHitPolicy().getAggregation();
+      if (policy != HitPolicy.HIT_POLICY_COLLECT
+          && aggregation != Aggregation.AGGREGATION_UNSPECIFIED) {
+        diagnostic("INVALID_HIT_POLICY_AGGREGATION", path + "/hitPolicy",
+            "Aggregation is only valid with the COLLECT hit policy.", location);
+      }
+      if (policy == HitPolicy.HIT_POLICY_COLLECT
+          && aggregation != Aggregation.AGGREGATION_UNSPECIFIED) {
+        if (table.getOutputsCount() != 1) {
+          diagnostic("INVALID_COLLECT_AGGREGATION", path + "/hitPolicy",
+              "A COLLECT aggregation requires exactly one output clause.", location);
+        } else {
+          TypeReference outputType = decisionTableOutputType(table, 0);
+          if (aggregation == Aggregation.AGGREGATION_SUM && !isNumeric(outputType)) {
+            diagnostic("INVALID_COLLECT_AGGREGATION_TYPE", path + "/hitPolicy",
+                "SUM aggregation requires a numeric output type.", location);
+          }
+          if ((aggregation == Aggregation.AGGREGATION_MIN
+              || aggregation == Aggregation.AGGREGATION_MAX)
+              && !isOrderable(outputType)) {
+            diagnostic("INVALID_COLLECT_AGGREGATION_TYPE", path + "/hitPolicy",
+                aggregation.name().replace("AGGREGATION_", "")
+                    + " aggregation requires an orderable output type.", location);
+          }
+        }
+      }
+      if (policy == HitPolicy.HIT_POLICY_PRIORITY
+          || policy == HitPolicy.HIT_POLICY_OUTPUT_ORDER) {
+        for (int i = 0; i < table.getOutputsCount(); i++) {
+          if (!table.getOutputs(i).hasOutputValues()) {
+            diagnostic("MISSING_OUTPUT_VALUES", path + "/output[" + i + "]",
+                policy.name().replace("HIT_POLICY_", "")
+                    + " requires ordered output values.", location);
+          }
+        }
+      }
+    }
+
+    private TypeReference inputClauseType(InputClause clause) {
+      return !isUnknown(clause.getType())
+          ? clause.getType() : feelType(clause.getInputExpression());
+    }
+
+    private static TypeReference expressionNodeType(ExpressionNode node) {
+      if (!node.hasParsed()) {
+        return TypeReference.getDefaultInstance();
+      }
+      return switch (node.getParsed().getTypeCase()) {
+        case FEEL -> node.getParsed().getFeel().getAst().getInferredType();
+        case BOXED, TYPE_NOT_SET -> TypeReference.getDefaultInstance();
+      };
+    }
+
+    private boolean isNumeric(TypeReference type) {
+      TypeReference resolved = type.hasNamed() ? resolveNamed(type) : type;
+      return resolved.equals(NUMBER) || isUnknown(resolved);
+    }
+
+    private boolean isOrderable(TypeReference type) {
+      TypeReference resolved = type.hasNamed() ? resolveNamed(type) : type;
+      if (isUnknown(resolved)) {
+        return true;
+      }
+      if (!resolved.hasBuiltin()) {
+        return false;
+      }
+      return switch (resolved.getBuiltin()) {
+        case BUILTIN_TYPE_NUMBER, BUILTIN_TYPE_STRING, BUILTIN_TYPE_DATE,
+             BUILTIN_TYPE_TIME, BUILTIN_TYPE_DATE_AND_TIME,
+             BUILTIN_TYPE_DURATION, BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION,
+             BUILTIN_TYPE_DAYS_AND_TIME_DURATION -> true;
+        default -> false;
+      };
+    }
+
+    private void diagnostic(
+        String code, String path, String message, SourceLocation location) {
+      diagnostics.add(new DmnSemanticDiagnostic(code, path, message, location));
     }
 
     private TypeReference logicType(DecisionLogic logic) {
