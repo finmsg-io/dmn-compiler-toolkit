@@ -41,3 +41,4 @@ The XML frontend has no remaining glue-code blocker for the current protobuf-sup
 - XML implementation types must not escape into downstream compiler stages.
 
 See [the completeness audit](../../audits/dmn-frontend-xml-completeness.md).
+See also [the production-readiness assessment](assessment-dmn-frontend-xml.md).

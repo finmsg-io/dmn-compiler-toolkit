@@ -38,6 +38,9 @@
 - [x] `instance of` named-type validation
 - [x] Model-indexed decision-table-reference typing and diagnostics
 - [x] Legacy single-binding loop compatibility
+- [x] Executable, namespace-free Runtime IR lowering for expressions, boxed logic, and linked models
+- [x] Typed constant canonicalization and stable built-in operation IDs
+- [x] Runtime IR interpreter with dependency scheduling, lexical frames, contexts, functions, and decision tables
 
 ## XML frontend completion gate
 
@@ -51,15 +54,16 @@
 
 - [ ] Add a compiler facade that aggregates phase diagnostics
 - [ ] Add a model resolver/loading boundary for imports
-- [ ] Stabilize the semantic result contract consumed by Runtime IR
+- [x] Stabilize the semantic result contract consumed by Runtime IR
 
 ## Later stages
 
 - [x] Structural Runtime IR module and deterministic graph/type lowering
-- [ ] FEEL expression and decision-table instruction lowering
-- [ ] Model-set Runtime IR lowering
+- [x] FEEL expression and decision-table lowering
+- [x] Model-set Runtime IR lowering
 - [ ] Constant folding and expression simplification
 - [ ] Java code generation
-- [ ] Runtime activation
+- [x] Runtime activation (process-local interpreter baseline)
+- [ ] External JAVA/PMML function host bindings and conformance expansion
 - [ ] Public compiler API and CLI
 - [ ] JMH performance benchmarks

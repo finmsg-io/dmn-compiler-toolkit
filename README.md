@@ -12,6 +12,7 @@ Current focus:
 
 - compiler facade and import model-resolution glue
 - Runtime IR expression and decision-table lowering
+- Runtime IR interpretation with dependency scheduling, lexical frames, FEEL values, and decision tables
 - compiler facade and model-resolution glue
 
 ## Architecture
@@ -55,8 +56,9 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-feel-parser` | ANTLR4 parser for DMN FEEL expressions |
 | `dmn-semantic-analysis` | Reference resolution, type analysis, DMN validation, and dependency ordering |
 | `dmn-runtime-ir` | Immutable Runtime IR with structural, constant, and value-reference lowering |
+| `dmn-runtime` | Deterministic interpreter for executable Runtime IR |
 
-Planned modules include optimization, Java code generation, compiler API, and runtime support.
+Planned modules include further optimization, Java code generation, and a compiler API.
 
 ## Requirements
 

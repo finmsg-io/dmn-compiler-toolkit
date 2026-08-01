@@ -9,7 +9,8 @@ dmn-compiler-toolkit
 ├── dmn-frontend-xml
 ├── dmn-feel-parser
 ├── dmn-semantic-analysis
-└── dmn-runtime-ir
+├── dmn-runtime-ir
+└── dmn-runtime
 ```
 
 All modules use:
@@ -128,19 +129,28 @@ function bodies with preserved function kind. Decisions and nested functions per
 lexical frame sizes, and closure captures carry lexical depth. Declared and expression-derived
 references drive deterministic runtime scheduling. Context types retain indexed field layouts,
 and statically known path and descendant access is resolved to those indices. Linked semantic
-models lower into one namespace-free slot space. Constant pools remain future work.
+models lower into one namespace-free slot space. Typed constant pools and stable built-in IDs are
+provided by a separate optimization pass.
 
-## 5.7 Target modules
+## 5.7 `dmn-runtime`
+
+Production dependency: `dmn-runtime-ir`.
+
+The process-local interpreter executes aggregate evaluation order, global value slots, lexical
+frames and closures, core FEEL expressions, contexts and relations, iterations and quantified
+expressions, built-ins, invocations, unary tests, and decision tables. External JAVA/PMML
+functions require a future host-binding boundary.
+
+## 5.8 Target modules
 
 ```text
 dmn-optimizer
 dmn-codegen-java
-dmn-runtime
 dmn-compiler-api
 dmn-benchmarks
 ```
 
-## 5.8 Module rules
+## 5.9 Module rules
 
 1. One architectural responsibility per module.
 2. Production dependencies point toward lower-level contracts.

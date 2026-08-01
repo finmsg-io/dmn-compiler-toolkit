@@ -21,6 +21,7 @@
         <module>dmn-feel-parser</module>
         <module>dmn-semantic-analysis</module>
         <module>dmn-runtime-ir</module>
+        <module>dmn-runtime</module>
     </modules>
 
     <properties>
