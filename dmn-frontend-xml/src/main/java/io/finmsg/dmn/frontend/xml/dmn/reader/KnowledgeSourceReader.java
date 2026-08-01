@@ -22,13 +22,9 @@ public final class KnowledgeSourceReader {
 
           case "locationURI" -> builder.setLocationUri(cursor.text().trim());
 
-          case "extensionElements" -> {
-            // later
-          }
+          case "documentation", "extensionElements" -> { }
 
-          default -> {
-            // ignore unknown children
-          }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "knowledgeSource");
         }
 
       } while (cursor.nextSibling());

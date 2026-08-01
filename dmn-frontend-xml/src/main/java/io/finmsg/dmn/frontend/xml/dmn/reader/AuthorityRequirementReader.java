@@ -27,9 +27,7 @@ public final class AuthorityRequirementReader {
               builder.setInput(
                   ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
 
-          default -> {
-            // ignore unknown children
-          }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "authorityRequirement");
         }
 
       } while (cursor.nextSibling());

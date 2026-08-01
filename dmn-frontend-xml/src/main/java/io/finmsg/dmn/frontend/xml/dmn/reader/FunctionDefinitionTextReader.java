@@ -23,7 +23,7 @@ public final class FunctionDefinitionTextReader {
           case "literalExpression", "context", "relation", "list", "functionDefinition" ->
               builder.setBody(readers.expressionNodeReader().readText(cursor));
           case "extensionElements" -> { }
-          default -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "boxed functionDefinition");
         }
       } while (cursor.nextSibling());
       cursor.parent();

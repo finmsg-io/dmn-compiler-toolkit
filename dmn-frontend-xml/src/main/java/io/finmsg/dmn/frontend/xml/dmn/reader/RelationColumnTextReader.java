@@ -16,7 +16,7 @@ public final class RelationColumnTextReader {
         switch (cursor.documentLocalName()) {
           case "variable" -> builder.setVariable(variableReader.read(cursor));
           case "extensionElements" -> { }
-          default -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "relation column");
         }
       } while (cursor.nextSibling());
       cursor.parent();

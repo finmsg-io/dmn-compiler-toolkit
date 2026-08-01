@@ -10,7 +10,7 @@ The project is under active development.
 
 Current focus:
 
-- consistent unsupported-content diagnostics in the DMN XML frontend
+- XML conformance and hostile-input coverage
 - XML conformance and security hardening
 - Runtime IR expression and decision-table lowering
 - compiler facade and model-resolution glue
@@ -190,7 +190,7 @@ mkdocs build
 
 ## Roadmap
 
-- Complete XML unsupported-content diagnostics
+- Complete the XML conformance and security matrix
 - Complete XML conformance and hostile-input coverage
 - Lower FEEL expressions and decision tables into Runtime IR instructions
 - Add optimizer passes

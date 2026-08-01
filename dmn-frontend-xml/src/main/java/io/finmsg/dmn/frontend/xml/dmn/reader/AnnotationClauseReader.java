@@ -10,6 +10,8 @@ public final class AnnotationClauseReader {
     public AnnotationClause read(XmlCursor cursor) {
         AnnotationClause.Builder builder = AnnotationClause.newBuilder();
         builder.setNode(nodeReader.read(cursor));
+        UnsupportedContent.validateChildren(
+                cursor, "annotation clause", "documentation", "extensionElements");
         return builder.build();
     }
 }

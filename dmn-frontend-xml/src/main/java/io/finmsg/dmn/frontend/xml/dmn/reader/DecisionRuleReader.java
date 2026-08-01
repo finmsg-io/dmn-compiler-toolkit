@@ -33,8 +33,8 @@ public final class DecisionRuleReader {
                             builder.addAnnotationEntries(
                                     readAnnotation(cursor));
 
-                    default -> {
-                    }
+                    case "documentation", "extensionElements" -> { }
+                    default -> UnsupportedContent.rejectDmnChild(cursor, "decision rule");
                 }
 
             } while (cursor.nextSibling());
@@ -47,10 +47,16 @@ public final class DecisionRuleReader {
 
         RuleAnnotation.Builder builder = RuleAnnotation.newBuilder();
 
-        if (cursor.firstChild("text")) {
-            if (cursor.hasText()) {
-                builder.setText(cursor.text().trim());
-            }
+        if (cursor.firstChild()) {
+            do {
+                if ("text".equals(cursor.documentLocalName())) {
+                    if (cursor.hasText()) {
+                        builder.setText(cursor.text().trim());
+                    }
+                } else {
+                    UnsupportedContent.rejectDmnChild(cursor, "annotationEntry");
+                }
+            } while (cursor.nextSibling());
             cursor.parent();
         }
         return builder.build();

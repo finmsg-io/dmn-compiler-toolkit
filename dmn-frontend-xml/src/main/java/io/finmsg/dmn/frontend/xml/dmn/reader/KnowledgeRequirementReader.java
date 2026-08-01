@@ -19,9 +19,7 @@ public final class KnowledgeRequirementReader {
               builder.setRequiredKnowledge(
                   ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
 
-          default -> {
-            // ignore unknown children
-          }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "knowledgeRequirement");
         }
 
       } while (cursor.nextSibling());

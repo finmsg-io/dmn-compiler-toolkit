@@ -30,13 +30,9 @@ public final class DecisionServiceReader {
 
           case "inputData" -> builder.addInputData(reference(cursor));
 
-          case "extensionElements" -> {
-            // later
-          }
+          case "documentation", "extensionElements" -> { }
 
-          default -> {
-            // ignore unknown children
-          }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "decisionService");
         }
 
       } while (cursor.nextSibling());

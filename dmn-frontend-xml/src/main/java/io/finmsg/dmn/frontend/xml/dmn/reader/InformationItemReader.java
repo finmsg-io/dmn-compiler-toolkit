@@ -14,6 +14,8 @@ public final class InformationItemReader {
     if (cursor.hasAttribute("typeRef")) {
       builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef"), cursor));
     }
+    UnsupportedContent.validateChildren(
+        cursor, "information item", "documentation", "extensionElements");
     return builder.build();
   }
 }

@@ -28,7 +28,8 @@ public final class InputClauseReader {
 
           case "inputValues" -> builder.setInputValues(feelReader.read(cursor));
 
-          default -> {}
+          case "documentation", "extensionElements" -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "decision-table input");
         }
 
       } while (cursor.nextSibling());

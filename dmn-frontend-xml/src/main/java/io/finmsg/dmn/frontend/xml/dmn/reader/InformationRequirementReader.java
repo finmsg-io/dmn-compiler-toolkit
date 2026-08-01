@@ -21,7 +21,7 @@ public final class InformationRequirementReader {
               builder.setDecision(
                   ElementReference.newBuilder().setHref(cursor.attribute("href").get()).build());
 
-          default -> {}
+          default -> UnsupportedContent.rejectDmnChild(cursor, "informationRequirement");
         }
       } while (cursor.nextSibling());
       cursor.parent();

@@ -19,6 +19,9 @@ public final class VariableReader {
       builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef"), cursor));
     }
 
+    UnsupportedContent.validateChildren(
+        cursor, "variable", "documentation", "extensionElements");
+
     return builder.build();
   }
 }

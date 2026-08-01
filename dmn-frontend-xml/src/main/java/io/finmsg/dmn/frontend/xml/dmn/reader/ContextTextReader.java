@@ -19,6 +19,8 @@ public final class ContextTextReader {
       do {
         if ("contextEntry".equals(cursor.documentLocalName())) {
           builder.addEntries(readers.contextEntryTextReader().read(cursor));
+        } else {
+          UnsupportedContent.rejectDmnChild(cursor, "context");
         }
       } while (cursor.nextSibling());
       cursor.parent();

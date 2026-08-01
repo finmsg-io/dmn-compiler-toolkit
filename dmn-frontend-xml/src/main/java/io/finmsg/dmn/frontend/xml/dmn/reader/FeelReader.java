@@ -16,10 +16,18 @@ public final class FeelReader {
 
     FeelText.Builder builder = FeelText.newBuilder();
 
-    if (cursor.firstChild("text")) {
-      if (cursor.hasText()) {
-        builder.setText(cursor.text().trim());
-      }
+    if (cursor.firstChild()) {
+      do {
+        switch (cursor.documentLocalName()) {
+          case "text" -> {
+            if (cursor.hasText()) {
+              builder.setText(cursor.text().trim());
+            }
+          }
+          case "extensionElements" -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "FEEL expression");
+        }
+      } while (cursor.nextSibling());
       cursor.parent();
     }
 

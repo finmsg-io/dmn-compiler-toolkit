@@ -27,6 +27,8 @@ public final class ImportReader {
     if (cursor.hasAttribute("name")) {
       builder.setName(cursor.requiredAttribute("name"));
     }
+    UnsupportedContent.validateChildren(
+        cursor, "import", "documentation", "extensionElements");
     return builder.build();
   }
 }

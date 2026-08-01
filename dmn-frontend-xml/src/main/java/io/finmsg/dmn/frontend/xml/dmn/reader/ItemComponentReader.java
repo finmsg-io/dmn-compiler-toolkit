@@ -27,7 +27,8 @@ public final class ItemComponentReader {
           case "allowedValues", "typeConstraint" ->
               builder.setConstraint(typeConstraintReader.read(cursor));
 
-          default -> {}
+          case "documentation", "extensionElements" -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "itemComponent");
         }
       } while (cursor.nextSibling());
 

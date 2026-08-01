@@ -3,6 +3,7 @@ package io.finmsg.dmn.frontend.xml.dmn.reader;
 import io.finmsg.dmn.frontend.xml.XmlCursor;
 import io.finmsg.dmn.model.ExpressionNode;
 import io.finmsg.dmn.model.ExpressionText;
+import io.finmsg.dmn.frontend.xml.dmn.UnsupportedDmnXmlException;
 
 public final class ExpressionNodeReader {
 
@@ -31,8 +32,8 @@ public final class ExpressionNodeReader {
           builder.setBoxed(readers.boxedExpressionReader().readText(cursor));
 
       default ->
-          throw new IllegalArgumentException(
-              "Unsupported expression text: " + cursor.localName());
+          throw new UnsupportedDmnXmlException(
+              "Unsupported expression <" + cursor.localName() + "> at " + cursor.path());
     }
 
     return builder.build();

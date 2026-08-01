@@ -63,11 +63,9 @@ public final class DefinitionsBodyReader {
                     .setDecisionService(decisionServiceReader.read(cursor))
                     .build());
 
-        default -> {
-          //
-          // ignored for now
-          //
-        }
+        case "documentation", "extensionElements" -> { }
+
+        default -> UnsupportedContent.rejectDmnChild(cursor, "definitions");
       }
     } while (cursor.nextSibling());
     cursor.parent();

@@ -20,13 +20,10 @@ longer a description of the current implementation; use the
 | Default-namespace writer conflict | Collision-free prefixed-DMN output implemented. |
 | Sparse round-trip coverage | Focused namespace, diagnostic, expression, DRG, and writer round trips added. |
 
-## Partially resolved findings
+## Resolved unsupported-content policy
 
-### Unsupported content policy
-
-Well-formed but unsupported decision content produces `DMN-XML-004`. Some other readers still
-skip unknown DMN children. The remaining task is to apply the same policy consistently while
-continuing to permit foreign extension namespaces.
+Well-formed but unsupported DMN-namespace children produce `DMN-XML-004` consistently across
+the reader hierarchy. Foreign extension namespaces remain permitted or preserved.
 
 ### Version policy
 

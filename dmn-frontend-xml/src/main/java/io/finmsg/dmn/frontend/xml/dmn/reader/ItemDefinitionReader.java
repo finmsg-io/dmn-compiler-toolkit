@@ -34,7 +34,8 @@ public final class ItemDefinitionReader {
           case "allowedValues", "typeConstraint" ->
               builder.setConstraint(typeConstraintReader.read(cursor));
 
-          default -> {}
+          case "documentation", "extensionElements" -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "itemDefinition");
         }
       } while (cursor.nextSibling());
 

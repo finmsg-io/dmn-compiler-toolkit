@@ -22,7 +22,8 @@ public final class ContextEntryTextReader {
           case "variable" -> builder.setVariable(informationItemReader.read(cursor));
           case "literalExpression", "context", "relation", "list", "functionDefinition" ->
               builder.setExpression(readers.expressionNodeReader().readText(cursor));
-          default -> { }
+          case "extensionElements" -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "contextEntry");
         }
       } while (cursor.nextSibling());
       cursor.parent();

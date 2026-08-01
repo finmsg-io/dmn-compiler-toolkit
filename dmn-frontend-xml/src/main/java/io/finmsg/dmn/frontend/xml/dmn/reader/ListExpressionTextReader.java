@@ -21,7 +21,7 @@ public final class ListExpressionTextReader {
           case "literalExpression", "context", "relation", "list", "functionDefinition" ->
               builder.addElements(readers.expressionNodeReader().readText(cursor));
           case "extensionElements" -> { }
-          default -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "list");
         }
       } while (cursor.nextSibling());
       cursor.parent();

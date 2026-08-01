@@ -45,11 +45,11 @@ source XML. Writers correctly reject parsed-only values when source text is unav
 both `Applicant` and the namespace URI. The writer reuses an existing prefix or declares a
 collision-free prefix when serializing the named reference.
 
-### P1 — Consistent unsupported-content diagnostics
+### Completed — Consistent unsupported-content diagnostics
 
-Unsupported decision logic produces `DMN-XML-004`, but several other readers still ignore
-unknown DMN-namespace children. Foreign-namespace extension content should remain permitted;
-unknown content in the DMN namespace should be reported consistently.
+Unknown DMN-namespace children produce `DMN-XML-004` throughout the reader hierarchy. Known
+intentionally unmodeled metadata is explicit, and foreign-namespace extension content remains
+permitted or preserved according to its structural location.
 
 ### P1 — Conformance and hardening matrix
 
@@ -72,6 +72,6 @@ These are extensions to the semantic model, not reader/writer glue-code defects.
 
 ## Completion gate
 
-The current frontend subset can be declared complete after unsupported DMN content is diagnosed
-consistently, the conformance matrix passes, and the full reactor succeeds. Full DMN-spec completeness additionally requires an
+The current frontend subset can be declared complete after the conformance matrix passes and the
+full reactor succeeds. Full DMN-spec completeness additionally requires an
 explicit decision about each model-extension item above.

@@ -39,9 +39,9 @@ public final class DecisionTableReader {
 
           case "annotation" -> builder.addAnnotations(annotationClauseReader.read(cursor));
 
-          default -> {
-            // Ignore unsupported extensions.
-          }
+          case "documentation", "extensionElements" -> { }
+
+          default -> UnsupportedContent.rejectDmnChild(cursor, "decisionTable");
         }
 
       } while (cursor.nextSibling());

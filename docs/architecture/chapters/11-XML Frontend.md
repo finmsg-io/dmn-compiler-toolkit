@@ -67,8 +67,7 @@ protobuf model. Adding them requires a semantic-model decision rather than reade
 
 Before the current subset is declared compiler-grade complete:
 
-1. apply unsupported-DMN diagnostics consistently across all readers;
-2. add the multi-version, namespace-shadowing, conformance, and hostile-input matrix;
-3. run the complete Maven reactor.
+1. add the multi-version, namespace-shadowing, conformance, and hostile-input matrix;
+2. run the complete Maven reactor.
 
 See [the XML completeness audit](../../audits/dmn-frontend-xml-completeness.md).

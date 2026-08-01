@@ -29,7 +29,8 @@ public final class OutputClauseReader {
           case "defaultOutputEntry" ->
               builder.setDefaultOutputEntry(expressionReader.read(cursor));
 
-          default -> {}
+          case "documentation", "extensionElements" -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "decision-table output");
         }
 
       } while (cursor.nextSibling());

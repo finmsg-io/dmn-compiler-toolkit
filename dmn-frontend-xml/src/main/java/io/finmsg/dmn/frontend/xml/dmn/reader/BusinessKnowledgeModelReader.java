@@ -32,6 +32,7 @@ public final class BusinessKnowledgeModelReader {
                   builder.setFunction(functionDefinitionReader.read(cursor));
                   break;
                 }
+                UnsupportedContent.rejectDmnChild(cursor, "encapsulatedLogic");
               } while (cursor.nextSibling());
               cursor.parent();
             }
@@ -43,13 +44,9 @@ public final class BusinessKnowledgeModelReader {
           case "authorityRequirement" ->
               builder.addAuthorityRequirements(authorityRequirementReader.read(cursor));
 
-          case "extensionElements" -> {
-            // later
-          }
+          case "documentation", "extensionElements" -> { }
 
-          default -> {
-            // ignore unknown children
-          }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "businessKnowledgeModel");
         }
 
       } while (cursor.nextSibling());

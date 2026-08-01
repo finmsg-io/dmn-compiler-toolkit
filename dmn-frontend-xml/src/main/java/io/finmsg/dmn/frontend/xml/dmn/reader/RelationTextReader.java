@@ -22,7 +22,7 @@ public final class RelationTextReader {
           case "column" -> builder.addColumns(columnReader.read(cursor));
           case "row" -> builder.addRows(readers.relationRowTextReader().read(cursor));
           case "extensionElements" -> { }
-          default -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "relation");
         }
       } while (cursor.nextSibling());
       cursor.parent();

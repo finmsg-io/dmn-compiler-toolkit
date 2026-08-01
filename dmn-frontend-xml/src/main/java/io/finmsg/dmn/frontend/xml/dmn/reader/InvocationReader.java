@@ -23,7 +23,8 @@ public final class InvocationReader {
             builder.addBindings(readBinding(cursor));
           }
 
-          default -> {}
+          case "extensionElements" -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "invocation");
         }
 
       } while (cursor.nextSibling());
@@ -46,7 +47,7 @@ public final class InvocationReader {
             builder.setExpression(feelReader.read(cursor)).build();
           }
 
-          default -> {}
+          default -> UnsupportedContent.rejectDmnChild(cursor, "invocation binding");
         }
       } while (cursor.nextSibling());
       cursor.parent();

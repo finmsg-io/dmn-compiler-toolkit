@@ -194,4 +194,40 @@ class DmnXmlReaderTest {
         assertEquals("Applicant", named.getName());
         assertEquals("https://example.com/imported-risk", named.getNamespace());
     }
+
+    @Test
+    void reportsUnknownRootDmnContentAsUnsupported() {
+        String xml = """
+                <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                    namespace="https://example.com/model">
+                  <artifact id="artifact-1"/>
+                </definitions>
+                """;
+
+        DmnReadResult result = new DmnXmlReader().readResult(
+                xml.getBytes(), new DmnReadOptions(4096, "memory:artifact.dmn"));
+
+        assertTrue(result.model().isEmpty());
+        assertEquals("DMN-XML-004", result.diagnostics().get(0).getCode());
+        assertTrue(result.diagnostics().get(0).getMessage().contains("artifact"));
+    }
+
+    @Test
+    void reportsUnknownNestedDmnContentAsUnsupported() {
+        String xml = """
+                <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                    namespace="https://example.com/model">
+                  <decision id="decision-1">
+                    <decisionTable><unsupportedClause/></decisionTable>
+                  </decision>
+                </definitions>
+                """;
+
+        DmnReadResult result = new DmnXmlReader().readResult(
+                xml.getBytes(), new DmnReadOptions(4096, "memory:nested.dmn"));
+
+        assertTrue(result.model().isEmpty());
+        assertEquals("DMN-XML-004", result.diagnostics().get(0).getCode());
+        assertTrue(result.diagnostics().get(0).getMessage().contains("unsupportedClause"));
+    }
 }

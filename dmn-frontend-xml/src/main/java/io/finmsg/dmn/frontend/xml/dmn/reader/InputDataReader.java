@@ -21,13 +21,9 @@ public final class InputDataReader {
         switch (cursor.documentLocalName()) {
           case "variable" -> builder.setVariable(variableReader.read(cursor));
 
-          case "extensionElements" -> {
-            // later
-          }
+          case "documentation", "extensionElements" -> { }
 
-          default -> {
-            // ignore unknown children
-          }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "inputData");
         }
 
       } while (cursor.nextSibling());

@@ -21,7 +21,7 @@ public final class RelationRowTextReader {
           case "literalExpression", "context", "relation", "list", "functionDefinition" ->
               builder.addExpressions(readers.expressionNodeReader().readText(cursor));
           case "extensionElements" -> { }
-          default -> { }
+          default -> UnsupportedContent.rejectDmnChild(cursor, "relation row");
         }
       } while (cursor.nextSibling());
       cursor.parent();

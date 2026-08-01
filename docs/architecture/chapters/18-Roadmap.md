@@ -21,7 +21,7 @@
 
 ```text
 [done] preserve QName typeRef namespaces through XML read/write
-[ ] diagnose unsupported DMN-namespace children consistently
+[done] diagnose unsupported DMN-namespace children consistently
 [ ] add multi-version and namespace-shadowing fixtures
 [ ] add DTD/XXE, deep-nesting, malformed-encoding, and hostile-input tests
 [ ] run and stabilize the full reactor
