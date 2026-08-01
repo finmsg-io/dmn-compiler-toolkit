@@ -9,6 +9,8 @@ public final class DrgElementWriter implements XmlWriter<DrgElement> {
 
   private final InputDataWriter inputDataWriter = new InputDataWriter();
   private final DecisionWriter decisionWriter = new DecisionWriter();
+  private final BusinessKnowledgeModelWriter businessKnowledgeModelWriter =
+      new BusinessKnowledgeModelWriter();
 
   @Override
   public void write(XmlEmitter xml, DrgElement value) {
@@ -19,6 +21,11 @@ public final class DrgElementWriter implements XmlWriter<DrgElement> {
 
     if (value.hasDecision()) {
       decisionWriter.write(xml, value.getDecision());
+      return;
+    }
+
+    if (value.hasBusinessKnowledgeModel()) {
+      businessKnowledgeModelWriter.write(xml, value.getBusinessKnowledgeModel());
       return;
     }
 

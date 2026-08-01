@@ -2,6 +2,7 @@ package io.finmsg.dmn.frontend.xml.dmn.reader;
 
 import io.finmsg.dmn.frontend.xml.XmlCursor;
 import io.finmsg.dmn.model.AuthorityRequirement;
+import io.finmsg.dmn.model.ElementReference;
 
 public final class AuthorityRequirementReader {
 
@@ -14,17 +15,17 @@ public final class AuthorityRequirementReader {
       do {
 
         switch (cursor.documentLocalName()) {
-          case "requiredAuthority" -> {
-            // later
-          }
+          case "requiredAuthority" ->
+              builder.setRequiredAuthority(
+                  ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
 
-          case "requiredDecision" -> {
-            // later
-          }
+          case "requiredDecision" ->
+              builder.setDecision(
+                  ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
 
-          case "requiredInput" -> {
-            // later
-          }
+          case "requiredInput" ->
+              builder.setInput(
+                  ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
 
           default -> {
             // ignore unknown children

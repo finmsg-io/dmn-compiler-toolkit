@@ -2,6 +2,7 @@ package io.finmsg.dmn.frontend.xml.dmn.reader;
 
 import io.finmsg.dmn.frontend.xml.XmlCursor;
 import io.finmsg.dmn.model.KnowledgeRequirement;
+import io.finmsg.dmn.model.ElementReference;
 
 public final class KnowledgeRequirementReader {
 
@@ -14,9 +15,9 @@ public final class KnowledgeRequirementReader {
       do {
 
         switch (cursor.documentLocalName()) {
-          case "requiredKnowledge" -> {
-            // later
-          }
+          case "requiredKnowledge" ->
+              builder.setRequiredKnowledge(
+                  ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
 
           default -> {
             // ignore unknown children
