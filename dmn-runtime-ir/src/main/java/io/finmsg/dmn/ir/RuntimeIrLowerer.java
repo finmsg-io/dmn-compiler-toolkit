@@ -67,13 +67,18 @@ public final class RuntimeIrLowerer {
         }
         case DECISION -> {
           Decision decision = element.getDecision();
+          Map<String, LocalSlotAddress> localSlots = new HashMap<>();
+          int[] nextLocalSlot = {0};
           decisions.add(new RuntimeDecision(runtimeId, runtimeId,
               lowerType(decision.getVariable().getType(), itemTypes, new HashSet<>()),
               decisionDependencies(decision, runtimeIdBySourceId),
               lowerDecisionExpression(
-                  decision, analysis.bindings(), valueSlotBySourceId, itemTypes),
+                  decision, analysis.bindings(), valueSlotBySourceId, itemTypes,
+                  localSlots, nextLocalSlot),
               lowerDecisionTable(
-                  decision, analysis.bindings(), valueSlotBySourceId, itemTypes)));
+                  decision, analysis.bindings(), valueSlotBySourceId, itemTypes,
+                  localSlots, nextLocalSlot),
+              nextLocalSlot[0]));
           runtimeId++;
         }
         case BUSINESS_KNOWLEDGE_MODEL -> {
@@ -115,13 +120,13 @@ public final class RuntimeIrLowerer {
     }
     FunctionDefinition function = bkm.getFunction();
     String path = "definitions/businessKnowledgeModel[" + bkm.getNode().getName() + "]";
-    Map<String, Integer> localSlots = new HashMap<>();
+    Map<String, LocalSlotAddress> localSlots = new HashMap<>();
     int[] nextLocalSlot = {0};
     List<RuntimeFunctionParameter> parameters = new ArrayList<>();
     for (int index = 0; index < function.getFormalParametersCount(); index++) {
       InformationItem parameter = function.getFormalParameters(index);
       int localSlot = nextLocalSlot[0]++;
-      localSlots.put(path + "/parameter[" + index + "]", localSlot);
+      localSlots.put(path + "/parameter[" + index + "]", new LocalSlotAddress(0, localSlot));
       parameters.add(new RuntimeFunctionParameter(parameter.getNode().getName(), localSlot,
           lowerType(parameter.getType(), itemTypes, new HashSet<>())));
     }
@@ -131,6 +136,7 @@ public final class RuntimeIrLowerer {
     return new RuntimeFunctionDefinition(parameters, Optional.of(body),
         function.getKind() == FunctionKind.FUNCTION_KIND_JAVA
             || function.getKind() == FunctionKind.FUNCTION_KIND_PMML,
+        nextLocalSlot[0],
         type);
   }
 
@@ -148,7 +154,9 @@ public final class RuntimeIrLowerer {
       Decision decision,
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
-      Map<String, ItemDefinition> itemTypes) {
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, LocalSlotAddress> localSlots,
+      int[] nextLocalSlot) {
     if (!decision.hasLogic()) {
       return Optional.empty();
     }
@@ -156,8 +164,6 @@ public final class RuntimeIrLowerer {
       return Optional.empty();
     }
     String basePath = "definitions/decision[" + decision.getNode().getName() + "]/logic";
-    Map<String, Integer> localSlots = new HashMap<>();
-    int[] nextLocalSlot = {0};
     return switch (decision.getLogic().getTypeCase()) {
       case LITERAL_EXPRESSION -> {
         if (!decision.getLogic().getLiteralExpression().hasParsed()) {
@@ -194,7 +200,7 @@ public final class RuntimeIrLowerer {
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
       Map<String, ItemDefinition> itemTypes,
-      Map<String, Integer> localSlots,
+      Map<String, LocalSlotAddress> localSlots,
       int[] nextLocalSlot,
       RuntimeType type) {
     if (!invocation.hasExpression() || !invocation.getExpression().hasParsed()) {
@@ -223,7 +229,7 @@ public final class RuntimeIrLowerer {
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
       Map<String, ItemDefinition> itemTypes,
-      Map<String, Integer> localSlots,
+      Map<String, LocalSlotAddress> localSlots,
       int[] nextLocalSlot) {
     return switch (parsed.getTypeCase()) {
       case FEEL -> lowerExpression(parsed.getFeel().getAst(), path, bindings, slots, itemTypes,
@@ -241,13 +247,13 @@ public final class RuntimeIrLowerer {
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
       Map<String, ItemDefinition> itemTypes,
-      Map<String, Integer> localSlots,
+      Map<String, LocalSlotAddress> localSlots,
       int[] nextLocalSlot,
       RuntimeType expectedType) {
     return switch (boxed.getTypeCase()) {
       case CONTEXT -> {
         List<RuntimeContextEntry> entries = new ArrayList<>();
-        Map<String, Integer> contextSlots = new HashMap<>(localSlots);
+        Map<String, LocalSlotAddress> contextSlots = new HashMap<>(localSlots);
         List<RuntimeType> fieldTypes = new ArrayList<>();
         for (int index = 0; index < boxed.getContext().getEntriesCount(); index++) {
           ContextEntryParsed entry = boxed.getContext().getEntries(index);
@@ -259,7 +265,8 @@ public final class RuntimeIrLowerer {
               entryPath + "/expression", bindings, slots, itemTypes,
               contextSlots, nextLocalSlot);
           int localSlot = nextLocalSlot[0]++;
-          contextSlots.put(path + "/context/entry[" + index + "]", localSlot);
+          contextSlots.put(path + "/context/entry[" + index + "]",
+              new LocalSlotAddress(0, localSlot));
           entries.add(new RuntimeContextEntry(
               entry.getVariable().getNode().getName(), localSlot, expression));
           fieldTypes.add(expression.type());
@@ -305,11 +312,13 @@ public final class RuntimeIrLowerer {
       case FUNCTION_DEFINITION -> {
         FunctionDefinitionParsed function = boxed.getFunctionDefinition();
         List<RuntimeFunctionParameter> parameters = new ArrayList<>();
-        Map<String, Integer> parameterSlots = new HashMap<>(localSlots);
+        Map<String, LocalSlotAddress> parameterSlots = capturedSlots(localSlots);
+        int[] functionNextLocalSlot = {0};
         for (int index = 0; index < function.getParametersCount(); index++) {
           InformationItem parameter = function.getParameters(index);
-          int localSlot = nextLocalSlot[0]++;
-          parameterSlots.put(path + "/parameter[" + index + "]", localSlot);
+          int localSlot = functionNextLocalSlot[0]++;
+          parameterSlots.put(path + "/parameter[" + index + "]",
+              new LocalSlotAddress(0, localSlot));
           parameters.add(new RuntimeFunctionParameter(parameter.getNode().getName(), localSlot,
               lowerType(parameter.getType(), itemTypes, new HashSet<>())));
         }
@@ -317,11 +326,12 @@ public final class RuntimeIrLowerer {
           throw new RuntimeIrLoweringException("Boxed function requires a body at " + path + ".");
         }
         RuntimeExpression body = lowerParsedExpression(function.getBody(), path + "/body",
-            bindings, slots, itemTypes, parameterSlots, nextLocalSlot);
+            bindings, slots, itemTypes, parameterSlots, functionNextLocalSlot);
         RuntimeType functionType = expectedType == null
             ? RuntimeType.function(parameters.stream().map(RuntimeFunctionParameter::type).toList(),
                 body.type()) : expectedType;
-        yield new RuntimeFunctionDefinition(parameters, Optional.of(body), false, functionType);
+        yield new RuntimeFunctionDefinition(parameters, Optional.of(body), false,
+            functionNextLocalSlot[0], functionType);
       }
       case TYPE_NOT_SET -> throw new RuntimeIrLoweringException(
           "Empty boxed expression at " + path + ".");
@@ -332,15 +342,15 @@ public final class RuntimeIrLowerer {
       Decision decision,
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
-      Map<String, ItemDefinition> itemTypes) {
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, LocalSlotAddress> localSlots,
+      int[] nextLocalSlot) {
     if (!decision.hasLogic() || !decision.getLogic().hasDecisionTable()) {
       return Optional.empty();
     }
     DecisionTable table = decision.getLogic().getDecisionTable();
     String path = "definitions/decision[" + decision.getNode().getName()
         + "]/logic/decisionTable";
-    Map<String, Integer> localSlots = new HashMap<>();
-    int[] nextLocalSlot = {0};
     List<RuntimeDecisionTableInput> inputs = new ArrayList<>();
     for (int index = 0; index < table.getInputsCount(); index++) {
       InputClause input = table.getInputs(index);
@@ -426,7 +436,7 @@ public final class RuntimeIrLowerer {
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
       Map<String, ItemDefinition> itemTypes,
-      Map<String, Integer> localSlots,
+      Map<String, LocalSlotAddress> localSlots,
       int[] nextLocalSlot) {
     RuntimeType type = lowerType(expression.getInferredType(), itemTypes, new HashSet<>());
     return switch (expression.getNodeCase()) {
@@ -440,12 +450,12 @@ public final class RuntimeIrLowerer {
                 "Missing semantic binding for decision expression at " + path + "."));
         if (binding.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE
             || binding.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.PARAMETER) {
-          Integer localSlot = localSlots.get(binding.declarationPath());
+          LocalSlotAddress localSlot = localSlots.get(binding.declarationPath());
           if (localSlot == null) {
             throw new RuntimeIrLoweringException(
                 "Local expression binding is not in scope at " + path + ".");
           }
-          yield new RuntimeLocalReference(localSlot, type);
+          yield new RuntimeLocalReference(localSlot.lexicalDepth(), localSlot.localSlot(), type);
         }
         Integer slot = slots.get(binding.symbolId());
         if (slot == null) {
@@ -502,7 +512,7 @@ public final class RuntimeIrLowerer {
       }
       case CONTEXT -> {
         List<RuntimeContextEntry> entries = new ArrayList<>();
-        Map<String, Integer> contextSlots = new HashMap<>(localSlots);
+        Map<String, LocalSlotAddress> contextSlots = new HashMap<>(localSlots);
         for (int index = 0; index < expression.getContext().getEntriesCount(); index++) {
           ContextEntry entry = expression.getContext().getEntries(index);
           String entryPath = path + "/entry[" + index + "]";
@@ -510,7 +520,7 @@ public final class RuntimeIrLowerer {
               entry.getExpression(), entryPath, bindings, slots, itemTypes,
               contextSlots, nextLocalSlot);
           int localSlot = nextLocalSlot[0]++;
-          contextSlots.put(entryPath, localSlot);
+          contextSlots.put(entryPath, new LocalSlotAddress(0, localSlot));
           entries.add(new RuntimeContextEntry(entry.getName(), localSlot, value));
         }
         yield new RuntimeContextExpression(entries, type);
@@ -582,7 +592,7 @@ public final class RuntimeIrLowerer {
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
       Map<String, ItemDefinition> itemTypes,
-      Map<String, Integer> localSlots,
+      Map<String, LocalSlotAddress> localSlots,
       int[] nextLocalSlot) {
     boolean boundTarget = bindings.stream()
         .anyMatch(binding -> binding.referencePath().equals(path + "/target"));
@@ -615,10 +625,10 @@ public final class RuntimeIrLowerer {
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
       Map<String, ItemDefinition> itemTypes,
-      Map<String, Integer> localSlots,
+      Map<String, LocalSlotAddress> localSlots,
       int[] nextLocalSlot) {
     List<RuntimeIteration> iterations = new ArrayList<>();
-    Map<String, Integer> iterationSlots = new HashMap<>(localSlots);
+    Map<String, LocalSlotAddress> iterationSlots = new HashMap<>(localSlots);
     if (value.getIterationsCount() == 0) {
       if (value.getVariable().isBlank()) {
         throw new RuntimeIrLoweringException("For expression has no iteration at " + path + ".");
@@ -626,7 +636,7 @@ public final class RuntimeIrLowerer {
       RuntimeExpression source = lowerExpression(value.getIn(), path + "/in", bindings, slots,
           itemTypes, iterationSlots, nextLocalSlot);
       int localSlot = nextLocalSlot[0]++;
-      iterationSlots.put(path, localSlot);
+      iterationSlots.put(path, new LocalSlotAddress(0, localSlot));
       iterations.add(new RuntimeIteration(localSlot, source, Optional.empty()));
     } else {
       for (int index = 0; index < value.getIterationsCount(); index++) {
@@ -638,7 +648,7 @@ public final class RuntimeIrLowerer {
             ? Optional.of(lowerExpression(iteration.getEnd(), iterationPath + "/end", bindings,
                 slots, itemTypes, iterationSlots, nextLocalSlot)) : Optional.empty();
         int localSlot = nextLocalSlot[0]++;
-        iterationSlots.put(iterationPath, localSlot);
+        iterationSlots.put(iterationPath, new LocalSlotAddress(0, localSlot));
         iterations.add(new RuntimeIteration(localSlot, source, end));
       }
     }
@@ -654,10 +664,10 @@ public final class RuntimeIrLowerer {
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
       Map<String, ItemDefinition> itemTypes,
-      Map<String, Integer> localSlots,
+      Map<String, LocalSlotAddress> localSlots,
       int[] nextLocalSlot) {
     List<RuntimeQuantifiedBinding> loweredBindings = new ArrayList<>();
-    Map<String, Integer> quantifiedSlots = new HashMap<>(localSlots);
+    Map<String, LocalSlotAddress> quantifiedSlots = new HashMap<>(localSlots);
     if (value.getBindingsCount() == 0) {
       if (value.getVariable().isBlank()) {
         throw new RuntimeIrLoweringException(
@@ -666,7 +676,7 @@ public final class RuntimeIrLowerer {
       RuntimeExpression source = lowerExpression(value.getIn(), path + "/in", bindings, slots,
           itemTypes, quantifiedSlots, nextLocalSlot);
       int localSlot = nextLocalSlot[0]++;
-      quantifiedSlots.put(path, localSlot);
+      quantifiedSlots.put(path, new LocalSlotAddress(0, localSlot));
       loweredBindings.add(new RuntimeQuantifiedBinding(localSlot, source));
     } else {
       for (int index = 0; index < value.getBindingsCount(); index++) {
@@ -675,7 +685,7 @@ public final class RuntimeIrLowerer {
         RuntimeExpression source = lowerExpression(binding.getIn(), bindingPath + "/in", bindings,
             slots, itemTypes, quantifiedSlots, nextLocalSlot);
         int localSlot = nextLocalSlot[0]++;
-        quantifiedSlots.put(bindingPath, localSlot);
+        quantifiedSlots.put(bindingPath, new LocalSlotAddress(0, localSlot));
         loweredBindings.add(new RuntimeQuantifiedBinding(localSlot, source));
       }
     }
@@ -692,23 +702,25 @@ public final class RuntimeIrLowerer {
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
       Map<String, ItemDefinition> itemTypes,
-      Map<String, Integer> localSlots,
+      Map<String, LocalSlotAddress> localSlots,
       int[] nextLocalSlot) {
     List<RuntimeFunctionParameter> parameters = new ArrayList<>();
-    Map<String, Integer> parameterSlots = new HashMap<>(localSlots);
+    Map<String, LocalSlotAddress> parameterSlots = capturedSlots(localSlots);
+    int[] functionNextLocalSlot = {0};
     for (int index = 0; index < value.getParametersCount(); index++) {
       FormalParameter parameter = value.getParameters(index);
       String parameterPath = path + "/parameter[" + index + "]";
-      int localSlot = nextLocalSlot[0]++;
-      parameterSlots.put(parameterPath, localSlot);
+      int localSlot = functionNextLocalSlot[0]++;
+      parameterSlots.put(parameterPath, new LocalSlotAddress(0, localSlot));
       parameters.add(new RuntimeFunctionParameter(
           parameter.getName(), localSlot, lowerFeelType(parameter.getType(), itemTypes)));
     }
     Optional<RuntimeExpression> body = value.getBody().getNodeCase() == Expression.NodeCase.NODE_NOT_SET
         ? Optional.empty()
         : Optional.of(lowerExpression(value.getBody(), path + "/body", bindings, slots,
-            itemTypes, parameterSlots, nextLocalSlot));
-    return new RuntimeFunctionDefinition(parameters, body, value.getExternal(), type);
+            itemTypes, parameterSlots, functionNextLocalSlot));
+    return new RuntimeFunctionDefinition(
+        parameters, body, value.getExternal(), functionNextLocalSlot[0], type);
   }
 
   private static RuntimeQuantifier quantifier(Quantifier quantifier) {
@@ -753,7 +765,7 @@ public final class RuntimeIrLowerer {
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
       Map<String, ItemDefinition> itemTypes,
-      Map<String, Integer> localSlots,
+      Map<String, LocalSlotAddress> localSlots,
       int[] nextLocalSlot) {
     Optional<RuntimeExpression> lower = range.hasLower()
         ? Optional.of(lowerExpression(range.getLower(), path + "/lower", bindings, slots,
@@ -771,7 +783,7 @@ public final class RuntimeIrLowerer {
       List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
       Map<String, Integer> slots,
       Map<String, ItemDefinition> itemTypes,
-      Map<String, Integer> localSlots,
+      Map<String, LocalSlotAddress> localSlots,
       int[] nextLocalSlot) {
     List<RuntimeUnaryTest> lowered = new ArrayList<>();
     for (int index = 0; index < tests.getTestsCount(); index++) {
@@ -1006,4 +1018,14 @@ public final class RuntimeIrLowerer {
       case BUILTIN_TYPE_ANY, BUILTIN_TYPE_UNSPECIFIED, UNRECOGNIZED -> RuntimeTypeKind.ANY;
     };
   }
+
+  private static Map<String, LocalSlotAddress> capturedSlots(
+      Map<String, LocalSlotAddress> localSlots) {
+    Map<String, LocalSlotAddress> captured = new HashMap<>();
+    localSlots.forEach((path, address) -> captured.put(path,
+        new LocalSlotAddress(address.lexicalDepth() + 1, address.localSlot())));
+    return captured;
+  }
+
+  private record LocalSlotAddress(int lexicalDepth, int localSlot) { }
 }

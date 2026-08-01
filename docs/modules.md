@@ -74,11 +74,11 @@ Contains the semantic-analysis pipeline:
 - persisted/exposed symbol and named-type bindings
 - namespace-indexed cross-model imports, references, and dependency ordering
 
-Persisted lexical frame layouts and linked model-set Runtime IR lowering remain future work.
+Expression-derived dependency edges and linked model-set Runtime IR lowering remain future work.
 
 ## `dmn-runtime-ir`
 
-Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer IDs and slots, lowers structural types and every protobuf FEEL AST expression variant, preserves dependency order, and rejects unsuccessful semantic results. Decision logic lowering covers literal FEEL, decision tables, recursive boxed contexts/relations/lists/functions, and DMN invocations. BKM slots contain executable typed function definitions with preserved FEEL/Java/PMML kind. Persisted frame layouts, constant pooling, and model-set lowering remain future work.
+Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer IDs and slots, lowers structural types and every protobuf FEEL AST expression variant, preserves dependency order, and rejects unsuccessful semantic results. Decisions and functions persist local-frame sizes; nested functions allocate isolated frames and captured locals carry lexical depth. Expression-derived dependencies, constant pooling, and model-set lowering remain future work.
 
 See the [implementation assessment](todos/dmn-runtime-ir/assessment-dmn-runtime-ir.md) for the
 execution-readiness gaps and recommended implementation order.

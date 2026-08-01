@@ -26,30 +26,14 @@ only by rescanning expression trees.
 | Decision-table structure and tests | implemented |
 | Executable BKM function bodies | complete |
 | Linked multi-model Runtime IR | missing |
-| Persisted evaluator frame sizes/layouts | missing |
+| Persisted evaluator frame sizes/layouts | complete |
 | Optimized member/field addressing | missing |
 | Constant canonicalization/pooling | missing |
 | Runtime evaluator or code generator | not yet implemented |
 
 ## High-priority gaps
 
-### 1. Persist lexical frame layouts
-
-The lowerer allocates deterministic local slots for contexts, iterations, quantifiers, and
-functions, but the resulting owner does not store the required local-slot count. An evaluator
-would have to scan the complete expression tree to size each frame, and nested functions need
-their own frame boundary rather than a decision-wide counter.
-
-Add explicit frame metadata, probably:
-
-- `localSlotCount` on decision expression logic;
-- `localSlotCount` on every runtime function definition;
-- clearly scoped slot numbering for nested functions;
-- constructor validation that references remain inside the declared frame.
-
-This should precede evaluator or code-generator work.
-
-### 2. Make decision-table marker dependencies explicit
+### 1. Make decision-table marker dependencies explicit
 
 `RuntimeDecisionTableReference` correctly replaces a source table ID with an owning decision
 slot. However, marker references are not currently added to `RuntimeDecision.dependencies` or
@@ -60,7 +44,7 @@ scheduling edge.
 Collect referenced decision slots during lowering and merge them into dependencies before the
 evaluation order is finalized.
 
-### 3. Preserve executable context-field addressing
+### 2. Preserve executable context-field addressing
 
 `RuntimeType.context` stores field types but not field names or stable field indices.
 `RuntimePathExpression` retains a member string, so an evaluator still needs a name-based lookup
@@ -71,7 +55,7 @@ Introduce a `RuntimeField` contract containing a stable field index, optional di
 and type. Lower path and descendant operations to resolved field indices wherever the source type
 is statically known; retain name lookup only for genuinely dynamic contexts.
 
-### 4. Complete linked model-set lowering
+### 3. Complete linked model-set lowering
 
 The lowerer intentionally rejects imported named types and bindings outside the current runtime
 model. Cross-model semantic linking is implemented upstream, so Runtime IR is now the stage that
@@ -82,7 +66,7 @@ imported symbol and type bindings without retaining namespace strings in executa
 
 ## Medium-priority improvements
 
-### 5. Add pipeline-level lowering tests
+### 4. Add pipeline-level lowering tests
 
 The current 12 Runtime IR tests cover the node shapes well, but most construct protobuf and
 semantic bindings manually. Add fixtures that run:
@@ -95,14 +79,14 @@ Prioritize Traffic Violation, a decision-table model, a BKM invocation, nested b
 two-model import. These tests will catch path-contract drift between semantic binding production
 and lowering.
 
-### 6. Split the monolithic lowerer
+### 5. Split the monolithic lowerer
 
 `RuntimeIrLowerer` now owns model indexing, type lowering, expression lowering, boxed lowering,
 decision-table lowering, lexical-frame allocation, and validation. Extract focused internal
 components after frame/model-set design is settled. Suggested boundaries are expression,
 decision-table, type, and model-index lowering.
 
-### 7. Canonicalize constants and built-ins
+### 6. Canonicalize constants and built-ins
 
 Runtime constants retain source strings, and built-in calls retain function names. This is a good
 lossless baseline, but an evaluator would repeatedly parse numbers/temporals and dispatch built-ins
@@ -112,7 +96,7 @@ Add a later canonicalization pass that produces typed constant values or a const
 stable built-in operation IDs. Keep the current lossless representation as pre-optimization IR if
 useful.
 
-### 8. Strengthen aggregate invariants
+### 7. Strengthen aggregate invariants
 
 Leaf records generally validate nulls and negative local slots, but model-level contracts do not
 yet validate:
@@ -127,7 +111,7 @@ yet validate:
 Add constructor/factory validation and focused negative tests before exposing Runtime IR as a
 public compiler API.
 
-### 9. Define serialization and compatibility policy
+### 8. Define serialization and compatibility policy
 
 The architecture discusses Runtime IR serialization, but the current contracts are Java records
 with no versioning boundary. Decide whether Runtime IR is process-local only, Java-serializable,
@@ -146,17 +130,16 @@ Do not yet:
 
 ## Recommended implementation order
 
-1. Persist decision/function lexical frame sizes and correct nested-function slot scopes.
-2. Add implicit Runtime IR dependency edges from expression references.
-3. Introduce indexed context-field layouts and resolved member access.
-4. Add XML-to-Runtime-IR integration fixtures.
-5. Complete linked model-set lowering.
-6. Strengthen aggregate invariants.
-7. Extract lowerer components.
-8. Add canonicalization/constant-pool and optimization passes.
-9. Define serialization only when a concrete cache or deployment use case requires it.
+1. Add implicit Runtime IR dependency edges from expression references.
+2. Introduce indexed context-field layouts and resolved member access.
+3. Add XML-to-Runtime-IR integration fixtures.
+4. Complete linked model-set lowering.
+5. Strengthen aggregate invariants.
+6. Extract lowerer components.
+7. Add canonicalization/constant-pool and optimization passes.
+8. Define serialization only when a concrete cache or deployment use case requires it.
 
 ## Verification baseline
 
-The six-module Maven reactor passes. `dmn-runtime-ir` currently has 13 tests, and the complete
-reactor has 163 passing tests. `git diff --check` passes for the current implementation.
+The six-module Maven reactor passes. `dmn-runtime-ir` currently has 14 tests, and the complete
+reactor has 164 passing tests. `git diff --check` passes for the current implementation.

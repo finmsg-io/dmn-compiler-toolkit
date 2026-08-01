@@ -10,7 +10,8 @@ public record RuntimeDecision(
     RuntimeType type,
     List<Integer> dependencies,
     Optional<RuntimeExpression> expression,
-    Optional<RuntimeDecisionTable> decisionTable) {
+    Optional<RuntimeDecisionTable> decisionTable,
+    int localSlotCount) {
   public RuntimeDecision {
     Objects.requireNonNull(type, "type");
     dependencies = List.copyOf(dependencies);
@@ -19,16 +20,19 @@ public record RuntimeDecision(
     if (expression.isPresent() && decisionTable.isPresent()) {
       throw new IllegalArgumentException("Decision cannot have two runtime logic forms.");
     }
+    if (localSlotCount < 0) {
+      throw new IllegalArgumentException("localSlotCount must not be negative.");
+    }
   }
 
   public RuntimeDecision(
       int id, int resultSlot, RuntimeType type, List<Integer> dependencies,
       Optional<RuntimeExpression> expression) {
-    this(id, resultSlot, type, dependencies, expression, Optional.empty());
+    this(id, resultSlot, type, dependencies, expression, Optional.empty(), 0);
   }
 
   public RuntimeDecision(
       int id, int resultSlot, RuntimeType type, List<Integer> dependencies) {
-    this(id, resultSlot, type, dependencies, Optional.empty(), Optional.empty());
+    this(id, resultSlot, type, dependencies, Optional.empty(), Optional.empty(), 0);
   }
 }

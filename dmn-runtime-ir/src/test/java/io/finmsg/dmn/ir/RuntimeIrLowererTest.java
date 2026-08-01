@@ -463,9 +463,10 @@ class RuntimeIrLowererTest {
         (RuntimeFunctionDefinition) lowered.elements().get(2);
     assertThat(runtimeFunction.parameters()).singleElement().satisfies(parameter -> {
       assertThat(parameter.name()).isEqualTo("value");
-      assertThat(parameter.localSlot()).isEqualTo(2);
+      assertThat(parameter.localSlot()).isZero();
       assertThat(parameter.type().kind()).isEqualTo(RuntimeTypeKind.NUMBER);
     });
+    assertThat(runtimeFunction.localSlotCount()).isEqualTo(1);
     assertThat(runtimeFunction.body()).containsInstanceOf(RuntimeLocalReference.class);
   }
 
@@ -765,10 +766,67 @@ class RuntimeIrLowererTest {
     });
     assertThat(function.body()).contains(new RuntimeLocalReference(
         0, RuntimeType.scalar(RuntimeTypeKind.NUMBER)));
+    assertThat(function.localSlotCount()).isEqualTo(1);
     RuntimeInvocationExpression invocation = (RuntimeInvocationExpression)
         lowered.decisions().getFirst().expression().orElseThrow();
     assertThat(invocation.target()).contains(new RuntimeValueReference(
         runtimeBkm.resultSlot(), function.type()));
+  }
+
+  @Test
+  void persistsDecisionAndNestedFunctionFrameLayouts() {
+    TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
+    TypeReference functionType = TypeReference.newBuilder()
+        .setFunction(FunctionTypeReference.newBuilder()
+            .addParameterType(number).setReturnType(number)).build();
+    Expression captured = name("outer", number);
+    Expression parameter = name("inner", number);
+    Expression body = Expression.newBuilder().setBinary(BinaryExpression.newBuilder()
+            .setOperator(BinaryOperator.BINARY_OPERATOR_ADD)
+            .setLeft(captured).setRight(parameter))
+        .setInferredType(number).build();
+    Expression function = Expression.newBuilder()
+        .setFunctionDefinition(FunctionDefinitionExpression.newBuilder()
+            .addParameters(FormalParameter.newBuilder().setName("inner")
+                .setType(FeelType.newBuilder().setQualifiedName("number")))
+            .setBody(body))
+        .setInferredType(functionType).build();
+    TypeReference contextType = TypeReference.newBuilder()
+        .setContext(ContextTypeReference.newBuilder()
+            .addEntries(ContextEntryTypeReference.newBuilder().setName("outer").setType(number))
+            .addEntries(ContextEntryTypeReference.newBuilder().setName("fn").setType(functionType)))
+        .build();
+    Expression context = Expression.newBuilder().setContext(ContextExpression.newBuilder()
+            .addEntries(ContextEntry.newBuilder().setName("outer")
+                .setExpression(literal(LiteralKind.LITERAL_KIND_NUMBER, "1", number)))
+            .addEntries(ContextEntry.newBuilder().setName("fn").setExpression(function)))
+        .setInferredType(contextType).build();
+    DrgElement decision = decisionWithExpression(
+        "decision-id", "Frames", contextType, context);
+    String root = "definitions/decision[Frames]/logic/literalExpression";
+    List<DmnSymbolBinding> bindings = List.of(
+        new DmnSymbolBinding(root + "/entry[1]/body/left", root + "/entry[0]",
+            "outer", "", DmnSymbolKind.LOCAL_VARIABLE, number),
+        new DmnSymbolBinding(root + "/entry[1]/body/right",
+            root + "/entry[1]/parameter[0]", "inner", "",
+            DmnSymbolKind.PARAMETER, number));
+
+    RuntimeDecision lowered = lowerer.lower(new DmnSemanticPipelineResult(
+        Definitions.newBuilder().addDrgElements(decision).build(),
+        List.of(decision), List.of(), bindings)).decisions().getFirst();
+
+    assertThat(lowered.localSlotCount()).isEqualTo(2);
+    RuntimeContextExpression runtimeContext =
+        (RuntimeContextExpression) lowered.expression().orElseThrow();
+    RuntimeFunctionDefinition runtimeFunction = (RuntimeFunctionDefinition)
+        runtimeContext.entries().get(1).expression();
+    assertThat(runtimeFunction.localSlotCount()).isEqualTo(1);
+    RuntimeBinaryExpression runtimeBody =
+        (RuntimeBinaryExpression) runtimeFunction.body().orElseThrow();
+    assertThat(runtimeBody.left()).isEqualTo(new RuntimeLocalReference(
+        1, 0, RuntimeType.scalar(RuntimeTypeKind.NUMBER)));
+    assertThat(runtimeBody.right()).isEqualTo(new RuntimeLocalReference(
+        0, 0, RuntimeType.scalar(RuntimeTypeKind.NUMBER)));
   }
 
   private static DrgElement decisionWithExpression(

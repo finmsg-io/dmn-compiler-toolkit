@@ -8,6 +8,7 @@ public record RuntimeFunctionDefinition(
     List<RuntimeFunctionParameter> parameters,
     Optional<RuntimeExpression> body,
     boolean external,
+    int localSlotCount,
     RuntimeType type) implements RuntimeExpression {
   public RuntimeFunctionDefinition {
     parameters = List.copyOf(parameters);
@@ -15,6 +16,18 @@ public record RuntimeFunctionDefinition(
     if (!external && body.isEmpty()) {
       throw new IllegalArgumentException("A non-external function requires a body.");
     }
+    if (localSlotCount < parameters.size()) {
+      throw new IllegalArgumentException(
+          "localSlotCount must include every parameter slot.");
+    }
     Objects.requireNonNull(type, "type");
+  }
+
+  public RuntimeFunctionDefinition(
+      List<RuntimeFunctionParameter> parameters,
+      Optional<RuntimeExpression> body,
+      boolean external,
+      RuntimeType type) {
+    this(parameters, body, external, parameters.size(), type);
   }
 }
