@@ -143,4 +143,35 @@ class DmnXmlReaderTest {
                 RuntimeException.class,
                 () -> new DmnXmlReader().read("<definitions>".getBytes()));
     }
+
+    @Test
+    void capturesSourceLocationsOnlyWhenRequested() {
+        DmnReadOptions options = new DmnReadOptions(1024, "memory:located.dmn")
+                .withSourceLocations(true);
+
+        Definitions definitions = new DmnXmlReader().readResult(DMN.getBytes(), options).requireModel();
+
+        assertTrue(definitions.getNode().hasSourceLocation());
+        assertEquals("memory:located.dmn", definitions.getNode().getSourceLocation().getSystemId());
+        assertEquals(1, definitions.getNode().getSourceLocation().getLine());
+        assertEquals(1, definitions.getNode().getSourceLocation().getColumn());
+        assertFalse(new DmnXmlReader().read(DMN.getBytes()).getNode().hasSourceLocation());
+    }
+
+    @Test
+    void reportsUnsupportedDecisionLogicSeparatelyFromMalformedXml() {
+        String xml = """
+                <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                    namespace="https://example.com/model">
+                  <decision id="decision-1"><conditional/></decision>
+                </definitions>
+                """;
+
+        DmnReadResult result = new DmnXmlReader().readResult(
+                xml.getBytes(), new DmnReadOptions(4096, "memory:unsupported.dmn"));
+
+        assertTrue(result.model().isEmpty());
+        assertEquals("DMN-XML-004", result.diagnostics().get(0).getCode());
+        assertTrue(result.diagnostics().get(0).getMessage().contains("conditional"));
+    }
 }

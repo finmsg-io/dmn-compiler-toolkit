@@ -2,6 +2,7 @@ package io.finmsg.dmn.frontend.xml.dmn.reader;
 
 import io.finmsg.dmn.frontend.xml.XmlCursor;
 import io.finmsg.dmn.model.DecisionLogic;
+import io.finmsg.dmn.frontend.xml.dmn.UnsupportedDmnXmlException;
 
 public final class DecisionLogicReader {
 
@@ -26,7 +27,8 @@ public final class DecisionLogicReader {
       }
 
       default ->
-          throw new IllegalArgumentException("Unsupported decision logic: " + cursor.localName());
+          throw new UnsupportedDmnXmlException(
+              "Unsupported decision logic <" + cursor.localName() + "> at " + cursor.path());
     }
 
     return builder.build();

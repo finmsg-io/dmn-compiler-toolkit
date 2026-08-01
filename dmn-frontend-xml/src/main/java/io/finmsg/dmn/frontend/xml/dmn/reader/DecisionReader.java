@@ -1,6 +1,7 @@
 package io.finmsg.dmn.frontend.xml.dmn.reader;
 
 import io.finmsg.dmn.frontend.xml.XmlCursor;
+import io.finmsg.dmn.frontend.xml.dmn.UnsupportedDmnXmlException;
 import io.finmsg.dmn.model.Decision;
 
 public final class DecisionReader {
@@ -71,7 +72,7 @@ public final class DecisionReader {
           //
           // Extension point
           //
-          case "extensionElements" -> {
+          case "documentation", "extensionElements" -> {
             // ignored for now
           }
 
@@ -83,12 +84,17 @@ public final class DecisionReader {
               "decisionMaker",
               "decisionOwner",
               "usingProcess",
-              "usingTask" -> {
+              "usingTask",
+              "question",
+              "allowedAnswers" -> {
             // ignored for now
           }
 
           default -> {
-            // ignore unknown DMN extensions
+            if (!cursor.documentLocalName().isEmpty()) {
+              throw new UnsupportedDmnXmlException(
+                  "Unsupported decision child <" + cursor.localName() + "> at " + cursor.path());
+            }
           }
         }
 

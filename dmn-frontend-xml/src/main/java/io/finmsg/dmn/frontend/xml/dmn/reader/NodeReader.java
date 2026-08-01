@@ -6,6 +6,7 @@ import io.finmsg.dmn.model.Documentation;
 import io.finmsg.dmn.model.ExtensionAttribute;
 import io.finmsg.dmn.model.ExtensionElement;
 import io.finmsg.dmn.model.ExtensionElements;
+import io.finmsg.dmn.model.SourceLocation;
 
 public final class NodeReader {
 
@@ -23,6 +24,14 @@ public final class NodeReader {
 
     if (cursor.hasAttribute("label")) {
       builder.setLabel(cursor.requiredAttribute("label"));
+    }
+
+    if (cursor.captureSourceLocations()) {
+      SourceLocation.Builder location = SourceLocation.newBuilder().setSystemId(cursor.systemId());
+      if (cursor.line() > 0) location.setLine(cursor.line());
+      if (cursor.column() > 0) location.setColumn(cursor.column());
+      if (cursor.offset() >= 0) location.setOffset(cursor.offset());
+      builder.setSourceLocation(location);
     }
 
     readMetadata(cursor, builder);

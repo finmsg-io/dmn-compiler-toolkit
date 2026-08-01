@@ -3,6 +3,7 @@ package io.finmsg.dmn.frontend.xml.dmn.reader;
 import io.finmsg.dmn.frontend.xml.XmlCursor;
 import io.finmsg.dmn.model.BoxedExpression;
 import io.finmsg.dmn.model.BoxedExpressionText;
+import io.finmsg.dmn.frontend.xml.dmn.UnsupportedDmnXmlException;
 
 public final class BoxedExpressionReader {
 
@@ -29,8 +30,8 @@ public final class BoxedExpressionReader {
       case "functionDefinition" ->
           builder.setFunctionDefinition(readers.functionDefinitionTextReader().read(cursor));
       default ->
-          throw new IllegalArgumentException(
-              "Unsupported boxed expression: " + cursor.localName());
+          throw new UnsupportedDmnXmlException(
+              "Unsupported boxed expression <" + cursor.localName() + "> at " + cursor.path());
     }
 
     return builder.build();

@@ -23,6 +23,9 @@ import java.util.List;
 public final class VtdXmlCursor implements XmlCursor {
 
   private final VTDNav nav;
+  private final byte[] xml;
+  private final String systemId;
+  private final boolean captureSourceLocations;
   private final Set<String> namespaceUris = new LinkedHashSet<>();
   private final Map<String, String> documentNamespaceDeclarations = new LinkedHashMap<>();
   private final String documentNamespaceUri;
@@ -36,7 +39,14 @@ public final class VtdXmlCursor implements XmlCursor {
   }
 
   public VtdXmlCursor(byte[] xml) {
+    this(xml, "", false);
+  }
+
+  public VtdXmlCursor(byte[] xml, String systemId, boolean captureSourceLocations) {
     Objects.requireNonNull(xml);
+    this.xml = xml.clone();
+    this.systemId = Objects.requireNonNullElse(systemId, "");
+    this.captureSourceLocations = captureSourceLocations;
     try {
       VTDGen vg = new VTDGen();
       vg.setDoc(xml);
@@ -379,7 +389,13 @@ public final class VtdXmlCursor implements XmlCursor {
 
   @Override
   public int line() {
-    return -1;
+    int offset = offset();
+    if (offset < 0) return -1;
+    int line = 1;
+    for (int i = 0; i < offset && i < xml.length; i++) {
+      if (xml[i] == '\n') line++;
+    }
+    return line;
   }
 
   // --------------------------------------------------------------------
@@ -388,7 +404,27 @@ public final class VtdXmlCursor implements XmlCursor {
 
   @Override
   public int column() {
-    return -1;
+    int offset = offset();
+    if (offset < 0) return -1;
+    int column = 1;
+    for (int i = offset - 1; i >= 0 && xml[i] != '\n'; i--) column++;
+    return column;
+  }
+
+  @Override
+  public int offset() {
+    // VTD points at the first name character; source locations point at the opening '<'.
+    return Math.max(0, nav.getTokenOffset(nav.getCurrentIndex()) - 1);
+  }
+
+  @Override
+  public String systemId() {
+    return systemId;
+  }
+
+  @Override
+  public boolean captureSourceLocations() {
+    return captureSourceLocations;
   }
 
   // --------------------------------------------------------------------

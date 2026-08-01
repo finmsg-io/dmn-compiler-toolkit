@@ -74,8 +74,11 @@ public final class DmnXmlReader {
     if (xml.length > options.maxInputBytes()) {
       return failure("DMN-XML-001", "DMN XML exceeds the configured input limit.", options);
     }
-    try (XmlCursor cursor = new VtdXmlCursor(xml)) {
+    try (XmlCursor cursor = new VtdXmlCursor(
+        xml, options.systemId(), options.captureSourceLocations())) {
       return new DmnReadResult(read(cursor), List.of());
+    } catch (UnsupportedDmnXmlException exception) {
+      return failure("DMN-XML-004", exception.getMessage(), options);
     } catch (RuntimeException exception) {
       String message = exception.getMessage() == null ? "Cannot parse DMN XML." : exception.getMessage();
       return failure("DMN-XML-003", message, options);

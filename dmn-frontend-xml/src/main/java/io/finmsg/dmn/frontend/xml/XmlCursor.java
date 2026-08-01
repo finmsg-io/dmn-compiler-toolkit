@@ -130,6 +130,15 @@ public interface XmlCursor extends AutoCloseable {
 
   String path();
 
+  /** Byte offset of the current element, or {@code -1} when unavailable. */
+  int offset();
+
+  /** Source identifier supplied by the caller. */
+  String systemId();
+
+  /** Whether model nodes should retain source locations. */
+  boolean captureSourceLocations();
+
   // --------------------------------------------------------------------
   // Lifecycle
   // --------------------------------------------------------------------

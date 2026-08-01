@@ -3,6 +3,7 @@ package io.finmsg.dmn.frontend.xml.dmn.reader;
 import io.finmsg.dmn.frontend.xml.XmlCursor;
 import io.finmsg.dmn.model.FunctionDefinition;
 import io.finmsg.dmn.model.FunctionKind;
+import io.finmsg.dmn.frontend.xml.dmn.UnsupportedDmnXmlException;
 
 public final class FunctionDefinitionReader {
 
@@ -29,9 +30,9 @@ public final class FunctionDefinitionReader {
           case "formalParameter" ->
               builder.addFormalParameters(informationItemReader.read(cursor));
           case "literalExpression" -> builder.setLogic(feelReader.read(cursor));
-          default -> {
-            // Unsupported function bodies are left for structured diagnostics.
-          }
+          case "documentation", "extensionElements" -> { }
+          default -> throw new UnsupportedDmnXmlException(
+              "Unsupported function body <" + cursor.localName() + "> at " + cursor.path());
         }
       } while (cursor.nextSibling());
 
