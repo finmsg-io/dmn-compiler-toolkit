@@ -68,6 +68,7 @@
 ## 18.5 Runtime, generation, and optimization
 
 ```text
+[done] typed Runtime IR constant pooling and stable built-in operation IDs
 [ ] constant folding and expression simplification
 [ ] dependency pruning and decision-table specialization
 [ ] Java generator and runtime activation

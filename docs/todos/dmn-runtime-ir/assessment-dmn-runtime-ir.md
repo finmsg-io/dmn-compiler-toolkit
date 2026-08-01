@@ -32,7 +32,8 @@ only by rescanning expression trees.
 | Indexed member/field addressing | complete for statically known context types |
 | XML-to-Runtime-IR pipeline fixtures | complete for decision tables, boxed contexts, and BKMs |
 | Aggregate executable invariants | complete |
-| Constant canonicalization/pooling | missing |
+| Constant canonicalization/pooling | complete baseline |
+| Stable built-in operation IDs | complete for validated built-ins |
 | Runtime evaluator or code generator | not yet implemented |
 
 ## High-priority gaps
@@ -63,15 +64,12 @@ policy metadata. `RuntimeBoxedExpressionLowerer` owns recursive boxed contexts, 
 and functions. `RuntimeIrLowerer` is now the stable public orchestration facade for model elements,
 dependencies, and runtime ordering. This decomposition slice is complete.
 
-### 3. Canonicalize constants and built-ins
+### 3. Constant and built-in optimization
 
-Runtime constants retain source strings, and built-in calls retain function names. This is a good
-lossless baseline, but an evaluator would repeatedly parse numbers/temporals and dispatch built-ins
-by string.
-
-Add a later canonicalization pass that produces typed constant values or a constant pool and
-stable built-in operation IDs. Keep the current lossless representation as pre-optimization IR if
-useful.
+`RuntimeIrOptimizer` preserves the lossless model while producing a deterministic optimized
+companion with deduplicated typed constants, expression-to-pool uses, and stable IDs for recognized
+static built-ins. Numeric, boolean, string, date, time, date-time, and duration values are parsed
+once. Unknown and dynamic calls remain unbound for later extension/runtime dispatch.
 
 ### 4. Define serialization and compatibility policy
 
@@ -91,10 +89,9 @@ Do not yet:
 
 ## Recommended implementation order
 
-1. Add canonicalization/constant-pool and optimization passes.
-2. Define serialization only when a concrete cache or deployment use case requires it.
+1. Define serialization only when a concrete cache or deployment use case requires it.
 
 ## Verification baseline
 
-The six-module Maven reactor passes. `dmn-runtime-ir` currently has 24 tests, and the complete
-reactor has 174 passing tests. `git diff --check` passes for the current implementation.
+The six-module Maven reactor passes. `dmn-runtime-ir` currently has 27 tests, and the complete
+reactor has 177 passing tests. `git diff --check` passes for the current implementation.

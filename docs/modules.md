@@ -78,7 +78,7 @@ Linked model-set Runtime IR lowering remains future work.
 
 ## `dmn-runtime-ir`
 
-Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer IDs and slots across linked model namespaces, lowers structural types and every protobuf FEEL AST expression variant, and rejects unsuccessful semantic results. Decisions and functions persist lexical frames. Declared and expression-derived global references are merged into dependencies and a deterministic runtime topological order. Context types preserve stable indexed field layouts, and statically known path and descendant access carries resolved field indices. Constant pooling remains future work.
+Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer IDs and slots across linked model namespaces, lowers structural types and every protobuf FEEL AST expression variant, and rejects unsuccessful semantic results. Decisions and functions persist lexical frames. Declared and expression-derived global references are merged into dependencies and a deterministic runtime topological order. Context types preserve stable indexed field layouts, and statically known path and descendant access carries resolved field indices. A separate optimizer produces typed constant pools and stable built-in operation bindings while preserving lossless IR.
 
 See the [implementation assessment](todos/dmn-runtime-ir/assessment-dmn-runtime-ir.md) for the
 execution-readiness gaps and recommended implementation order.
