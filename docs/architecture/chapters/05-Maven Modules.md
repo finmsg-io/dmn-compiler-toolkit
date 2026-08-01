@@ -54,7 +54,9 @@ Responsibilities:
 - XML cursor abstraction
 - element-specific readers
 - semantic protobuf construction
-- partial DMN XML writing
+- semantic DMN XML writing for the current protobuf-supported subset
+- structured read diagnostics, bounded input, and opt-in source locations
+- namespace/version preservation and prefixed-DMN output
 
 ## 5.4 `dmn-feel-parser`
 
@@ -95,6 +97,8 @@ Responsibilities currently implemented:
 - decision-table, BKM, item-definition, and decision-service validation
 - DRG dependency validation, cycle detection, and deterministic compilation order
 - unified pass orchestration
+- persisted/exposed symbol and named-type bindings
+- namespace-indexed cross-model import/reference linking and dependency ordering
 
 `dmn-feel-parser` and `dmn-frontend-xml` are test-scoped dependencies only.
 

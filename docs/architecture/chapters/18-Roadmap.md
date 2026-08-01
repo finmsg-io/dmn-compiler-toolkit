@@ -1,92 +1,61 @@
 # Chapter 18 — Roadmap [IMPLEMENTATION-ALIGNED]
 
-## 18.1 Current state — August 2026
+## 18.1 Implemented compiler foundation — August 2026
 
 ```text
-[done] dmn-protobuf
-[done] FEEL text/parsed schema separation
-[done] replaceable protobuf node pattern
-[done] dmn-frontend-xml reader
-[done] initial DmnWriter and individual writers
-[done] dmn-feel-parser and ANTLR generation
-[done] FeelAstBuilder
-[done] depth-first DmnFeelParser
-[done] UnaryTest and TypeConstraint parsing
-[done] model-aware multi-error FEEL diagnostics
-[done] Traffic Violation FEEL integration test
-[done] dmn-semantic-analysis module
-[done] first name and structured-property resolution pass
-[done] Traffic Violation semantic-analysis test
-[done] unified semantic-analysis pipeline
-[done] named-type resolution and declared-type validation
-[done] FEEL and boxed-expression type inference
-[done] operator and built-in function validation
-[done] decision-table, BKM, item-definition, and decision-service validation
-[done] DRG dependency validation and cycle detection
-[done] deterministic compilation order
-[done] exposed symbol and named-type binding table
-[done] namespace-indexed import validation and cross-model reference linking
-[done] cross-model dependency ordering
-[done] structured-list projection and structured filter typing
-[done] range, between, and in-expression validation
-[done] temporal and duration arithmetic
-[done] instance-of named-type validation
-[done] model-indexed decision-table-reference typing and diagnostics
-[done] legacy single-binding loop compatibility
+[done] protobuf semantic and FEEL text/parsed models
+[done] namespace-aware DMN XML reader
+[done] semantic XML writer for the current protobuf-supported subset
+[done] imports, DRG elements, decision tables, invocations, boxed expressions
+[done] item components/constraints, documentation, and structured extensions
+[done] namespace/version round trips and prefixed-DMN output
+[done] bounded read API, structured XML diagnostics, opt-in source locations
+[done] ANTLR FEEL parser and complete semantic-model parsing pass
+[done] typed semantic-analysis pipeline and validation
+[done] exposed/persisted symbol and named-type bindings
+[done] namespace-indexed cross-model import/reference linking and ordering
+[done] structural Runtime IR with deterministic IDs, slots, types, and dependencies
 ```
 
-## 18.2 Next milestone — semantic-analysis completion
+## 18.2 Immediate completion gate
 
 ```text
-[ ] stabilize the typed model contract for Runtime IR lowering
+[ ] preserve QName typeRef namespaces through XML read/write
+[ ] diagnose unsupported DMN-namespace children consistently
+[ ] add multi-version and namespace-shadowing fixtures
+[ ] add DTD/XXE, deep-nesting, malformed-encoding, and hostile-input tests
+[ ] run and stabilize the full reactor
+[ ] publish the supported-subset contract
 ```
 
-## 18.3 Dependency analysis — completed baseline
+## 18.3 Compiler glue and Runtime IR
 
 ```text
-[done] build the single-model DRG dependency graph
-[done] validate local href targets
-[done] detect unavailable dependencies
-[done] detect cycles
-[done] establish deterministic compilation order
-[done] extend dependency analysis across imported models
+[ ] add a compiler facade and phase-aware diagnostic aggregation
+[ ] add an import source/model resolver boundary
+[ ] stabilize linked semantic results as Runtime IR input
+[ ] lower typed FEEL AST to Runtime IR instructions
+[ ] lower decision tables and complete linked model sets
 ```
 
-## 18.4 XML completeness
+## 18.4 Model extensions requiring design decisions
 
 ```text
-[ ] complete invocation and decision-service coverage
-[ ] populate source locations
-[ ] preserve documentation and extension elements
-[ ] complete imports
-[ ] complete writer coverage
-[ ] add lossless round-trip tests
-[ ] add XML security tests
+[ ] DMNDI
+[ ] artifacts and associations
+[ ] organization units and performance indicators
+[ ] decision questions and allowed answers
+[ ] deeper arbitrary extension trees
 ```
 
-## 18.5 Runtime and generation
+## 18.5 Runtime, generation, and optimization
 
 ```text
-[done] define structural Runtime IR contracts
-[done] assign deterministic integer node IDs, slots, and dependency order
-[done] lower structural runtime types
-[ ] lower typed FEEL AST
-[ ] lower decision tables
-[ ] lower complete linked model sets
-[ ] implement Java generator
-[ ] activate generated models without application recompilation
-[ ] add public compiler API
+[ ] constant folding and expression simplification
+[ ] dependency pruning and decision-table specialization
+[ ] Java generator and runtime activation
+[ ] public compiler API and CLI
+[ ] JMH and cross-engine correctness/performance comparisons
 ```
 
-## 18.6 Optimization and performance
-
-```text
-[ ] constant folding
-[ ] expression simplification
-[ ] dependency pruning
-[ ] decision-table specialization
-[ ] JMH benchmarks
-[ ] cross-engine correctness and performance comparisons
-```
-
-Correctness, explicit diagnostics, and deterministic tests remain prerequisites for Runtime IR and code generation.
+Correctness, explicit diagnostics, and deterministic tests remain prerequisites for code generation.

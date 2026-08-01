@@ -36,7 +36,9 @@ The module also contains `DmnWriter`, `XmlEmitter`, and individual writer classe
 io.finmsg.dmn.frontend.xml.dmn.writer
 ```
 
-Writer coverage is currently partial and must not yet be treated as complete DMN round-trip support.
+Reader and writer coverage is symmetric for the XML-representable portion of the current protobuf model. This includes imports, item definitions and constraints, all modeled DRG elements, decision tables, invocations, boxed expressions, documentation, structured extensions, namespace/version preservation, and prefixed-DMN output.
+
+The remaining blocking frontend defect is namespace preservation for QName `typeRef` values. DMNDI, artifacts, business-context metadata, and deeper arbitrary extension trees require protobuf model extensions and are not part of the current round-trip claim. See the [completeness audit](audits/dmn-frontend-xml-completeness.md).
 
 ## `dmn-feel-parser`
 
@@ -69,8 +71,10 @@ Contains the semantic-analysis pipeline:
 - operator and built-in function validation
 - decision-table, BKM, item-definition, and decision-service validation
 - dependency validation, cycle detection, and deterministic compilation order
+- persisted/exposed symbol and named-type bindings
+- namespace-indexed cross-model imports, references, and dependency ordering
 
-Expression and decision-table Runtime IR lowering remain future work.
+QName-safe XML type imports, expression and decision-table Runtime IR lowering remain future work.
 
 ## `dmn-runtime-ir`
 

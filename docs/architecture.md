@@ -11,16 +11,17 @@ DMN XML
   → FEEL Parser pass
   → copied protobuf model with FEEL AST
   → Semantic Analysis
-  → validated model and diagnostics
+  → validated linked model set, bindings, order, and diagnostics
+  → structural Runtime IR
 ```
 
-The first four Maven modules implement this pipeline through typed semantic analysis and deterministic dependency ordering for the current single-model scope.
+Five Maven modules implement this pipeline through cross-model typed semantic analysis and deterministic structural Runtime IR lowering.
 
 ## Stage boundaries
 
 ### XML frontend
 
-Maps supported DMN XML structures to protobuf messages. It preserves FEEL text and performs no FEEL parsing or semantic resolution.
+Maps the current protobuf-supported DMN subset to and from XML. It preserves FEEL text, namespaces, imports, node documentation/extensions, and optional source locations while performing no FEEL parsing or semantic resolution. QName `typeRef` namespace preservation remains open.
 
 ### Semantic model
 
@@ -32,11 +33,11 @@ Uses ANTLR4 and `FeelAstBuilder` to create protobuf AST nodes. `DmnFeelParser` t
 
 ### Semantic analysis
 
-The implemented first pass creates requirement-aware scopes and validates FEEL names and structured properties. Type inference and the remaining DMN validation passes follow next.
+The implemented pipeline creates requirement-aware scopes, resolves local and imported symbols/types, validates and infers FEEL types, validates dependencies, and exposes deterministic bindings and compilation order.
 
 ### Future stages
 
-Optimizer, Runtime IR, code generators, and runtime execution are not implemented.
+Structural Runtime IR is implemented. Expression instruction lowering, optimizer passes, code generators, and runtime execution are not implemented.
 
 ## Core rules
 

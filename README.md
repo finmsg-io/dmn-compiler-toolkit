@@ -10,11 +10,10 @@ The project is under active development.
 
 Current focus:
 
-- DMN 1.5 XML frontend
-- Protobuf-based semantic model
-- FEEL parser based on ANTLR4
-- Compiler-oriented architecture
-- Performance-focused runtime generation
+- namespace-safe QName type references in the DMN XML frontend
+- XML conformance and security hardening
+- Runtime IR expression and decision-table lowering
+- compiler facade and model-resolution glue
 
 ## Architecture
 
@@ -53,7 +52,7 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | Module | Description |
 |---|---|
 | `dmn-protobuf` | Protobuf definitions and generated Java classes for the semantic model |
-| `dmn-frontend-xml` | DMN XML reader based on VTD-XML |
+| `dmn-frontend-xml` | Namespace-aware DMN XML reader and semantic round-trip writer based on VTD-XML |
 | `dmn-feel-parser` | ANTLR4 parser for DMN FEEL expressions |
 | `dmn-semantic-analysis` | Reference resolution, type analysis, DMN validation, and dependency ordering |
 | `dmn-runtime-ir` | Immutable structural Runtime IR and semantic-model lowering |
@@ -191,10 +190,8 @@ mkdocs build
 
 ## Roadmap
 
-- Complete DMN XML frontend coverage
-- Complete FEEL grammar and AST mapping
-- Complete import and cross-model semantic analysis
-- Complete remaining FEEL expression edge cases
+- Preserve QName namespaces in XML type references
+- Complete XML conformance and hostile-input coverage
 - Lower FEEL expressions and decision tables into Runtime IR instructions
 - Add optimizer passes
 - Generate optimized Java code

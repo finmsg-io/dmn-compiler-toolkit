@@ -6,12 +6,13 @@ It parses DMN XML once, creates an immutable protobuf semantic model, parses FEE
 
 ## Current implementation
 
-The repository currently contains four active Maven modules:
+The repository currently contains five active Maven modules:
 
 - `dmn-protobuf` — semantic model, replaceable FEEL text/parsed nodes, and FEEL AST
-- `dmn-frontend-xml` — VTD-XML reader and partial DMN XML writer
+- `dmn-frontend-xml` — namespace-aware VTD-XML reader and writer for the current protobuf-supported DMN subset
 - `dmn-feel-parser` — ANTLR4 grammar, AST builder, complete DMN FEEL parsing pass, and model-aware diagnostics
 - `dmn-semantic-analysis` — reference resolution, type analysis, DMN validation, and deterministic dependency ordering
+- `dmn-runtime-ir` — immutable structural Runtime IR and deterministic semantic-model lowering
 
 The implemented pipeline is:
 
@@ -37,7 +38,7 @@ DmnSemanticAnalyzer
 Semantic-analysis result and diagnostics
 ```
 
-Structural Runtime IR and deterministic graph/type lowering are implemented. Expression lowering, optimization, code generation, and execution remain future stages.
+Cross-model semantic linking and structural Runtime IR graph/type lowering are implemented. QName namespace preservation in XML type references, Runtime IR expression lowering, optimization, code generation, and execution remain future stages.
 
 ## Design goals
 

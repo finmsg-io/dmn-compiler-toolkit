@@ -19,8 +19,9 @@ Current implementation status:
 
 - XML frontend and canonical semantic model are implemented.
 - FEEL parsing and protobuf AST construction are implemented.
-- The semantic pipeline implements reference resolution, type analysis, model validation, and dependency analysis for the current single-model scope.
-- The optimizer, Runtime IR, generators, runtime, and cross-model import linker remain target components.
+- The semantic pipeline implements local and cross-model reference resolution, type analysis, model validation, persisted/exposed bindings, and deterministic dependency analysis.
+- Structural Runtime IR and deterministic graph/type lowering are implemented.
+- The optimizer, Runtime IR expression lowering, generators, and runtime remain target components.
 
 ------------------------------------------------------------------------
 

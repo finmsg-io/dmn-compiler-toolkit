@@ -18,7 +18,7 @@ FEEL Parsing Pass           implemented
 Parsed Model                implemented
    │
    ▼
-Semantic Analysis           implemented for the current single-model scope
+Semantic Analysis           implemented for linked model sets
    │
    ▼
 Optimization                future
@@ -41,7 +41,7 @@ Each stage has a stable protobuf input/output boundary and treats its input as i
 | --- | --- | --- | --- |
 | XML frontend | DMN XML | `Definitions` with FEEL text | Implemented for the current supported DMN subset |
 | FEEL parser | Semantic `Definitions` | copied `Definitions` with parsed FEEL | Implemented |
-| Semantic pipeline | parsed `Definitions` | typed model, compilation order, and diagnostics | Implemented for the current single-model scope |
+| Semantic pipeline | parsed model set | typed models, persisted bindings, compilation order, and diagnostics | Implemented |
 | Optimizer | validated model | optimized model | Future |
 | Runtime builder | typed model | structural Runtime IR | Deterministic graph/type baseline implemented |
 | Code generator | Runtime IR | target code | Future |
@@ -94,11 +94,12 @@ Implemented:
 - decision, decision-table, BKM, item-definition, and decision-service validation
 - DRG dependency validation, cycle detection, and deterministic compilation order
 
+The analyzer also exposes persisted symbol and named-type bindings, links namespace-indexed imports and references, and computes deterministic dependency order across models.
+
 Not yet implemented:
 
-- persistent resolved-reference IDs
-- import and cross-model linking
-- Runtime IR lowering
+- QName namespace preservation at the XML `typeRef` boundary
+- Runtime IR expression and decision-table instruction lowering
 
 ## 3.6 Runtime boundary
 

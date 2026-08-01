@@ -7,6 +7,14 @@
 - [x] Replaceable FEEL, expression, boxed-expression, unary-test, and type-constraint nodes
 - [x] VTD-XML DMN reader
 - [x] Initial DMN XML writer infrastructure and writer tests
+- [x] Namespace-aware DMN element dispatch and scoped namespace resolution
+- [x] Complete reader/writer symmetry for the current protobuf-supported XML subset
+- [x] DMN version and root namespace round trips, including prefixed-DMN output
+- [x] Imports, decision services, invocations, decision tables, and boxed expressions
+- [x] Item-definition components and constraints
+- [x] Documentation and one-level structured extension preservation
+- [x] Structured read results, input limits, and malformed/unsupported XML diagnostics
+- [x] Opt-in source-location capture
 - [x] ANTLR4 FEEL grammar and generated parser
 - [x] Protobuf FEEL AST builder
 - [x] Depth-first `DmnFeelParser` pass
@@ -31,18 +39,18 @@
 - [x] Model-indexed decision-table-reference typing and diagnostics
 - [x] Legacy single-binding loop compatibility
 
-## Next: semantic-analysis completion
+## Next: frontend completion gate
 
-- [ ] Stabilize the semantic pipeline as an input to Runtime IR
+- [ ] Preserve QName `typeRef` namespaces during XML read/write
+- [ ] Diagnose unsupported DMN-namespace content consistently across readers
+- [ ] Add the multi-version, conformance, namespace-shadowing, and hostile-input matrix
+- [ ] Run and stabilize the complete reactor
 
-## XML frontend completion
+## Compiler glue and Runtime IR
 
-- [ ] Complete invocation coverage
-- [ ] Complete writer coverage and round-trip tests
-- [ ] Populate source locations
-- [ ] Preserve documentation and extension elements
-- [ ] Complete imports and decision services
-- [ ] Add malformed and hostile XML tests
+- [ ] Add a compiler facade that aggregates phase diagnostics
+- [ ] Add a model resolver/loading boundary for imports
+- [ ] Stabilize the semantic result contract consumed by Runtime IR
 
 ## Later stages
 
