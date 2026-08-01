@@ -6,6 +6,7 @@ import io.finmsg.dmn.model.BuiltinType;
 import io.finmsg.dmn.model.AuthorityRequirement;
 import io.finmsg.dmn.model.BusinessKnowledgeModel;
 import io.finmsg.dmn.model.Definitions;
+import io.finmsg.dmn.model.DecisionService;
 import io.finmsg.dmn.model.DrgElement;
 import io.finmsg.dmn.model.ElementReference;
 import io.finmsg.dmn.model.Feel;
@@ -17,6 +18,7 @@ import io.finmsg.dmn.model.InputData;
 import io.finmsg.dmn.model.Import;
 import io.finmsg.dmn.model.ItemDefinition;
 import io.finmsg.dmn.model.KnowledgeRequirement;
+import io.finmsg.dmn.model.KnowledgeSource;
 import io.finmsg.dmn.model.NamedTypeReference;
 import io.finmsg.dmn.model.Node;
 import io.finmsg.dmn.model.TypeReference;
@@ -132,5 +134,48 @@ class DmnWriterTest {
         .contains("<requiredAuthority href=\"#authority-1\"")
         .contains("<requiredDecision href=\"#decision-1\"");
     assertThat(readBack).isEqualTo(definitions);
+  }
+
+  @Test
+  void writesKnowledgeSourceAndDecisionServiceRoundTrip() {
+    KnowledgeSource source =
+        KnowledgeSource.newBuilder()
+            .setNode(Node.newBuilder().setId("source-1").setName("Regulation"))
+            .setAuthority("#owner-1")
+            .setLocationUri("https://example.com/regulation")
+            .build();
+    DecisionService service =
+        DecisionService.newBuilder()
+            .setNode(Node.newBuilder().setId("service-1").setName("Risk service"))
+            .addOutputDecisions(reference("#output-1"))
+            .addEncapsulatedDecisions(reference("#encapsulated-1"))
+            .addInputDecisions(reference("#input-decision-1"))
+            .addInputData(reference("#input-data-1"))
+            .build();
+    Definitions definitions =
+        Definitions.newBuilder()
+            .setNode(Node.getDefaultInstance())
+            .setNamespace("https://example.com/services")
+            .addDrgElements(DrgElement.newBuilder().setKnowledgeSource(source))
+            .addDrgElements(DrgElement.newBuilder().setDecisionService(service))
+            .build();
+
+    byte[] xml = new DmnWriter().write(definitions);
+    Definitions readBack = new DmnXmlReader().read(xml);
+
+    assertThat(new String(xml, StandardCharsets.UTF_8))
+        .contains("<knowledgeSource")
+        .contains("<owner href=\"#owner-1\"")
+        .contains("<locationURI>https://example.com/regulation</locationURI>")
+        .contains("<decisionService")
+        .contains("<outputDecision href=\"#output-1\"")
+        .contains("<encapsulatedDecision href=\"#encapsulated-1\"")
+        .contains("<inputDecision href=\"#input-decision-1\"")
+        .contains("<inputData href=\"#input-data-1\"");
+    assertThat(readBack).isEqualTo(definitions);
+  }
+
+  private static ElementReference reference(String href) {
+    return ElementReference.newBuilder().setHref(href).build();
   }
 }

@@ -2,6 +2,7 @@ package io.finmsg.dmn.frontend.xml.dmn.reader;
 
 import io.finmsg.dmn.frontend.xml.XmlCursor;
 import io.finmsg.dmn.model.DecisionService;
+import io.finmsg.dmn.model.ElementReference;
 
 public final class DecisionServiceReader {
 
@@ -18,21 +19,16 @@ public final class DecisionServiceReader {
       do {
 
         switch (cursor.documentLocalName()) {
-          case "outputDecision" -> {
-            // later
-          }
+          case "outputDecision" ->
+              builder.addOutputDecisions(reference(cursor));
 
-          case "encapsulatedDecision" -> {
-            // later
-          }
+          case "encapsulatedDecision" ->
+              builder.addEncapsulatedDecisions(reference(cursor));
 
-          case "inputDecision" -> {
-            // later
-          }
+          case "inputDecision" ->
+              builder.addInputDecisions(reference(cursor));
 
-          case "inputData" -> {
-            // later
-          }
+          case "inputData" -> builder.addInputData(reference(cursor));
 
           case "extensionElements" -> {
             // later
@@ -49,5 +45,9 @@ public final class DecisionServiceReader {
     }
 
     return builder.build();
+  }
+
+  private static ElementReference reference(XmlCursor cursor) {
+    return ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")).build();
   }
 }

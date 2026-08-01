@@ -7,9 +7,6 @@ public final class KnowledgeSourceReader {
 
   private final NodeReader nodeReader = new NodeReader();
 
-  private final AuthorityRequirementReader authorityRequirementReader =
-      new AuthorityRequirementReader();
-
   public KnowledgeSource read(XmlCursor cursor) {
 
     KnowledgeSource.Builder builder = KnowledgeSource.newBuilder();
@@ -21,17 +18,9 @@ public final class KnowledgeSourceReader {
       do {
 
         switch (cursor.documentLocalName()) {
-          case "authorityRequirement" -> {
-            // TODO
-          }
+          case "owner" -> builder.setAuthority(cursor.requiredAttribute("href"));
 
-          case "owner" -> {
-            // later
-          }
-
-          case "locationURI" -> {
-            // later
-          }
+          case "locationURI" -> builder.setLocationUri(cursor.text().trim());
 
           case "extensionElements" -> {
             // later
