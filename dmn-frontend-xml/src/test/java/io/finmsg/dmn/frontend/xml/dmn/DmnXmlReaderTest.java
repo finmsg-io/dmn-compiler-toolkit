@@ -3,6 +3,8 @@ package io.finmsg.dmn.frontend.xml.dmn;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.finmsg.dmn.model.Definitions;
+import io.finmsg.dmn.model.DiagnosticSeverity;
+import java.io.ByteArrayInputStream;
 import org.junit.jupiter.api.Test;
 
 class DmnXmlReaderTest {
@@ -100,5 +102,45 @@ class DmnXmlReaderTest {
         assertEquals(1, function.getFormalParametersCount());
         assertEquals("value", function.getFormalParameters(0).getNode().getName());
         assertEquals("value * 2", function.getLogic().getText().getText());
+    }
+
+    @Test
+    void returnsStructuredDiagnosticForMalformedXml() {
+        DmnReadOptions options = new DmnReadOptions(1024, "memory:broken.dmn");
+
+        DmnReadResult result =
+                new DmnXmlReader().readResult("<definitions>".getBytes(), options);
+
+        assertTrue(result.model().isEmpty());
+        assertTrue(result.hasErrors());
+        assertEquals("DMN-XML-003", result.diagnostics().get(0).getCode());
+        assertEquals(
+                DiagnosticSeverity.DIAGNOSTIC_SEVERITY_FATAL,
+                result.diagnostics().get(0).getSeverity());
+        assertEquals(
+                "memory:broken.dmn",
+                result.diagnostics().get(0).getLocation().getSystemId());
+    }
+
+    @Test
+    void rejectsOversizedStreamsWithoutParsingThem() {
+        byte[] xml = DMN.getBytes();
+        DmnReadOptions options = new DmnReadOptions(16, "memory:large.dmn");
+
+        DmnReadResult result =
+                new DmnXmlReader().readResult(new ByteArrayInputStream(xml), options);
+
+        assertTrue(result.model().isEmpty());
+        assertEquals("DMN-XML-001", result.diagnostics().get(0).getCode());
+        assertEquals(
+                "memory:large.dmn",
+                result.diagnostics().get(0).getLocation().getSystemId());
+    }
+
+    @Test
+    void legacyReadApiStillThrowsForInvalidInput() {
+        assertThrows(
+                RuntimeException.class,
+                () -> new DmnXmlReader().read("<definitions>".getBytes()));
     }
 }
