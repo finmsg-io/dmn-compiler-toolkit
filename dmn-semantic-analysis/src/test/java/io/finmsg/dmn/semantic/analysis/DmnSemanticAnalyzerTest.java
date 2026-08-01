@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.finmsg.dmn.feel.parser.FeelParserFacade;
 import io.finmsg.dmn.model.Decision;
 import io.finmsg.dmn.model.DecisionLogic;
+import io.finmsg.dmn.model.DecisionService;
 import io.finmsg.dmn.model.Definitions;
 import io.finmsg.dmn.model.DrgElement;
 import io.finmsg.dmn.model.ElementReference;
@@ -12,8 +13,15 @@ import io.finmsg.dmn.model.Feel;
 import io.finmsg.dmn.model.InformationItem;
 import io.finmsg.dmn.model.InformationRequirement;
 import io.finmsg.dmn.model.InputData;
+import io.finmsg.dmn.model.Invocation;
 import io.finmsg.dmn.model.ItemComponent;
 import io.finmsg.dmn.model.ItemDefinition;
+import io.finmsg.dmn.model.Binding;
+import io.finmsg.dmn.model.BusinessKnowledgeModel;
+import io.finmsg.dmn.model.FunctionDefinition;
+import io.finmsg.dmn.model.KnowledgeRequirement;
+import io.finmsg.dmn.model.KnowledgeSource;
+import io.finmsg.dmn.model.AuthorityRequirement;
 import io.finmsg.dmn.model.NamedTypeReference;
 import io.finmsg.dmn.model.Node;
 import io.finmsg.dmn.model.TypeReference;
@@ -85,6 +93,97 @@ class DmnSemanticAnalyzerTest {
         .containsExactly("DUPLICATE_NAME");
   }
 
+  @Test
+  void reportsDuplicateDrgElementIds() {
+    Definitions model = Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setInputData(InputData.newBuilder()
+            .setNode(Node.newBuilder().setId("duplicate-id").setName("First"))))
+        .addDrgElements(DrgElement.newBuilder().setDecision(Decision.newBuilder()
+            .setNode(Node.newBuilder().setId("duplicate-id").setName("Second"))))
+        .build();
+
+    assertThat(analyzer.analyze(model).diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("DUPLICATE_ID");
+  }
+
+  @Test
+  void validatesRequirementAndDecisionServiceReferences() {
+    InputData input = InputData.newBuilder()
+        .setNode(Node.newBuilder().setId("input-id").setName("Input"))
+        .build();
+    Decision dependency = Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("decision-id").setName("Dependency"))
+        .build();
+    Decision target = Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("target-id").setName("Target"))
+        .addInformationRequirements(InformationRequirement.newBuilder()
+            .setInput(reference("#decision-id")))
+        .addKnowledgeRequirements(KnowledgeRequirement.newBuilder()
+            .setRequiredKnowledge(reference("#missing-bkm")))
+        .addAuthorityRequirements(AuthorityRequirement.newBuilder()
+            .setRequiredAuthority(reference("#input-id")))
+        .build();
+    KnowledgeSource authority = KnowledgeSource.newBuilder()
+        .setNode(Node.newBuilder().setId("authority-id").setName("Authority"))
+        .build();
+    DecisionService service = DecisionService.newBuilder()
+        .setNode(Node.newBuilder().setId("service-id").setName("Service"))
+        .addOutputDecisions(reference("#input-id"))
+        .addInputData(reference("#missing-input"))
+        .build();
+
+    Definitions model = Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setInputData(input))
+        .addDrgElements(DrgElement.newBuilder().setDecision(dependency))
+        .addDrgElements(DrgElement.newBuilder().setDecision(target))
+        .addDrgElements(DrgElement.newBuilder().setKnowledgeSource(authority))
+        .addDrgElements(DrgElement.newBuilder().setDecisionService(service))
+        .build();
+
+    assertThat(analyzer.analyze(model).diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly(
+            "INVALID_REFERENCE_KIND",
+            "UNKNOWN_REFERENCE",
+            "INVALID_REFERENCE_KIND",
+            "INVALID_REFERENCE_KIND",
+            "UNKNOWN_REFERENCE");
+  }
+
+  @Test
+  void validatesInvocationBindingsAgainstBkmParameters() {
+    BusinessKnowledgeModel bkm = BusinessKnowledgeModel.newBuilder()
+        .setNode(Node.newBuilder().setId("bkm-id").setName("Calculator"))
+        .setFunction(FunctionDefinition.newBuilder()
+            .addFormalParameters(parameter("x"))
+            .addFormalParameters(parameter("y")))
+        .build();
+    Invocation invocation = Invocation.newBuilder()
+        .setExpression(parsedFeel("Calculator"))
+        .addBindings(binding("x", "1"))
+        .addBindings(binding("x", "2"))
+        .addBindings(binding("z", "3"))
+        .build();
+    Decision target = Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("target-id").setName("Target"))
+        .addKnowledgeRequirements(KnowledgeRequirement.newBuilder()
+            .setRequiredKnowledge(reference("#bkm-id")))
+        .setLogic(DecisionLogic.newBuilder().setInvocation(invocation))
+        .build();
+    Definitions model = Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm))
+        .addDrgElements(DrgElement.newBuilder().setDecision(target))
+        .build();
+
+    assertThat(analyzer.analyze(model).diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly(
+            "DUPLICATE_INVOCATION_BINDING",
+            "UNKNOWN_INVOCATION_PARAMETER",
+            "MISSING_INVOCATION_BINDING");
+  }
+
   private Feel parsedFeel(String source) {
     return Feel.newBuilder().setParsed(feelParser.parseExpressionAst(source)).build();
   }
@@ -92,6 +191,21 @@ class DmnSemanticAnalyzerTest {
   private static TypeReference namedType(String name) {
     return TypeReference.newBuilder()
         .setNamed(NamedTypeReference.newBuilder().setName(name))
+        .build();
+  }
+
+  private static ElementReference reference(String href) {
+    return ElementReference.newBuilder().setHref(href).build();
+  }
+
+  private static InformationItem parameter(String name) {
+    return InformationItem.newBuilder().setNode(Node.newBuilder().setName(name)).build();
+  }
+
+  private Binding binding(String parameter, String expression) {
+    return Binding.newBuilder()
+        .setParameter(parameter)
+        .setExpression(parsedFeel(expression))
         .build();
   }
 }

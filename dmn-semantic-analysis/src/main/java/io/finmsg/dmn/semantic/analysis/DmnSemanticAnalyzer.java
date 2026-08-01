@@ -3,7 +3,9 @@ package io.finmsg.dmn.semantic.analysis;
 import io.finmsg.dmn.model.*;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -28,7 +30,7 @@ public final class DmnSemanticAnalyzer {
     private final Definitions model;
     private final List<DmnSemanticDiagnostic> diagnostics = new ArrayList<>();
     private final Map<String, List<Symbol>> globalsByName = new LinkedHashMap<>();
-    private final Map<String, Symbol> globalsById = new HashMap<>();
+    private final Map<String, List<Symbol>> globalsById = new HashMap<>();
     private final Map<String, ItemDefinition> itemDefinitions = new LinkedHashMap<>();
 
     private Session(Definitions model) {
@@ -45,7 +47,8 @@ public final class DmnSemanticAnalyzer {
         switch (element.getElementCase()) {
           case DECISION -> analyzeDecision(element.getDecision(), i);
           case BUSINESS_KNOWLEDGE_MODEL -> analyzeBkm(element.getBusinessKnowledgeModel(), i);
-          case INPUT_DATA, KNOWLEDGE_SOURCE, DECISION_SERVICE, ELEMENT_NOT_SET -> { }
+          case DECISION_SERVICE -> analyzeDecisionService(element.getDecisionService(), i);
+          case INPUT_DATA, KNOWLEDGE_SOURCE, ELEMENT_NOT_SET -> { }
         }
       }
     }
@@ -74,10 +77,34 @@ public final class DmnSemanticAnalyzer {
               SymbolKind.DECISION);
           case BUSINESS_KNOWLEDGE_MODEL -> symbol(
               element.getBusinessKnowledgeModel().getNode(),
-              element.getBusinessKnowledgeModel().getVariable().getType(), SymbolKind.BKM);
-          case KNOWLEDGE_SOURCE, DECISION_SERVICE, ELEMENT_NOT_SET -> null;
+              element.getBusinessKnowledgeModel().getVariable().getType(), SymbolKind.BKM,
+              element.getBusinessKnowledgeModel().getFunction().getFormalParametersList().stream()
+                  .map(parameter -> parameter.getNode().getName())
+                  .filter(name -> !name.isBlank())
+                  .toList());
+          case KNOWLEDGE_SOURCE -> symbol(
+              element.getKnowledgeSource().getNode(), TypeReference.getDefaultInstance(),
+              SymbolKind.KNOWLEDGE_SOURCE);
+          case DECISION_SERVICE -> symbol(
+              element.getDecisionService().getNode(), TypeReference.getDefaultInstance(),
+              SymbolKind.DECISION_SERVICE);
+          case ELEMENT_NOT_SET -> null;
         };
-        if (symbol == null || symbol.name.isBlank()) {
+        if (symbol == null) {
+          continue;
+        }
+        if (!symbol.id.isBlank()) {
+          List<Symbol> sameId = globalsById.computeIfAbsent(symbol.id,
+              ignored -> new ArrayList<>());
+          sameId.add(symbol);
+          if (sameId.size() == 2) {
+            error("DUPLICATE_ID", "definitions/drgElement[" + symbol.id + "]",
+                "Duplicate DRG element id '" + symbol.id + "'.", symbol.location);
+          }
+        }
+        if (symbol.name.isBlank()
+            || symbol.kind == SymbolKind.KNOWLEDGE_SOURCE
+            || symbol.kind == SymbolKind.DECISION_SERVICE) {
           continue;
         }
         List<Symbol> sameName = globalsByName.computeIfAbsent(symbol.name,
@@ -87,14 +114,17 @@ public final class DmnSemanticAnalyzer {
           error("DUPLICATE_NAME", "definitions/drgElement[" + symbol.name + "]",
               "Duplicate global name '" + symbol.name + "'.", symbol.location);
         }
-        if (!symbol.id.isBlank()) {
-          globalsById.put(symbol.id, symbol);
-        }
       }
     }
 
     private Symbol symbol(Node node, TypeReference type, SymbolKind kind) {
-      return new Symbol(node.getName(), node.getId(), type, kind, node.getSourceLocation());
+      return symbol(node, type, kind, List.of());
+    }
+
+    private Symbol symbol(
+        Node node, TypeReference type, SymbolKind kind, List<String> parameters) {
+      return new Symbol(
+          node.getName(), node.getId(), type, kind, node.getSourceLocation(), parameters);
     }
 
     private void analyzeTypeConstraints() {
@@ -123,16 +153,27 @@ public final class DmnSemanticAnalyzer {
       String path = "definitions/decision["
           + displayName(decision.getNode().getName(), index) + "]";
       Scope scope = new Scope(null);
-      for (InformationRequirement requirement : decision.getInformationRequirementsList()) {
+      for (int i = 0; i < decision.getInformationRequirementsCount(); i++) {
+        InformationRequirement requirement = decision.getInformationRequirements(i);
         switch (requirement.getRequiredCase()) {
-          case INPUT -> addRequired(scope, requirement.getInput().getHref());
-          case DECISION -> addRequired(scope, requirement.getDecision().getHref());
-          case REQUIRED_NOT_SET -> { }
+          case INPUT -> addRequired(scope, requirement.getInput(), Set.of(SymbolKind.INPUT_DATA),
+              path + "/informationRequirement[" + i + "]",
+              decision.getNode().getSourceLocation());
+          case DECISION -> addRequired(scope, requirement.getDecision(), Set.of(SymbolKind.DECISION),
+              path + "/informationRequirement[" + i + "]",
+              decision.getNode().getSourceLocation());
+          case REQUIRED_NOT_SET -> error("MISSING_REFERENCE",
+              path + "/informationRequirement[" + i + "]",
+              "Information requirement has no target.", decision.getNode().getSourceLocation());
         }
       }
-      for (KnowledgeRequirement requirement : decision.getKnowledgeRequirementsList()) {
-        addRequired(scope, requirement.getRequiredKnowledge().getHref());
+      for (int i = 0; i < decision.getKnowledgeRequirementsCount(); i++) {
+        addRequired(scope, decision.getKnowledgeRequirements(i).getRequiredKnowledge(),
+            Set.of(SymbolKind.BKM), path + "/knowledgeRequirement[" + i + "]",
+            decision.getNode().getSourceLocation());
       }
+      analyzeAuthorityRequirements(decision.getAuthorityRequirementsList(), path,
+          decision.getNode().getSourceLocation());
       if (decision.hasLogic()) {
         analyzeDecisionLogic(decision.getLogic(), scope, path + "/logic",
             decision.getNode().getSourceLocation());
@@ -143,9 +184,13 @@ public final class DmnSemanticAnalyzer {
       String path = "definitions/businessKnowledgeModel["
           + displayName(bkm.getNode().getName(), index) + "]";
       Scope scope = new Scope(null);
-      for (KnowledgeRequirement requirement : bkm.getKnowledgeRequirementsList()) {
-        addRequired(scope, requirement.getRequiredKnowledge().getHref());
+      for (int i = 0; i < bkm.getKnowledgeRequirementsCount(); i++) {
+        addRequired(scope, bkm.getKnowledgeRequirements(i).getRequiredKnowledge(),
+            Set.of(SymbolKind.BKM), path + "/knowledgeRequirement[" + i + "]",
+            bkm.getNode().getSourceLocation());
       }
+      analyzeAuthorityRequirements(bkm.getAuthorityRequirementsList(), path,
+          bkm.getNode().getSourceLocation());
       if (!bkm.hasFunction()) {
         return;
       }
@@ -162,11 +207,86 @@ public final class DmnSemanticAnalyzer {
       }
     }
 
-    private void addRequired(Scope scope, String href) {
-      Symbol symbol = globalsById.get(referenceId(href));
+    private void addRequired(
+        Scope scope, ElementReference reference, Set<SymbolKind> expected,
+        String path, SourceLocation location) {
+      Symbol symbol = resolveReference(reference, expected, path, location);
       if (symbol != null) {
         scope.define(symbol);
       }
+    }
+
+    private void analyzeAuthorityRequirements(
+        List<AuthorityRequirement> requirements, String parentPath, SourceLocation location) {
+      for (int i = 0; i < requirements.size(); i++) {
+        AuthorityRequirement requirement = requirements.get(i);
+        String path = parentPath + "/authorityRequirement[" + i + "]";
+        resolveReference(requirement.getRequiredAuthority(), Set.of(SymbolKind.KNOWLEDGE_SOURCE),
+            path + "/requiredAuthority", location);
+        switch (requirement.getSourceCase()) {
+          case DECISION -> resolveReference(requirement.getDecision(), Set.of(SymbolKind.DECISION),
+              path + "/decision", location);
+          case INPUT -> resolveReference(requirement.getInput(), Set.of(SymbolKind.INPUT_DATA),
+              path + "/input", location);
+          case SOURCE_NOT_SET -> { }
+        }
+      }
+    }
+
+    private void analyzeDecisionService(DecisionService service, int index) {
+      String path = "definitions/decisionService["
+          + displayName(service.getNode().getName(), index) + "]";
+      validateReferences(service.getOutputDecisionsList(), Set.of(SymbolKind.DECISION),
+          path + "/outputDecision", service.getNode().getSourceLocation());
+      validateReferences(service.getEncapsulatedDecisionsList(), Set.of(SymbolKind.DECISION),
+          path + "/encapsulatedDecision", service.getNode().getSourceLocation());
+      validateReferences(service.getInputDecisionsList(), Set.of(SymbolKind.DECISION),
+          path + "/inputDecision", service.getNode().getSourceLocation());
+      validateReferences(service.getInputDataList(), Set.of(SymbolKind.INPUT_DATA),
+          path + "/inputData", service.getNode().getSourceLocation());
+    }
+
+    private void validateReferences(
+        List<ElementReference> references, Set<SymbolKind> expected,
+        String path, SourceLocation location) {
+      for (int i = 0; i < references.size(); i++) {
+        resolveReference(references.get(i), expected, path + "[" + i + "]", location);
+      }
+    }
+
+    private Symbol resolveReference(
+        ElementReference reference, Set<SymbolKind> expected,
+        String path, SourceLocation location) {
+      String href = reference.getHref();
+      String id = referenceId(href);
+      if (id.isBlank()) {
+        error("MISSING_REFERENCE", path, "Reference target is empty.", location);
+        return null;
+      }
+      List<Symbol> matches = globalsById.get(id);
+      if (matches == null || matches.isEmpty()) {
+        error("UNKNOWN_REFERENCE", path,
+            "Reference '" + href + "' does not resolve to a DRG element.", location);
+        return null;
+      }
+      if (matches.size() > 1) {
+        error("AMBIGUOUS_REFERENCE", path,
+            "Reference '" + href + "' resolves to multiple DRG elements.", location);
+        return null;
+      }
+      Symbol symbol = matches.getFirst();
+      if (!expected.contains(symbol.kind)) {
+        error("INVALID_REFERENCE_KIND", path,
+            "Reference '" + href + "' resolves to " + symbol.kind.displayName
+                + ", expected " + expectedKinds(expected) + ".", location);
+        return null;
+      }
+      return symbol;
+    }
+
+    private static String expectedKinds(Set<SymbolKind> kinds) {
+      return kinds.stream().map(kind -> kind.displayName).sorted()
+          .collect(java.util.stream.Collectors.joining(" or "));
     }
 
     private void analyzeDecisionLogic(
@@ -227,6 +347,40 @@ public final class DmnSemanticAnalyzer {
       for (int i = 0; i < invocation.getBindingsCount(); i++) {
         analyzeFeel(invocation.getBindings(i).getExpression(), scope,
             path + "/binding[" + i + "]", location);
+      }
+      validateInvocationBindings(invocation, scope, path, location);
+    }
+
+    private void validateInvocationBindings(
+        Invocation invocation, Scope scope, String path, SourceLocation location) {
+      if (!invocation.getExpression().hasParsed()
+          || !invocation.getExpression().getParsed().getAst().hasName()) {
+        return;
+      }
+      String targetName = invocation.getExpression().getParsed().getAst().getName().getName();
+      List<Symbol> targets = scope.resolve(targetName);
+      if (targets == null || targets.size() != 1 || targets.getFirst().kind != SymbolKind.BKM) {
+        return;
+      }
+      Set<String> expected = new LinkedHashSet<>(targets.getFirst().parameters);
+      Set<String> seen = new HashSet<>();
+      for (int i = 0; i < invocation.getBindingsCount(); i++) {
+        String parameter = invocation.getBindings(i).getParameter();
+        String bindingPath = path + "/binding[" + i + "]";
+        if (!seen.add(parameter)) {
+          error("DUPLICATE_INVOCATION_BINDING", bindingPath,
+              "Invocation parameter '" + parameter + "' is bound more than once.", location);
+        }
+        if (!expected.contains(parameter)) {
+          error("UNKNOWN_INVOCATION_PARAMETER", bindingPath,
+              "BKM '" + targetName + "' has no parameter '" + parameter + "'.", location);
+        }
+      }
+      expected.removeAll(seen);
+      for (String missing : expected) {
+        error("MISSING_INVOCATION_BINDING", path,
+            "Invocation of BKM '" + targetName + "' is missing parameter '" + missing + "'.",
+            location);
       }
     }
 
@@ -546,7 +700,7 @@ public final class DmnSemanticAnalyzer {
       if (name.isBlank()) {
         return;
       }
-      if (!scope.define(new Symbol(name, "", type, kind, location))) {
+      if (!scope.define(new Symbol(name, "", type, kind, location, List.of()))) {
         error("DUPLICATE_NAME", path, "Duplicate name '" + name + "'.", location);
       }
     }
@@ -566,11 +720,19 @@ public final class DmnSemanticAnalyzer {
   }
 
   private enum SymbolKind {
-    INPUT_DATA,
-    DECISION,
-    BKM,
-    PARAMETER,
-    LOCAL
+    INPUT_DATA("input data"),
+    DECISION("decision"),
+    BKM("business knowledge model"),
+    KNOWLEDGE_SOURCE("knowledge source"),
+    DECISION_SERVICE("decision service"),
+    PARAMETER("parameter"),
+    LOCAL("local variable");
+
+    private final String displayName;
+
+    SymbolKind(String displayName) {
+      this.displayName = displayName;
+    }
   }
 
   private record Symbol(
@@ -578,7 +740,12 @@ public final class DmnSemanticAnalyzer {
       String id,
       TypeReference type,
       SymbolKind kind,
-      SourceLocation location) {
+      SourceLocation location,
+      List<String> parameters) {
+
+    private Symbol {
+      parameters = List.copyOf(parameters);
+    }
   }
 
   private static final class Scope {
