@@ -9,7 +9,7 @@ XML-representable portion of the current protobuf model.
 - [x] Select or declare the correct prefix when writing a namespace-qualified named type.
 - [x] Report unknown DMN-namespace children consistently instead of silently skipping them.
 - [x] Add multi-version, namespace-shadowing, malformed-encoding, DTD/XXE, and deep-nesting tests.
-- [ ] Run the complete reactor and publish the supported-subset contract.
+- [x] Run the complete reactor and publish the supported-subset contract.
 
 ## Completed
 
@@ -29,6 +29,8 @@ XML-representable portion of the current protobuf model.
   indicators, decision questions/allowed answers, and additional expression/requirement IDs.
 - [ ] Decide whether extension elements must preserve arbitrary-depth XML and mixed content.
 - [ ] Decide whether recursive item components are required.
+
+The XML frontend has no remaining glue-code blocker for the current protobuf-supported subset.
 
 ## Architectural constraints
 

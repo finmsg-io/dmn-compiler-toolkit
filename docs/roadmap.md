@@ -39,14 +39,15 @@
 - [x] Model-indexed decision-table-reference typing and diagnostics
 - [x] Legacy single-binding loop compatibility
 
-## Next: frontend completion gate
+## XML frontend completion gate
 
 - [x] Preserve QName `typeRef` namespaces during XML read/write
 - [x] Diagnose unsupported DMN-namespace content consistently across readers
 - [x] Add the multi-version, conformance, namespace-shadowing, and hostile-input matrix
-- [ ] Run and stabilize the complete reactor
+- [x] Run and stabilize the complete reactor
+- [x] Publish the supported-subset contract and explicit model-extension boundary
 
-## Compiler glue and Runtime IR
+## Next: compiler glue and Runtime IR
 
 - [ ] Add a compiler facade that aggregates phase diagnostics
 - [ ] Add a model resolver/loading boundary for imports

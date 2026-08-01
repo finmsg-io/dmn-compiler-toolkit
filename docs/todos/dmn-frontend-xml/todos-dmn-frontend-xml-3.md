@@ -19,7 +19,7 @@ correct. The critical stabilization program is substantially complete.
 1. [x] Preserve QName `typeRef` namespaces during reading and writing.
 2. [x] Make unsupported-content diagnostics consistent across every reader.
 3. [x] Complete the multi-version, conformance, namespace-shadowing, and security matrix.
-4. [ ] Run the full Maven reactor and publish the supported-subset boundary.
+4. [x] Run the full Maven reactor and publish the supported-subset boundary.
 
 ## Compiler glue after the gate
 
@@ -36,6 +36,6 @@ The glue layer still needs a public compiler facade that aggregates phase-aware 
 stops lowering on errors, preserves source locations, resolves imports outside semantic
 analysis, and passes deterministically ordered linked models to Runtime IR.
 
-The next code task is the complete Maven reactor and supported-subset declaration. Runtime IR expression lowering
-can resume after the frontend completion gate, without waiting for non-core model extensions
+The stabilization plan is complete. The next code task is the compiler facade and import model
+resolver, followed by Runtime IR expression lowering. Neither needs to wait for non-core model extensions
 such as DMNDI or formatting-preserving XML round trips.

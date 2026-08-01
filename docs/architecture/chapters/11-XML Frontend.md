@@ -64,11 +64,15 @@ DMNDI, artifacts/associations, organization units, performance indicators, decis
 allowed answers, and some expression/requirement IDs are not representable in the current
 protobuf model. Adding them requires a semantic-model decision rather than reader/writer glue.
 
-## 11.7 Completion gate
+## 11.7 Completion status
 
-Before the current subset is declared compiler-grade complete:
+The current protobuf-supported subset is compiler-grade complete:
 
-1. run the complete Maven reactor;
-2. publish the supported-subset contract.
+- QName namespaces, unsupported-content diagnostics, version/namespace conformance, and hostile
+  input controls are covered;
+- the complete six-module Maven reactor passes;
+- this chapter and the completeness audit define the supported-subset/model-extension boundary.
+
+Future XML work is driven by explicit protobuf model extensions, not unfinished reader/writer glue.
 
 See [the XML completeness audit](../../audits/dmn-frontend-xml-completeness.md).

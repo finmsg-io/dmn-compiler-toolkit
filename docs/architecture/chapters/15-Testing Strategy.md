@@ -52,7 +52,7 @@ Semantic-analysis tests verify:
 
 ## 15.4 Next test priorities
 
-- complete-reactor XML frontend validation
+- compiler-facade and import-resolution integration tests
 - broader DMN and FEEL conformance fixtures
 - deterministic protobuf serialization tests
 - Runtime IR expression and decision-table lowering tests

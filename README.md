@@ -10,7 +10,7 @@ The project is under active development.
 
 Current focus:
 
-- full-reactor stabilization of the XML frontend completion gate
+- compiler facade and import model-resolution glue
 - Runtime IR expression and decision-table lowering
 - compiler facade and model-resolution glue
 
@@ -189,7 +189,7 @@ mkdocs build
 
 ## Roadmap
 
-- Run and stabilize the complete Maven reactor
+- Add the compiler facade and import model resolver
 - Lower FEEL expressions and decision tables into Runtime IR instructions
 - Add optimizer passes
 - Generate optimized Java code

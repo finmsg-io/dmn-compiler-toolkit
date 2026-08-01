@@ -4,7 +4,7 @@ Status: audited 2026-08-01 against the current protobuf model and the reader/wri
 
 ## Conclusion
 
-`dmn-frontend-xml` is feature-complete for the XML-representable portion of the current
+`dmn-frontend-xml` is compiler-grade complete for the XML-representable portion of the current
 `dmn-protobuf` core model. QName type references are namespace-safe in both directions. The
 module should not yet be called complete for the entire DMN specification because broader
 model extensions remain intentionally outside the current protobuf subset.
@@ -73,6 +73,6 @@ These are extensions to the semantic model, not reader/writer glue-code defects.
 
 ## Completion gate
 
-The current frontend subset can be declared complete after the full reactor succeeds. Full
-DMN-spec completeness additionally requires an
+The current frontend subset is complete: the conformance matrix and complete six-module reactor
+pass. Full DMN-spec completeness additionally requires an
 explicit decision about each model-extension item above.
