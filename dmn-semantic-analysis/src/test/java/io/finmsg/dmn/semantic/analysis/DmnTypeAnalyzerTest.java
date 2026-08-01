@@ -6,6 +6,8 @@ import io.finmsg.dmn.feel.parser.FeelParserFacade;
 import io.finmsg.dmn.model.BuiltinType;
 import io.finmsg.dmn.model.Aggregation;
 import io.finmsg.dmn.model.Binding;
+import io.finmsg.dmn.model.BoxedExpression;
+import io.finmsg.dmn.model.BoxedExpressionParsed;
 import io.finmsg.dmn.model.BusinessKnowledgeModel;
 import io.finmsg.dmn.model.Decision;
 import io.finmsg.dmn.model.DecisionLogic;
@@ -23,6 +25,9 @@ import io.finmsg.dmn.model.ItemComponent;
 import io.finmsg.dmn.model.ItemDefinition;
 import io.finmsg.dmn.model.Node;
 import io.finmsg.dmn.model.OutputClause;
+import io.finmsg.dmn.model.RelationColumnParsed;
+import io.finmsg.dmn.model.RelationParsed;
+import io.finmsg.dmn.model.RelationRowParsed;
 import io.finmsg.dmn.model.Expression;
 import io.finmsg.dmn.model.ExpressionNode;
 import io.finmsg.dmn.model.ExpressionParsed;
@@ -245,6 +250,36 @@ class DmnTypeAnalyzerTest {
         .getTests().getTests(0).getComparison().getEndpoint().hasInferredType()).isTrue();
   }
 
+  @Test
+  void typesAndValidatesBoxedRelations() {
+    RelationParsed relation = RelationParsed.newBuilder()
+        .addColumns(RelationColumnParsed.newBuilder()
+            .setVariable(InformationItem.newBuilder()
+                .setNode(Node.newBuilder().setName("amount"))
+                .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))))
+        .addRows(RelationRowParsed.newBuilder()
+            .addExpressions(parsedExpression("\"wrong\""))
+            .addExpressions(parsedExpression("2")))
+        .build();
+    Decision decision = Decision.newBuilder()
+        .setNode(Node.newBuilder().setName("Relation"))
+        .setLogic(DecisionLogic.newBuilder().setBoxedExpression(
+            BoxedExpression.newBuilder().setParsed(
+                BoxedExpressionParsed.newBuilder().setRelation(relation))))
+        .build();
+
+    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
+        .build());
+
+    assertThat(result.diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("RELATION_ROW_WIDTH_MISMATCH", "RELATION_CELL_TYPE_MISMATCH");
+    assertThat(result.model().getDrgElements(0).getDecision().getLogic().getBoxedExpression()
+        .getParsed().getRelation().getRows(0).getExpressions(1).getFeel().getAst()
+        .hasInferredType()).isTrue();
+  }
+
   private DrgElement decision(String name, TypeReference declaredType, String expression) {
     Decision decision = Decision.newBuilder()
         .setNode(Node.newBuilder().setName(name))
@@ -280,6 +315,10 @@ class DmnTypeAnalyzerTest {
   private ExpressionNode parsedExpressionNode(String source) {
     return ExpressionNode.newBuilder().setParsed(ExpressionParsed.newBuilder()
         .setFeel(parser.parseExpressionAst(source))).build();
+  }
+
+  private ExpressionParsed parsedExpression(String source) {
+    return ExpressionParsed.newBuilder().setFeel(parser.parseExpressionAst(source)).build();
   }
 
   private BusinessKnowledgeModel bkm(String name, TypeReference returnType, String expression) {

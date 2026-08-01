@@ -266,32 +266,109 @@ public final class DmnTypeAnalyzer {
 
     private BoxedExpression typeBoxed(BoxedExpression boxed, Map<String, TypeReference> scope,
         String path, SourceLocation location) {
-      if (!boxed.hasParsed() || !boxed.getParsed().hasContext()) {
+      if (!boxed.hasParsed()) {
         return boxed;
       }
-      ContextParsed context = boxed.getParsed().getContext();
+      BoxedExpressionParsed parsed = boxed.getParsed();
+      BoxedExpressionParsed typed = switch (parsed.getTypeCase()) {
+        case CONTEXT -> parsed.toBuilder().setContext(
+            typeContext(parsed.getContext(), scope, path, location)).build();
+        case RELATION -> parsed.toBuilder().setRelation(
+            typeRelation(parsed.getRelation(), scope, path, location)).build();
+        case LIST -> {
+          ListExpressionParsed.Builder list = parsed.getList().toBuilder();
+          for (int i = 0; i < parsed.getList().getElementsCount(); i++) {
+            list.setElements(i, typeExpressionParsed(parsed.getList().getElements(i), scope,
+                path + "/list/element[" + i + "]", location));
+          }
+          yield parsed.toBuilder().setList(list).build();
+        }
+        case FUNCTION_DEFINITION -> {
+          FunctionDefinitionParsed function = parsed.getFunctionDefinition();
+          Map<String, TypeReference> local = new LinkedHashMap<>(scope);
+          function.getParametersList().forEach(parameter ->
+              local.put(parameter.getNode().getName(), parameter.getType()));
+          FunctionDefinitionParsed.Builder typedFunction = function.toBuilder();
+          if (function.hasBody()) {
+            typedFunction.setBody(typeExpressionParsed(function.getBody(), local,
+                path + "/function/body", location));
+          }
+          yield parsed.toBuilder().setFunctionDefinition(typedFunction).build();
+        }
+        case TYPE_NOT_SET -> parsed;
+      };
+      return boxed.toBuilder().setParsed(typed).build();
+    }
+
+    private ContextParsed typeContext(ContextParsed context, Map<String, TypeReference> scope,
+        String path, SourceLocation location) {
       ContextParsed.Builder typedContext = context.toBuilder().clearEntries();
       Map<String, TypeReference> local = new LinkedHashMap<>(scope);
       for (int i = 0; i < context.getEntriesCount(); i++) {
         ContextEntryParsed entry = context.getEntries(i);
         ContextEntryParsed.Builder typedEntry = entry.toBuilder();
         TypeReference inferred = TypeReference.getDefaultInstance();
-        if (entry.hasExpression() && entry.getExpression().hasFeel()) {
-          FeelParsed feel = entry.getExpression().getFeel();
-          FeelTypeAnalysisResult result = infer(feel.getAst(), local,
+        if (entry.hasExpression()) {
+          ExpressionParsed expression = typeExpressionParsed(entry.getExpression(), local,
               path + "/context/entry[" + i + "]", location);
-          inferred = result.expression().getInferredType();
-          typedEntry.setExpression(entry.getExpression().toBuilder().setFeel(
-              feel.toBuilder().setAst(result.expression())));
+          inferred = expressionParsedType(expression);
+          typedEntry.setExpression(expression);
         }
         if (entry.hasVariable() && !entry.getVariable().getNode().getName().isBlank()) {
           TypeReference declared = entry.getVariable().getType();
+          validateValueType(inferred, declared, "CONTEXT_ENTRY_TYPE_MISMATCH",
+              path + "/context/entry[" + i + "]", location);
           local.put(entry.getVariable().getNode().getName(),
               declared.getKindCase() == TypeReference.KindCase.KIND_NOT_SET ? inferred : declared);
         }
         typedContext.addEntries(typedEntry);
       }
-      return boxed.toBuilder().setParsed(boxed.getParsed().toBuilder().setContext(typedContext)).build();
+      return typedContext.build();
+    }
+
+    private RelationParsed typeRelation(RelationParsed relation, Map<String, TypeReference> scope,
+        String path, SourceLocation location) {
+      RelationParsed.Builder output = relation.toBuilder();
+      for (int i = 0; i < relation.getRowsCount(); i++) {
+        RelationRowParsed row = relation.getRows(i);
+        if (row.getExpressionsCount() != relation.getColumnsCount()) {
+          diagnostic("RELATION_ROW_WIDTH_MISMATCH", path + "/relation/row[" + i + "]",
+              "Relation row has " + row.getExpressionsCount() + " cells but "
+                  + relation.getColumnsCount() + " columns are declared.", location);
+        }
+        RelationRowParsed.Builder typedRow = row.toBuilder();
+        for (int j = 0; j < row.getExpressionsCount(); j++) {
+          ExpressionParsed expression = typeExpressionParsed(row.getExpressions(j), scope,
+              path + "/relation/row[" + i + "]/cell[" + j + "]", location);
+          typedRow.setExpressions(j, expression);
+          if (j < relation.getColumnsCount()) {
+            validateValueType(expressionParsedType(expression),
+                relation.getColumns(j).getVariable().getType(),
+                "RELATION_CELL_TYPE_MISMATCH",
+                path + "/relation/row[" + i + "]/cell[" + j + "]", location);
+          }
+        }
+        output.setRows(i, typedRow);
+      }
+      return output.build();
+    }
+
+    private ExpressionParsed typeExpressionParsed(ExpressionParsed expression,
+        Map<String, TypeReference> scope, String path, SourceLocation location) {
+      return switch (expression.getTypeCase()) {
+        case FEEL -> {
+          FeelTypeAnalysisResult result = infer(expression.getFeel().getAst(), scope, path, location);
+          yield expression.toBuilder().setFeel(
+              expression.getFeel().toBuilder().setAst(result.expression())).build();
+        }
+        case BOXED -> {
+          BoxedExpression typed = typeBoxed(
+              BoxedExpression.newBuilder().setParsed(expression.getBoxed()).build(),
+              scope, path, location);
+          yield expression.toBuilder().setBoxed(typed.getParsed()).build();
+        }
+        case TYPE_NOT_SET -> expression;
+      };
     }
 
     private Invocation typeInvocation(Invocation invocation, Map<String, TypeReference> scope,
