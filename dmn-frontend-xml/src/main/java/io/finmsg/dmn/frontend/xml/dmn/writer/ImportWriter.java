@@ -14,6 +14,8 @@ public final class ImportWriter implements XmlWriter<Import> {
     nodeWriter.writeAttributes(xml, value.getNode());
     xml.attribute("name", value.getName());
     xml.attribute("namespace", value.getNamespace());
+    xml.attribute("locationURI", value.getLocationUri());
+    xml.attribute("importType", value.getImportType());
     xml.endElement();
   }
 }

@@ -29,6 +29,9 @@ public final class DefinitionsBodyReader {
     }
 
     do {
+      if (!context.modelNamespace().equals(cursor.namespaceUri())) {
+        continue;
+      }
       switch (cursor.localName()) {
         case "import" -> definitions.addImports(importReader.read(cursor));
 

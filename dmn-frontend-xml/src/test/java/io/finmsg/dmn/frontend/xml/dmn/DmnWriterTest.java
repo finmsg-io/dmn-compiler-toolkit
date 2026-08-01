@@ -7,6 +7,7 @@ import io.finmsg.dmn.model.Definitions;
 import io.finmsg.dmn.model.DrgElement;
 import io.finmsg.dmn.model.InformationItem;
 import io.finmsg.dmn.model.InputData;
+import io.finmsg.dmn.model.Import;
 import io.finmsg.dmn.model.ItemDefinition;
 import io.finmsg.dmn.model.NamedTypeReference;
 import io.finmsg.dmn.model.Node;
@@ -26,6 +27,13 @@ class DmnWriterTest {
             .setTypeLanguage("https://www.omg.org/spec/DMN/20230324/FEEL/")
             .setExporter("dmn-compiler-toolkit")
             .setExporterVersion("1.0.0")
+            .addImports(
+                Import.newBuilder()
+                    .setNode(Node.newBuilder().setId("import-1"))
+                    .setName("risk")
+                    .setNamespace("https://finmsg.io/dmn/risk")
+                    .setLocationUri("risk.dmn")
+                    .setImportType("https://www.omg.org/spec/DMN/20230324/MODEL/"))
             .addItemDefinitions(
                 ItemDefinition.newBuilder()
                     .setNode(Node.newBuilder().setId("type-1").setName("Age < 18"))
@@ -57,6 +65,9 @@ class DmnWriterTest {
         .contains("xmlns=\"https://www.omg.org/spec/DMN/20230324/MODEL/\"")
         .contains("name=\"Age &lt; 18\"")
         .contains("typeRef=\"number\"")
+        .contains("name=\"risk\"")
+        .contains("locationURI=\"risk.dmn\"")
+        .contains("importType=\"https://www.omg.org/spec/DMN/20230324/MODEL/\"")
         .contains("<inputData")
         .contains("typeRef=\"ApplicantType\"");
 

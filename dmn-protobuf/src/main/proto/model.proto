@@ -45,7 +45,8 @@ message Import {
   Node node = 1;
   string namespace = 2;
   string name = 3;
-//  string import_type = 4;
+  string location_uri = 4;
+  string import_type = 5;
 }
 
 //

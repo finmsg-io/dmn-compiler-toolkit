@@ -10,18 +10,22 @@ public final class ImportReader {
   public Import read(XmlCursor cursor) {
 
     Import.Builder builder = Import.newBuilder();
-    builder.setNode(nodeReader.read(cursor));
+    builder.setNode(nodeReader.read(cursor).toBuilder().clearName().build());
 
     if (cursor.hasAttribute("namespace")) {
       builder.setNamespace(cursor.requiredAttribute("namespace"));
     }
 
     if (cursor.hasAttribute("locationURI")) {
-      builder.setNamespace(cursor.requiredAttribute("locationURI"));
+      builder.setLocationUri(cursor.requiredAttribute("locationURI"));
     }
 
     if (cursor.hasAttribute("importType")) {
-      builder.setName(cursor.requiredAttribute("importType"));
+      builder.setImportType(cursor.requiredAttribute("importType"));
+    }
+
+    if (cursor.hasAttribute("name")) {
+      builder.setName(cursor.requiredAttribute("name"));
     }
     return builder.build();
   }
