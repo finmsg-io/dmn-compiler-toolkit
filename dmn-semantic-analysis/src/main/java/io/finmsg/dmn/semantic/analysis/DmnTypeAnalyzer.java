@@ -26,6 +26,7 @@ public final class DmnTypeAnalyzer {
     private final List<DmnSemanticDiagnostic> diagnostics = new ArrayList<>();
     private final Map<String, ItemDefinition> itemTypes = new LinkedHashMap<>();
     private final Map<String, Symbol> symbolsById = new LinkedHashMap<>();
+    private final Map<String, List<BusinessKnowledgeModel>> bkmsByName = new LinkedHashMap<>();
 
     private Session(Definitions input) {
       this.input = input;
@@ -36,8 +37,14 @@ public final class DmnTypeAnalyzer {
               element.getInputData().getVariable().getType());
           case DECISION -> addSymbol(element.getDecision().getNode(),
               element.getDecision().getVariable().getType());
-          case BUSINESS_KNOWLEDGE_MODEL -> addSymbol(element.getBusinessKnowledgeModel().getNode(),
-              element.getBusinessKnowledgeModel().getVariable().getType());
+          case BUSINESS_KNOWLEDGE_MODEL -> {
+            BusinessKnowledgeModel bkm = element.getBusinessKnowledgeModel();
+            addSymbol(bkm.getNode(), bkm.getVariable().getType());
+            if (!bkm.getNode().getName().isBlank()) {
+              bkmsByName.computeIfAbsent(bkm.getNode().getName(), ignored -> new ArrayList<>())
+                  .add(bkm);
+            }
+          }
           default -> { }
         }
       }
@@ -108,6 +115,14 @@ public final class DmnTypeAnalyzer {
               "definitions/businessKnowledgeModel[" + bkm.getNode().getName() + "]/logic",
               bkm.getNode().getSourceLocation()))
           .build();
+      TypeReference expected = bkm.getVariable().getType();
+      if (expected.hasFunction()) {
+        expected = expected.getFunction().getReturnType();
+      }
+      validateValueType(feelType(function.getLogic()), expected,
+          "BKM_RETURN_TYPE_MISMATCH",
+          "definitions/businessKnowledgeModel[" + bkm.getNode().getName() + "]/variable",
+          bkm.getNode().getSourceLocation());
       return bkm.toBuilder().setFunction(function).build();
     }
 
@@ -255,7 +270,34 @@ public final class DmnTypeAnalyzer {
               scope, path + "/binding[" + i + "]", location)));
         }
       }
-      return output.build();
+      Invocation typed = output.build();
+      validateBkmInvocation(typed, scope, path, location);
+      return typed;
+    }
+
+    private void validateBkmInvocation(Invocation invocation, Map<String, TypeReference> scope,
+        String path, SourceLocation location) {
+      if (!invocation.hasExpression() || !invocation.getExpression().hasParsed()
+          || !invocation.getExpression().getParsed().getAst().hasName()) {
+        return;
+      }
+      String targetName = invocation.getExpression().getParsed().getAst().getName().getName();
+      List<BusinessKnowledgeModel> candidates = bkmsByName.get(targetName);
+      if (!scope.containsKey(targetName) || candidates == null || candidates.size() != 1) {
+        return;
+      }
+      Map<String, TypeReference> parameterTypes = new LinkedHashMap<>();
+      for (InformationItem parameter : candidates.getFirst().getFunction().getFormalParametersList()) {
+        parameterTypes.putIfAbsent(parameter.getNode().getName(), parameter.getType());
+      }
+      for (int i = 0; i < invocation.getBindingsCount(); i++) {
+        Binding binding = invocation.getBindings(i);
+        TypeReference expected = parameterTypes.get(binding.getParameter());
+        if (expected != null && binding.hasExpression()) {
+          validateValueType(feelType(binding.getExpression()), expected,
+              "INVOCATION_ARGUMENT_TYPE_MISMATCH", path + "/binding[" + i + "]", location);
+        }
+      }
     }
 
     private Feel typeFeel(Feel feel, Map<String, TypeReference> scope,

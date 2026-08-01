@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.finmsg.dmn.feel.parser.FeelParserFacade;
 import io.finmsg.dmn.model.BuiltinType;
 import io.finmsg.dmn.model.Aggregation;
+import io.finmsg.dmn.model.Binding;
+import io.finmsg.dmn.model.BusinessKnowledgeModel;
 import io.finmsg.dmn.model.Decision;
 import io.finmsg.dmn.model.DecisionLogic;
 import io.finmsg.dmn.model.DecisionRule;
@@ -22,6 +24,10 @@ import io.finmsg.dmn.model.OutputClause;
 import io.finmsg.dmn.model.Expression;
 import io.finmsg.dmn.model.ExpressionNode;
 import io.finmsg.dmn.model.ExpressionParsed;
+import io.finmsg.dmn.model.ElementReference;
+import io.finmsg.dmn.model.FunctionDefinition;
+import io.finmsg.dmn.model.Invocation;
+import io.finmsg.dmn.model.KnowledgeRequirement;
 import io.finmsg.dmn.model.TypeReference;
 import io.finmsg.dmn.model.UnaryTest;
 import org.junit.jupiter.api.Test;
@@ -165,6 +171,53 @@ class DmnTypeAnalyzerTest {
         .containsExactly("MISSING_OUTPUT_VALUES");
   }
 
+  @Test
+  void validatesBkmReturnType() {
+    BusinessKnowledgeModel bkm = bkm("Calculator", builtin(BuiltinType.BUILTIN_TYPE_NUMBER),
+        "\"not a number\"");
+
+    assertThat(analyzer.analyze(Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm))
+        .build()).diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("BKM_RETURN_TYPE_MISMATCH");
+  }
+
+  @Test
+  void validatesInvocationArgumentTypesAgainstBkmParameters() {
+    BusinessKnowledgeModel bkm = bkm("Calculator", builtin(BuiltinType.BUILTIN_TYPE_NUMBER),
+        "x + 1").toBuilder()
+        .setFunction(FunctionDefinition.newBuilder()
+            .addFormalParameters(InformationItem.newBuilder()
+                .setNode(Node.newBuilder().setName("x"))
+                .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+            .setLogic(parsedFeel("x + 1")))
+        .build();
+    Invocation invocation = Invocation.newBuilder()
+        .setExpression(parsedFeel("Calculator"))
+        .addBindings(Binding.newBuilder()
+            .setParameter("x")
+            .setExpression(parsedFeel("\"wrong\"")))
+        .build();
+    Decision decision = Decision.newBuilder()
+        .setNode(Node.newBuilder().setName("Result"))
+        .setVariable(InformationItem.newBuilder()
+            .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+        .addKnowledgeRequirements(KnowledgeRequirement.newBuilder()
+            .setRequiredKnowledge(ElementReference.newBuilder().setHref("#bkm-id")))
+        .setLogic(DecisionLogic.newBuilder().setInvocation(invocation))
+        .build();
+
+    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm))
+        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
+        .build());
+
+    assertThat(result.diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("INVOCATION_ARGUMENT_TYPE_MISMATCH");
+  }
+
   private DrgElement decision(String name, TypeReference declaredType, String expression) {
     Decision decision = Decision.newBuilder()
         .setNode(Node.newBuilder().setName(name))
@@ -200,6 +253,14 @@ class DmnTypeAnalyzerTest {
   private ExpressionNode parsedExpressionNode(String source) {
     return ExpressionNode.newBuilder().setParsed(ExpressionParsed.newBuilder()
         .setFeel(parser.parseExpressionAst(source))).build();
+  }
+
+  private BusinessKnowledgeModel bkm(String name, TypeReference returnType, String expression) {
+    return BusinessKnowledgeModel.newBuilder()
+        .setNode(Node.newBuilder().setId("bkm-id").setName(name))
+        .setVariable(InformationItem.newBuilder().setType(returnType))
+        .setFunction(FunctionDefinition.newBuilder().setLogic(parsedFeel(expression)))
+        .build();
   }
 
   private static TypeReference builtin(BuiltinType type) {
