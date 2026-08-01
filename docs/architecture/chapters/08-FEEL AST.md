@@ -59,6 +59,8 @@ The parsed representation does not redundantly retain FEEL text. The original se
 
 The semantic pipeline validates names and structured paths, resolves named types, checks operators and built-in function calls, and populates `Expression.inferred_type` across the currently supported FEEL and boxed-expression forms. Successful symbol and named-type resolutions are exposed through an immutable `DmnSymbolBinding` side table rather than stored in AST nodes. Unsupported or invalid expressions use an unknown type and diagnostics.
 
+Type analysis includes structured-list property projection, structured filter predicates, temporal and duration arithmetic, orderability checks for ranges and between expressions, subject-aware `in` unary tests, and named-type validation for `instance of`. The provisional decision-table-reference node remains untyped until its target contract is defined.
+
 ## 8.7 Design rules
 
 1. Parsed AST messages must not depend on ANTLR types.

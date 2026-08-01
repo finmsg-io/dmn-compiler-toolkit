@@ -103,6 +103,35 @@ class FeelTypeAnalyzerTest {
   }
 
   @Test
+  void infersTemporalAndDurationArithmetic() {
+    FeelTypeAnalysisResult datePlusDuration = analyzer.analyze(
+        parse("@\"2026-08-01\" + @\"P1D\""), FeelTypeEnvironment.empty());
+    FeelTypeAnalysisResult dateDifference = analyzer.analyze(
+        parse("@\"2026-08-02\" - @\"2026-08-01\""), FeelTypeEnvironment.empty());
+    FeelTypeAnalysisResult scaledDuration = analyzer.analyze(
+        parse("@\"P1D\" * 2"), FeelTypeEnvironment.empty());
+
+    assertThat(datePlusDuration.diagnostics()).isEmpty();
+    assertThat(datePlusDuration.expression().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_DATE));
+    assertThat(dateDifference.diagnostics()).isEmpty();
+    assertThat(dateDifference.expression().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_DURATION));
+    assertThat(scaledDuration.diagnostics()).isEmpty();
+    assertThat(scaledDuration.expression().getInferredType())
+        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_DURATION));
+  }
+
+  @Test
+  void reportsUnknownInstanceOfType() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("1 instance of MissingType"), FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("UNKNOWN_TYPE");
+  }
+
+  @Test
   void reportsNonBooleanIfConditionAndIncompatibleBranches() {
     FeelTypeAnalysisResult result = analyzer.analyze(
         parse("if 1 then \"yes\" else 0"), FeelTypeEnvironment.empty());
@@ -242,6 +271,47 @@ class FeelTypeAnalyzerTest {
     assertThat(predicate.diagnostics()).isEmpty();
     assertThat(predicate.expression().getInferredType())
         .isEqualTo(listOf(BuiltinType.BUILTIN_TYPE_NUMBER));
+  }
+
+  @Test
+  void projectsPropertiesAcrossLists() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("[{amount: 10}, {amount: 20}].amount"), FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.expression().getInferredType())
+        .isEqualTo(listOf(BuiltinType.BUILTIN_TYPE_NUMBER));
+  }
+
+  @Test
+  void exposesStructuredElementMembersInsideFilterPredicates() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("[{age: 17}, {age: 20}][age >= 18]"), FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.expression().getInferredType().hasList()).isTrue();
+  }
+
+  @Test
+  void rejectsNonOrderableRangeAndBetweenOperands() {
+    FeelTypeAnalysisResult range = analyzer.analyze(
+        parse("[true..false]"), FeelTypeEnvironment.empty());
+    FeelTypeAnalysisResult between = analyzer.analyze(
+        parse("true between false and true"), FeelTypeEnvironment.empty());
+
+    assertThat(range.diagnostics()).extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("INVALID_RANGE_ENDPOINT");
+    assertThat(between.diagnostics()).extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("INVALID_BETWEEN_OPERAND");
+  }
+
+  @Test
+  void validatesInExpressionUnaryTestsAgainstSubjectType() {
+    FeelTypeAnalysisResult result = analyzer.analyze(
+        parse("\"value\" in (< 10)"), FeelTypeEnvironment.empty());
+
+    assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("INCOMPATIBLE_UNARY_TEST");
   }
 
   @Test

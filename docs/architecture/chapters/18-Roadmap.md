@@ -27,12 +27,17 @@
 [done] exposed symbol and named-type binding table
 [done] namespace-indexed import validation and cross-model reference linking
 [done] cross-model dependency ordering
+[done] structured-list projection and structured filter typing
+[done] range, between, and in-expression validation
+[done] temporal and duration arithmetic
+[done] instance-of named-type validation
 ```
 
 ## 18.2 Next milestone — semantic-analysis completion
 
 ```text
-[ ] close remaining DMN 1.5 expression and validation edge cases
+[ ] define the semantic contract for provisional decision-table-reference AST nodes
+[ ] decide whether legacy single-binding loop AST fields remain supported
 [ ] stabilize the typed model contract for Runtime IR lowering
 ```
 

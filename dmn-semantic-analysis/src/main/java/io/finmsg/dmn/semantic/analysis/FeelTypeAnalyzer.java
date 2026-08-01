@@ -17,6 +17,10 @@ public final class FeelTypeAnalyzer {
   private static final TypeReference NUMBER = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
   private static final TypeReference STRING = builtin(BuiltinType.BUILTIN_TYPE_STRING);
   private static final TypeReference NULL = builtin(BuiltinType.BUILTIN_TYPE_NULL);
+  private static final TypeReference DATE = builtin(BuiltinType.BUILTIN_TYPE_DATE);
+  private static final TypeReference TIME = builtin(BuiltinType.BUILTIN_TYPE_TIME);
+  private static final TypeReference DATE_TIME = builtin(BuiltinType.BUILTIN_TYPE_DATE_AND_TIME);
+  private static final TypeReference DURATION = builtin(BuiltinType.BUILTIN_TYPE_DURATION);
   private final FeelFunctionRegistry functions;
 
   public FeelTypeAnalyzer() {
@@ -124,7 +128,8 @@ public final class FeelTypeAnalyzer {
       TypeReference result = switch (binary.getOperator()) {
         case BINARY_OPERATOR_ADD, BINARY_OPERATOR_SUBTRACT,
              BINARY_OPERATOR_MULTIPLY, BINARY_OPERATOR_DIVIDE,
-             BINARY_OPERATOR_POWER -> numeric(binary.getOperator(), left.type, right.type, path);
+             BINARY_OPERATOR_POWER -> arithmetic(
+                 binary.getOperator(), left.type, right.type, path);
         case BINARY_OPERATOR_AND, BINARY_OPERATOR_OR ->
             logical(binary.getOperator(), left.type, right.type, path);
         case BINARY_OPERATOR_EQUAL, BINARY_OPERATOR_NOT_EQUAL ->
@@ -143,18 +148,65 @@ public final class FeelTypeAnalyzer {
       return new TypedExpression(expression, result);
     }
 
-    private TypeReference numeric(
+    private TypeReference arithmetic(
         BinaryOperator operator, TypeReference left, TypeReference right, String path) {
       if (isAny(left) || isAny(right)) {
         return ANY;
       }
-      if (is(left, NUMBER) && is(right, NUMBER)) {
-        return NUMBER;
+      TypeReference result = switch (operator) {
+        case BINARY_OPERATOR_ADD -> {
+          if (is(left, NUMBER) && is(right, NUMBER)) yield NUMBER;
+          if (isTemporal(left) && isDuration(right)) yield left;
+          if (isDuration(left) && isTemporal(right)) yield right;
+          if (isDuration(left) && isDuration(right)) yield durationResult(left, right);
+          yield null;
+        }
+        case BINARY_OPERATOR_SUBTRACT -> {
+          if (is(left, NUMBER) && is(right, NUMBER)) yield NUMBER;
+          if (isTemporal(left) && isDuration(right)) yield left;
+          if (isTemporal(left) && compatible(left, right)) yield DURATION;
+          if (isDuration(left) && isDuration(right)) yield durationResult(left, right);
+          yield null;
+        }
+        case BINARY_OPERATOR_MULTIPLY -> {
+          if (is(left, NUMBER) && is(right, NUMBER)) yield NUMBER;
+          if (isDuration(left) && is(right, NUMBER)) yield left;
+          if (is(left, NUMBER) && isDuration(right)) yield right;
+          yield null;
+        }
+        case BINARY_OPERATOR_DIVIDE -> {
+          if (is(left, NUMBER) && is(right, NUMBER)) yield NUMBER;
+          if (isDuration(left) && is(right, NUMBER)) yield left;
+          if (isDuration(left) && isDuration(right) && compatible(left, right)) yield NUMBER;
+          yield null;
+        }
+        case BINARY_OPERATOR_POWER ->
+            is(left, NUMBER) && is(right, NUMBER) ? NUMBER : null;
+        default -> null;
+      };
+      if (result != null) {
+        return result;
       }
       error("INVALID_OPERAND_TYPES", path,
           "Operator '" + operatorText(operator) + "' requires number operands, found "
               + typeName(left) + " and " + typeName(right) + ".");
       return ANY;
+    }
+
+    private static boolean isTemporal(TypeReference type) {
+      return is(type, DATE) || is(type, TIME) || is(type, DATE_TIME);
+    }
+
+    private static boolean isDuration(TypeReference type) {
+      return type.hasBuiltin() && switch (type.getBuiltin()) {
+        case BUILTIN_TYPE_DURATION, BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION,
+             BUILTIN_TYPE_DAYS_AND_TIME_DURATION -> true;
+        default -> false;
+      };
+    }
+
+    private static TypeReference durationResult(TypeReference left, TypeReference right) {
+      return left.equals(right) ? left : DURATION;
     }
 
     private TypeReference logical(
@@ -237,6 +289,10 @@ public final class FeelTypeAnalyzer {
     private TypeReference memberType(TypeReference source, String member, String path) {
       if (isAny(source)) {
         return ANY;
+      }
+      if (source.hasList()) {
+        TypeReference projected = memberType(source.getList().getElementType(), member, path);
+        return isAny(projected) ? ANY : list(projected);
       }
       if (source.hasContext()) {
         List<ContextEntryTypeReference> matches = source.getContext().getEntriesList().stream()
@@ -380,6 +436,7 @@ public final class FeelTypeAnalyzer {
       TypedExpression filter;
       try {
         define("item", elementType);
+        exposeMembers(elementType);
         filter = infer(value.getFilter(), path + "/filter");
       } finally {
         popScope();
@@ -526,6 +583,10 @@ public final class FeelTypeAnalyzer {
             "Range endpoints have incompatible types " + typeName(lower)
                 + " and " + typeName(upper) + ".");
       }
+      if (!isAny(lower) && !isOrderable(lower) || !isAny(upper) && !isOrderable(upper)) {
+        error("INVALID_RANGE_ENDPOINT", path,
+            "Range endpoints must be orderable values.");
+      }
       TypeReference elementType = isAny(lower) ? upper
           : isAny(upper) ? lower : commonType(lower, upper);
       return typed(input.toBuilder().setRange(builder).build(), range(elementType));
@@ -540,6 +601,12 @@ public final class FeelTypeAnalyzer {
           && (!compatible(subject.type, lower.type) || !compatible(subject.type, upper.type))) {
         error("INCOMPATIBLE_COMPARISON", path, "Between operands have incompatible types.");
       }
+      if (!isAny(subject.type) && !isOrderable(subject.type)
+          || !isAny(lower.type) && !isOrderable(lower.type)
+          || !isAny(upper.type) && !isOrderable(upper.type)) {
+        error("INVALID_BETWEEN_OPERAND", path,
+            "Between operands must be orderable values.");
+      }
       Expression expression = input.toBuilder().setBetween(value.toBuilder()
           .setValue(subject.expression).setLower(lower.expression).setUpper(upper.expression)).build();
       return typed(expression, BOOLEAN);
@@ -549,6 +616,7 @@ public final class FeelTypeAnalyzer {
       InExpression value = input.getIn();
       TypedExpression subject = infer(value.getValue(), path + "/value");
       UnaryTestsExpression tests = inferUnaryTests(value.getTests(), path + "/tests");
+      validateInTests(subject.type, tests, path + "/tests");
       Expression expression = input.toBuilder()
           .setIn(value.toBuilder().setValue(subject.expression).setTests(tests))
           .build();
@@ -558,6 +626,12 @@ public final class FeelTypeAnalyzer {
     private TypedExpression inferInstanceOf(Expression input, String path) {
       InstanceOfExpression value = input.getInstanceOf();
       TypedExpression expression = infer(value.getExpression(), path + "/expression");
+      TypeReference testedType = semanticType(value.getType());
+      if (testedType.hasNamed()
+          && !environment.itemDefinitions().containsKey(testedType.getNamed().getName())) {
+        error("UNKNOWN_TYPE", path + "/type",
+            "Unknown type '" + testedType.getNamed().getName() + "'.");
+      }
       return typed(input.toBuilder().setInstanceOf(
           value.toBuilder().setExpression(expression.expression)).build(), BOOLEAN);
     }
@@ -605,6 +679,50 @@ public final class FeelTypeAnalyzer {
 
     private void define(String name, TypeReference type) {
       scopes.getFirst().put(name, type);
+    }
+
+    private void exposeMembers(TypeReference elementType) {
+      if (elementType.hasContext()) {
+        elementType.getContext().getEntriesList().forEach(entry ->
+            define(entry.getName(), entry.getType()));
+      } else if (elementType.hasNamed()) {
+        ItemDefinition item = environment.itemDefinitions().get(elementType.getNamed().getName());
+        if (item != null) {
+          item.getComponentsList().forEach(component ->
+              define(component.getNode().getName(), component.getType()));
+        }
+      }
+    }
+
+    private void validateInTests(
+        TypeReference subject, UnaryTestsExpression tests, String path) {
+      if (isAny(subject) || tests.getWildcard()) {
+        return;
+      }
+      for (int i = 0; i < tests.getTestsCount(); i++) {
+        PositiveUnaryTest test = tests.getTests(i);
+        TypeReference candidate = switch (test.getTypeCase()) {
+          case COMPARISON -> test.getComparison().getEndpoint().getInferredType();
+          case RANGE -> test.getRange().hasLower()
+              ? test.getRange().getLower().getInferredType()
+              : test.getRange().hasUpper()
+                  ? test.getRange().getUpper().getInferredType() : ANY;
+          case EXPRESSION -> test.getExpression().getInferredType();
+          case TYPE_NOT_SET -> ANY;
+        };
+        if (!isAny(candidate) && !compatible(subject, candidate)) {
+          error("INCOMPATIBLE_UNARY_TEST", path + "/test[" + i + "]",
+              "Unary test type " + typeName(candidate)
+                  + " is incompatible with subject type " + typeName(subject) + ".");
+        }
+        if (test.hasComparison()
+            && test.getComparison().getOperator() != UnaryTestOperator.UNARY_TEST_OPERATOR_EQUAL
+            && test.getComparison().getOperator() != UnaryTestOperator.UNARY_TEST_OPERATOR_NOT_EQUAL
+            && !isOrderable(subject)) {
+          error("INVALID_UNARY_TEST_OPERAND", path + "/test[" + i + "]",
+              "Ordered unary tests require an orderable subject.");
+        }
+      }
     }
 
     private TypedExpression inferUnaryTests(Expression input, String path) {

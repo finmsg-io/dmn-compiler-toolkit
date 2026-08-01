@@ -24,10 +24,15 @@
 - [x] Exposed resolved symbol and named-type bindings
 - [x] Namespace-indexed cross-model import and reference linking
 - [x] Cross-model dependency ordering
+- [x] Structured-list projection and structured filter typing
+- [x] Range, between, and `in` unary-test validation
+- [x] FEEL temporal and duration arithmetic
+- [x] `instance of` named-type validation
 
 ## Next: semantic-analysis completion
 
-- [ ] Close remaining DMN 1.5 expression and validation edge cases
+- [ ] Define the semantic contract for provisional decision-table-reference AST nodes
+- [ ] Decide whether legacy single-binding loop AST fields remain supported
 - [ ] Stabilize the semantic pipeline as an input to Runtime IR
 
 ## XML frontend completion
