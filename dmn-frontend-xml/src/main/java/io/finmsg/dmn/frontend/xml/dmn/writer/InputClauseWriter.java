@@ -15,6 +15,7 @@ final class InputClauseWriter {
     }
     xml.startElement("input");
     nodeWriter.writeAttributes(xml, value.getNode());
+    nodeWriter.writeChildren(xml, value.getNode());
     if (value.hasInputExpression()) {
       writeFeel(xml, "inputExpression", value.getInputExpression().getText().getText(),
           value.hasType() ? typeWriter.write(value.getType()) : "");

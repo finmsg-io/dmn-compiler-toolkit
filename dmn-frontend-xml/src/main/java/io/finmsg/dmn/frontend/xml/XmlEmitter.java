@@ -46,7 +46,10 @@ public final class XmlEmitter implements AutoCloseable {
     if (prefix == null || prefix.isEmpty()) {
       defaultNamespace(namespace);
     } else {
-      execute(() -> writer.writeNamespace(prefix, namespace));
+      execute(() -> {
+        writer.setPrefix(prefix, namespace);
+        writer.writeNamespace(prefix, namespace);
+      });
     }
   }
 

@@ -12,6 +12,7 @@ public final class KnowledgeSourceWriter implements XmlWriter<KnowledgeSource> {
   public void write(XmlEmitter xml, KnowledgeSource value) {
     xml.startElement("knowledgeSource");
     nodeWriter.writeAttributes(xml, value.getNode());
+    nodeWriter.writeChildren(xml, value.getNode());
     if (!value.getAuthority().isEmpty()) {
       xml.startElement("owner");
       xml.attribute("href", value.getAuthority());

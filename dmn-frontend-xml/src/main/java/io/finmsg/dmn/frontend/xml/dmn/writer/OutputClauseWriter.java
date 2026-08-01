@@ -15,6 +15,7 @@ final class OutputClauseWriter {
     if (value.hasType()) {
       xml.attribute("typeRef", typeWriter.write(value.getType()));
     }
+    nodeWriter.writeChildren(xml, value.getNode());
     if (value.hasOutputValues()) {
       InputClauseWriter.writeFeel(
           xml, "outputValues", value.getOutputValues().getText().getText(), "");

@@ -20,9 +20,13 @@ import io.finmsg.dmn.model.ContextText;
 import io.finmsg.dmn.model.Definitions;
 import io.finmsg.dmn.model.DecisionService;
 import io.finmsg.dmn.model.DrgElement;
+import io.finmsg.dmn.model.Documentation;
 import io.finmsg.dmn.model.ElementReference;
 import io.finmsg.dmn.model.ExpressionNode;
 import io.finmsg.dmn.model.ExpressionText;
+import io.finmsg.dmn.model.ExtensionAttribute;
+import io.finmsg.dmn.model.ExtensionElement;
+import io.finmsg.dmn.model.ExtensionElements;
 import io.finmsg.dmn.model.Feel;
 import io.finmsg.dmn.model.FeelText;
 import io.finmsg.dmn.model.FunctionDefinition;
@@ -416,6 +420,45 @@ class DmnWriterTest {
     assertThatThrownBy(() -> new DmnWriter().write(definitions))
         .isInstanceOf(XmlWriteException.class)
         .hasMessageContaining("non-DMN default namespace");
+  }
+
+  @Test
+  void preservesDocumentationAndStructuredExtensionsRoundTrip() {
+    String vendorNamespace = "https://example.com/vendor";
+    Node decisionNode =
+        Node.newBuilder()
+            .setId("documented-decision")
+            .setName("Documented")
+            .setDocumentation(Documentation.newBuilder().setText("Business documentation"))
+            .setExtensionElements(
+                ExtensionElements.newBuilder()
+                    .addElement(
+                        ExtensionElement.newBuilder()
+                            .setNamespace(vendorNamespace)
+                            .setName("audit")
+                            .setValue("enabled")
+                            .addAttribute(
+                                ExtensionAttribute.newBuilder()
+                                    .setName("mode")
+                                    .setValue("strict"))))
+            .build();
+    Definitions definitions =
+        Definitions.newBuilder()
+            .setNode(Node.getDefaultInstance())
+            .setNamespace("https://example.com/documented")
+            .addNamespaces(Namespace.newBuilder().setPrefix("vendor").setUri(vendorNamespace))
+            .addDrgElements(
+                DrgElement.newBuilder()
+                    .setDecision(Decision.newBuilder().setNode(decisionNode)))
+            .build();
+
+    byte[] xml = new DmnWriter().write(definitions);
+    Definitions readBack = new DmnXmlReader().read(xml);
+
+    assertThat(new String(xml, StandardCharsets.UTF_8))
+        .contains("<documentation>Business documentation</documentation>")
+        .contains("<vendor:audit mode=\"strict\">enabled</vendor:audit>");
+    assertThat(readBack).isEqualTo(definitions);
   }
 
   private static ElementReference reference(String href) {

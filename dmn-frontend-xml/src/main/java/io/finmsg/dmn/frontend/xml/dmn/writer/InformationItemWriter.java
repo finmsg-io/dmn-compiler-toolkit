@@ -14,6 +14,7 @@ public final class InformationItemWriter {
     if (value.hasType()) {
       xml.attribute("typeRef", typeReferenceWriter.write(value.getType()));
     }
+    nodeWriter.writeChildren(xml, value.getNode());
     xml.endElement();
   }
 }

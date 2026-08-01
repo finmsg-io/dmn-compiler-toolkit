@@ -19,6 +19,7 @@ public final class ItemDefinitionWriter implements XmlWriter<ItemDefinition> {
     if (value.getIsCollection()) {
       xml.attribute("isCollection", "true");
     }
+    nodeWriter.writeChildren(xml, value.getNode());
     xml.endElement();
   }
 }

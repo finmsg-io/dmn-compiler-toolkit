@@ -23,11 +23,13 @@ public final class DecisionTableWriter implements XmlWriter<DecisionTable> {
       xml.attribute("aggregation", aggregation(value.getHitPolicy().getAggregation()));
     }
     xml.attribute("preferredOrientation", orientation(value.getPreferredOrientation()));
+    nodeWriter.writeChildren(xml, value.getNode());
     value.getInputsList().forEach(input -> inputWriter.write(xml, input));
     value.getOutputsList().forEach(output -> outputWriter.write(xml, output));
     value.getAnnotationsList().forEach(annotation -> {
       xml.startElement("annotation");
       nodeWriter.writeAttributes(xml, annotation.getNode());
+      nodeWriter.writeChildren(xml, annotation.getNode());
       xml.endElement();
     });
     value.getRulesList().forEach(rule -> ruleWriter.write(xml, rule));

@@ -37,6 +37,7 @@ public final class DefinitionsWriter implements XmlWriter<Definitions> {
     xml.attribute("typeLanguage", value.getTypeLanguage());
     xml.attribute("exporter", value.getExporter());
     xml.attribute("exporterVersion", value.getExporterVersion());
+    nodeWriter.writeChildren(xml, value.getNode());
 
     value.getImportsList().forEach(item -> importWriter.write(xml, item));
     value.getItemDefinitionsList().forEach(item -> itemDefinitionWriter.write(xml, item));
