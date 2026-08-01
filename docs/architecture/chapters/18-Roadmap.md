@@ -52,6 +52,7 @@
 [done] enforce Runtime IR aggregate and lexical-frame invariants
 [done] extract Runtime IR model indexing and structural type lowering
 [done] extract Runtime IR expression and lexical-scope lowering
+[done] extract Runtime IR decision-table and boxed-expression lowering
 ```
 
 ## 18.4 Model extensions requiring design decisions

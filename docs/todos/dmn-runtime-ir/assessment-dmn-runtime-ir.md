@@ -50,7 +50,7 @@ DMN XML -> XML reader -> FEEL parser -> semantic analysis -> Runtime IR
 They cover Traffic Violation's decision table and nested boxed context, an executable BKM function
 body, and a two-model XML import with an imported structured type and value reference.
 
-### 2. Continue splitting the lowerer
+### 2. Lowerer decomposition
 
 `RuntimeModelIndex` now owns model-set validation, deterministic source IDs/value slots, local and
 qualified address aliases, and named-type catalogs. `RuntimeTypeLowerer` owns protobuf and FEEL
@@ -58,8 +58,10 @@ structural type lowering, indexed field layouts, and static member-index resolut
 `RuntimeExpressionLowerer` now owns recursive FEEL expression, unary-test, operator, invocation,
 iteration, quantified-expression, nested-function, and lexical-local lowering.
 `RuntimeLexicalFrame` centralizes child and captured scope transitions shared with boxed lowering.
-`RuntimeIrLowerer` still owns boxed and decision-table lowering. Extract the decision-table
-component next while keeping the public orchestration facade stable.
+`RuntimeDecisionTableLowerer` owns clauses, rules, unary tests, defaults, annotations, and hit
+policy metadata. `RuntimeBoxedExpressionLowerer` owns recursive boxed contexts, relations, lists,
+and functions. `RuntimeIrLowerer` is now the stable public orchestration facade for model elements,
+dependencies, and runtime ordering. This decomposition slice is complete.
 
 ### 3. Canonicalize constants and built-ins
 
@@ -89,9 +91,8 @@ Do not yet:
 
 ## Recommended implementation order
 
-1. Extract decision-table lowering.
-2. Add canonicalization/constant-pool and optimization passes.
-3. Define serialization only when a concrete cache or deployment use case requires it.
+1. Add canonicalization/constant-pool and optimization passes.
+2. Define serialization only when a concrete cache or deployment use case requires it.
 
 ## Verification baseline
 
