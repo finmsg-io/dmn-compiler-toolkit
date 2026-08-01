@@ -2,6 +2,7 @@ package io.finmsg.dmn.semantic.analysis;
 
 import io.finmsg.dmn.model.Definitions;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -40,6 +41,34 @@ public final class DmnSemanticPipeline {
     addDiagnostics(diagnostics, seen, typeResult.diagnostics());
     addDiagnostics(diagnostics, seen, dependencyResult.diagnostics());
 
+    return new DmnSemanticPipelineResult(
+        typeResult.model(), dependencyResult.compilationOrder(), diagnostics,
+        referenceResult.bindings());
+  }
+
+  /** Analyzes a root model with candidate models available to satisfy its imports. */
+  public DmnSemanticPipelineResult analyze(
+      Definitions parsedModel, Collection<Definitions> availableModels) {
+    Objects.requireNonNull(parsedModel, "parsedModel");
+    Objects.requireNonNull(availableModels, "availableModels");
+    List<Definitions> repositoryModels = new ArrayList<>();
+    repositoryModels.add(parsedModel);
+    repositoryModels.addAll(availableModels);
+    DmnModelRepository repository = new DmnModelRepository(repositoryModels);
+
+    DmnSemanticAnalysisResult referenceResult =
+        new DmnSemanticAnalyzer().analyze(parsedModel, repository);
+    DmnSemanticAnalysisResult typeResult =
+        new DmnTypeAnalyzer().analyze(referenceResult.model(), repository);
+    DmnDependencyAnalysisResult dependencyResult =
+        new DmnDependencyAnalyzer().analyze(typeResult.model(), repository);
+
+    List<DmnSemanticDiagnostic> diagnostics = new ArrayList<>();
+    Set<DiagnosticKey> seen = new LinkedHashSet<>();
+    addDiagnostics(diagnostics, seen, repository.validateImports(parsedModel));
+    addDiagnostics(diagnostics, seen, referenceResult.diagnostics());
+    addDiagnostics(diagnostics, seen, typeResult.diagnostics());
+    addDiagnostics(diagnostics, seen, dependencyResult.diagnostics());
     return new DmnSemanticPipelineResult(
         typeResult.model(), dependencyResult.compilationOrder(), diagnostics,
         referenceResult.bindings());

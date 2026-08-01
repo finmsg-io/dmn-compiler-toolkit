@@ -10,7 +10,8 @@ public record DmnSymbolBinding(
     String symbolName,
     String symbolId,
     DmnSymbolKind kind,
-    TypeReference type) {
+    TypeReference type,
+    String targetNamespace) {
 
   public DmnSymbolBinding {
     Objects.requireNonNull(referencePath, "referencePath");
@@ -19,5 +20,12 @@ public record DmnSymbolBinding(
     Objects.requireNonNull(symbolId, "symbolId");
     Objects.requireNonNull(kind, "kind");
     Objects.requireNonNull(type, "type");
+    Objects.requireNonNull(targetNamespace, "targetNamespace");
+  }
+
+  public DmnSymbolBinding(
+      String referencePath, String declarationPath, String symbolName, String symbolId,
+      DmnSymbolKind kind, TypeReference type) {
+    this(referencePath, declarationPath, symbolName, symbolId, kind, type, "");
   }
 }

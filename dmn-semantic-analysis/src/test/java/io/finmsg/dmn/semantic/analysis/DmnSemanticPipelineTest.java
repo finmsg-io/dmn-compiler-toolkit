@@ -13,8 +13,15 @@ import io.finmsg.dmn.model.DrgElement;
 import io.finmsg.dmn.model.ElementReference;
 import io.finmsg.dmn.model.Feel;
 import io.finmsg.dmn.model.InformationRequirement;
+import io.finmsg.dmn.model.InformationItem;
+import io.finmsg.dmn.model.InputData;
+import io.finmsg.dmn.model.Import;
+import io.finmsg.dmn.model.ItemDefinition;
+import io.finmsg.dmn.model.NamedTypeReference;
 import io.finmsg.dmn.model.Node;
+import io.finmsg.dmn.model.TypeReference;
 import java.io.InputStream;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class DmnSemanticPipelineTest {
@@ -83,6 +90,81 @@ class DmnSemanticPipelineTest {
     assertThat(pipeline.analyze(model).diagnostics())
         .extracting(DmnSemanticDiagnostic::code)
         .containsExactly("UNKNOWN_NAME");
+  }
+
+  @Test
+  void linksImportedReferencesNamesAndTypesByNamespace() {
+    TypeReference applicantType = TypeReference.newBuilder().setNamed(
+        NamedTypeReference.newBuilder().setName("Applicant").setNamespace("urn:base"))
+        .build();
+    Definitions imported = Definitions.newBuilder()
+        .setNamespace("urn:base")
+        .addItemDefinitions(ItemDefinition.newBuilder()
+            .setNode(Node.newBuilder().setId("applicant-type").setName("Applicant")))
+        .addDrgElements(DrgElement.newBuilder().setInputData(InputData.newBuilder()
+            .setNode(Node.newBuilder().setId("external-input").setName("ExternalInput"))
+            .setVariable(InformationItem.newBuilder().setType(applicantType))))
+        .build();
+    Decision decision = Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("decision").setName("Decision"))
+        .setVariable(InformationItem.newBuilder().setType(applicantType))
+        .addInformationRequirements(InformationRequirement.newBuilder().setInput(
+            ElementReference.newBuilder().setHref("urn:base#external-input")))
+        .setLogic(DecisionLogic.newBuilder().setLiteralExpression(
+            Feel.newBuilder().setParsed(feelParser.parseExpressionAst("ExternalInput"))))
+        .build();
+    Definitions root = Definitions.newBuilder()
+        .setNamespace("urn:root")
+        .addImports(Import.newBuilder().setNamespace("urn:base").setName("base"))
+        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
+        .build();
+
+    DmnSemanticPipelineResult result = pipeline.analyze(root, List.of(imported));
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.bindings()).filteredOn(binding ->
+        binding.targetNamespace().equals("urn:base"))
+        .extracting(DmnSymbolBinding::symbolId)
+        .contains("applicant-type", "external-input");
+  }
+
+  @Test
+  void reportsUnavailableImportedNamespace() {
+    Definitions root = Definitions.newBuilder()
+        .setNamespace("urn:root")
+        .addImports(Import.newBuilder().setNamespace("urn:missing"))
+        .build();
+
+    assertThat(pipeline.analyze(root, List.of()).diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("UNKNOWN_IMPORT");
+  }
+
+  @Test
+  void ordersDependenciesAcrossImportedModels() {
+    Decision baseDecision = Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("base-decision").setName("Base"))
+        .build();
+    Definitions imported = Definitions.newBuilder()
+        .setNamespace("urn:base")
+        .addDrgElements(DrgElement.newBuilder().setDecision(baseDecision))
+        .build();
+    Decision rootDecision = Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("root-decision").setName("Root"))
+        .addInformationRequirements(InformationRequirement.newBuilder().setDecision(
+            ElementReference.newBuilder().setHref("urn:base#base-decision")))
+        .build();
+    Definitions root = Definitions.newBuilder()
+        .setNamespace("urn:root")
+        .addImports(Import.newBuilder().setNamespace("urn:base"))
+        .addDrgElements(DrgElement.newBuilder().setDecision(rootDecision))
+        .build();
+
+    DmnSemanticPipelineResult result = pipeline.analyze(root, List.of(imported));
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.compilationOrder()).extracting(DmnSemanticPipelineTest::name)
+        .containsExactly("Base", "Root");
   }
 
   private static InformationRequirement requirement(String id) {

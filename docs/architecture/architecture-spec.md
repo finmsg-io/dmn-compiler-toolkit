@@ -36,7 +36,7 @@ DMN XML
   → typed model, deterministic compilation order, and semantic diagnostics
 ```
 
-The semantic-analysis stage implements reference and structured-property resolution, exposes successful symbol and named-type bindings, performs type and expression analysis, validates operators, functions, and DMN structures, and analyzes DRG dependencies with cycle detection. Bindings are exposed as an immutable side table rather than persisted in protobuf AST nodes. Import/cross-model linking remains incomplete. Optimization, Runtime IR, code generation, and runtime execution remain future stages.
+The semantic-analysis stage implements reference and structured-property resolution, exposes successful symbol and named-type bindings, performs type and expression analysis, validates operators, functions, imports, and DMN structures, and analyzes dependency graphs across namespace-linked models. Bindings are exposed as an immutable side table rather than persisted in protobuf AST nodes. Optimization, Runtime IR, code generation, and runtime execution remain future stages.
 
 ## Table of contents
 

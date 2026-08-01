@@ -23,24 +23,32 @@ public final class DmnDependencyAnalyzer
 
   @Override
   public DmnDependencyAnalysisResult analyze(Definitions model) {
+    return analyze(model, new DmnModelRepository(List.of(model)));
+  }
+
+  public DmnDependencyAnalysisResult analyze(
+      Definitions model, DmnModelRepository repository) {
     Objects.requireNonNull(model, "model");
-    Session session = new Session(model);
+    Objects.requireNonNull(repository, "repository");
+    Session session = new Session(model, repository);
     return session.analyze();
   }
 
   private static final class Session {
 
     private final Definitions model;
+    private final DmnModelRepository repository;
     private final List<DmnSemanticDiagnostic> diagnostics = new ArrayList<>();
     private final List<GraphNode> nodes = new ArrayList<>();
-    private final Map<String, List<GraphNode>> nodesById = new LinkedHashMap<>();
+    private final Map<String, GraphNode> nodesByKey = new LinkedHashMap<>();
     private final Map<GraphNode, VisitState> states = new HashMap<>();
     private final List<GraphNode> stack = new ArrayList<>();
     private final List<GraphNode> order = new ArrayList<>();
     private final Set<String> reportedCycles = new HashSet<>();
 
-    private Session(Definitions model) {
+    private Session(Definitions model, DmnModelRepository repository) {
       this.model = model;
+      this.repository = repository;
     }
 
     private DmnDependencyAnalysisResult analyze() {
@@ -58,12 +66,13 @@ public final class DmnDependencyAnalyzer
     }
 
     private void collectNodes() {
-      for (int i = 0; i < model.getDrgElementsCount(); i++) {
-        DrgElement element = model.getDrgElements(i);
+      for (Definitions visible : repository.visibleModels(model)) {
+       for (int i = 0; i < visible.getDrgElementsCount(); i++) {
+        DrgElement element = visible.getDrgElements(i);
         GraphNode node = switch (element.getElementCase()) {
-          case DECISION -> graphNode(element, element.getDecision().getNode(), NodeKind.DECISION, i);
+          case DECISION -> graphNode(visible, element, element.getDecision().getNode(), NodeKind.DECISION, i);
           case BUSINESS_KNOWLEDGE_MODEL -> graphNode(
-              element, element.getBusinessKnowledgeModel().getNode(), NodeKind.BKM, i);
+              visible, element, element.getBusinessKnowledgeModel().getNode(), NodeKind.BKM, i);
           default -> null;
         };
         if (node == null) {
@@ -71,15 +80,17 @@ public final class DmnDependencyAnalyzer
         }
         nodes.add(node);
         if (!node.id.isBlank()) {
-          nodesById.computeIfAbsent(node.id, ignored -> new ArrayList<>()).add(node);
+          nodesByKey.put(node.key, node);
         }
+       }
       }
     }
 
     private static GraphNode graphNode(
-        DrgElement element, Node node, NodeKind kind, int modelIndex) {
+        Definitions model, DrgElement element, Node node, NodeKind kind, int modelIndex) {
       String name = node.getName().isBlank() ? node.getId() : node.getName();
-      return new GraphNode("@" + modelIndex, node.getId(), name, kind, element, modelIndex);
+      return new GraphNode(model.getNamespace() + "#" + node.getId(), node.getId(), name,
+          kind, model, element, modelIndex);
     }
 
     private void collectEdges() {
@@ -140,11 +151,17 @@ public final class DmnDependencyAnalyzer
     }
 
     private void addDependency(GraphNode owner, String href, NodeKind expected) {
-      List<GraphNode> matches = nodesById.get(referenceId(href));
-      if (matches == null || matches.size() != 1 || matches.getFirst().kind != expected) {
+      List<DmnModelRepository.ResolvedDrgElement> matches = repository.resolveDrg(owner.model, href);
+      if (matches.size() != 1) {
         return;
       }
-      owner.dependencies.add(matches.getFirst());
+      DmnModelRepository.ResolvedDrgElement target = matches.getFirst();
+      String targetId = referenceId(href);
+      GraphNode dependency = nodesByKey.get(target.model().getNamespace() + "#" + targetId);
+      if (dependency == null || dependency.kind != expected) {
+        return;
+      }
+      owner.dependencies.add(dependency);
     }
 
     private void visit(GraphNode node) {
@@ -202,17 +219,19 @@ public final class DmnDependencyAnalyzer
     private final String id;
     private final String name;
     private final NodeKind kind;
+    private final Definitions model;
     private final DrgElement element;
     private final int modelIndex;
     private final Set<GraphNode> dependencies = new LinkedHashSet<>();
 
     private GraphNode(
-        String key, String id, String name, NodeKind kind,
+        String key, String id, String name, NodeKind kind, Definitions model,
         DrgElement element, int modelIndex) {
       this.key = key;
       this.id = id;
       this.name = name;
       this.kind = kind;
+      this.model = model;
       this.element = element;
       this.modelIndex = modelIndex;
     }

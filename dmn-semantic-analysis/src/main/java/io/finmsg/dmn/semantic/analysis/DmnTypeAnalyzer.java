@@ -17,21 +17,30 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 
   @Override
   public DmnSemanticAnalysisResult analyze(Definitions parsedModel) {
+    return analyze(parsedModel, new DmnModelRepository(List.of(parsedModel)));
+  }
+
+  public DmnSemanticAnalysisResult analyze(
+      Definitions parsedModel, DmnModelRepository repository) {
     Objects.requireNonNull(parsedModel, "parsedModel");
-    Session session = new Session(parsedModel);
+    Objects.requireNonNull(repository, "repository");
+    Session session = new Session(parsedModel, repository);
     return new DmnSemanticAnalysisResult(session.analyze(), session.diagnostics);
   }
 
   private final class Session {
     private final Definitions input;
+    private final DmnModelRepository repository;
     private final List<DmnSemanticDiagnostic> diagnostics = new ArrayList<>();
     private final Map<String, ItemDefinition> itemTypes = new LinkedHashMap<>();
     private final Map<String, Symbol> symbolsById = new LinkedHashMap<>();
     private final Map<String, List<BusinessKnowledgeModel>> bkmsByName = new LinkedHashMap<>();
 
-    private Session(Definitions input) {
+    private Session(Definitions input, DmnModelRepository repository) {
       this.input = input;
-      input.getItemDefinitionsList().forEach(item -> itemTypes.put(item.getNode().getName(), item));
+      this.repository = repository;
+      repository.visibleModels(input).forEach(model -> model.getItemDefinitionsList().forEach(item ->
+          itemTypes.putIfAbsent(item.getNode().getName(), item)));
       for (DrgElement element : input.getDrgElementsList()) {
         switch (element.getElementCase()) {
           case INPUT_DATA -> addSymbol(element.getInputData().getNode(),
@@ -165,10 +174,19 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
     }
 
     private void include(Map<String, TypeReference> scope, String href) {
-      String id = href.substring(href.lastIndexOf('#') + 1);
-      Symbol symbol = symbolsById.get(id);
-      if (symbol != null) {
-        scope.put(symbol.name, symbol.type);
+      List<DmnModelRepository.ResolvedDrgElement> matches = repository.resolveDrg(input, href);
+      if (matches.size() == 1) {
+        DrgElement element = matches.getFirst().element();
+        switch (element.getElementCase()) {
+          case INPUT_DATA -> scope.put(element.getInputData().getNode().getName(),
+              element.getInputData().getVariable().getType());
+          case DECISION -> scope.put(element.getDecision().getNode().getName(),
+              element.getDecision().getVariable().getType());
+          case BUSINESS_KNOWLEDGE_MODEL -> scope.put(
+              element.getBusinessKnowledgeModel().getNode().getName(),
+              element.getBusinessKnowledgeModel().getVariable().getType());
+          default -> { }
+        }
       }
     }
 

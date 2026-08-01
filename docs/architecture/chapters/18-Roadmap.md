@@ -25,12 +25,13 @@
 [done] DRG dependency validation and cycle detection
 [done] deterministic compilation order
 [done] exposed symbol and named-type binding table
+[done] namespace-indexed import validation and cross-model reference linking
+[done] cross-model dependency ordering
 ```
 
 ## 18.2 Next milestone — semantic-analysis completion
 
 ```text
-[ ] link imports and cross-model references
 [ ] close remaining DMN 1.5 expression and validation edge cases
 [ ] stabilize the typed model contract for Runtime IR lowering
 ```
@@ -43,7 +44,7 @@
 [done] detect unavailable dependencies
 [done] detect cycles
 [done] establish deterministic compilation order
-[ ] extend dependency analysis across imported models
+[done] extend dependency analysis across imported models
 ```
 
 ## 18.4 XML completeness

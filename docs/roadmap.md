@@ -22,10 +22,11 @@
 - [x] Decision-table, BKM, item-definition, and decision-service validation
 - [x] DRG dependency analysis, cycle detection, and deterministic compilation order
 - [x] Exposed resolved symbol and named-type bindings
+- [x] Namespace-indexed cross-model import and reference linking
+- [x] Cross-model dependency ordering
 
 ## Next: semantic-analysis completion
 
-- [ ] Validate imports and cross-model references
 - [ ] Close remaining DMN 1.5 expression and validation edge cases
 - [ ] Stabilize the semantic pipeline as an input to Runtime IR
 

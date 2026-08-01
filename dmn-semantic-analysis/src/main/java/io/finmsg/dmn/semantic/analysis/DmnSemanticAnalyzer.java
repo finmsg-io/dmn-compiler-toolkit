@@ -21,8 +21,14 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 
   @Override
   public DmnSemanticAnalysisResult analyze(Definitions parsedModel) {
+    return analyze(parsedModel, new DmnModelRepository(List.of(parsedModel)));
+  }
+
+  public DmnSemanticAnalysisResult analyze(
+      Definitions parsedModel, DmnModelRepository repository) {
     Objects.requireNonNull(parsedModel, "parsedModel");
-    Session session = new Session(parsedModel);
+    Objects.requireNonNull(repository, "repository");
+    Session session = new Session(parsedModel, repository);
     session.analyze();
     return new DmnSemanticAnalysisResult(parsedModel, session.diagnostics, session.bindings);
   }
@@ -30,14 +36,16 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
   private static final class Session {
 
     private final Definitions model;
+    private final DmnModelRepository repository;
     private final List<DmnSemanticDiagnostic> diagnostics = new ArrayList<>();
     private final List<DmnSymbolBinding> bindings = new ArrayList<>();
     private final Map<String, List<Symbol>> globalsByName = new LinkedHashMap<>();
     private final Map<String, List<Symbol>> globalsById = new HashMap<>();
     private final Map<String, ItemDefinition> itemDefinitions = new LinkedHashMap<>();
 
-    private Session(Definitions model) {
+    private Session(Definitions model, DmnModelRepository repository) {
       this.model = model;
+      this.repository = repository;
     }
 
     private void analyze() {
@@ -108,19 +116,24 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
       switch (type.getKindCase()) {
         case NAMED -> {
           String name = type.getNamed().getName();
-          if (type.getNamed().getNamespace().isBlank() && !name.isBlank()
-              && !BUILTIN_NAMES.contains(name)) {
-            ItemDefinition item = itemDefinitions.get(name);
-            if (item == null) {
+          if (!name.isBlank() && !BUILTIN_NAMES.contains(name)) {
+            List<DmnModelRepository.ResolvedItemDefinition> matches =
+                repository.resolveType(model, type.getNamed());
+            if (matches.isEmpty()) {
               error("UNKNOWN_TYPE", path, "Unknown type '" + name + "'.", location);
+            } else if (matches.size() > 1) {
+              error("AMBIGUOUS_TYPE", path, "Type '" + name + "' is ambiguous.", location);
             } else {
+              DmnModelRepository.ResolvedItemDefinition resolved = matches.getFirst();
+              ItemDefinition item = resolved.item();
               bindings.add(new DmnSymbolBinding(
                   path,
                   "definitions/itemDefinition[" + name + "]",
                   name,
                   item.getNode().getId(),
                   DmnSymbolKind.ITEM_DEFINITION,
-                  type));
+                  type,
+                  resolved.model().getNamespace()));
             }
           }
         }
@@ -257,7 +270,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
       return new Symbol(
           node.getName(), node.getId(), type, kind, node.getSourceLocation(), parameters,
           "definitions/drgElement[" + displayName(
-              node.getId().isBlank() ? node.getName() : node.getId(), 0) + "]");
+              node.getId().isBlank() ? node.getName() : node.getId(), 0) + "]",
+          model.getNamespace());
     }
 
     private void analyzeTypeConstraints() {
@@ -504,7 +518,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
         error("MISSING_REFERENCE", path, "Reference target is empty.", location);
         return null;
       }
-      List<Symbol> matches = globalsById.get(id);
+      List<Symbol> matches = repository.resolveDrg(model, href).stream()
+          .map(this::externalSymbol).toList();
       if (matches == null || matches.isEmpty()) {
         error("UNKNOWN_REFERENCE", path,
             "Reference '" + href + "' does not resolve to a DRG element.", location);
@@ -524,6 +539,50 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
       }
       bind(path, symbol);
       return symbol;
+    }
+
+    private Symbol externalSymbol(DmnModelRepository.ResolvedDrgElement resolved) {
+      DrgElement element = resolved.element();
+      Node node;
+      TypeReference type;
+      SymbolKind kind;
+      List<String> parameters = List.of();
+      switch (element.getElementCase()) {
+        case INPUT_DATA -> {
+          node = element.getInputData().getNode();
+          type = element.getInputData().getVariable().getType();
+          kind = SymbolKind.INPUT_DATA;
+        }
+        case DECISION -> {
+          node = element.getDecision().getNode();
+          type = element.getDecision().getVariable().getType();
+          kind = SymbolKind.DECISION;
+        }
+        case BUSINESS_KNOWLEDGE_MODEL -> {
+          BusinessKnowledgeModel bkm = element.getBusinessKnowledgeModel();
+          node = bkm.getNode();
+          type = bkm.getVariable().getType();
+          kind = SymbolKind.BKM;
+          parameters = bkm.getFunction().getFormalParametersList().stream()
+              .map(value -> value.getNode().getName()).filter(value -> !value.isBlank()).toList();
+        }
+        case KNOWLEDGE_SOURCE -> {
+          node = element.getKnowledgeSource().getNode();
+          type = TypeReference.getDefaultInstance();
+          kind = SymbolKind.KNOWLEDGE_SOURCE;
+        }
+        case DECISION_SERVICE -> {
+          node = element.getDecisionService().getNode();
+          type = TypeReference.getDefaultInstance();
+          kind = SymbolKind.DECISION_SERVICE;
+        }
+        case ELEMENT_NOT_SET -> throw new IllegalArgumentException("Empty DRG element");
+        default -> throw new IllegalArgumentException(
+            "Unsupported DRG element kind: " + element.getElementCase());
+      }
+      return new Symbol(node.getName(), node.getId(), type, kind, node.getSourceLocation(),
+          parameters, "definitions/drgElement[" + node.getId() + "]",
+          resolved.model().getNamespace());
     }
 
     private static String expectedKinds(Set<SymbolKind> kinds) {
@@ -956,7 +1015,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
       if (name.isBlank()) {
         return;
       }
-      if (!scope.define(new Symbol(name, "", type, kind, location, List.of(), path))) {
+      if (!scope.define(new Symbol(name, "", type, kind, location, List.of(), path,
+          model.getNamespace()))) {
         error("DUPLICATE_NAME", path, "Duplicate name '" + name + "'.", location);
       }
     }
@@ -976,7 +1036,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
             case PARAMETER -> DmnSymbolKind.PARAMETER;
             case LOCAL -> DmnSymbolKind.LOCAL_VARIABLE;
           },
-          symbol.type));
+          symbol.type,
+          symbol.namespace));
     }
 
     private void error(String code, String path, String message, SourceLocation location) {
@@ -1016,7 +1077,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
       SymbolKind kind,
       SourceLocation location,
       List<String> parameters,
-      String declarationPath) {
+      String declarationPath,
+      String namespace) {
 
     private Symbol {
       parameters = List.copyOf(parameters);
