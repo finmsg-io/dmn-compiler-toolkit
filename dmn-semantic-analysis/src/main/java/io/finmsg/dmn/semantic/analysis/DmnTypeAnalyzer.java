@@ -695,7 +695,16 @@ public final class DmnTypeAnalyzer {
           type.setReturnType(expressionParsedType(function.getBody()));
           yield TypeReference.newBuilder().setFunction(type).build();
         }
-        case RELATION, TYPE_NOT_SET -> TypeReference.getDefaultInstance();
+        case RELATION -> {
+          ContextTypeReference.Builder row = ContextTypeReference.newBuilder();
+          for (RelationColumnParsed column : parsed.getRelation().getColumnsList()) {
+            row.addEntries(ContextEntryTypeReference.newBuilder()
+                .setName(column.getVariable().getNode().getName())
+                .setType(column.getVariable().getType()));
+          }
+          yield list(TypeReference.newBuilder().setContext(row).build());
+        }
+        case TYPE_NOT_SET -> TypeReference.getDefaultInstance();
       };
     }
 

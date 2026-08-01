@@ -35,6 +35,7 @@ import io.finmsg.dmn.model.ElementReference;
 import io.finmsg.dmn.model.FunctionDefinition;
 import io.finmsg.dmn.model.Invocation;
 import io.finmsg.dmn.model.KnowledgeRequirement;
+import io.finmsg.dmn.model.ListTypeReference;
 import io.finmsg.dmn.model.TypeReference;
 import io.finmsg.dmn.model.TypeConstraint;
 import io.finmsg.dmn.model.UnaryTest;
@@ -278,6 +279,35 @@ class DmnTypeAnalyzerTest {
     assertThat(result.model().getDrgElements(0).getDecision().getLogic().getBoxedExpression()
         .getParsed().getRelation().getRows(0).getExpressions(1).getFeel().getAst()
         .hasInferredType()).isTrue();
+  }
+
+  @Test
+  void infersRelationAsListOfRowContexts() {
+    RelationParsed relation = RelationParsed.newBuilder()
+        .addColumns(RelationColumnParsed.newBuilder()
+            .setVariable(InformationItem.newBuilder()
+                .setNode(Node.newBuilder().setName("amount"))
+                .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))))
+        .addRows(RelationRowParsed.newBuilder()
+            .addExpressions(parsedExpression("2")))
+        .build();
+    TypeReference declared = TypeReference.newBuilder()
+        .setList(ListTypeReference.newBuilder()
+            .setElementType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+        .build();
+    Decision decision = Decision.newBuilder()
+        .setNode(Node.newBuilder().setName("Relation"))
+        .setVariable(InformationItem.newBuilder().setType(declared))
+        .setLogic(DecisionLogic.newBuilder().setBoxedExpression(
+            BoxedExpression.newBuilder().setParsed(
+                BoxedExpressionParsed.newBuilder().setRelation(relation))))
+        .build();
+
+    assertThat(analyzer.analyze(Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
+        .build()).diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("DECISION_TYPE_MISMATCH");
   }
 
   private DrgElement decision(String name, TypeReference declaredType, String expression) {
