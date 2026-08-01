@@ -22,65 +22,24 @@ public final class RuntimeIrLowerer {
 
   /** Lowers an ordered set of analyzed models into one linked, namespace-free runtime model. */
   public RuntimeModel lowerModelSet(List<DmnSemanticPipelineResult> analyses) {
-    Objects.requireNonNull(analyses, "analyses");
-    if (analyses.isEmpty()) {
-      throw new IllegalArgumentException("At least one semantic model is required.");
-    }
-    Set<String> namespaces = new HashSet<>();
-    for (DmnSemanticPipelineResult analysis : analyses) {
-      Objects.requireNonNull(analysis, "analysis");
-      if (!analysis.isSuccess()) {
-        throw new RuntimeIrLoweringException(
-            "Runtime IR requires successful semantic analysis; found "
-                + analysis.diagnostics().size() + " diagnostic(s).");
-      }
-      if (!namespaces.add(analysis.model().getNamespace())) {
-        throw new RuntimeIrLoweringException(
-            "Runtime model-set contains duplicate namespace '"
-                + analysis.model().getNamespace() + "'.");
-      }
-    }
-
-    Map<String, Integer> runtimeIdBySourceId = new HashMap<>();
-    Map<String, Integer> valueSlotBySourceId = new HashMap<>();
-    int nextId = 0;
-    for (DmnSemanticPipelineResult analysis : analyses) {
-      String namespace = analysis.model().getNamespace();
-      for (DrgElement element : analysis.model().getDrgElementsList()) {
-        Node node = executableNode(element);
-        if (node == null) {
-          continue;
-        }
-        if (!node.getId().isBlank()) {
-          putSourceAddress(runtimeIdBySourceId, namespace, node.getId(), nextId);
-          putSourceAddress(valueSlotBySourceId, namespace, node.getId(), nextId);
-        }
-        if (element.hasDecision()
-            && element.getDecision().hasLogic()
-            && element.getDecision().getLogic().hasDecisionTable()
-            && !element.getDecision().getLogic().getDecisionTable().getNode().getId().isBlank()) {
-          putSourceAddress(valueSlotBySourceId, namespace,
-              element.getDecision().getLogic().getDecisionTable().getNode().getId(), nextId);
-        }
-        nextId++;
-      }
-    }
+    RuntimeModelIndex index = RuntimeModelIndex.create(analyses);
 
     List<RuntimeInput> inputs = new ArrayList<>();
     List<RuntimeDecision> decisions = new ArrayList<>();
     List<RuntimeBkm> bkms = new ArrayList<>();
     int runtimeId = 0;
-    for (DmnSemanticPipelineResult analysis : analyses) {
+    for (RuntimeModelIndex.ModelView view : index.models()) {
+      DmnSemanticPipelineResult analysis = view.analysis();
       Definitions model = analysis.model();
-      Map<String, ItemDefinition> itemTypes = itemTypes(model, analyses);
-      Map<String, Integer> modelIds = modelAddresses(runtimeIdBySourceId, model.getNamespace());
-      Map<String, Integer> modelSlots = modelAddresses(valueSlotBySourceId, model.getNamespace());
+      Map<String, ItemDefinition> itemTypes = view.itemTypes();
+      Map<String, Integer> modelIds = view.runtimeIds();
+      Map<String, Integer> modelSlots = view.valueSlots();
       for (DrgElement element : model.getDrgElementsList()) {
         switch (element.getElementCase()) {
         case INPUT_DATA -> {
           InputData input = element.getInputData();
           inputs.add(new RuntimeInput(runtimeId, runtimeId,
-              lowerType(input.getVariable().getType(), itemTypes, new HashSet<>())));
+              RuntimeTypeLowerer.lower(input.getVariable().getType(), itemTypes)));
           runtimeId++;
         }
         case DECISION -> {
@@ -98,7 +57,7 @@ public final class RuntimeIrLowerer {
           expression.ifPresent(value -> collectReferencedSlots(value, dependencies));
           decisionTable.ifPresent(value -> collectReferencedSlots(value, dependencies));
           decisions.add(new RuntimeDecision(runtimeId, runtimeId,
-              lowerType(decision.getVariable().getType(), itemTypes, new HashSet<>()),
+              RuntimeTypeLowerer.lower(decision.getVariable().getType(), itemTypes),
               List.copyOf(dependencies), expression, decisionTable,
               nextLocalSlot[0]));
           runtimeId++;
@@ -111,7 +70,7 @@ public final class RuntimeIrLowerer {
               bkmDependencies(bkm, modelIds));
           collectReferencedSlots(function, dependencies);
           bkms.add(new RuntimeBkm(runtimeId, runtimeId,
-              lowerType(bkm.getVariable().getType(), itemTypes, new HashSet<>()),
+              RuntimeTypeLowerer.lower(bkm.getVariable().getType(), itemTypes),
               List.copyOf(dependencies),
               functionKind(bkm.getFunction().getKind()),
               Optional.of(function)));
@@ -122,42 +81,7 @@ public final class RuntimeIrLowerer {
       }
     }
     List<Integer> order = runtimeEvaluationOrder(decisions, bkms);
-    return new RuntimeModel(inputs, decisions, bkms, order, runtimeId);
-  }
-
-  private static void putSourceAddress(
-      Map<String, Integer> addresses, String namespace, String sourceId, int runtimeId) {
-    String key = namespace + "#" + sourceId;
-    if (addresses.putIfAbsent(key, runtimeId) != null) {
-      throw new RuntimeIrLoweringException("Duplicate runtime source address '" + key + "'.");
-    }
-  }
-
-  private static Map<String, Integer> modelAddresses(
-      Map<String, Integer> global, String namespace) {
-    Map<String, Integer> result = new HashMap<>(global);
-    String prefix = namespace + "#";
-    global.forEach((key, value) -> {
-      if (key.startsWith(prefix)) {
-        result.put(key.substring(prefix.length()), value);
-      }
-    });
-    return result;
-  }
-
-  private static Map<String, ItemDefinition> itemTypes(
-      Definitions local, List<DmnSemanticPipelineResult> analyses) {
-    Map<String, ItemDefinition> result = new LinkedHashMap<>();
-    for (DmnSemanticPipelineResult analysis : analyses) {
-      String namespace = analysis.model().getNamespace();
-      analysis.model().getItemDefinitionsList().forEach(item -> {
-        result.put(namespace + "#" + item.getNode().getName(), item);
-        result.putIfAbsent(item.getNode().getName(), item);
-      });
-    }
-    local.getItemDefinitionsList().forEach(item ->
-        result.put(item.getNode().getName(), item));
-    return result;
+    return new RuntimeModel(inputs, decisions, bkms, order, index.valueCount());
   }
 
   private static RuntimeFunctionDefinition lowerBkmFunction(
@@ -180,11 +104,11 @@ public final class RuntimeIrLowerer {
       int localSlot = nextLocalSlot[0]++;
       localSlots.put(path + "/parameter[" + index + "]", new LocalSlotAddress(0, localSlot));
       parameters.add(new RuntimeFunctionParameter(parameter.getNode().getName(), localSlot,
-          lowerType(parameter.getType(), itemTypes, new HashSet<>())));
+          RuntimeTypeLowerer.lower(parameter.getType(), itemTypes)));
     }
     RuntimeExpression body = lowerExpression(function.getLogic().getParsed().getAst(),
         path + "/logic", bindings, slots, itemTypes, localSlots, nextLocalSlot);
-    RuntimeType type = lowerType(bkm.getVariable().getType(), itemTypes, new HashSet<>());
+    RuntimeType type = RuntimeTypeLowerer.lower(bkm.getVariable().getType(), itemTypes);
     return new RuntimeFunctionDefinition(parameters, Optional.of(body),
         function.getKind() == FunctionKind.FUNCTION_KIND_JAVA
             || function.getKind() == FunctionKind.FUNCTION_KIND_PMML,
@@ -232,8 +156,8 @@ public final class RuntimeIrLowerer {
           throw new RuntimeIrLoweringException(
               "Decision '" + decision.getNode().getName() + "' requires parsed boxed logic.");
         }
-        RuntimeType expected = lowerType(
-            decision.getVariable().getType(), itemTypes, new HashSet<>());
+        RuntimeType expected = RuntimeTypeLowerer.lower(
+            decision.getVariable().getType(), itemTypes);
         yield Optional.of(lowerBoxedExpression(
             decision.getLogic().getBoxedExpression().getParsed(), basePath + "/boxedExpression",
             bindings, slots, itemTypes, localSlots, nextLocalSlot, expected));
@@ -241,7 +165,7 @@ public final class RuntimeIrLowerer {
       case INVOCATION -> Optional.of(lowerDmnInvocation(
           decision.getLogic().getInvocation(), basePath + "/invocation", bindings, slots,
           itemTypes, localSlots, nextLocalSlot,
-          lowerType(decision.getVariable().getType(), itemTypes, new HashSet<>())));
+          RuntimeTypeLowerer.lower(decision.getVariable().getType(), itemTypes)));
       case DECISION_TABLE, TYPE_NOT_SET -> Optional.empty();
     };
   }
@@ -346,7 +270,7 @@ public final class RuntimeIrLowerer {
         List<RuntimeRelationColumn> columns = boxed.getRelation().getColumnsList().stream()
             .map(column -> new RuntimeRelationColumn(
                 column.getVariable().getNode().getName(),
-                lowerType(column.getVariable().getType(), itemTypes, new HashSet<>())))
+                RuntimeTypeLowerer.lower(column.getVariable().getType(), itemTypes)))
             .toList();
         List<List<RuntimeExpression>> rows = new ArrayList<>();
         for (int rowIndex = 0; rowIndex < boxed.getRelation().getRowsCount(); rowIndex++) {
@@ -361,7 +285,7 @@ public final class RuntimeIrLowerer {
         }
         RuntimeType relationType = expectedType == null
             ? RuntimeType.element(RuntimeTypeKind.LIST,
-                RuntimeType.contextFields(relationFields(columns)))
+                RuntimeType.contextFields(RuntimeTypeLowerer.relationFields(columns)))
             : expectedType;
         yield new RuntimeRelationExpression(columns, rows, relationType);
       }
@@ -376,7 +300,7 @@ public final class RuntimeIrLowerer {
           parameterSlots.put(path + "/parameter[" + index + "]",
               new LocalSlotAddress(0, localSlot));
           parameters.add(new RuntimeFunctionParameter(parameter.getNode().getName(), localSlot,
-              lowerType(parameter.getType(), itemTypes, new HashSet<>())));
+              RuntimeTypeLowerer.lower(parameter.getType(), itemTypes)));
         }
         if (!function.hasBody()) {
           throw new RuntimeIrLoweringException("Boxed function requires a body at " + path + ".");
@@ -424,7 +348,7 @@ public final class RuntimeIrLowerer {
       inputs.add(new RuntimeDecisionTableInput(
           lowerExpression(input.getInputExpression().getParsed().getAst(), inputPath,
               bindings, slots, itemTypes, localSlots, nextLocalSlot),
-          allowed, lowerType(input.getType(), itemTypes, new HashSet<>())));
+          allowed, RuntimeTypeLowerer.lower(input.getType(), itemTypes)));
     }
     List<RuntimeDecisionTableOutput> outputs = new ArrayList<>();
     for (int index = 0; index < table.getOutputsCount(); index++) {
@@ -450,7 +374,7 @@ public final class RuntimeIrLowerer {
       outputs.add(new RuntimeDecisionTableOutput(
           output.getNode().getName().isBlank()
               ? Optional.empty() : Optional.of(output.getNode().getName()),
-          lowerType(output.getType(), itemTypes, new HashSet<>()), allowed, defaultValue));
+          RuntimeTypeLowerer.lower(output.getType(), itemTypes), allowed, defaultValue));
     }
     List<RuntimeDecisionTableRule> rules = new ArrayList<>();
     for (int ruleIndex = 0; ruleIndex < table.getRulesCount(); ruleIndex++) {
@@ -494,7 +418,7 @@ public final class RuntimeIrLowerer {
       Map<String, ItemDefinition> itemTypes,
       Map<String, LocalSlotAddress> localSlots,
       int[] nextLocalSlot) {
-    RuntimeType type = lowerType(expression.getInferredType(), itemTypes, new HashSet<>());
+    RuntimeType type = RuntimeTypeLowerer.lower(expression.getInferredType(), itemTypes);
     return switch (expression.getNodeCase()) {
       case LITERAL -> new RuntimeConstant(
           constantKind(expression.getLiteral().getKind()), expression.getLiteral().getValue(), type);
@@ -587,7 +511,8 @@ public final class RuntimeIrLowerer {
         RuntimeExpression source = lowerExpression(expression.getPath().getSource(),
             path + "/source", bindings, slots, itemTypes, localSlots, nextLocalSlot);
         yield new RuntimePathExpression(source, expression.getPath().getMember(),
-            resolvedFieldIndex(source.type(), expression.getPath().getMember()), type);
+            RuntimeTypeLowerer.resolvedFieldIndex(
+                source.type(), expression.getPath().getMember()), type);
       }
       case RANGE -> lowerRange(expression.getRange(), type, path, bindings, slots, itemTypes,
           localSlots, nextLocalSlot);
@@ -614,7 +539,7 @@ public final class RuntimeIrLowerer {
       case INSTANCE_OF -> new RuntimeInstanceOfExpression(
           lowerExpression(expression.getInstanceOf().getExpression(), path + "/expression",
               bindings, slots, itemTypes, localSlots, nextLocalSlot),
-          lowerFeelType(expression.getInstanceOf().getType(), itemTypes), type);
+          RuntimeTypeLowerer.lower(expression.getInstanceOf().getType(), itemTypes), type);
       case UNARY_TESTS -> new RuntimeUnaryTestsExpression(
           lowerUnaryTests(expression.getUnaryTests(), path, bindings, slots, itemTypes,
               localSlots, nextLocalSlot), type);
@@ -631,7 +556,8 @@ public final class RuntimeIrLowerer {
         RuntimeExpression source = lowerExpression(expression.getDescendant().getSource(),
             path + "/source", bindings, slots, itemTypes, localSlots, nextLocalSlot);
         yield new RuntimeDescendantExpression(source, expression.getDescendant().getMember(),
-            resolvedFieldIndex(source.type(), expression.getDescendant().getMember()), type);
+            RuntimeTypeLowerer.resolvedFieldIndex(
+                source.type(), expression.getDescendant().getMember()), type);
       }
       case DECISION_TABLE -> {
         Integer decisionSlot = slots.get(expression.getDecisionTable().getDecisionTableId());
@@ -775,7 +701,7 @@ public final class RuntimeIrLowerer {
       int localSlot = functionNextLocalSlot[0]++;
       parameterSlots.put(parameterPath, new LocalSlotAddress(0, localSlot));
       parameters.add(new RuntimeFunctionParameter(
-          parameter.getName(), localSlot, lowerFeelType(parameter.getType(), itemTypes)));
+          parameter.getName(), localSlot, RuntimeTypeLowerer.lower(parameter.getType(), itemTypes)));
     }
     Optional<RuntimeExpression> body = value.getBody().getNodeCase() == Expression.NodeCase.NODE_NOT_SET
         ? Optional.empty()
@@ -858,10 +784,10 @@ public final class RuntimeIrLowerer {
                 itemTypes, localSlots, nextLocalSlot));
         case RANGE -> {
           RuntimeType elementType = test.getRange().hasLower()
-              ? lowerType(test.getRange().getLower().getInferredType(), itemTypes, new HashSet<>())
+              ? RuntimeTypeLowerer.lower(test.getRange().getLower().getInferredType(), itemTypes)
               : test.getRange().hasUpper()
-                  ? lowerType(test.getRange().getUpper().getInferredType(), itemTypes,
-                      new HashSet<>())
+                  ? RuntimeTypeLowerer.lower(
+                      test.getRange().getUpper().getInferredType(), itemTypes)
                   : RuntimeType.scalar(RuntimeTypeKind.ANY);
           yield new RuntimeRangeUnaryTest(lowerRange(test.getRange(),
               RuntimeType.element(RuntimeTypeKind.RANGE, elementType), testPath, bindings, slots,
@@ -1112,149 +1038,6 @@ public final class RuntimeIrLowerer {
   private static String referenceId(String href) {
     int hash = href.lastIndexOf('#');
     return hash < 0 ? href : href.substring(hash + 1);
-  }
-
-  private static Node executableNode(DrgElement element) {
-    return switch (element.getElementCase()) {
-      case INPUT_DATA -> element.getInputData().getNode();
-      case DECISION -> element.getDecision().getNode();
-      case BUSINESS_KNOWLEDGE_MODEL -> element.getBusinessKnowledgeModel().getNode();
-      default -> null;
-    };
-  }
-
-  private static RuntimeType lowerType(
-      TypeReference type, Map<String, ItemDefinition> items, Set<String> resolving) {
-    return switch (type.getKindCase()) {
-      case BUILTIN -> RuntimeType.scalar(builtinKind(type.getBuiltin()));
-      case LIST -> RuntimeType.element(RuntimeTypeKind.LIST,
-          lowerType(type.getList().getElementType(), items, resolving));
-      case RANGE -> RuntimeType.element(RuntimeTypeKind.RANGE,
-          lowerType(type.getRange().getElementType(), items, resolving));
-      case CONTEXT -> lowerContextType(type.getContext(), items, resolving);
-      case FUNCTION -> RuntimeType.function(type.getFunction().getParameterTypeList().stream()
-              .map(parameter -> lowerType(parameter, items, new HashSet<>(resolving))).toList(),
-          lowerType(type.getFunction().getReturnType(), items, new HashSet<>(resolving)));
-      case NAMED -> lowerNamed(type.getNamed(), items, resolving);
-      case KIND_NOT_SET -> RuntimeType.scalar(RuntimeTypeKind.ANY);
-    };
-  }
-
-  private static RuntimeType lowerContextType(
-      ContextTypeReference context,
-      Map<String, ItemDefinition> items,
-      Set<String> resolving) {
-    List<RuntimeField> fields = new ArrayList<>();
-    for (int index = 0; index < context.getEntriesCount(); index++) {
-      ContextEntryTypeReference entry = context.getEntries(index);
-      fields.add(new RuntimeField(index, entry.getName(),
-          lowerType(entry.getType(), items, new HashSet<>(resolving))));
-    }
-    return RuntimeType.contextFields(fields);
-  }
-
-  private static List<RuntimeField> relationFields(List<RuntimeRelationColumn> columns) {
-    List<RuntimeField> fields = new ArrayList<>();
-    for (int index = 0; index < columns.size(); index++) {
-      RuntimeRelationColumn column = columns.get(index);
-      fields.add(new RuntimeField(index, column.name(), column.type()));
-    }
-    return List.copyOf(fields);
-  }
-
-  private static int resolvedFieldIndex(RuntimeType source, String member) {
-    RuntimeType candidate = source.kind() == RuntimeTypeKind.LIST ? source.elementType() : source;
-    if (candidate == null || candidate.kind() != RuntimeTypeKind.CONTEXT) {
-      return -1;
-    }
-    return candidate.fieldLayout().stream()
-        .filter(field -> field.name().equals(member))
-        .map(RuntimeField::index)
-        .findFirst()
-        .orElse(-1);
-  }
-
-  private static RuntimeType lowerFeelType(
-      FeelType type, Map<String, ItemDefinition> items) {
-    return switch (type.getTypeCase()) {
-      case QUALIFIED_NAME -> switch (type.getQualifiedName()) {
-        case "any" -> RuntimeType.scalar(RuntimeTypeKind.ANY);
-        case "null" -> RuntimeType.scalar(RuntimeTypeKind.NULL);
-        case "boolean" -> RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
-        case "number" -> RuntimeType.scalar(RuntimeTypeKind.NUMBER);
-        case "string" -> RuntimeType.scalar(RuntimeTypeKind.STRING);
-        case "date" -> RuntimeType.scalar(RuntimeTypeKind.DATE);
-        case "time" -> RuntimeType.scalar(RuntimeTypeKind.TIME);
-        case "date and time" -> RuntimeType.scalar(RuntimeTypeKind.DATE_TIME);
-        case "duration" -> RuntimeType.scalar(RuntimeTypeKind.DURATION);
-        case "years and months duration" ->
-            RuntimeType.scalar(RuntimeTypeKind.YEARS_MONTHS_DURATION);
-        case "days and time duration" -> RuntimeType.scalar(RuntimeTypeKind.DAYS_TIME_DURATION);
-        case "range" -> RuntimeType.element(
-            RuntimeTypeKind.RANGE, RuntimeType.scalar(RuntimeTypeKind.ANY));
-        default -> lowerNamed(NamedTypeReference.newBuilder()
-            .setName(type.getQualifiedName()).build(), items, new HashSet<>());
-      };
-      case RANGE -> RuntimeType.element(RuntimeTypeKind.RANGE,
-          lowerFeelType(type.getRange().getElementType(), items));
-      case LIST -> RuntimeType.element(RuntimeTypeKind.LIST,
-          lowerFeelType(type.getList().getElementType(), items));
-      case CONTEXT -> {
-        List<RuntimeField> fields = new ArrayList<>();
-        for (int index = 0; index < type.getContext().getEntriesCount(); index++) {
-          ContextTypeEntry entry = type.getContext().getEntries(index);
-          fields.add(new RuntimeField(index, entry.getName(), lowerFeelType(entry.getType(), items)));
-        }
-        yield RuntimeType.contextFields(fields);
-      }
-      case FUNCTION -> RuntimeType.function(type.getFunction().getParameterTypesList().stream()
-              .map(parameter -> lowerFeelType(parameter, items)).toList(),
-          lowerFeelType(type.getFunction().getReturnType(), items));
-      case TYPE_NOT_SET -> RuntimeType.scalar(RuntimeTypeKind.ANY);
-    };
-  }
-
-  private static RuntimeType lowerNamed(
-      NamedTypeReference named, Map<String, ItemDefinition> items, Set<String> resolving) {
-    String key = named.getNamespace().isBlank()
-        ? named.getName() : named.getNamespace() + "#" + named.getName();
-    ItemDefinition item = items.get(key);
-    if (item == null || !resolving.add(key)) {
-      throw new RuntimeIrLoweringException("Unresolved runtime type '" + named.getName() + "'.");
-    }
-    RuntimeType result;
-    if (item.getComponentsCount() > 0) {
-      List<RuntimeField> fields = new ArrayList<>();
-      for (int index = 0; index < item.getComponentsCount(); index++) {
-        ItemComponent component = item.getComponents(index);
-        RuntimeType field = lowerType(component.getType(), items, new HashSet<>(resolving));
-        if (component.getIsCollection()) {
-          field = RuntimeType.element(RuntimeTypeKind.LIST, field);
-        }
-        fields.add(new RuntimeField(index, component.getNode().getName(), field));
-      }
-      result = RuntimeType.contextFields(fields);
-    } else {
-      result = lowerType(item.getType(), items, resolving);
-    }
-    return item.getIsCollection() ? RuntimeType.element(RuntimeTypeKind.LIST, result) : result;
-  }
-
-  private static RuntimeTypeKind builtinKind(BuiltinType type) {
-    return switch (type) {
-      case BUILTIN_TYPE_NULL -> RuntimeTypeKind.NULL;
-      case BUILTIN_TYPE_BOOLEAN -> RuntimeTypeKind.BOOLEAN;
-      case BUILTIN_TYPE_NUMBER -> RuntimeTypeKind.NUMBER;
-      case BUILTIN_TYPE_STRING -> RuntimeTypeKind.STRING;
-      case BUILTIN_TYPE_DATE -> RuntimeTypeKind.DATE;
-      case BUILTIN_TYPE_TIME -> RuntimeTypeKind.TIME;
-      case BUILTIN_TYPE_DATE_AND_TIME -> RuntimeTypeKind.DATE_TIME;
-      case BUILTIN_TYPE_DURATION -> RuntimeTypeKind.DURATION;
-      case BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION -> RuntimeTypeKind.YEARS_MONTHS_DURATION;
-      case BUILTIN_TYPE_DAYS_AND_TIME_DURATION -> RuntimeTypeKind.DAYS_TIME_DURATION;
-      case BUILTIN_TYPE_RANGE -> RuntimeTypeKind.RANGE;
-      case BUILTIN_TYPE_ANY, BUILTIN_TYPE_UNSPECIFIED, UNRECOGNIZED -> RuntimeTypeKind.ANY;
-    };
   }
 
   private static Map<String, LocalSlotAddress> capturedSlots(

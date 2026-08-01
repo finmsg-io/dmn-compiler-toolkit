@@ -50,12 +50,14 @@ DMN XML -> XML reader -> FEEL parser -> semantic analysis -> Runtime IR
 They cover Traffic Violation's decision table and nested boxed context, an executable BKM function
 body, and a two-model XML import with an imported structured type and value reference.
 
-### 2. Split the monolithic lowerer
+### 2. Continue splitting the lowerer
 
-`RuntimeIrLowerer` now owns model indexing, type lowering, expression lowering, boxed lowering,
-decision-table lowering, lexical-frame allocation, and validation. Extract focused internal
-components after frame/model-set design is settled. Suggested boundaries are expression,
-decision-table, type, and model-index lowering.
+`RuntimeModelIndex` now owns model-set validation, deterministic source IDs/value slots, local and
+qualified address aliases, and named-type catalogs. `RuntimeTypeLowerer` owns protobuf and FEEL
+structural type lowering, indexed field layouts, and static member-index resolution.
+`RuntimeIrLowerer` still owns expression lowering, boxed lowering, decision-table lowering, and
+lexical-frame allocation. Extract expression and decision-table components next while keeping the
+public orchestration facade stable.
 
 ### 3. Canonicalize constants and built-ins
 
@@ -85,7 +87,7 @@ Do not yet:
 
 ## Recommended implementation order
 
-1. Extract lowerer components.
+1. Extract expression and decision-table lowering components.
 2. Add canonicalization/constant-pool and optimization passes.
 3. Define serialization only when a concrete cache or deployment use case requires it.
 
