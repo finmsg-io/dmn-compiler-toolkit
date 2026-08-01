@@ -15,7 +15,7 @@ public final class InvocationReader {
     if (cursor.firstChild()) {
       do {
         switch (cursor.documentLocalName()) {
-          case "expression" -> {
+          case "expression", "literalExpression" -> {
             builder.setExpression(feelReader.read(cursor)).build();
           }
 
@@ -40,11 +40,9 @@ public final class InvocationReader {
 
       do {
         switch (cursor.documentLocalName()) {
-          case "parameter" -> {
-            builder.setParameter(readParameterName(cursor));
-          }
+          case "parameter" -> builder.setParameter(readParameterName(cursor));
 
-          case "expression" -> {
+          case "expression", "literalExpression" -> {
             builder.setExpression(feelReader.read(cursor)).build();
           }
 
@@ -57,6 +55,10 @@ public final class InvocationReader {
   }
 
   private String readParameterName(XmlCursor cursor) {
+
+    if (cursor.hasAttribute("name")) {
+      return cursor.requiredAttribute("name");
+    }
 
     if (!cursor.firstChild()) {
       return "";

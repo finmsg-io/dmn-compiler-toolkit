@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.finmsg.dmn.model.BuiltinType;
 import io.finmsg.dmn.model.AuthorityRequirement;
 import io.finmsg.dmn.model.BusinessKnowledgeModel;
+import io.finmsg.dmn.model.Binding;
+import io.finmsg.dmn.model.Decision;
+import io.finmsg.dmn.model.DecisionLogic;
 import io.finmsg.dmn.model.Definitions;
 import io.finmsg.dmn.model.DecisionService;
 import io.finmsg.dmn.model.DrgElement;
@@ -14,11 +17,13 @@ import io.finmsg.dmn.model.FeelText;
 import io.finmsg.dmn.model.FunctionDefinition;
 import io.finmsg.dmn.model.FunctionKind;
 import io.finmsg.dmn.model.InformationItem;
+import io.finmsg.dmn.model.InformationRequirement;
 import io.finmsg.dmn.model.InputData;
 import io.finmsg.dmn.model.Import;
 import io.finmsg.dmn.model.ItemDefinition;
 import io.finmsg.dmn.model.KnowledgeRequirement;
 import io.finmsg.dmn.model.KnowledgeSource;
+import io.finmsg.dmn.model.Invocation;
 import io.finmsg.dmn.model.NamedTypeReference;
 import io.finmsg.dmn.model.Node;
 import io.finmsg.dmn.model.TypeReference;
@@ -175,7 +180,60 @@ class DmnWriterTest {
     assertThat(readBack).isEqualTo(definitions);
   }
 
+  @Test
+  void writesDecisionRequirementsLiteralExpressionsAndInvocationsRoundTrip() {
+    Decision literal =
+        Decision.newBuilder()
+            .setNode(Node.newBuilder().setId("decision-1").setName("Risk"))
+            .addInformationRequirements(
+                InformationRequirement.newBuilder().setInput(reference("#input-1")))
+            .setLogic(DecisionLogic.newBuilder().setLiteralExpression(feel("Applicant.age")))
+            .build();
+    Decision invocation =
+        Decision.newBuilder()
+            .setNode(Node.newBuilder().setId("decision-2").setName("Adjusted risk"))
+            .addInformationRequirements(
+                InformationRequirement.newBuilder().setDecision(reference("#decision-1")))
+            .setLogic(
+                DecisionLogic.newBuilder()
+                    .setInvocation(
+                        Invocation.newBuilder()
+                            .setExpression(feel("AdjustRisk"))
+                            .addBindings(
+                                Binding.newBuilder()
+                                    .setParameter("risk")
+                                    .setExpression(feel("Risk")))
+                            .addBindings(
+                                Binding.newBuilder()
+                                    .setParameter("factor")
+                                    .setExpression(feel("1.2")))))
+            .build();
+    Definitions definitions =
+        Definitions.newBuilder()
+            .setNode(Node.getDefaultInstance())
+            .setNamespace("https://example.com/decisions")
+            .addDrgElements(DrgElement.newBuilder().setDecision(literal))
+            .addDrgElements(DrgElement.newBuilder().setDecision(invocation))
+            .build();
+
+    byte[] xml = new DmnWriter().write(definitions);
+    Definitions readBack = new DmnXmlReader().read(xml);
+
+    assertThat(new String(xml, StandardCharsets.UTF_8))
+        .contains("<requiredInput href=\"#input-1\"")
+        .contains("<requiredDecision href=\"#decision-1\"")
+        .contains("<literalExpression><text>Applicant.age</text></literalExpression>")
+        .contains("<invocation>")
+        .contains("<parameter name=\"risk\"")
+        .contains("<parameter name=\"factor\"");
+    assertThat(readBack).isEqualTo(definitions);
+  }
+
   private static ElementReference reference(String href) {
     return ElementReference.newBuilder().setHref(href).build();
+  }
+
+  private static Feel feel(String source) {
+    return Feel.newBuilder().setText(FeelText.newBuilder().setText(source)).build();
   }
 }
