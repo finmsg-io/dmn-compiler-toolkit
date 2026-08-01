@@ -18,7 +18,9 @@ import io.finmsg.dmn.model.ItemComponent;
 import io.finmsg.dmn.model.ItemDefinition;
 import io.finmsg.dmn.model.Binding;
 import io.finmsg.dmn.model.BusinessKnowledgeModel;
+import io.finmsg.dmn.model.BuiltinType;
 import io.finmsg.dmn.model.FunctionDefinition;
+import io.finmsg.dmn.model.FunctionTypeReference;
 import io.finmsg.dmn.model.KnowledgeRequirement;
 import io.finmsg.dmn.model.KnowledgeSource;
 import io.finmsg.dmn.model.AuthorityRequirement;
@@ -228,7 +230,8 @@ class DmnSemanticAnalyzerTest {
         .setNode(Node.newBuilder().setId("bkm-id").setName("Calculator"))
         .setFunction(FunctionDefinition.newBuilder()
             .addFormalParameters(parameter("x"))
-            .addFormalParameters(parameter("y")))
+            .addFormalParameters(parameter("y"))
+            .setLogic(parsedFeel("x + y")))
         .build();
     Invocation invocation = Invocation.newBuilder()
         .setExpression(parsedFeel("Calculator"))
@@ -255,6 +258,49 @@ class DmnSemanticAnalyzerTest {
             "MISSING_INVOCATION_BINDING");
   }
 
+  @Test
+  void requiresBkmEncapsulatedLogic() {
+    BusinessKnowledgeModel bkm = BusinessKnowledgeModel.newBuilder()
+        .setNode(Node.newBuilder().setName("Missing logic"))
+        .build();
+
+    assertThat(analyzer.analyze(Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm))
+        .build()).diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("MISSING_BKM_FUNCTION");
+  }
+
+  @Test
+  void validatesBkmFormalParameterSignature() {
+    TypeReference declaredFunction = TypeReference.newBuilder()
+        .setFunction(FunctionTypeReference.newBuilder()
+            .addParameterType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))
+            .addParameterType(builtin(BuiltinType.BUILTIN_TYPE_STRING))
+            .setReturnType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+        .build();
+    BusinessKnowledgeModel bkm = BusinessKnowledgeModel.newBuilder()
+        .setNode(Node.newBuilder().setName("Calculator"))
+        .setVariable(InformationItem.newBuilder().setType(declaredFunction))
+        .setFunction(FunctionDefinition.newBuilder()
+            .addFormalParameters(InformationItem.newBuilder()
+                .setNode(Node.newBuilder().setName("x"))
+                .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+            .addFormalParameters(InformationItem.newBuilder()
+                .setNode(Node.newBuilder().setName("x"))
+                .setType(builtin(BuiltinType.BUILTIN_TYPE_BOOLEAN)))
+            .setLogic(parsedFeel("1")))
+        .build();
+
+    assertThat(analyzer.analyze(Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm))
+        .build()).diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly(
+            "DUPLICATE_PARAMETER_NAME",
+            "BKM_SIGNATURE_PARAMETER_TYPE_MISMATCH");
+  }
+
   private Feel parsedFeel(String source) {
     return Feel.newBuilder().setParsed(feelParser.parseExpressionAst(source)).build();
   }
@@ -263,6 +309,10 @@ class DmnSemanticAnalyzerTest {
     return TypeReference.newBuilder()
         .setNamed(NamedTypeReference.newBuilder().setName(name))
         .build();
+  }
+
+  private static TypeReference builtin(BuiltinType type) {
+    return TypeReference.newBuilder().setBuiltin(type).build();
   }
 
   private static ElementReference reference(String href) {

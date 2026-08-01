@@ -293,6 +293,8 @@ public final class DmnSemanticAnalyzer {
     private void analyzeBkm(BusinessKnowledgeModel bkm, int index) {
       String path = "definitions/businessKnowledgeModel["
           + displayName(bkm.getNode().getName(), index) + "]";
+      validateTypeReference(bkm.getVariable().getType(), path + "/variable/type",
+          bkm.getNode().getSourceLocation());
       Scope scope = new Scope(null);
       for (int i = 0; i < bkm.getKnowledgeRequirementsCount(); i++) {
         addRequired(scope, bkm.getKnowledgeRequirements(i).getRequiredKnowledge(),
@@ -302,18 +304,66 @@ public final class DmnSemanticAnalyzer {
       analyzeAuthorityRequirements(bkm.getAuthorityRequirementsList(), path,
           bkm.getNode().getSourceLocation());
       if (!bkm.hasFunction()) {
+        error("MISSING_BKM_FUNCTION", path + "/function",
+            "A business knowledge model must define encapsulated logic.",
+            bkm.getNode().getSourceLocation());
         return;
       }
       FunctionDefinition function = bkm.getFunction();
+      if (!function.hasLogic()) {
+        error("MISSING_BKM_LOGIC", path + "/function/logic",
+            "A BKM function must define its logic.", bkm.getNode().getSourceLocation());
+      }
       Scope functionScope = new Scope(scope);
+      Set<String> parameterNames = new HashSet<>();
       for (int i = 0; i < function.getFormalParametersCount(); i++) {
         InformationItem parameter = function.getFormalParameters(i);
-        define(functionScope, parameter.getNode().getName(), parameter.getType(), SymbolKind.PARAMETER,
-            path + "/parameter[" + i + "]", parameter.getNode().getSourceLocation());
+        String parameterPath = path + "/parameter[" + i + "]";
+        String parameterName = parameter.getNode().getName();
+        validateTypeReference(parameter.getType(), parameterPath + "/type",
+            parameter.getNode().getSourceLocation());
+        if (parameterName.isBlank()) {
+          error("MISSING_PARAMETER_NAME", parameterPath,
+              "A BKM formal parameter must have a name.",
+              parameter.getNode().getSourceLocation());
+        } else if (!parameterNames.add(parameterName)) {
+          error("DUPLICATE_PARAMETER_NAME", parameterPath,
+              "Duplicate BKM formal parameter '" + parameterName + "'.",
+              parameter.getNode().getSourceLocation());
+        } else {
+          define(functionScope, parameterName, parameter.getType(), SymbolKind.PARAMETER,
+              parameterPath, parameter.getNode().getSourceLocation());
+        }
       }
+      validateDeclaredBkmFunctionType(bkm, function, path);
       if (function.hasLogic() && function.getLogic().hasParsed()) {
         analyzeExpression(function.getLogic().getParsed().getAst(), functionScope,
             path + "/logic", bkm.getNode().getSourceLocation());
+      }
+    }
+
+    private void validateDeclaredBkmFunctionType(
+        BusinessKnowledgeModel bkm, FunctionDefinition function, String path) {
+      TypeReference declared = bkm.getVariable().getType();
+      if (!declared.hasFunction()) {
+        return;
+      }
+      FunctionTypeReference functionType = declared.getFunction();
+      if (functionType.getParameterTypeCount() != function.getFormalParametersCount()) {
+        error("BKM_SIGNATURE_PARAMETER_COUNT_MISMATCH", path + "/variable/type",
+            "Declared function type has " + functionType.getParameterTypeCount()
+                + " parameters but the BKM defines " + function.getFormalParametersCount() + ".",
+            bkm.getNode().getSourceLocation());
+        return;
+      }
+      for (int i = 0; i < function.getFormalParametersCount(); i++) {
+        TypeReference declaredParameter = functionType.getParameterType(i);
+        TypeReference formalParameter = function.getFormalParameters(i).getType();
+        if (!declaredParameter.equals(formalParameter)) {
+          error("BKM_SIGNATURE_PARAMETER_TYPE_MISMATCH", path + "/parameter[" + i + "]/type",
+              "Formal parameter type does not match the BKM's declared function type.",
+              function.getFormalParameters(i).getNode().getSourceLocation());
+        }
       }
     }
 
