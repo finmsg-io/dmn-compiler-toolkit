@@ -4,21 +4,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.finmsg.dmn.model.BuiltinType;
 import io.finmsg.dmn.model.AuthorityRequirement;
+import io.finmsg.dmn.model.Aggregation;
+import io.finmsg.dmn.model.AnnotationClause;
 import io.finmsg.dmn.model.BusinessKnowledgeModel;
 import io.finmsg.dmn.model.Binding;
 import io.finmsg.dmn.model.Decision;
 import io.finmsg.dmn.model.DecisionLogic;
+import io.finmsg.dmn.model.DecisionRule;
+import io.finmsg.dmn.model.DecisionTable;
 import io.finmsg.dmn.model.Definitions;
 import io.finmsg.dmn.model.DecisionService;
 import io.finmsg.dmn.model.DrgElement;
 import io.finmsg.dmn.model.ElementReference;
+import io.finmsg.dmn.model.ExpressionNode;
+import io.finmsg.dmn.model.ExpressionText;
 import io.finmsg.dmn.model.Feel;
 import io.finmsg.dmn.model.FeelText;
 import io.finmsg.dmn.model.FunctionDefinition;
 import io.finmsg.dmn.model.FunctionKind;
+import io.finmsg.dmn.model.HitPolicy;
+import io.finmsg.dmn.model.HitPolicySpec;
 import io.finmsg.dmn.model.InformationItem;
 import io.finmsg.dmn.model.InformationRequirement;
 import io.finmsg.dmn.model.InputData;
+import io.finmsg.dmn.model.InputClause;
 import io.finmsg.dmn.model.Import;
 import io.finmsg.dmn.model.ItemDefinition;
 import io.finmsg.dmn.model.KnowledgeRequirement;
@@ -26,7 +35,11 @@ import io.finmsg.dmn.model.KnowledgeSource;
 import io.finmsg.dmn.model.Invocation;
 import io.finmsg.dmn.model.NamedTypeReference;
 import io.finmsg.dmn.model.Node;
+import io.finmsg.dmn.model.Orientation;
+import io.finmsg.dmn.model.OutputClause;
+import io.finmsg.dmn.model.RuleAnnotation;
 import io.finmsg.dmn.model.TypeReference;
+import io.finmsg.dmn.model.UnaryTest;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
@@ -226,6 +239,70 @@ class DmnWriterTest {
         .contains("<invocation>")
         .contains("<parameter name=\"risk\"")
         .contains("<parameter name=\"factor\"");
+    assertThat(readBack).isEqualTo(definitions);
+  }
+
+  @Test
+  void writesDecisionTableRoundTrip() {
+    DecisionTable table =
+        DecisionTable.newBuilder()
+            .setNode(Node.newBuilder().setId("table-1"))
+            .setHitPolicy(
+                HitPolicySpec.newBuilder()
+                    .setPolicy(HitPolicy.HIT_POLICY_COLLECT)
+                    .setAggregation(Aggregation.AGGREGATION_SUM))
+            .setPreferredOrientation(Orientation.ORIENTATION_RULE_AS_ROW)
+            .addInputs(
+                InputClause.newBuilder()
+                    .setNode(Node.newBuilder().setId("input-clause-1"))
+                    .setInputExpression(feel("Applicant.age"))
+                    .setInputValues(feel("[18..120]"))
+                    .setType(
+                        TypeReference.newBuilder().setBuiltin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+            .addOutputs(
+                OutputClause.newBuilder()
+                    .setNode(Node.newBuilder().setId("output-clause-1").setName("score"))
+                    .setType(
+                        TypeReference.newBuilder().setBuiltin(BuiltinType.BUILTIN_TYPE_NUMBER))
+                    .setOutputValues(feel("1, 2, 3"))
+                    .setDefaultOutputEntry(
+                        ExpressionNode.newBuilder()
+                            .setText(
+                                ExpressionText.newBuilder()
+                                    .setFeel(FeelText.newBuilder().setText("0")))))
+            .addAnnotations(
+                AnnotationClause.newBuilder()
+                    .setNode(Node.newBuilder().setId("annotation-1").setName("reason")))
+            .addRules(
+                DecisionRule.newBuilder()
+                    .setNode(Node.newBuilder().setId("rule-1"))
+                    .addInputEntries(
+                        UnaryTest.newBuilder().setText(FeelText.newBuilder().setText(">= 18")))
+                    .addOutputEntries(feel("2"))
+                    .addAnnotationEntries(RuleAnnotation.newBuilder().setText("adult")))
+            .build();
+    Definitions definitions =
+        Definitions.newBuilder()
+            .setNode(Node.getDefaultInstance())
+            .setNamespace("https://example.com/table")
+            .addDrgElements(
+                DrgElement.newBuilder()
+                    .setDecision(
+                        Decision.newBuilder()
+                            .setNode(Node.newBuilder().setId("decision-table-1"))
+                            .setLogic(DecisionLogic.newBuilder().setDecisionTable(table))))
+            .build();
+
+    byte[] xml = new DmnWriter().write(definitions);
+    Definitions readBack = new DmnXmlReader().read(xml);
+
+    assertThat(new String(xml, StandardCharsets.UTF_8))
+        .contains("hitPolicy=\"COLLECT\"")
+        .contains("aggregation=\"SUM\"")
+        .contains("preferredOrientation=\"Rule-as-Row\"")
+        .contains("<inputExpression typeRef=\"number\"")
+        .contains("<defaultOutputEntry><text>0</text></defaultOutputEntry>")
+        .contains("<annotationEntry><text>adult</text></annotationEntry>");
     assertThat(readBack).isEqualTo(definitions);
   }
 

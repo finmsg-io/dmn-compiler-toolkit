@@ -8,6 +8,7 @@ final class DecisionLogicWriter {
 
   private final FeelWriter feelWriter = new FeelWriter();
   private final InvocationWriter invocationWriter = new InvocationWriter();
+  private final DecisionTableWriter decisionTableWriter = new DecisionTableWriter();
 
   void write(XmlEmitter xml, DecisionLogic value) {
     if (value.hasLiteralExpression()) {
@@ -16,6 +17,10 @@ final class DecisionLogicWriter {
     }
     if (value.hasInvocation()) {
       invocationWriter.write(xml, value.getInvocation());
+      return;
+    }
+    if (value.hasDecisionTable()) {
+      decisionTableWriter.write(xml, value.getDecisionTable());
       return;
     }
     throw new XmlWriteException("Unsupported or empty decision logic.");
