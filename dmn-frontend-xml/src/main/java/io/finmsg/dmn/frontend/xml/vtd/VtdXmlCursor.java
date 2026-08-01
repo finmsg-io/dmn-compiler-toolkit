@@ -4,20 +4,27 @@ import com.ximpleware.NavException;
 import com.ximpleware.VTDGen;
 import com.ximpleware.VTDNav;
 import io.finmsg.dmn.frontend.xml.XmlCursor;
+import io.finmsg.dmn.frontend.xml.XmlAttribute;
 import io.finmsg.dmn.frontend.xml.exception.XmlException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class VtdXmlCursor implements XmlCursor {
 
   private final VTDNav nav;
   private final Set<String> namespaceUris = new LinkedHashSet<>();
+  private final Map<String, String> documentNamespaceDeclarations = new LinkedHashMap<>();
   private final String documentNamespaceUri;
 
   public VtdXmlCursor(Path path) {
@@ -216,6 +223,11 @@ public final class VtdXmlCursor implements XmlCursor {
         }
         String uri = nav.toString(i + 1);
         namespaceUris.add(uri);
+        if (nav.getTokenDepth(i) == 0) {
+          String name = nav.toString(i);
+          String declaredPrefix = "xmlns".equals(name) ? "" : name.substring("xmlns:".length());
+          documentNamespaceDeclarations.put(declaredPrefix, uri);
+        }
       }
       nav.pop();
     } catch (Exception ex) {
@@ -250,6 +262,11 @@ public final class VtdXmlCursor implements XmlCursor {
   }
 
   @Override
+  public Map<String, String> documentNamespaceDeclarations() {
+    return Collections.unmodifiableMap(documentNamespaceDeclarations);
+  }
+
+  @Override
   public Optional<String> attribute(String name) {
     try {
       int index = nav.getAttrVal(name);
@@ -270,6 +287,43 @@ public final class VtdXmlCursor implements XmlCursor {
   @Override
   public boolean hasAttribute(String name) {
     return attribute(name).isPresent();
+  }
+
+  @Override
+  public List<XmlAttribute> attributes() {
+    try {
+      List<XmlAttribute> result = new ArrayList<>();
+      int elementDepth = nav.getCurrentDepth();
+      for (int i = nav.getCurrentIndex() + 1; i < nav.getTokenCount(); i++) {
+        int type = nav.getTokenType(i);
+        if (nav.getTokenDepth(i) != elementDepth
+            || (type != VTDNav.TOKEN_ATTR_NAME && type != VTDNav.TOKEN_ATTR_NS)) {
+          break;
+        }
+        String qualifiedName = nav.toString(i);
+        if ("xmlns".equals(qualifiedName) || qualifiedName.startsWith("xmlns:")) {
+          i++;
+          continue;
+        }
+        String localName = qualifiedName.contains(":")
+            ? qualifiedName.substring(qualifiedName.indexOf(':') + 1) : qualifiedName;
+        String namespace = "";
+        int valueToken = i + 1;
+        if (qualifiedName.contains(":")) {
+          for (String uri : namespaceUris) {
+            if (nav.getAttrValNS(uri, localName) == valueToken) {
+              namespace = uri;
+              break;
+            }
+          }
+        }
+        result.add(new XmlAttribute(namespace, localName, nav.toString(valueToken)));
+        i++;
+      }
+      return List.copyOf(result);
+    } catch (NavException ex) {
+      throw new XmlException(ex);
+    }
   }
 
   @Override

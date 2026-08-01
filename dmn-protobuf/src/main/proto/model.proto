@@ -30,6 +30,8 @@ message Definitions {
   string type_language = 4;
   string exporter = 5;
   string exporter_version = 6;
+  // XML vocabulary namespace. Empty means the frontend's default DMN version.
+  string model_namespace_uri = 7;
 
   repeated Namespace namespaces = 20;
   repeated Import imports = 21;

@@ -4,6 +4,7 @@ import io.finmsg.dmn.frontend.xml.XmlCursor;
 import io.finmsg.dmn.frontend.xml.dmn.DmnXmlContext;
 import io.finmsg.dmn.frontend.xml.exception.XmlException;
 import io.finmsg.dmn.model.Definitions;
+import io.finmsg.dmn.model.Namespace;
 
 public final class DefinitionsReader {
 
@@ -22,6 +23,16 @@ public final class DefinitionsReader {
     }
 
     Definitions.Builder builder = Definitions.newBuilder();
+
+    if (!io.finmsg.dmn.frontend.xml.dmn.DmnNamespaces.DMN_1_5
+        .equals(context.modelNamespace())) {
+      builder.setModelNamespaceUri(context.modelNamespace());
+    }
+    cursor.documentNamespaceDeclarations().forEach((prefix, uri) -> {
+      if (!uri.equals(context.modelNamespace())) {
+        builder.addNamespaces(Namespace.newBuilder().setPrefix(prefix).setUri(uri));
+      }
+    });
 
     builder.setNode(nodeReader.read(cursor));
 

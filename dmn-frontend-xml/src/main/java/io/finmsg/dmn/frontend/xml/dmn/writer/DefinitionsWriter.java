@@ -3,11 +3,13 @@ package io.finmsg.dmn.frontend.xml.dmn.writer;
 import io.finmsg.dmn.frontend.xml.XmlEmitter;
 import io.finmsg.dmn.frontend.xml.XmlWriter;
 import io.finmsg.dmn.model.Definitions;
+import io.finmsg.dmn.frontend.xml.dmn.DmnNamespaces;
+import io.finmsg.dmn.frontend.xml.exception.XmlWriteException;
 
 public final class DefinitionsWriter implements XmlWriter<Definitions> {
 
   public static final String DMN_1_5_NAMESPACE =
-      "https://www.omg.org/spec/DMN/20230324/MODEL/";
+      DmnNamespaces.DMN_1_5;
 
   private final NodeWriter nodeWriter = new NodeWriter();
   private final ImportWriter importWriter = new ImportWriter();
@@ -17,7 +19,18 @@ public final class DefinitionsWriter implements XmlWriter<Definitions> {
   @Override
   public void write(XmlEmitter xml, Definitions value) {
     xml.startElement("definitions");
-    xml.defaultNamespace(DMN_1_5_NAMESPACE);
+    String modelNamespace = value.getModelNamespaceUri().isEmpty()
+        ? DMN_1_5_NAMESPACE : value.getModelNamespaceUri();
+    xml.defaultNamespace(modelNamespace);
+    value.getNamespacesList().forEach(namespace -> {
+      if (!namespace.getUri().equals(modelNamespace)) {
+        if (namespace.getPrefix().isEmpty()) {
+          throw new XmlWriteException(
+              "Cannot preserve a non-DMN default namespace with unprefixed DMN output.");
+        }
+        xml.namespace(namespace.getPrefix(), namespace.getUri());
+      }
+    });
     nodeWriter.writeAttributes(xml, value.getNode());
     xml.attribute("namespace", value.getNamespace());
     xml.attribute("expressionLanguage", value.getExpressionLanguage());

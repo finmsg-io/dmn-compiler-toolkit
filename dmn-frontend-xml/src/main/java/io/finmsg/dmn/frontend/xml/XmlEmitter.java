@@ -26,13 +26,52 @@ public final class XmlEmitter implements AutoCloseable {
     execute(() -> writer.writeStartElement(name));
   }
 
+  public void startElement(String namespace, String name) {
+    try {
+      String prefix = writer.getPrefix(namespace);
+      if (prefix == null) {
+        throw new XmlWriteException("No namespace prefix is declared for " + namespace);
+      }
+      writer.writeStartElement(prefix, name, namespace);
+    } catch (XMLStreamException e) {
+      throw new XmlWriteException("Could not write namespaced XML element.", e);
+    }
+  }
+
   public void defaultNamespace(String namespace) {
     execute(() -> writer.writeDefaultNamespace(namespace));
+  }
+
+  public void namespace(String prefix, String namespace) {
+    if (prefix == null || prefix.isEmpty()) {
+      defaultNamespace(namespace);
+    } else {
+      execute(() -> writer.writeNamespace(prefix, namespace));
+    }
   }
 
   public void attribute(String name, String value) {
     if (value != null && !value.isEmpty()) {
       execute(() -> writer.writeAttribute(name, value));
+    }
+  }
+
+  public void attribute(String namespace, String name, String value) {
+    if (value == null || value.isEmpty()) {
+      return;
+    }
+    if (namespace == null || namespace.isEmpty()) {
+      attribute(name, value);
+      return;
+    }
+    try {
+      String prefix = writer.getPrefix(namespace);
+      if (prefix == null || prefix.isEmpty()) {
+        throw new XmlWriteException("No attribute namespace prefix is declared for " + namespace);
+      }
+      writer.writeAttribute(prefix, namespace, name, value);
+    } catch (XMLStreamException e) {
+      throw new XmlWriteException("Could not write namespaced XML attribute.", e);
     }
   }
 

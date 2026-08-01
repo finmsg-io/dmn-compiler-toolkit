@@ -1,6 +1,8 @@
 package io.finmsg.dmn.frontend.xml;
 
 import java.util.Optional;
+import java.util.Map;
+import java.util.List;
 
 /**
  * Cursor abstraction over an XML document.
@@ -38,6 +40,9 @@ public interface XmlCursor extends AutoCloseable {
 
   /** Namespace URI of the document element. */
   String documentNamespaceUri();
+
+  /** Namespace declarations present on the document element, keyed by prefix. */
+  Map<String, String> documentNamespaceDeclarations();
 
   /**
    * Local name when the current element belongs to the document namespace;
@@ -94,6 +99,8 @@ public interface XmlCursor extends AutoCloseable {
   String requiredAttribute(String name);
 
   boolean hasAttribute(String name);
+
+  List<XmlAttribute> attributes();
 
   int attributeAsInt(String name);
 

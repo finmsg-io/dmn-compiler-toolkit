@@ -2,6 +2,8 @@ package io.finmsg.dmn.frontend.xml.dmn;
 
 public final class DmnNamespaces {
 
+  public static final String DMN_1_5 = "https://www.omg.org/spec/DMN/20230324/MODEL/";
+
   private DmnNamespaces() {}
 
   public static DmnVersion detect(String namespaceUri) {
@@ -13,7 +15,7 @@ public final class DmnNamespaces {
 
       case "https://www.omg.org/spec/DMN/20240513/MODEL/" -> DmnVersion.DMN_1_6;
 
-      case "https://www.omg.org/spec/DMN/20230324/MODEL/" -> DmnVersion.DMN_1_5;
+      case DMN_1_5 -> DmnVersion.DMN_1_5;
 
       case "https://www.omg.org/spec/DMN/20211108/MODEL/" -> DmnVersion.DMN_1_4;
 
