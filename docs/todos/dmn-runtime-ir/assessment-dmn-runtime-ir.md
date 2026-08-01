@@ -30,6 +30,7 @@ only by rescanning expression trees.
 | Persisted evaluator frame sizes/layouts | complete |
 | Expression-derived dependencies and runtime order | complete |
 | Indexed member/field addressing | complete for statically known context types |
+| XML-to-Runtime-IR pipeline fixtures | complete for decision tables, boxed contexts, and BKMs |
 | Constant canonicalization/pooling | missing |
 | Runtime evaluator or code generator | not yet implemented |
 
@@ -46,18 +47,17 @@ imported symbol and type bindings without retaining namespace strings in executa
 
 ## Medium-priority improvements
 
-### 2. Add pipeline-level lowering tests
+### 2. Extend pipeline-level lowering tests with linked models
 
-The current 14 Runtime IR tests cover the node shapes well, but most construct protobuf and
-semantic bindings manually. Add fixtures that run:
+Two integration fixtures now run:
 
 ```text
 DMN XML -> XML reader -> FEEL parser -> semantic analysis -> Runtime IR
 ```
 
-Prioritize Traffic Violation, a decision-table model, a BKM invocation, nested boxed logic, and a
-two-model import. These tests will catch path-contract drift between semantic binding production
-and lowering.
+They cover Traffic Violation's decision table and nested boxed context plus an executable BKM
+function body. Add a two-model import fixture together with linked model-set lowering; the current
+single-model lowerer intentionally rejects external bindings.
 
 ### 3. Split the monolithic lowerer
 
@@ -109,14 +109,13 @@ Do not yet:
 
 ## Recommended implementation order
 
-1. Add XML-to-Runtime-IR integration fixtures.
-2. Complete linked model-set lowering.
-3. Strengthen aggregate invariants.
-4. Extract lowerer components.
-5. Add canonicalization/constant-pool and optimization passes.
-6. Define serialization only when a concrete cache or deployment use case requires it.
+1. Complete linked model-set lowering and add its two-model XML fixture.
+2. Strengthen aggregate invariants.
+3. Extract lowerer components.
+4. Add canonicalization/constant-pool and optimization passes.
+5. Define serialization only when a concrete cache or deployment use case requires it.
 
 ## Verification baseline
 
-The six-module Maven reactor passes. `dmn-runtime-ir` currently has 14 tests, and the complete
-reactor has 164 passing tests. `git diff --check` passes for the current implementation.
+The six-module Maven reactor passes. `dmn-runtime-ir` currently has 16 tests, and the complete
+reactor has 166 passing tests. `git diff --check` passes for the current implementation.

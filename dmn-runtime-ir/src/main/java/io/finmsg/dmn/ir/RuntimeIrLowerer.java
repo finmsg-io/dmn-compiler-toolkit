@@ -272,13 +272,16 @@ public final class RuntimeIrLowerer {
           RuntimeExpression expression = lowerParsedExpression(entry.getExpression(),
               entryPath + "/expression", bindings, slots, itemTypes,
               contextSlots, nextLocalSlot);
-          int localSlot = nextLocalSlot[0]++;
-          contextSlots.put(path + "/context/entry[" + index + "]",
-              new LocalSlotAddress(0, localSlot));
-          entries.add(new RuntimeContextEntry(
-              entry.getVariable().getNode().getName(), localSlot, expression));
-          fields.add(new RuntimeField(index,
-              entry.getVariable().getNode().getName(), expression.type()));
+          String name = entry.getVariable().getNode().getName();
+          if (name.isBlank()) {
+            entries.add(new RuntimeContextEntry("", -1, expression));
+          } else {
+            int localSlot = nextLocalSlot[0]++;
+            contextSlots.put(path + "/context/entry[" + index + "]",
+                new LocalSlotAddress(0, localSlot));
+            entries.add(new RuntimeContextEntry(name, localSlot, expression));
+            fields.add(new RuntimeField(fields.size(), name, expression.type()));
+          }
         }
         yield new RuntimeContextExpression(entries,
             expectedType == null ? RuntimeType.contextFields(fields) : expectedType);

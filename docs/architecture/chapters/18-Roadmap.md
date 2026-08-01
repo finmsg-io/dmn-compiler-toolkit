@@ -47,6 +47,7 @@
 [done] persist decision and nested-function lexical frame layouts
 [done] add implicit Runtime IR dependency edges from expression references
 [done] introduce indexed context-field layouts and resolved member access
+[done] add XML-to-FEEL-to-semantic-to-Runtime-IR integration fixtures
 [ ] complete linked model-set Runtime IR lowering
 ```
 
