@@ -31,6 +31,7 @@ only by rescanning expression trees.
 | Expression-derived dependencies and runtime order | complete |
 | Indexed member/field addressing | complete for statically known context types |
 | XML-to-Runtime-IR pipeline fixtures | complete for decision tables, boxed contexts, and BKMs |
+| Aggregate executable invariants | complete |
 | Constant canonicalization/pooling | missing |
 | Runtime evaluator or code generator | not yet implemented |
 
@@ -66,22 +67,7 @@ Add a later canonicalization pass that produces typed constant values or a const
 stable built-in operation IDs. Keep the current lossless representation as pre-optimization IR if
 useful.
 
-### 4. Strengthen aggregate invariants
-
-Leaf records generally validate nulls and negative local slots, but model-level contracts do not
-yet validate:
-
-- non-negative and unique IDs/value slots;
-- dependency and evaluation-order bounds;
-- decision-table rule widths and annotation widths;
-- hit-policy/aggregation combinations;
-- RuntimeType shape invariants;
-- local-reference bounds against persisted frames.
-
-Add constructor/factory validation and focused negative tests before exposing Runtime IR as a
-public compiler API.
-
-### 5. Define serialization and compatibility policy
+### 4. Define serialization and compatibility policy
 
 The architecture discusses Runtime IR serialization, but the current contracts are Java records
 with no versioning boundary. Decide whether Runtime IR is process-local only, Java-serializable,
@@ -99,12 +85,11 @@ Do not yet:
 
 ## Recommended implementation order
 
-1. Strengthen aggregate invariants.
-2. Extract lowerer components.
-3. Add canonicalization/constant-pool and optimization passes.
-4. Define serialization only when a concrete cache or deployment use case requires it.
+1. Extract lowerer components.
+2. Add canonicalization/constant-pool and optimization passes.
+3. Define serialization only when a concrete cache or deployment use case requires it.
 
 ## Verification baseline
 
-The six-module Maven reactor passes. `dmn-runtime-ir` currently has 17 tests, and the complete
-reactor has 167 passing tests. `git diff --check` passes for the current implementation.
+The six-module Maven reactor passes. `dmn-runtime-ir` currently has 24 tests, and the complete
+reactor has 174 passing tests. `git diff --check` passes for the current implementation.

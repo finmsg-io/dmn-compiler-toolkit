@@ -8,6 +8,9 @@ public record RuntimeDecisionTableRule(
     List<RuntimeExpression> outputEntries,
     List<String> annotations) {
   public RuntimeDecisionTableRule {
+    if (ruleIndex < 0) {
+      throw new IllegalArgumentException("ruleIndex must not be negative.");
+    }
     inputEntries = List.copyOf(inputEntries);
     outputEntries = List.copyOf(outputEntries);
     annotations = List.copyOf(annotations);

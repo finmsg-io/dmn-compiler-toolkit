@@ -12,6 +12,9 @@ public record RuntimeBkm(
     RuntimeFunctionKind functionKind,
     Optional<RuntimeFunctionDefinition> function) {
   public RuntimeBkm {
+    if (id < 0 || resultSlot < 0) {
+      throw new IllegalArgumentException("Runtime BKM IDs and slots must be non-negative.");
+    }
     Objects.requireNonNull(type, "type");
     dependencies = List.copyOf(dependencies);
     Objects.requireNonNull(functionKind, "functionKind");

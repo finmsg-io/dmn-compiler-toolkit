@@ -49,6 +49,7 @@
 [done] introduce indexed context-field layouts and resolved member access
 [done] add XML-to-FEEL-to-semantic-to-Runtime-IR integration fixtures
 [done] complete linked model-set Runtime IR lowering
+[done] enforce Runtime IR aggregate and lexical-frame invariants
 ```
 
 ## 18.4 Model extensions requiring design decisions

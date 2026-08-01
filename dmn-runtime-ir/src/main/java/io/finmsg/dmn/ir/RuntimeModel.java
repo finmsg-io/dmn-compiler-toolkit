@@ -13,5 +13,7 @@ public record RuntimeModel(
     decisions = List.copyOf(decisions);
     businessKnowledgeModels = List.copyOf(businessKnowledgeModels);
     evaluationOrder = List.copyOf(evaluationOrder);
+    RuntimeIrValidation.validateModel(
+        inputs, decisions, businessKnowledgeModels, evaluationOrder, valueSlotCount);
   }
 }

@@ -13,6 +13,9 @@ public record RuntimeDecision(
     Optional<RuntimeDecisionTable> decisionTable,
     int localSlotCount) {
   public RuntimeDecision {
+    if (id < 0 || resultSlot < 0) {
+      throw new IllegalArgumentException("Runtime decision IDs and slots must be non-negative.");
+    }
     Objects.requireNonNull(type, "type");
     dependencies = List.copyOf(dependencies);
     expression = Objects.requireNonNull(expression, "expression");
