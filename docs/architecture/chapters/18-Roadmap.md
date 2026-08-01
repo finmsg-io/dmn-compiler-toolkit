@@ -43,7 +43,8 @@
 [done] lower invocation and descendant-access expressions to Runtime IR
 [done] lower the decision-table expression marker and boxed decision-table logic to Runtime IR
 [done] lower non-table boxed decision logic and DMN invocation decisions
-[ ] lower executable BKM function bodies
+[done] lower executable BKM function bodies and preserve function kind
+[ ] persist decision and nested-function lexical frame layouts
 [ ] complete linked model-set Runtime IR lowering
 ```
 

@@ -35,7 +35,15 @@ class RuntimeIrLowererTest {
             .setVariable(InformationItem.newBuilder().setType(TypeReference.newBuilder()
                 .setFunction(FunctionTypeReference.newBuilder()
                     .addParameterType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))
-                    .setReturnType(builtin(BuiltinType.BUILTIN_TYPE_BOOLEAN)))))).build();
+                    .setReturnType(builtin(BuiltinType.BUILTIN_TYPE_BOOLEAN)))))
+            .setFunction(FunctionDefinition.newBuilder()
+                .setKind(FunctionKind.FUNCTION_KIND_FEEL)
+                .addFormalParameters(InformationItem.newBuilder()
+                    .setNode(Node.newBuilder().setName("value"))
+                    .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+                .setLogic(Feel.newBuilder().setParsed(FeelParsed.newBuilder().setAst(
+                    literal(LiteralKind.LITERAL_KIND_BOOLEAN, "true",
+                        builtin(BuiltinType.BUILTIN_TYPE_BOOLEAN))))))).build();
     DrgElement decision = DrgElement.newBuilder().setDecision(Decision.newBuilder()
         .setNode(Node.newBuilder().setId("decision").setName("Result"))
         .setVariable(InformationItem.newBuilder()
@@ -704,6 +712,63 @@ class RuntimeIrLowererTest {
     assertThat(runtimeInvocation.target()).containsInstanceOf(RuntimeValueReference.class);
     assertThat(runtimeInvocation.namedArguments()).singleElement()
         .extracting(RuntimeNamedArgument::name).isEqualTo("p");
+  }
+
+  @Test
+  void lowersExecutableBkmBodiesAndInvocationTargets() {
+    TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
+    TypeReference functionType = TypeReference.newBuilder()
+        .setFunction(FunctionTypeReference.newBuilder()
+            .addParameterType(number).setReturnType(number)).build();
+    BusinessKnowledgeModel bkmValue = BusinessKnowledgeModel.newBuilder()
+        .setNode(Node.newBuilder().setId("bkm-id").setName("Calculator"))
+        .setVariable(InformationItem.newBuilder().setType(functionType))
+        .setFunction(FunctionDefinition.newBuilder()
+            .setKind(FunctionKind.FUNCTION_KIND_FEEL)
+            .addFormalParameters(InformationItem.newBuilder()
+                .setNode(Node.newBuilder().setName("value")).setType(number))
+            .setLogic(Feel.newBuilder().setParsed(FeelParsed.newBuilder()
+                .setAst(name("value", number)))))
+        .build();
+    DrgElement bkm = DrgElement.newBuilder().setBusinessKnowledgeModel(bkmValue).build();
+    DrgElement decision = DrgElement.newBuilder().setDecision(Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("decision-id").setName("Result"))
+        .setVariable(InformationItem.newBuilder().setType(number))
+        .addKnowledgeRequirements(KnowledgeRequirement.newBuilder()
+            .setRequiredKnowledge(ref("#bkm-id")))
+        .setLogic(DecisionLogic.newBuilder().setInvocation(Invocation.newBuilder()
+            .setExpression(Feel.newBuilder().setParsed(FeelParsed.newBuilder()
+                .setAst(name("Calculator", functionType))))
+            .addBindings(Binding.newBuilder().setParameter("value")
+                .setExpression(Feel.newBuilder().setParsed(FeelParsed.newBuilder().setAst(
+                    literal(LiteralKind.LITERAL_KIND_NUMBER, "4", number)))))))).build();
+    List<DmnSymbolBinding> bindings = List.of(
+        new DmnSymbolBinding("definitions/businessKnowledgeModel[Calculator]/logic",
+            "definitions/businessKnowledgeModel[Calculator]/parameter[0]", "value", "",
+            DmnSymbolKind.PARAMETER, number),
+        new DmnSymbolBinding("definitions/decision[Result]/logic/invocation/expression",
+            "definitions/businessKnowledgeModel[Calculator]", "Calculator", "bkm-id",
+            DmnSymbolKind.BUSINESS_KNOWLEDGE_MODEL, functionType));
+    Definitions model = Definitions.newBuilder().addDrgElements(bkm).addDrgElements(decision)
+        .build();
+
+    RuntimeModel lowered = lowerer.lower(new DmnSemanticPipelineResult(
+        model, List.of(bkm, decision), List.of(), bindings));
+
+    RuntimeBkm runtimeBkm = lowered.businessKnowledgeModels().getFirst();
+    assertThat(runtimeBkm.functionKind()).isEqualTo(RuntimeFunctionKind.FEEL);
+    assertThat(runtimeBkm.function()).isPresent();
+    RuntimeFunctionDefinition function = runtimeBkm.function().orElseThrow();
+    assertThat(function.parameters()).singleElement().satisfies(parameter -> {
+      assertThat(parameter.name()).isEqualTo("value");
+      assertThat(parameter.localSlot()).isZero();
+    });
+    assertThat(function.body()).contains(new RuntimeLocalReference(
+        0, RuntimeType.scalar(RuntimeTypeKind.NUMBER)));
+    RuntimeInvocationExpression invocation = (RuntimeInvocationExpression)
+        lowered.decisions().getFirst().expression().orElseThrow();
+    assertThat(invocation.target()).contains(new RuntimeValueReference(
+        runtimeBkm.resultSlot(), function.type()));
   }
 
   private static DrgElement decisionWithExpression(

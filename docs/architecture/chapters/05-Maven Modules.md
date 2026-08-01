@@ -123,8 +123,9 @@ conditional expressions, list and context literals, named function calls, path/p
 ranges, filters, comparison/test expressions, iteration, quantification, function definitions,
 static/dynamic invocation, descendant access, and boxed decision tables are implemented. All
 protobuf FEEL AST variants now lower. Decision logic also covers recursive boxed
-contexts/relations/lists/functions and DMN invocations. Executable BKM bodies, constant pools,
-and model-set lowering remain future work.
+contexts/relations/lists/functions and DMN invocations. BKM slots contain executable typed
+function bodies with preserved function kind. Persisted frame layouts, constant pools, and
+model-set lowering remain future work.
 
 ## 5.7 Target modules
 

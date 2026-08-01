@@ -80,7 +80,10 @@ public final class RuntimeIrLowerer {
           BusinessKnowledgeModel bkm = element.getBusinessKnowledgeModel();
           bkms.add(new RuntimeBkm(runtimeId, runtimeId,
               lowerType(bkm.getVariable().getType(), itemTypes, new HashSet<>()),
-              bkmDependencies(bkm, runtimeIdBySourceId)));
+              bkmDependencies(bkm, runtimeIdBySourceId),
+              functionKind(bkm.getFunction().getKind()),
+              Optional.of(lowerBkmFunction(
+                  bkm, analysis.bindings(), valueSlotBySourceId, itemTypes))));
           runtimeId++;
         }
         default -> { }
@@ -98,6 +101,47 @@ public final class RuntimeIrLowerer {
       order.add(id);
     }
     return new RuntimeModel(inputs, decisions, bkms, order, runtimeId);
+  }
+
+  private static RuntimeFunctionDefinition lowerBkmFunction(
+      BusinessKnowledgeModel bkm,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes) {
+    if (!bkm.hasFunction() || !bkm.getFunction().hasLogic()
+        || !bkm.getFunction().getLogic().hasParsed()) {
+      throw new RuntimeIrLoweringException(
+          "BKM '" + bkm.getNode().getName() + "' requires parsed executable function logic.");
+    }
+    FunctionDefinition function = bkm.getFunction();
+    String path = "definitions/businessKnowledgeModel[" + bkm.getNode().getName() + "]";
+    Map<String, Integer> localSlots = new HashMap<>();
+    int[] nextLocalSlot = {0};
+    List<RuntimeFunctionParameter> parameters = new ArrayList<>();
+    for (int index = 0; index < function.getFormalParametersCount(); index++) {
+      InformationItem parameter = function.getFormalParameters(index);
+      int localSlot = nextLocalSlot[0]++;
+      localSlots.put(path + "/parameter[" + index + "]", localSlot);
+      parameters.add(new RuntimeFunctionParameter(parameter.getNode().getName(), localSlot,
+          lowerType(parameter.getType(), itemTypes, new HashSet<>())));
+    }
+    RuntimeExpression body = lowerExpression(function.getLogic().getParsed().getAst(),
+        path + "/logic", bindings, slots, itemTypes, localSlots, nextLocalSlot);
+    RuntimeType type = lowerType(bkm.getVariable().getType(), itemTypes, new HashSet<>());
+    return new RuntimeFunctionDefinition(parameters, Optional.of(body),
+        function.getKind() == FunctionKind.FUNCTION_KIND_JAVA
+            || function.getKind() == FunctionKind.FUNCTION_KIND_PMML,
+        type);
+  }
+
+  private static RuntimeFunctionKind functionKind(FunctionKind kind) {
+    return switch (kind) {
+      case FUNCTION_KIND_UNSPECIFIED, FUNCTION_KIND_FEEL -> RuntimeFunctionKind.FEEL;
+      case FUNCTION_KIND_JAVA -> RuntimeFunctionKind.JAVA;
+      case FUNCTION_KIND_PMML -> RuntimeFunctionKind.PMML;
+      case UNRECOGNIZED -> throw new RuntimeIrLoweringException(
+          "Unsupported BKM function kind " + kind + ".");
+    };
   }
 
   private static Optional<RuntimeExpression> lowerDecisionExpression(
