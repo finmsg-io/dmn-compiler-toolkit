@@ -329,6 +329,19 @@ public final class DmnTypeAnalyzer {
     private RelationParsed typeRelation(RelationParsed relation, Map<String, TypeReference> scope,
         String path, SourceLocation location) {
       RelationParsed.Builder output = relation.toBuilder();
+      Map<String, Integer> columnNames = new LinkedHashMap<>();
+      List<TypeReference> inferredColumns = new ArrayList<>();
+      for (int i = 0; i < relation.getColumnsCount(); i++) {
+        String name = relation.getColumns(i).getVariable().getNode().getName();
+        inferredColumns.add(TypeReference.getDefaultInstance());
+        if (name.isBlank()) {
+          diagnostic("MISSING_RELATION_COLUMN_NAME", path + "/relation/column[" + i + "]",
+              "A relation column must have a name.", location);
+        } else if (columnNames.putIfAbsent(name, i) != null) {
+          diagnostic("DUPLICATE_RELATION_COLUMN_NAME", path + "/relation/column[" + i + "]",
+              "Duplicate relation column name '" + name + "'.", location);
+        }
+      }
       for (int i = 0; i < relation.getRowsCount(); i++) {
         RelationRowParsed row = relation.getRows(i);
         if (row.getExpressionsCount() != relation.getColumnsCount()) {
@@ -342,13 +355,22 @@ public final class DmnTypeAnalyzer {
               path + "/relation/row[" + i + "]/cell[" + j + "]", location);
           typedRow.setExpressions(j, expression);
           if (j < relation.getColumnsCount()) {
-            validateValueType(expressionParsedType(expression),
-                relation.getColumns(j).getVariable().getType(),
+            TypeReference cellType = expressionParsedType(expression);
+            inferredColumns.set(j, merge(inferredColumns.get(j), cellType));
+            validateValueType(cellType, relation.getColumns(j).getVariable().getType(),
                 "RELATION_CELL_TYPE_MISMATCH",
                 path + "/relation/row[" + i + "]/cell[" + j + "]", location);
           }
         }
         output.setRows(i, typedRow);
+      }
+      for (int i = 0; i < relation.getColumnsCount(); i++) {
+        RelationColumnParsed column = relation.getColumns(i);
+        if (column.getVariable().getType().getKindCase() == TypeReference.KindCase.KIND_NOT_SET
+            && inferredColumns.get(i).getKindCase() != TypeReference.KindCase.KIND_NOT_SET) {
+          output.setColumns(i, column.toBuilder().setVariable(
+              column.getVariable().toBuilder().setType(inferredColumns.get(i))));
+        }
       }
       return output.build();
     }

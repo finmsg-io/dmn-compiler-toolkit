@@ -310,6 +310,38 @@ class DmnTypeAnalyzerTest {
         .containsExactly("DECISION_TYPE_MISMATCH");
   }
 
+  @Test
+  void infersUndeclaredRelationColumnTypesFromCells() {
+    RelationParsed relation = RelationParsed.newBuilder()
+        .addColumns(RelationColumnParsed.newBuilder()
+            .setVariable(InformationItem.newBuilder()
+                .setNode(Node.newBuilder().setName("amount"))))
+        .addRows(RelationRowParsed.newBuilder().addExpressions(parsedExpression("1")))
+        .addRows(RelationRowParsed.newBuilder().addExpressions(parsedExpression("2")))
+        .build();
+    DmnSemanticAnalysisResult result = analyzer.analyze(modelWithRelation(relation));
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.model().getDrgElements(0).getDecision().getLogic().getBoxedExpression()
+        .getParsed().getRelation().getColumns(0).getVariable().getType().getBuiltin())
+        .isEqualTo(BuiltinType.BUILTIN_TYPE_NUMBER);
+  }
+
+  @Test
+  void validatesRelationColumnNames() {
+    RelationParsed relation = RelationParsed.newBuilder()
+        .addColumns(RelationColumnParsed.getDefaultInstance())
+        .addColumns(RelationColumnParsed.newBuilder().setVariable(
+            InformationItem.newBuilder().setNode(Node.newBuilder().setName("value"))))
+        .addColumns(RelationColumnParsed.newBuilder().setVariable(
+            InformationItem.newBuilder().setNode(Node.newBuilder().setName("value"))))
+        .build();
+
+    assertThat(analyzer.analyze(modelWithRelation(relation)).diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("MISSING_RELATION_COLUMN_NAME", "DUPLICATE_RELATION_COLUMN_NAME");
+  }
+
   private DrgElement decision(String name, TypeReference declaredType, String expression) {
     Decision decision = Decision.newBuilder()
         .setNode(Node.newBuilder().setName(name))
@@ -326,6 +358,18 @@ class DmnTypeAnalyzerTest {
         .setVariable(InformationItem.newBuilder()
             .setType(TypeReference.getDefaultInstance()))
         .setLogic(DecisionLogic.newBuilder().setDecisionTable(table))
+        .build();
+    return Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
+        .build();
+  }
+
+  private Definitions modelWithRelation(RelationParsed relation) {
+    Decision decision = Decision.newBuilder()
+        .setNode(Node.newBuilder().setName("Relation"))
+        .setLogic(DecisionLogic.newBuilder().setBoxedExpression(
+            BoxedExpression.newBuilder().setParsed(
+                BoxedExpressionParsed.newBuilder().setRelation(relation))))
         .build();
     return Definitions.newBuilder()
         .addDrgElements(DrgElement.newBuilder().setDecision(decision))
