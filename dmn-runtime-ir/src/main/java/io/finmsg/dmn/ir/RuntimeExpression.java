@@ -20,6 +20,8 @@ public sealed interface RuntimeExpression permits
     RuntimeUnaryTestsExpression,
     RuntimeForExpression,
     RuntimeQuantifiedExpression,
-    RuntimeFunctionDefinition {
+    RuntimeFunctionDefinition,
+    RuntimeInvocationExpression,
+    RuntimeDescendantExpression {
   RuntimeType type();
 }

@@ -247,10 +247,49 @@ public final class RuntimeIrLowerer {
       case FUNCTION_DEFINITION -> lowerFunctionDefinition(
           expression.getFunctionDefinition(), type, path, bindings, slots, itemTypes,
           localSlots, nextLocalSlot);
+      case INVOCATION -> lowerInvocation(expression.getInvocation(), type, path, bindings, slots,
+          itemTypes, localSlots, nextLocalSlot);
+      case DESCENDANT -> new RuntimeDescendantExpression(
+          lowerExpression(expression.getDescendant().getSource(), path + "/source", bindings, slots,
+              itemTypes, localSlots, nextLocalSlot),
+          expression.getDescendant().getMember(), type);
       default -> throw new RuntimeIrLoweringException(
           "Unsupported Runtime IR expression " + expression.getNodeCase()
               + " at " + path + ".");
     };
+  }
+
+  private static RuntimeInvocationExpression lowerInvocation(
+      InvocationExpression value,
+      RuntimeType type,
+      String path,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, Integer> localSlots,
+      int[] nextLocalSlot) {
+    boolean boundTarget = bindings.stream()
+        .anyMatch(binding -> binding.referencePath().equals(path + "/target"));
+    Optional<String> function = value.getTarget().hasName() && !boundTarget
+        ? Optional.of(value.getTarget().getName().getName()) : Optional.empty();
+    Optional<RuntimeExpression> target = function.isPresent() ? Optional.empty()
+        : Optional.of(lowerExpression(value.getTarget(), path + "/target", bindings, slots,
+            itemTypes, localSlots, nextLocalSlot));
+    List<RuntimeNamedArgument> namedArguments = new ArrayList<>();
+    for (int index = 0; index < value.getArgumentsCount(); index++) {
+      NamedArgument argument = value.getArguments(index);
+      namedArguments.add(new RuntimeNamedArgument(argument.getName(), lowerExpression(
+          argument.getExpression(), path + "/argument[" + index + "]", bindings, slots,
+          itemTypes, localSlots, nextLocalSlot)));
+    }
+    List<RuntimeExpression> positionalArguments = new ArrayList<>();
+    for (int index = 0; index < value.getPositionalArgumentsCount(); index++) {
+      positionalArguments.add(lowerExpression(value.getPositionalArguments(index),
+          path + "/argument[" + index + "]", bindings, slots, itemTypes,
+          localSlots, nextLocalSlot));
+    }
+    return new RuntimeInvocationExpression(
+        function, target, namedArguments, positionalArguments, type);
   }
 
   private static RuntimeForExpression lowerFor(

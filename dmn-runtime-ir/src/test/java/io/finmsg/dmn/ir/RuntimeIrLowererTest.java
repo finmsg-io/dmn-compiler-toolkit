@@ -461,6 +461,83 @@ class RuntimeIrLowererTest {
     assertThat(runtimeFunction.body()).containsInstanceOf(RuntimeLocalReference.class);
   }
 
+  @Test
+  void lowersStaticAndDynamicInvocationsAndDescendantAccess() {
+    TypeReference any = builtin(BuiltinType.BUILTIN_TYPE_ANY);
+    TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
+    TypeReference functionType = TypeReference.newBuilder()
+        .setFunction(FunctionTypeReference.newBuilder()
+            .addParameterType(number).setReturnType(number)).build();
+    TypeReference contextType = TypeReference.newBuilder()
+        .setContext(ContextTypeReference.newBuilder()
+            .addEntries(ContextEntryTypeReference.newBuilder().setName("amount").setType(number)))
+        .build();
+    TypeReference anyList = TypeReference.newBuilder()
+        .setList(ListTypeReference.newBuilder().setElementType(any)).build();
+    DrgElement functionInput = DrgElement.newBuilder().setInputData(InputData.newBuilder()
+        .setNode(Node.newBuilder().setId("function-id").setName("Calculator"))
+        .setVariable(InformationItem.newBuilder().setType(functionType))).build();
+    Expression dynamicInvocation = Expression.newBuilder()
+        .setInvocation(InvocationExpression.newBuilder()
+            .setTarget(name("Calculator", functionType))
+            .addPositionalArguments(literal(
+                LiteralKind.LITERAL_KIND_NUMBER, "2", number)))
+        .setInferredType(number).build();
+    Expression staticInvocation = Expression.newBuilder()
+        .setInvocation(InvocationExpression.newBuilder()
+            .setTarget(Expression.newBuilder()
+                .setName(NameExpression.newBuilder().setName("abs")))
+            .addArguments(NamedArgument.newBuilder().setName("n")
+                .setExpression(literal(LiteralKind.LITERAL_KIND_NUMBER, "-2", number))))
+        .setInferredType(number).build();
+    Expression context = Expression.newBuilder()
+        .setContext(ContextExpression.newBuilder().addEntries(ContextEntry.newBuilder()
+            .setName("amount")
+            .setExpression(literal(LiteralKind.LITERAL_KIND_NUMBER, "3", number))))
+        .setInferredType(contextType).build();
+    Expression descendant = Expression.newBuilder()
+        .setDescendant(DescendantExpression.newBuilder()
+            .setSource(context).setMember("amount"))
+        .setInferredType(number).build();
+    Expression expression = Expression.newBuilder()
+        .setList(ListExpression.newBuilder().addElements(dynamicInvocation)
+            .addElements(staticInvocation).addElements(descendant))
+        .setInferredType(anyList).build();
+    Decision decisionValue = decisionWithExpression(
+        "decision-id", "Result", anyList, expression).getDecision().toBuilder()
+        .addInformationRequirements(
+            InformationRequirement.newBuilder().setInput(ref("#function-id")))
+        .build();
+    DrgElement decision = DrgElement.newBuilder().setDecision(decisionValue).build();
+    String root = "definitions/decision[Result]/logic/literalExpression";
+    DmnSymbolBinding targetBinding = new DmnSymbolBinding(
+        root + "/element[0]/target", "definitions/inputData[Calculator]",
+        "Calculator", "function-id", DmnSymbolKind.INPUT_DATA, functionType);
+
+    RuntimeListExpression lowered = (RuntimeListExpression) lowerer.lower(
+        new DmnSemanticPipelineResult(Definitions.newBuilder()
+            .addDrgElements(functionInput).addDrgElements(decision).build(),
+            List.of(decision), List.of(), List.of(targetBinding)))
+        .decisions().getFirst().expression().orElseThrow();
+
+    RuntimeInvocationExpression dynamic =
+        (RuntimeInvocationExpression) lowered.elements().get(0);
+    assertThat(dynamic.function()).isEmpty();
+    assertThat(dynamic.target()).containsInstanceOf(RuntimeValueReference.class);
+    assertThat(dynamic.positionalArguments()).singleElement()
+        .isInstanceOf(RuntimeConstant.class);
+    RuntimeInvocationExpression named =
+        (RuntimeInvocationExpression) lowered.elements().get(1);
+    assertThat(named.function()).contains("abs");
+    assertThat(named.target()).isEmpty();
+    assertThat(named.namedArguments()).singleElement()
+        .extracting(RuntimeNamedArgument::name).isEqualTo("n");
+    RuntimeDescendantExpression runtimeDescendant =
+        (RuntimeDescendantExpression) lowered.elements().get(2);
+    assertThat(runtimeDescendant.member()).isEqualTo("amount");
+    assertThat(runtimeDescendant.source()).isInstanceOf(RuntimeContextExpression.class);
+  }
+
   private static DrgElement decisionWithExpression(
       String id, String name, TypeReference type, Expression expression) {
     return DrgElement.newBuilder().setDecision(Decision.newBuilder()

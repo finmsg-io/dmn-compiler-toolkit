@@ -40,7 +40,8 @@
 [done] lower context expressions, lexical-local bindings, and path/property access to Runtime IR
 [done] lower ranges, filters, and remaining comparison/test expressions to Runtime IR
 [done] lower iteration, quantified, and function-definition expressions to Runtime IR
-[ ] lower invocation and descendant-access expressions to Runtime IR
+[done] lower invocation and descendant-access expressions to Runtime IR
+[ ] lower the decision-table expression marker and boxed decision-table logic to Runtime IR
 [ ] lower decision tables and complete linked model sets
 ```
 
