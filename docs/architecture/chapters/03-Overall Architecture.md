@@ -24,7 +24,7 @@ Semantic Analysis           implemented for linked model sets
 Optimization                future
    │
    ▼
-Runtime IR                  structural baseline implemented
+Runtime IR                  structure, constants, and value references implemented
    │
    ▼
 Code Generation             future
@@ -43,7 +43,7 @@ Each stage has a stable protobuf input/output boundary and treats its input as i
 | FEEL parser | Semantic `Definitions` | copied `Definitions` with parsed FEEL | Implemented |
 | Semantic pipeline | parsed model set | typed models, persisted bindings, compilation order, and diagnostics | Implemented |
 | Optimizer | validated model | optimized model | Future |
-| Runtime builder | typed model | structural Runtime IR | Deterministic graph/type baseline implemented |
+| Runtime builder | typed model | Runtime IR | Deterministic graph/type, constant, and bound value-reference lowering implemented |
 | Code generator | Runtime IR | target code | Future |
 
 ## 3.3 Representation strategy

@@ -54,7 +54,7 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-frontend-xml` | Namespace-aware DMN XML reader and semantic round-trip writer based on VTD-XML |
 | `dmn-feel-parser` | ANTLR4 parser for DMN FEEL expressions |
 | `dmn-semantic-analysis` | Reference resolution, type analysis, DMN validation, and dependency ordering |
-| `dmn-runtime-ir` | Immutable structural Runtime IR and semantic-model lowering |
+| `dmn-runtime-ir` | Immutable Runtime IR with structural, constant, and value-reference lowering |
 
 Planned modules include optimization, Java code generation, compiler API, and runtime support.
 

@@ -118,7 +118,8 @@ Implemented baseline responsibilities:
 - integer dependency references and evaluation order
 - rejection of unsuccessful semantic-analysis results
 
-Expression instructions, constant pools, and model-set lowering remain future work.
+Typed constants and bound value-slot references are implemented. Operators, compound expression
+instructions, constant pools, decision tables, and model-set lowering remain future work.
 
 ## 5.7 Target modules
 

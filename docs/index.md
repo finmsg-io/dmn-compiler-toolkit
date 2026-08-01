@@ -12,7 +12,7 @@ The repository currently contains five active Maven modules:
 - `dmn-frontend-xml` — namespace-aware VTD-XML reader and writer for the current protobuf-supported DMN subset
 - `dmn-feel-parser` — ANTLR4 grammar, AST builder, complete DMN FEEL parsing pass, and model-aware diagnostics
 - `dmn-semantic-analysis` — reference resolution, type analysis, DMN validation, and deterministic dependency ordering
-- `dmn-runtime-ir` — immutable structural Runtime IR and deterministic semantic-model lowering
+- `dmn-runtime-ir` — immutable Runtime IR with deterministic structure, constants, and bound value references
 
 The implemented pipeline is:
 
@@ -38,7 +38,7 @@ DmnSemanticAnalyzer
 Semantic-analysis result and diagnostics
 ```
 
-Cross-model semantic linking, QName-safe XML type references, and structural Runtime IR graph/type lowering are implemented. Runtime IR expression lowering, optimization, code generation, and execution remain future stages.
+Cross-model semantic linking, QName-safe XML type references, structural Runtime IR lowering, typed constants, and bound value-slot references are implemented. Compound expression lowering, optimization, code generation, and execution remain future stages.
 
 ## Design goals
 

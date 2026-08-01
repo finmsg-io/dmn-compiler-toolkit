@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Optional;
 
 /** Lowers a successfully typed, single-model semantic result into structural Runtime IR. */
 public final class RuntimeIrLowerer {
@@ -29,6 +30,7 @@ public final class RuntimeIrLowerer {
         itemTypes.put(item.getNode().getName(), item));
 
     Map<String, Integer> runtimeIdBySourceId = new HashMap<>();
+    Map<String, Integer> valueSlotBySourceId = new HashMap<>();
     Map<String, DrgElement> elementBySourceId = new HashMap<>();
     int nextId = 0;
     for (DrgElement element : model.getDrgElementsList()) {
@@ -38,6 +40,7 @@ public final class RuntimeIrLowerer {
       }
       if (!node.getId().isBlank()) {
         runtimeIdBySourceId.put(node.getId(), nextId);
+        valueSlotBySourceId.put(node.getId(), nextId);
         elementBySourceId.put(node.getId(), element);
       }
       nextId++;
@@ -59,7 +62,9 @@ public final class RuntimeIrLowerer {
           Decision decision = element.getDecision();
           decisions.add(new RuntimeDecision(runtimeId, runtimeId,
               lowerType(decision.getVariable().getType(), itemTypes, new HashSet<>()),
-              decisionDependencies(decision, runtimeIdBySourceId)));
+              decisionDependencies(decision, runtimeIdBySourceId),
+              lowerDecisionExpression(
+                  decision, analysis.bindings(), valueSlotBySourceId, itemTypes)));
           runtimeId++;
         }
         case BUSINESS_KNOWLEDGE_MODEL -> {
@@ -84,6 +89,62 @@ public final class RuntimeIrLowerer {
       order.add(id);
     }
     return new RuntimeModel(inputs, decisions, bkms, order, runtimeId);
+  }
+
+  private static Optional<RuntimeExpression> lowerDecisionExpression(
+      Decision decision,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes) {
+    if (!decision.hasLogic()) {
+      return Optional.empty();
+    }
+    if (!decision.getLogic().hasLiteralExpression()
+        || !decision.getLogic().getLiteralExpression().hasParsed()) {
+      throw new RuntimeIrLoweringException(
+          "Decision '" + decision.getNode().getName()
+              + "' requires supported parsed literal logic for expression lowering.");
+    }
+    Expression expression = decision.getLogic().getLiteralExpression().getParsed().getAst();
+    RuntimeType type = lowerType(expression.getInferredType(), itemTypes, new HashSet<>());
+    return Optional.of(switch (expression.getNodeCase()) {
+      case LITERAL -> new RuntimeConstant(
+          constantKind(expression.getLiteral().getKind()), expression.getLiteral().getValue(), type);
+      case NAME -> {
+        String path = "definitions/decision[" + decision.getNode().getName()
+            + "]/logic/literalExpression";
+        var binding = bindings.stream()
+            .filter(value -> value.referencePath().equals(path))
+            .findFirst()
+            .orElseThrow(() -> new RuntimeIrLoweringException(
+                "Missing semantic binding for decision expression at " + path + "."));
+        Integer slot = slots.get(binding.symbolId());
+        if (slot == null) {
+          throw new RuntimeIrLoweringException(
+              "Expression binding targets a value outside the current runtime model: '"
+                  + binding.symbolName() + "'.");
+        }
+        yield new RuntimeValueReference(slot, type);
+      }
+      default -> throw new RuntimeIrLoweringException(
+          "Unsupported Runtime IR expression " + expression.getNodeCase()
+              + " in decision '" + decision.getNode().getName() + "'.");
+    });
+  }
+
+  private static RuntimeConstantKind constantKind(LiteralKind kind) {
+    return switch (kind) {
+      case LITERAL_KIND_NULL -> RuntimeConstantKind.NULL;
+      case LITERAL_KIND_BOOLEAN -> RuntimeConstantKind.BOOLEAN;
+      case LITERAL_KIND_NUMBER -> RuntimeConstantKind.NUMBER;
+      case LITERAL_KIND_STRING -> RuntimeConstantKind.STRING;
+      case LITERAL_KIND_DATE -> RuntimeConstantKind.DATE;
+      case LITERAL_KIND_TIME -> RuntimeConstantKind.TIME;
+      case LITERAL_KIND_DATE_TIME -> RuntimeConstantKind.DATE_TIME;
+      case LITERAL_KIND_DURATION -> RuntimeConstantKind.DURATION;
+      case LITERAL_KIND_UNSPECIFIED, UNRECOGNIZED -> throw new RuntimeIrLoweringException(
+          "Unsupported FEEL literal kind " + kind + ".");
+    };
   }
 
   private static List<Integer> decisionDependencies(
