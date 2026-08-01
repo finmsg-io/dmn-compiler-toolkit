@@ -94,6 +94,40 @@ class DmnSemanticAnalyzerTest {
   }
 
   @Test
+  void validatesItemDefinitionTypeGraph() {
+    ItemDefinition invalid = ItemDefinition.newBuilder()
+        .setNode(Node.newBuilder().setName("Invalid"))
+        .setType(namedType("Missing"))
+        .addComponents(ItemComponent.newBuilder()
+            .setNode(Node.newBuilder().setName("value"))
+            .setType(namedType("number")))
+        .addComponents(ItemComponent.newBuilder()
+            .setNode(Node.newBuilder().setName("value"))
+            .setType(namedType("string")))
+        .build();
+    ItemDefinition first = ItemDefinition.newBuilder()
+        .setNode(Node.newBuilder().setName("First"))
+        .setType(namedType("Second"))
+        .build();
+    ItemDefinition second = ItemDefinition.newBuilder()
+        .setNode(Node.newBuilder().setName("Second"))
+        .setType(namedType("First"))
+        .build();
+
+    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
+        .addItemDefinitions(invalid)
+        .addItemDefinitions(first)
+        .addItemDefinitions(second)
+        .build());
+
+    assertThat(result.diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("UNKNOWN_TYPE", "DUPLICATE_COMPONENT", "CYCLIC_TYPE_DEFINITION");
+    assertThat(result.diagnostics().get(2).message())
+        .isEqualTo("Cyclic item-definition types: First -> Second -> First.");
+  }
+
+  @Test
   void reportsDuplicateDrgElementIds() {
     Definitions model = Definitions.newBuilder()
         .addDrgElements(DrgElement.newBuilder().setInputData(InputData.newBuilder()

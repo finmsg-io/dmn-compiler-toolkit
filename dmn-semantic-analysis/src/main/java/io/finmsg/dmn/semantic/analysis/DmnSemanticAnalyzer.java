@@ -16,7 +16,8 @@ public final class DmnSemanticAnalyzer {
 
   private static final Set<String> BUILTIN_NAMES = Set.of(
       "date", "time", "date and time", "duration", "years and months duration",
-      "string", "number", "context", "list", "range");
+      "days and time duration", "string", "number", "boolean", "context", "list", "range",
+      "any", "null");
 
   public DmnSemanticAnalysisResult analyze(Definitions parsedModel) {
     Objects.requireNonNull(parsedModel, "parsedModel");
@@ -39,6 +40,7 @@ public final class DmnSemanticAnalyzer {
 
     private void analyze() {
       collectItemDefinitions();
+      validateItemDefinitions();
       collectGlobalSymbols();
       analyzeTypeConstraints();
 
@@ -62,6 +64,114 @@ public final class DmnSemanticAnalyzer {
           error("DUPLICATE_TYPE", path, "Duplicate item definition '" + name + "'.",
               item.getNode().getSourceLocation());
         }
+      }
+    }
+
+    private void validateItemDefinitions() {
+      for (int i = 0; i < model.getItemDefinitionsCount(); i++) {
+        ItemDefinition item = model.getItemDefinitions(i);
+        String path = "definitions/itemDefinition["
+            + displayName(item.getNode().getName(), i) + "]";
+        validateTypeReference(item.getType(), path + "/type", item.getNode().getSourceLocation());
+        Set<String> componentNames = new HashSet<>();
+        for (int j = 0; j < item.getComponentsCount(); j++) {
+          ItemComponent component = item.getComponents(j);
+          String componentName = component.getNode().getName();
+          String componentPath = path + "/component[" + displayName(componentName, j) + "]";
+          if (!componentName.isBlank() && !componentNames.add(componentName)) {
+            error("DUPLICATE_COMPONENT", componentPath,
+                "Duplicate component '" + componentName + "' in item definition '"
+                    + item.getNode().getName() + "'.",
+                component.getNode().getSourceLocation());
+          }
+          validateTypeReference(component.getType(), componentPath + "/type",
+              component.getNode().getSourceLocation());
+        }
+      }
+      Map<String, Integer> states = new HashMap<>();
+      List<String> stack = new ArrayList<>();
+      Set<String> reported = new HashSet<>();
+      itemDefinitions.keySet().forEach(name -> detectTypeCycle(name, states, stack, reported));
+    }
+
+    private void validateTypeReference(TypeReference type, String path, SourceLocation location) {
+      switch (type.getKindCase()) {
+        case NAMED -> {
+          String name = type.getNamed().getName();
+          if (type.getNamed().getNamespace().isBlank() && !name.isBlank()
+              && !BUILTIN_NAMES.contains(name) && !itemDefinitions.containsKey(name)) {
+            error("UNKNOWN_TYPE", path, "Unknown type '" + name + "'.", location);
+          }
+        }
+        case LIST -> validateTypeReference(type.getList().getElementType(), path + "/elementType",
+            location);
+        case RANGE -> validateTypeReference(type.getRange().getElementType(), path + "/elementType",
+            location);
+        case FUNCTION -> {
+          for (int i = 0; i < type.getFunction().getParameterTypeCount(); i++) {
+            validateTypeReference(type.getFunction().getParameterType(i),
+                path + "/parameterType[" + i + "]", location);
+          }
+          validateTypeReference(type.getFunction().getReturnType(), path + "/returnType", location);
+        }
+        case CONTEXT -> {
+          for (int i = 0; i < type.getContext().getEntriesCount(); i++) {
+            validateTypeReference(type.getContext().getEntries(i).getType(),
+                path + "/entry[" + i + "]", location);
+          }
+        }
+        case BUILTIN, KIND_NOT_SET -> { }
+      }
+    }
+
+    private void detectTypeCycle(String name, Map<String, Integer> states, List<String> stack,
+        Set<String> reported) {
+      if (states.getOrDefault(name, 0) == 2) {
+        return;
+      }
+      if (states.getOrDefault(name, 0) == 1) {
+        int start = stack.indexOf(name);
+        List<String> cycle = new ArrayList<>(stack.subList(start, stack.size()));
+        cycle.add(name);
+        String key = String.join("->", cycle);
+        if (reported.add(key)) {
+          ItemDefinition item = itemDefinitions.get(name);
+          error("CYCLIC_TYPE_DEFINITION", "definitions/itemDefinition[" + name + "]/type",
+              "Cyclic item-definition types: " + String.join(" -> ", cycle) + ".",
+              item.getNode().getSourceLocation());
+        }
+        return;
+      }
+      states.put(name, 1);
+      stack.add(name);
+      ItemDefinition item = itemDefinitions.get(name);
+      Set<String> dependencies = new LinkedHashSet<>();
+      collectLocalTypeNames(item.getType(), dependencies);
+      item.getComponentsList().forEach(component ->
+          collectLocalTypeNames(component.getType(), dependencies));
+      dependencies.stream().filter(itemDefinitions::containsKey)
+          .forEach(dependency -> detectTypeCycle(dependency, states, stack, reported));
+      stack.removeLast();
+      states.put(name, 2);
+    }
+
+    private void collectLocalTypeNames(TypeReference type, Set<String> names) {
+      switch (type.getKindCase()) {
+        case NAMED -> {
+          if (type.getNamed().getNamespace().isBlank()) {
+            names.add(type.getNamed().getName());
+          }
+        }
+        case LIST -> collectLocalTypeNames(type.getList().getElementType(), names);
+        case RANGE -> collectLocalTypeNames(type.getRange().getElementType(), names);
+        case FUNCTION -> {
+          type.getFunction().getParameterTypeList().forEach(parameter ->
+              collectLocalTypeNames(parameter, names));
+          collectLocalTypeNames(type.getFunction().getReturnType(), names);
+        }
+        case CONTEXT -> type.getContext().getEntriesList().forEach(entry ->
+            collectLocalTypeNames(entry.getType(), names));
+        case BUILTIN, KIND_NOT_SET -> { }
       }
     }
 
