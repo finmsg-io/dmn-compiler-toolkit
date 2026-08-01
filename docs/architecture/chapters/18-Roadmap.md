@@ -24,12 +24,12 @@
 [done] decision-table, BKM, item-definition, and decision-service validation
 [done] DRG dependency validation and cycle detection
 [done] deterministic compilation order
+[done] exposed symbol and named-type binding table
 ```
 
 ## 18.2 Next milestone — semantic-analysis completion
 
 ```text
-[ ] expose or persist resolved symbol bindings
 [ ] link imports and cross-model references
 [ ] close remaining DMN 1.5 expression and validation edge cases
 [ ] stabilize the typed model contract for Runtime IR lowering

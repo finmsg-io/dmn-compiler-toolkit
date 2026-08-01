@@ -21,10 +21,10 @@
 - [x] Operator and built-in function validation
 - [x] Decision-table, BKM, item-definition, and decision-service validation
 - [x] DRG dependency analysis, cycle detection, and deterministic compilation order
+- [x] Exposed resolved symbol and named-type bindings
 
 ## Next: semantic-analysis completion
 
-- [ ] Persist or expose resolved symbol bindings
 - [ ] Validate imports and cross-model references
 - [ ] Close remaining DMN 1.5 expression and validation edge cases
 - [ ] Stabilize the semantic pipeline as an input to Runtime IR

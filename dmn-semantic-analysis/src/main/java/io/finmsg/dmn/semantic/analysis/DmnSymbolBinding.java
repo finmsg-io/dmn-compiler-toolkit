@@ -1,0 +1,23 @@
+package io.finmsg.dmn.semantic.analysis;
+
+import io.finmsg.dmn.model.TypeReference;
+import java.util.Objects;
+
+/** A successful resolution from a model use-site path to its declaration. */
+public record DmnSymbolBinding(
+    String referencePath,
+    String declarationPath,
+    String symbolName,
+    String symbolId,
+    DmnSymbolKind kind,
+    TypeReference type) {
+
+  public DmnSymbolBinding {
+    Objects.requireNonNull(referencePath, "referencePath");
+    Objects.requireNonNull(declarationPath, "declarationPath");
+    Objects.requireNonNull(symbolName, "symbolName");
+    Objects.requireNonNull(symbolId, "symbolId");
+    Objects.requireNonNull(kind, "kind");
+    Objects.requireNonNull(type, "type");
+  }
+}

@@ -193,7 +193,7 @@ mkdocs build
 - Complete DMN XML frontend coverage
 - Complete FEEL grammar and AST mapping
 - Complete import and cross-model semantic analysis
-- Persist or expose resolved symbol bindings
+- Complete remaining FEEL expression edge cases
 - Introduce runtime IR
 - Add optimizer passes
 - Generate optimized Java code

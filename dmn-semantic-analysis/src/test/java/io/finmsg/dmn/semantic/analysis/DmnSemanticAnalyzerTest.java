@@ -166,6 +166,74 @@ class DmnSemanticAnalyzerTest {
   }
 
   @Test
+  void exposesResolvedElementAndFeelNameBindings() {
+    InputData input = InputData.newBuilder()
+        .setNode(Node.newBuilder().setId("input-id").setName("ApplicantAge"))
+        .setVariable(InformationItem.newBuilder()
+            .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+        .build();
+    Decision decision = Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("decision-id").setName("Eligibility"))
+        .addInformationRequirements(InformationRequirement.newBuilder()
+            .setInput(reference("#input-id")))
+        .setLogic(DecisionLogic.newBuilder()
+            .setLiteralExpression(parsedFeel("ApplicantAge")))
+        .build();
+
+    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setInputData(input))
+        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
+        .build());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.bindings())
+        .extracting(
+            DmnSymbolBinding::referencePath,
+            DmnSymbolBinding::declarationPath,
+            DmnSymbolBinding::symbolId,
+            DmnSymbolBinding::kind)
+        .containsExactly(
+            org.assertj.core.groups.Tuple.tuple(
+                "definitions/decision[Eligibility]/informationRequirement[0]",
+                "definitions/drgElement[input-id]",
+                "input-id",
+                DmnSymbolKind.INPUT_DATA),
+            org.assertj.core.groups.Tuple.tuple(
+                "definitions/decision[Eligibility]/logic/literalExpression",
+                "definitions/drgElement[input-id]",
+                "input-id",
+                DmnSymbolKind.INPUT_DATA));
+  }
+
+  @Test
+  void exposesResolvedNamedTypeBindings() {
+    ItemDefinition applicant = ItemDefinition.newBuilder()
+        .setNode(Node.newBuilder().setId("applicant-type").setName("Applicant"))
+        .build();
+    InputData input = InputData.newBuilder()
+        .setNode(Node.newBuilder().setId("input-id").setName("Applicant data"))
+        .setVariable(InformationItem.newBuilder().setType(namedType("Applicant")))
+        .build();
+
+    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
+        .addItemDefinitions(applicant)
+        .addDrgElements(DrgElement.newBuilder().setInputData(input))
+        .build());
+
+    assertThat(result.diagnostics()).isEmpty();
+    assertThat(result.bindings())
+        .singleElement()
+        .satisfies(binding -> {
+          assertThat(binding.referencePath())
+              .isEqualTo("definitions/inputData[Applicant data]/variable/type");
+          assertThat(binding.declarationPath())
+              .isEqualTo("definitions/itemDefinition[Applicant]");
+          assertThat(binding.symbolId()).isEqualTo("applicant-type");
+          assertThat(binding.kind()).isEqualTo(DmnSymbolKind.ITEM_DEFINITION);
+        });
+  }
+
+  @Test
   void reportsDuplicateDrgElementIds() {
     Definitions model = Definitions.newBuilder()
         .addDrgElements(DrgElement.newBuilder().setInputData(InputData.newBuilder()

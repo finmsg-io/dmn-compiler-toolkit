@@ -24,13 +24,14 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
     Objects.requireNonNull(parsedModel, "parsedModel");
     Session session = new Session(parsedModel);
     session.analyze();
-    return new DmnSemanticAnalysisResult(parsedModel, session.diagnostics);
+    return new DmnSemanticAnalysisResult(parsedModel, session.diagnostics, session.bindings);
   }
 
   private static final class Session {
 
     private final Definitions model;
     private final List<DmnSemanticDiagnostic> diagnostics = new ArrayList<>();
+    private final List<DmnSymbolBinding> bindings = new ArrayList<>();
     private final Map<String, List<Symbol>> globalsByName = new LinkedHashMap<>();
     private final Map<String, List<Symbol>> globalsById = new HashMap<>();
     private final Map<String, ItemDefinition> itemDefinitions = new LinkedHashMap<>();
@@ -108,8 +109,19 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
         case NAMED -> {
           String name = type.getNamed().getName();
           if (type.getNamed().getNamespace().isBlank() && !name.isBlank()
-              && !BUILTIN_NAMES.contains(name) && !itemDefinitions.containsKey(name)) {
-            error("UNKNOWN_TYPE", path, "Unknown type '" + name + "'.", location);
+              && !BUILTIN_NAMES.contains(name)) {
+            ItemDefinition item = itemDefinitions.get(name);
+            if (item == null) {
+              error("UNKNOWN_TYPE", path, "Unknown type '" + name + "'.", location);
+            } else {
+              bindings.add(new DmnSymbolBinding(
+                  path,
+                  "definitions/itemDefinition[" + name + "]",
+                  name,
+                  item.getNode().getId(),
+                  DmnSymbolKind.ITEM_DEFINITION,
+                  type));
+            }
           }
         }
         case LIST -> validateTypeReference(type.getList().getElementType(), path + "/elementType",
@@ -243,7 +255,9 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
     private Symbol symbol(
         Node node, TypeReference type, SymbolKind kind, List<String> parameters) {
       return new Symbol(
-          node.getName(), node.getId(), type, kind, node.getSourceLocation(), parameters);
+          node.getName(), node.getId(), type, kind, node.getSourceLocation(), parameters,
+          "definitions/drgElement[" + displayName(
+              node.getId().isBlank() ? node.getName() : node.getId(), 0) + "]");
     }
 
     private void analyzeTypeConstraints() {
@@ -508,6 +522,7 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
                 + ", expected " + expectedKinds(expected) + ".", location);
         return null;
       }
+      bind(path, symbol);
       return symbol;
     }
 
@@ -893,7 +908,9 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
           error("AMBIGUOUS_NAME", path, "Name '" + name + "' is ambiguous.", location);
           return TypeReference.getDefaultInstance();
         }
-        return resolved.getFirst().type;
+        Symbol symbol = resolved.getFirst();
+        bind(path, symbol);
+        return symbol.type;
       }
       if (globalsByName.containsKey(name)) {
         error("UNAVAILABLE_NAME", path,
@@ -939,9 +956,27 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
       if (name.isBlank()) {
         return;
       }
-      if (!scope.define(new Symbol(name, "", type, kind, location, List.of()))) {
+      if (!scope.define(new Symbol(name, "", type, kind, location, List.of(), path))) {
         error("DUPLICATE_NAME", path, "Duplicate name '" + name + "'.", location);
       }
+    }
+
+    private void bind(String referencePath, Symbol symbol) {
+      bindings.add(new DmnSymbolBinding(
+          referencePath,
+          symbol.declarationPath,
+          symbol.name,
+          symbol.id,
+          switch (symbol.kind) {
+            case INPUT_DATA -> DmnSymbolKind.INPUT_DATA;
+            case DECISION -> DmnSymbolKind.DECISION;
+            case BKM -> DmnSymbolKind.BUSINESS_KNOWLEDGE_MODEL;
+            case KNOWLEDGE_SOURCE -> DmnSymbolKind.KNOWLEDGE_SOURCE;
+            case DECISION_SERVICE -> DmnSymbolKind.DECISION_SERVICE;
+            case PARAMETER -> DmnSymbolKind.PARAMETER;
+            case LOCAL -> DmnSymbolKind.LOCAL_VARIABLE;
+          },
+          symbol.type));
     }
 
     private void error(String code, String path, String message, SourceLocation location) {
@@ -980,7 +1015,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
       TypeReference type,
       SymbolKind kind,
       SourceLocation location,
-      List<String> parameters) {
+      List<String> parameters,
+      String declarationPath) {
 
     private Symbol {
       parameters = List.copyOf(parameters);

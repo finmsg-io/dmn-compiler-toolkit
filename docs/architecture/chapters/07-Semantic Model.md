@@ -79,6 +79,6 @@ Known gaps include:
 - some XML expression IDs are not represented
 - recursive item components are not represented
 - imports and cross-model linking are incomplete
-- resolved symbol IDs are not yet persisted in the AST
+- resolved symbols and named types are exposed through `DmnSymbolBinding`; they are not persisted in the AST
 
 Semantic analysis populates `Expression.inferred_type` across the currently supported FEEL and boxed-expression forms. Unsupported or invalid expressions retain an unknown type and produce diagnostics where applicable.

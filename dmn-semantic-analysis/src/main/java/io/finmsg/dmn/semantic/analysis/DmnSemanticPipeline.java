@@ -41,7 +41,8 @@ public final class DmnSemanticPipeline {
     addDiagnostics(diagnostics, seen, dependencyResult.diagnostics());
 
     return new DmnSemanticPipelineResult(
-        typeResult.model(), dependencyResult.compilationOrder(), diagnostics);
+        typeResult.model(), dependencyResult.compilationOrder(), diagnostics,
+        referenceResult.bindings());
   }
 
   private static void addDiagnostics(

@@ -8,11 +8,20 @@ import java.util.List;
 public record DmnSemanticPipelineResult(
     Definitions model,
     List<DrgElement> compilationOrder,
-    List<DmnSemanticDiagnostic> diagnostics) {
+    List<DmnSemanticDiagnostic> diagnostics,
+    List<DmnSymbolBinding> bindings) {
 
   public DmnSemanticPipelineResult {
     compilationOrder = List.copyOf(compilationOrder);
     diagnostics = List.copyOf(diagnostics);
+    bindings = List.copyOf(bindings);
+  }
+
+  public DmnSemanticPipelineResult(
+      Definitions model,
+      List<DrgElement> compilationOrder,
+      List<DmnSemanticDiagnostic> diagnostics) {
+    this(model, compilationOrder, diagnostics, List.of());
   }
 
   public boolean isSuccess() {

@@ -57,7 +57,7 @@ The parsed representation does not redundantly retain FEEL text. The original se
 
 ## 8.6 Semantic state
 
-The semantic pipeline validates names and structured paths, resolves named types, checks operators and built-in function calls, and populates `Expression.inferred_type` across the currently supported FEEL and boxed-expression forms. Resolved symbol IDs are not yet stored in AST nodes; unsupported or invalid expressions use an unknown type and diagnostics rather than a persisted binding.
+The semantic pipeline validates names and structured paths, resolves named types, checks operators and built-in function calls, and populates `Expression.inferred_type` across the currently supported FEEL and boxed-expression forms. Successful symbol and named-type resolutions are exposed through an immutable `DmnSymbolBinding` side table rather than stored in AST nodes. Unsupported or invalid expressions use an unknown type and diagnostics.
 
 ## 8.7 Design rules
 
