@@ -22,7 +22,7 @@ public final class ExpressionNodeReader {
 
     ExpressionText.Builder builder = ExpressionText.newBuilder();
 
-    switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
       case "literalExpression", "inputExpression", "inputValues", "outputValues",
           "inputEntry", "outputEntry", "defaultOutputEntry", "expression" ->
           builder.setFeel(readers.feelReader().readText(cursor));

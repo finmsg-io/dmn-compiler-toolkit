@@ -33,7 +33,7 @@ public final class DecisionReader {
 
       do {
 
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "variable" -> builder.setVariable(variableReader.read(cursor));
 
           case "informationRequirement" ->

@@ -17,7 +17,7 @@ public final class DecisionServiceReader {
 
       do {
 
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "outputDecision" -> {
             // later
           }

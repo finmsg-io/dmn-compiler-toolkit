@@ -21,7 +21,7 @@ public final class ItemComponentReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "typeRef" -> builder.setType(typeReferenceReader.read(cursor.text()));
 
           case "allowedValues", "typeConstraint" ->

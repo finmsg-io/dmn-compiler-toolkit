@@ -18,7 +18,7 @@ public final class ContextEntryTextReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "variable" -> builder.setVariable(informationItemReader.read(cursor));
           case "literalExpression", "context", "relation", "list", "functionDefinition" ->
               builder.setExpression(readers.expressionNodeReader().readText(cursor));

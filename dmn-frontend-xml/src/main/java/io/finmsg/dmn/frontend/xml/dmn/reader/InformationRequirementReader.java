@@ -12,7 +12,7 @@ public final class InformationRequirementReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "requiredInput" ->
               builder.setInput(
                   ElementReference.newBuilder().setHref(cursor.attribute("href").get()).build());

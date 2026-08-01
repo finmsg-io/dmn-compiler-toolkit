@@ -36,6 +36,17 @@ public interface XmlCursor extends AutoCloseable {
    */
   String namespaceUri();
 
+  /** Namespace URI of the document element. */
+  String documentNamespaceUri();
+
+  /**
+   * Local name when the current element belongs to the document namespace;
+   * otherwise an empty string. Useful for namespace-safe dispatch.
+   */
+  default String documentLocalName() {
+    return documentNamespaceUri().equals(namespaceUri()) ? localName() : "";
+  }
+
   boolean isElement(String localName);
 
   // --------------------------------------------------------------------

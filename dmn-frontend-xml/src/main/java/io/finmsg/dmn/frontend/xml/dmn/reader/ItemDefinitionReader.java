@@ -26,7 +26,7 @@ public final class ItemDefinitionReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "typeRef" -> builder.setType(typeReferenceReader.read(cursor.text()));
 
           case "itemComponent" -> builder.addComponents(itemComponentReader.read(cursor));

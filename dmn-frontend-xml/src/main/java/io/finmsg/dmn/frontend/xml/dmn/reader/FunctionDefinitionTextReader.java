@@ -18,7 +18,7 @@ public final class FunctionDefinitionTextReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "formalParameter" -> builder.addParameters(variableReader.read(cursor));
           case "literalExpression", "context", "relation", "list", "functionDefinition" ->
               builder.setBody(readers.expressionNodeReader().readText(cursor));

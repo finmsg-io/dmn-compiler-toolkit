@@ -13,7 +13,7 @@ public final class DecisionLogicReader {
 
     DecisionLogic.Builder builder = DecisionLogic.newBuilder();
 
-    switch (cursor.localName()) {
+    switch (cursor.documentLocalName()) {
       case "literalExpression" ->
           builder.setLiteralExpression(ReaderRegistry.shared().feelReader().read(cursor));
 

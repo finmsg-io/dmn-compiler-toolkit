@@ -17,7 +17,7 @@ public final class ListExpressionTextReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "literalExpression", "context", "relation", "list", "functionDefinition" ->
               builder.addElements(readers.expressionNodeReader().readText(cursor));
           case "extensionElements" -> { }

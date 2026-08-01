@@ -17,7 +17,7 @@ public final class InputClauseReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "inputExpression" -> {
             builder.setInputExpression(feelReader.read(cursor));
 

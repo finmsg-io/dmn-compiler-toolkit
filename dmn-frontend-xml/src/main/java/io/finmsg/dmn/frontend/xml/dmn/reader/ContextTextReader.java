@@ -17,7 +17,7 @@ public final class ContextTextReader {
 
     if (cursor.firstChild()) {
       do {
-        if ("contextEntry".equals(cursor.localName())) {
+        if ("contextEntry".equals(cursor.documentLocalName())) {
           builder.addEntries(readers.contextEntryTextReader().read(cursor));
         }
       } while (cursor.nextSibling());

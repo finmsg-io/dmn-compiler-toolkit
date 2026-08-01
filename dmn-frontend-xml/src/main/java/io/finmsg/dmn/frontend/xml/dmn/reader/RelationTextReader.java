@@ -18,7 +18,7 @@ public final class RelationTextReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "column" -> builder.addColumns(columnReader.read(cursor));
           case "row" -> builder.addRows(readers.relationRowTextReader().read(cursor));
           case "extensionElements" -> { }

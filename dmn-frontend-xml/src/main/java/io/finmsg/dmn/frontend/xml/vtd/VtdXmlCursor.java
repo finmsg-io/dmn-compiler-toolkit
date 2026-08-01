@@ -9,15 +9,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 public final class VtdXmlCursor implements XmlCursor {
 
   private final VTDNav nav;
-  private final Map<String, String> namespaces = new HashMap<>();
+  private final Set<String> namespaceUris = new LinkedHashSet<>();
+  private final String documentNamespaceUri;
 
   public VtdXmlCursor(Path path) {
     this(readAllBytes(path));
@@ -35,6 +36,7 @@ public final class VtdXmlCursor implements XmlCursor {
       vg.parse(true);
       nav = vg.getNav();
       loadNamespaces();
+      documentNamespaceUri = namespaceUri();
     } catch (Exception ex) {
       throw new XmlException("Cannot parse XML.", ex);
     }
@@ -83,12 +85,13 @@ public final class VtdXmlCursor implements XmlCursor {
   public boolean firstChild(String wanted) {
 
     try {
+      String namespace = namespaceUri();
       if (!nav.toElement(VTDNav.FIRST_CHILD)) {
         return false;
       }
 
       do {
-        if (localName().equals(wanted)) {
+        if (localName().equals(wanted) && namespace.equals(namespaceUri())) {
           return true;
         }
       } while (nav.toElement(VTDNav.NEXT_SIBLING));
@@ -122,10 +125,11 @@ public final class VtdXmlCursor implements XmlCursor {
   public boolean nextSibling(String wanted) {
 
     try {
+      String namespace = namespaceUri();
       nav.push();
 
       while (nav.toElement(VTDNav.NEXT_SIBLING)) {
-        if (localName().equals(wanted)) {
+        if (localName().equals(wanted) && namespace.equals(namespaceUri())) {
           nav.pop(); // discard saved position
           return true;
         }
@@ -155,8 +159,12 @@ public final class VtdXmlCursor implements XmlCursor {
   @Override
   public boolean hasChild(String localName) {
     try {
-      if (!nav.toElement(VTDNav.FIRST_CHILD, localName)) {
+      String namespace = namespaceUri();
+      if (!firstChild(localName)) {
         return false;
+      }
+      if (!namespace.equals(namespaceUri())) {
+        throw new XmlException("Namespace-aware child navigation failed.");
       }
       nav.toElement(VTDNav.PARENT);
       return true;
@@ -206,17 +214,8 @@ public final class VtdXmlCursor implements XmlCursor {
         if (nav.getTokenType(i) != VTDNav.TOKEN_ATTR_NS) {
           continue;
         }
-        String name = nav.toString(i);
-        String prefix;
-        if ("xmlns".equals(name)) {
-          prefix = "";
-        } else if (name.startsWith("xmlns:")) {
-          prefix = name.substring(6);
-        } else {
-          continue;
-        }
         String uri = nav.toString(i + 1);
-        namespaces.put(prefix, uri);
+        namespaceUris.add(uri);
       }
       nav.pop();
     } catch (Exception ex) {
@@ -230,11 +229,24 @@ public final class VtdXmlCursor implements XmlCursor {
 
   @Override
   public String namespaceUri() {
-    String uri = namespaces.get(prefix());
-    if (uri == null) {
-      throw new XmlException("Unknown namespace prefix '" + prefix() + "'");
+    try {
+      for (String uri : namespaceUris) {
+        if (nav.matchElementNS(uri, localName())) {
+          return uri;
+        }
+      }
+      if (nav.matchElementNS(null, localName())) {
+        return "";
+      }
+    } catch (NavException ex) {
+      throw new XmlException(ex);
     }
-    return uri;
+    throw new XmlException("Cannot resolve namespace for <" + elementName() + ">");
+  }
+
+  @Override
+  public String documentNamespaceUri() {
+    return documentNamespaceUri;
   }
 
   @Override

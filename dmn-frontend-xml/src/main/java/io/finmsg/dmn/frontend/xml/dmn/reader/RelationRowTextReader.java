@@ -17,7 +17,7 @@ public final class RelationRowTextReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "literalExpression", "context", "relation", "list", "functionDefinition" ->
               builder.addExpressions(readers.expressionNodeReader().readText(cursor));
           case "extensionElements" -> { }

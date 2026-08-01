@@ -21,13 +21,18 @@ public final class BusinessKnowledgeModelReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
 
           case "variable" -> builder.setVariable(variableReader.read(cursor));
 
           case "encapsulatedLogic" -> {
             if (cursor.firstChild()) {
-              builder.setFunction(functionDefinitionReader.read(cursor));
+              do {
+                if ("functionDefinition".equals(cursor.documentLocalName())) {
+                  builder.setFunction(functionDefinitionReader.read(cursor));
+                  break;
+                }
+              } while (cursor.nextSibling());
               cursor.parent();
             }
           }

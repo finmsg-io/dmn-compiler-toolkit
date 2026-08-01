@@ -28,7 +28,7 @@ public final class DecisionTableReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "input" -> builder.addInputs(inputClauseReader.read(cursor));
 
           case "output" -> builder.addOutputs(outputClauseReader.read(cursor));

@@ -53,4 +53,52 @@ class DmnXmlReaderTest {
                 "https://www.omg.org/spec/DMN/20230324/MODEL/",
                 definitions.getImports(0).getImportType());
     }
+
+    @Test
+    void ignoresForeignNamespaceCollisionsInsideModelElements() {
+        String xml = """
+                <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                    xmlns:ext="https://example.com/extension" namespace="https://example.com/model">
+                  <inputData id="input-1" name="Applicant">
+                    <ext:variable id="wrong" name="Wrong" typeRef="number"/>
+                    <variable id="right" name="Right" typeRef="string"/>
+                  </inputData>
+                </definitions>
+                """;
+
+        Definitions definitions = new DmnXmlReader().read(xml.getBytes());
+
+        assertEquals(1, definitions.getDrgElementsCount());
+        assertEquals(
+                "right",
+                definitions.getDrgElements(0).getInputData().getVariable().getNode().getId());
+        assertEquals(
+                "Right",
+                definitions.getDrgElements(0).getInputData().getVariable().getNode().getName());
+    }
+
+    @Test
+    void readsFunctionBodyAfterFormalParameters() {
+        String xml = """
+                <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                    xmlns:ext="https://example.com/extension" namespace="https://example.com/model">
+                  <businessKnowledgeModel id="bkm-1" name="Double">
+                    <encapsulatedLogic>
+                      <ext:functionDefinition/>
+                      <functionDefinition kind="FEEL">
+                        <formalParameter id="parameter-1" name="value" typeRef="number"/>
+                        <literalExpression><text>value * 2</text></literalExpression>
+                      </functionDefinition>
+                    </encapsulatedLogic>
+                  </businessKnowledgeModel>
+                </definitions>
+                """;
+
+        Definitions definitions = new DmnXmlReader().read(xml.getBytes());
+        var function = definitions.getDrgElements(0).getBusinessKnowledgeModel().getFunction();
+
+        assertEquals(1, function.getFormalParametersCount());
+        assertEquals("value", function.getFormalParameters(0).getNode().getName());
+        assertEquals("value * 2", function.getLogic().getText().getText());
+    }
 }

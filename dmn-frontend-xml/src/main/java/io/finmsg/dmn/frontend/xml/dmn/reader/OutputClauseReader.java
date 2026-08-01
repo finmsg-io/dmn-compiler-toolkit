@@ -23,7 +23,7 @@ public final class OutputClauseReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "outputValues" -> builder.setOutputValues(feelReader.read(cursor));
 
           case "defaultOutputEntry" ->

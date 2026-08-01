@@ -13,7 +13,7 @@ public final class KnowledgeRequirementReader {
 
       do {
 
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "requiredKnowledge" -> {
             // later
           }

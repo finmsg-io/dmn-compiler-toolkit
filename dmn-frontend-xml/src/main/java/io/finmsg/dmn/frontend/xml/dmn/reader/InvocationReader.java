@@ -14,7 +14,7 @@ public final class InvocationReader {
 
     if (cursor.firstChild()) {
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "expression" -> {
             builder.setExpression(feelReader.read(cursor)).build();
           }
@@ -39,7 +39,7 @@ public final class InvocationReader {
     if (cursor.firstChild()) {
 
       do {
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "parameter" -> {
             builder.setParameter(readParameterName(cursor));
           }
@@ -64,7 +64,7 @@ public final class InvocationReader {
 
     String name = "";
     do {
-      if ("name".equals(cursor.localName())) {
+      if ("name".equals(cursor.documentLocalName())) {
         name = cursor.text();
         break;
       }

@@ -13,7 +13,7 @@ public final class AuthorityRequirementReader {
 
       do {
 
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "requiredAuthority" -> {
             // later
           }

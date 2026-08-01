@@ -20,7 +20,7 @@ public final class KnowledgeSourceReader {
 
       do {
 
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "authorityRequirement" -> {
             // TODO
           }

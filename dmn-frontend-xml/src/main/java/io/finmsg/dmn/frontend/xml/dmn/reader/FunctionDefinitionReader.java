@@ -23,20 +23,21 @@ public final class FunctionDefinitionReader {
       }
     }
 
-    if (cursor.firstChild("formalParameter")) {
+    if (cursor.firstChild()) {
       do {
-        builder.addFormalParameters(
-                informationItemReader.read(cursor));
-      } while (cursor.nextSibling("formalParameter"));
+        switch (cursor.documentLocalName()) {
+          case "formalParameter" ->
+              builder.addFormalParameters(informationItemReader.read(cursor));
+          case "literalExpression" -> builder.setLogic(feelReader.read(cursor));
+          default -> {
+            // Unsupported function bodies are left for structured diagnostics.
+          }
+        }
+      } while (cursor.nextSibling());
 
       cursor.parent();
     }
-
-    if (cursor.firstChild()) {
-      builder.setLogic(
-              feelReader.read(cursor));
-      cursor.parent();
-    }    return builder.build();
+    return builder.build();
   }
 
   private static FunctionKind toFunctionKind(String kind) {

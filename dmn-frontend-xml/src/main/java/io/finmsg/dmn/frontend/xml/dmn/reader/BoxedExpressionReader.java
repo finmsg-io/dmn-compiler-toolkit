@@ -22,7 +22,7 @@ public final class BoxedExpressionReader {
 
     BoxedExpressionText.Builder builder = BoxedExpressionText.newBuilder();
 
-    switch (cursor.localName()) {
+    switch (cursor.documentLocalName()) {
       case "context" -> builder.setContext(readers.contextTextReader().read(cursor));
       case "relation" -> builder.setRelation(readers.relationTextReader().read(cursor));
       case "list" -> builder.setList(readers.listExpressionTextReader().read(cursor));

@@ -18,7 +18,7 @@ public final class DecisionRuleReader {
 
         if (cursor.firstChild()) {
             do {
-                switch (cursor.localName()) {
+                switch (cursor.documentLocalName()) {
                     case "inputEntry" ->
                             builder.addInputEntries(
                                     UnaryTest.newBuilder()

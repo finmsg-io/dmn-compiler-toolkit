@@ -18,7 +18,7 @@ public final class InputDataReader {
 
       do {
 
-        switch (cursor.localName()) {
+        switch (cursor.documentLocalName()) {
           case "variable" -> builder.setVariable(variableReader.read(cursor));
 
           case "extensionElements" -> {
