@@ -125,8 +125,9 @@ static/dynamic invocation, descendant access, and boxed decision tables are impl
 protobuf FEEL AST variants now lower. Decision logic also covers recursive boxed
 contexts/relations/lists/functions and DMN invocations. BKM slots contain executable typed
 function bodies with preserved function kind. Decisions and nested functions persist isolated
-lexical frame sizes, and closure captures carry lexical depth. Expression-derived dependencies,
-constant pools, and model-set lowering remain future work.
+lexical frame sizes, and closure captures carry lexical depth. Declared and expression-derived
+references drive deterministic runtime scheduling. Indexed context fields, constant pools, and
+model-set lowering remain future work.
 
 ## 5.7 Target modules
 

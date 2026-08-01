@@ -585,12 +585,12 @@ class RuntimeIrLowererTest {
     DrgElement consumer = decisionWithExpression(
         "consumer-id", "Consumer", number, reference);
     Definitions model = Definitions.newBuilder()
-        .addDrgElements(owner).addDrgElements(consumer).build();
+        .addDrgElements(consumer).addDrgElements(owner).build();
 
     RuntimeModel lowered = lowerer.lower(new DmnSemanticPipelineResult(
         model, List.of(owner, consumer), List.of()));
 
-    RuntimeDecision runtimeOwner = lowered.decisions().get(0);
+    RuntimeDecision runtimeOwner = lowered.decisions().get(1);
     assertThat(runtimeOwner.expression()).isEmpty();
     assertThat(runtimeOwner.decisionTable()).isPresent();
     RuntimeDecisionTable runtimeTable = runtimeOwner.decisionTable().orElseThrow();
@@ -609,10 +609,13 @@ class RuntimeIrLowererTest {
           .isInstanceOf(RuntimeConstant.class);
       assertThat(rule.annotations()).containsExactly("matched");
     });
-    RuntimeExpression runtimeReference = lowered.decisions().get(1)
+    RuntimeDecision runtimeConsumer = lowered.decisions().get(0);
+    RuntimeExpression runtimeReference = runtimeConsumer
         .expression().orElseThrow();
     assertThat(runtimeReference).isEqualTo(new RuntimeDecisionTableReference(
         runtimeOwner.resultSlot(), RuntimeType.scalar(RuntimeTypeKind.NUMBER)));
+    assertThat(runtimeConsumer.dependencies()).containsExactly(runtimeOwner.resultSlot());
+    assertThat(lowered.evaluationOrder()).containsExactly(runtimeOwner.id(), runtimeConsumer.id());
   }
 
   @Test

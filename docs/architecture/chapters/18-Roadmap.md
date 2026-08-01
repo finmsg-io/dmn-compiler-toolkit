@@ -45,7 +45,8 @@
 [done] lower non-table boxed decision logic and DMN invocation decisions
 [done] lower executable BKM function bodies and preserve function kind
 [done] persist decision and nested-function lexical frame layouts
-[ ] add implicit Runtime IR dependency edges from expression references
+[done] add implicit Runtime IR dependency edges from expression references
+[ ] introduce indexed context-field layouts and resolved member access
 [ ] complete linked model-set Runtime IR lowering
 ```
 

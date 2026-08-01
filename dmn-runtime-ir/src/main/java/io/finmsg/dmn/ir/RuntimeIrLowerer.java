@@ -69,33 +69,41 @@ public final class RuntimeIrLowerer {
           Decision decision = element.getDecision();
           Map<String, LocalSlotAddress> localSlots = new HashMap<>();
           int[] nextLocalSlot = {0};
+          Optional<RuntimeExpression> expression = lowerDecisionExpression(
+              decision, analysis.bindings(), valueSlotBySourceId, itemTypes,
+              localSlots, nextLocalSlot);
+          Optional<RuntimeDecisionTable> decisionTable = lowerDecisionTable(
+              decision, analysis.bindings(), valueSlotBySourceId, itemTypes,
+              localSlots, nextLocalSlot);
+          Set<Integer> dependencies = new LinkedHashSet<>(
+              decisionDependencies(decision, runtimeIdBySourceId));
+          expression.ifPresent(value -> collectReferencedSlots(value, dependencies));
+          decisionTable.ifPresent(value -> collectReferencedSlots(value, dependencies));
           decisions.add(new RuntimeDecision(runtimeId, runtimeId,
               lowerType(decision.getVariable().getType(), itemTypes, new HashSet<>()),
-              decisionDependencies(decision, runtimeIdBySourceId),
-              lowerDecisionExpression(
-                  decision, analysis.bindings(), valueSlotBySourceId, itemTypes,
-                  localSlots, nextLocalSlot),
-              lowerDecisionTable(
-                  decision, analysis.bindings(), valueSlotBySourceId, itemTypes,
-                  localSlots, nextLocalSlot),
+              List.copyOf(dependencies), expression, decisionTable,
               nextLocalSlot[0]));
           runtimeId++;
         }
         case BUSINESS_KNOWLEDGE_MODEL -> {
           BusinessKnowledgeModel bkm = element.getBusinessKnowledgeModel();
+          RuntimeFunctionDefinition function = lowerBkmFunction(
+              bkm, analysis.bindings(), valueSlotBySourceId, itemTypes);
+          Set<Integer> dependencies = new LinkedHashSet<>(
+              bkmDependencies(bkm, runtimeIdBySourceId));
+          collectReferencedSlots(function, dependencies);
           bkms.add(new RuntimeBkm(runtimeId, runtimeId,
               lowerType(bkm.getVariable().getType(), itemTypes, new HashSet<>()),
-              bkmDependencies(bkm, runtimeIdBySourceId),
+              List.copyOf(dependencies),
               functionKind(bkm.getFunction().getKind()),
-              Optional.of(lowerBkmFunction(
-                  bkm, analysis.bindings(), valueSlotBySourceId, itemTypes))));
+              Optional.of(function)));
           runtimeId++;
         }
         default -> { }
       }
     }
 
-    List<Integer> order = new ArrayList<>();
+    // Preserve the semantic model-set guard even though runtime order is recomputed below.
     for (DrgElement element : analysis.compilationOrder()) {
       Node node = executableNode(element);
       Integer id = node == null ? null : runtimeIdBySourceId.get(node.getId());
@@ -103,8 +111,8 @@ public final class RuntimeIrLowerer {
         throw new RuntimeIrLoweringException(
             "Model-set compilation order requires model-set Runtime IR lowering.");
       }
-      order.add(id);
     }
+    List<Integer> order = runtimeEvaluationOrder(decisions, bkms);
     return new RuntimeModel(inputs, decisions, bkms, order, runtimeId);
   }
 
@@ -903,6 +911,139 @@ public final class RuntimeIrLowerer {
     bkm.getKnowledgeRequirementsList().forEach(requirement ->
         addReference(result, requirement.getRequiredKnowledge().getHref(), ids));
     return List.copyOf(result);
+  }
+
+  private static void collectReferencedSlots(
+      RuntimeDecisionTable table, Set<Integer> slots) {
+    table.inputs().forEach(input -> {
+      collectReferencedSlots(input.expression(), slots);
+      input.allowedValues().ifPresent(tests -> collectReferencedSlots(tests, slots));
+    });
+    table.outputs().forEach(output -> {
+      output.allowedValues().ifPresent(tests -> collectReferencedSlots(tests, slots));
+      output.defaultValue().ifPresent(value -> collectReferencedSlots(value, slots));
+    });
+    table.rules().forEach(rule -> {
+      rule.inputEntries().forEach(tests -> collectReferencedSlots(tests, slots));
+      rule.outputEntries().forEach(value -> collectReferencedSlots(value, slots));
+    });
+  }
+
+  private static void collectReferencedSlots(RuntimeUnaryTests tests, Set<Integer> slots) {
+    for (RuntimeUnaryTest test : tests.tests()) {
+      switch (test) {
+        case RuntimeComparisonUnaryTest comparison ->
+            collectReferencedSlots(comparison.endpoint(), slots);
+        case RuntimeRangeUnaryTest range -> collectReferencedSlots(range.range(), slots);
+        case RuntimeExpressionUnaryTest expression ->
+            collectReferencedSlots(expression.expression(), slots);
+      }
+    }
+  }
+
+  private static void collectReferencedSlots(RuntimeExpression expression, Set<Integer> slots) {
+    switch (expression) {
+      case RuntimeValueReference reference -> slots.add(reference.sourceSlot());
+      case RuntimeDecisionTableReference reference -> slots.add(reference.decisionSlot());
+      case RuntimeUnaryExpression unary -> collectReferencedSlots(unary.operand(), slots);
+      case RuntimeBinaryExpression binary -> {
+        collectReferencedSlots(binary.left(), slots);
+        collectReferencedSlots(binary.right(), slots);
+      }
+      case RuntimeConditionalExpression conditional -> {
+        collectReferencedSlots(conditional.condition(), slots);
+        collectReferencedSlots(conditional.thenExpression(), slots);
+        collectReferencedSlots(conditional.elseExpression(), slots);
+      }
+      case RuntimeListExpression list ->
+          list.elements().forEach(value -> collectReferencedSlots(value, slots));
+      case RuntimeFunctionCall call ->
+          call.arguments().forEach(value -> collectReferencedSlots(value, slots));
+      case RuntimeContextExpression context -> context.entries().forEach(entry ->
+          collectReferencedSlots(entry.expression(), slots));
+      case RuntimePathExpression path -> collectReferencedSlots(path.source(), slots);
+      case RuntimeDescendantExpression descendant ->
+          collectReferencedSlots(descendant.source(), slots);
+      case RuntimeRangeExpression range -> {
+        range.lower().ifPresent(value -> collectReferencedSlots(value, slots));
+        range.upper().ifPresent(value -> collectReferencedSlots(value, slots));
+      }
+      case RuntimeFilterExpression filter -> {
+        collectReferencedSlots(filter.source(), slots);
+        collectReferencedSlots(filter.filter(), slots);
+      }
+      case RuntimeBetweenExpression between -> {
+        collectReferencedSlots(between.value(), slots);
+        collectReferencedSlots(between.lower(), slots);
+        collectReferencedSlots(between.upper(), slots);
+      }
+      case RuntimeInExpression in -> {
+        collectReferencedSlots(in.value(), slots);
+        collectReferencedSlots(in.tests(), slots);
+      }
+      case RuntimeInstanceOfExpression instance ->
+          collectReferencedSlots(instance.expression(), slots);
+      case RuntimeUnaryTestsExpression tests -> collectReferencedSlots(tests.tests(), slots);
+      case RuntimeForExpression forExpression -> {
+        forExpression.iterations().forEach(iteration -> {
+          collectReferencedSlots(iteration.source(), slots);
+          iteration.end().ifPresent(value -> collectReferencedSlots(value, slots));
+        });
+        collectReferencedSlots(forExpression.result(), slots);
+      }
+      case RuntimeQuantifiedExpression quantified -> {
+        quantified.bindings().forEach(binding ->
+            collectReferencedSlots(binding.source(), slots));
+        collectReferencedSlots(quantified.satisfies(), slots);
+      }
+      case RuntimeFunctionDefinition function ->
+          function.body().ifPresent(value -> collectReferencedSlots(value, slots));
+      case RuntimeInvocationExpression invocation -> {
+        invocation.target().ifPresent(value -> collectReferencedSlots(value, slots));
+        invocation.namedArguments().forEach(argument ->
+            collectReferencedSlots(argument.expression(), slots));
+        invocation.positionalArguments().forEach(value -> collectReferencedSlots(value, slots));
+      }
+      case RuntimeRelationExpression relation -> relation.rows().forEach(row ->
+          row.forEach(value -> collectReferencedSlots(value, slots)));
+      case RuntimeConstant ignoredConstant -> { }
+      case RuntimeLocalReference ignoredLocal -> { }
+    }
+  }
+
+  private static List<Integer> runtimeEvaluationOrder(
+      List<RuntimeDecision> decisions, List<RuntimeBkm> bkms) {
+    Map<Integer, List<Integer>> dependencies = new LinkedHashMap<>();
+    decisions.forEach(decision -> dependencies.put(decision.id(), decision.dependencies()));
+    bkms.forEach(bkm -> dependencies.put(bkm.id(), bkm.dependencies()));
+    List<Integer> order = new ArrayList<>();
+    Set<Integer> complete = new HashSet<>();
+    Set<Integer> visiting = new HashSet<>();
+    dependencies.keySet().stream().sorted().forEach(id ->
+        visitRuntimeNode(id, dependencies, complete, visiting, order));
+    return List.copyOf(order);
+  }
+
+  private static void visitRuntimeNode(
+      int id,
+      Map<Integer, List<Integer>> dependencies,
+      Set<Integer> complete,
+      Set<Integer> visiting,
+      List<Integer> order) {
+    if (complete.contains(id)) {
+      return;
+    }
+    if (!visiting.add(id)) {
+      throw new RuntimeIrLoweringException("Runtime dependency cycle at node " + id + ".");
+    }
+    for (int dependency : dependencies.getOrDefault(id, List.of())) {
+      if (dependencies.containsKey(dependency)) {
+        visitRuntimeNode(dependency, dependencies, complete, visiting, order);
+      }
+    }
+    visiting.remove(id);
+    complete.add(id);
+    order.add(id);
   }
 
   private static void addReference(Set<Integer> result, String href, Map<String, Integer> ids) {

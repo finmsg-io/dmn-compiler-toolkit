@@ -27,24 +27,14 @@ only by rescanning expression trees.
 | Executable BKM function bodies | complete |
 | Linked multi-model Runtime IR | missing |
 | Persisted evaluator frame sizes/layouts | complete |
+| Expression-derived dependencies and runtime order | complete |
 | Optimized member/field addressing | missing |
 | Constant canonicalization/pooling | missing |
 | Runtime evaluator or code generator | not yet implemented |
 
 ## High-priority gaps
 
-### 1. Make decision-table marker dependencies explicit
-
-`RuntimeDecisionTableReference` correctly replaces a source table ID with an owning decision
-slot. However, marker references are not currently added to `RuntimeDecision.dependencies` or
-the computed evaluation order unless the DMN model also declares a matching information
-requirement. A valid semantic table reference can therefore exist without an explicit runtime
-scheduling edge.
-
-Collect referenced decision slots during lowering and merge them into dependencies before the
-evaluation order is finalized.
-
-### 2. Preserve executable context-field addressing
+### 1. Preserve executable context-field addressing
 
 `RuntimeType.context` stores field types but not field names or stable field indices.
 `RuntimePathExpression` retains a member string, so an evaluator still needs a name-based lookup
@@ -55,7 +45,7 @@ Introduce a `RuntimeField` contract containing a stable field index, optional di
 and type. Lower path and descendant operations to resolved field indices wherever the source type
 is statically known; retain name lookup only for genuinely dynamic contexts.
 
-### 3. Complete linked model-set lowering
+### 2. Complete linked model-set lowering
 
 The lowerer intentionally rejects imported named types and bindings outside the current runtime
 model. Cross-model semantic linking is implemented upstream, so Runtime IR is now the stage that
@@ -66,7 +56,7 @@ imported symbol and type bindings without retaining namespace strings in executa
 
 ## Medium-priority improvements
 
-### 4. Add pipeline-level lowering tests
+### 3. Add pipeline-level lowering tests
 
 The current 12 Runtime IR tests cover the node shapes well, but most construct protobuf and
 semantic bindings manually. Add fixtures that run:
@@ -79,14 +69,14 @@ Prioritize Traffic Violation, a decision-table model, a BKM invocation, nested b
 two-model import. These tests will catch path-contract drift between semantic binding production
 and lowering.
 
-### 5. Split the monolithic lowerer
+### 4. Split the monolithic lowerer
 
 `RuntimeIrLowerer` now owns model indexing, type lowering, expression lowering, boxed lowering,
 decision-table lowering, lexical-frame allocation, and validation. Extract focused internal
 components after frame/model-set design is settled. Suggested boundaries are expression,
 decision-table, type, and model-index lowering.
 
-### 6. Canonicalize constants and built-ins
+### 5. Canonicalize constants and built-ins
 
 Runtime constants retain source strings, and built-in calls retain function names. This is a good
 lossless baseline, but an evaluator would repeatedly parse numbers/temporals and dispatch built-ins
@@ -96,7 +86,7 @@ Add a later canonicalization pass that produces typed constant values or a const
 stable built-in operation IDs. Keep the current lossless representation as pre-optimization IR if
 useful.
 
-### 7. Strengthen aggregate invariants
+### 6. Strengthen aggregate invariants
 
 Leaf records generally validate nulls and negative local slots, but model-level contracts do not
 yet validate:
@@ -111,7 +101,7 @@ yet validate:
 Add constructor/factory validation and focused negative tests before exposing Runtime IR as a
 public compiler API.
 
-### 8. Define serialization and compatibility policy
+### 7. Define serialization and compatibility policy
 
 The architecture discusses Runtime IR serialization, but the current contracts are Java records
 with no versioning boundary. Decide whether Runtime IR is process-local only, Java-serializable,
@@ -130,14 +120,13 @@ Do not yet:
 
 ## Recommended implementation order
 
-1. Add implicit Runtime IR dependency edges from expression references.
-2. Introduce indexed context-field layouts and resolved member access.
-3. Add XML-to-Runtime-IR integration fixtures.
-4. Complete linked model-set lowering.
-5. Strengthen aggregate invariants.
-6. Extract lowerer components.
-7. Add canonicalization/constant-pool and optimization passes.
-8. Define serialization only when a concrete cache or deployment use case requires it.
+1. Introduce indexed context-field layouts and resolved member access.
+2. Add XML-to-Runtime-IR integration fixtures.
+3. Complete linked model-set lowering.
+4. Strengthen aggregate invariants.
+5. Extract lowerer components.
+6. Add canonicalization/constant-pool and optimization passes.
+7. Define serialization only when a concrete cache or deployment use case requires it.
 
 ## Verification baseline
 
