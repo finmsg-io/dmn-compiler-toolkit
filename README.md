@@ -56,8 +56,9 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-frontend-xml` | DMN XML reader based on VTD-XML |
 | `dmn-feel-parser` | ANTLR4 parser for DMN FEEL expressions |
 | `dmn-semantic-analysis` | Reference resolution, type analysis, DMN validation, and dependency ordering |
+| `dmn-runtime-ir` | Immutable structural Runtime IR and semantic-model lowering |
 
-Planned modules include optimization, runtime IR, Java code generation, compiler API, and runtime support.
+Planned modules include optimization, Java code generation, compiler API, and runtime support.
 
 ## Requirements
 
@@ -194,7 +195,7 @@ mkdocs build
 - Complete FEEL grammar and AST mapping
 - Complete import and cross-model semantic analysis
 - Complete remaining FEEL expression edge cases
-- Introduce runtime IR
+- Lower FEEL expressions and decision tables into Runtime IR instructions
 - Add optimizer passes
 - Generate optimized Java code
 - Add performance benchmarks

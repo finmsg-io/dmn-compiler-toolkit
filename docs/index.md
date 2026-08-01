@@ -37,7 +37,7 @@ DmnSemanticAnalyzer
 Semantic-analysis result and diagnostics
 ```
 
-Optimization, Runtime IR, code generation, and execution remain future stages.
+Structural Runtime IR and deterministic graph/type lowering are implemented. Expression lowering, optimization, code generation, and execution remain future stages.
 
 ## Design goals
 

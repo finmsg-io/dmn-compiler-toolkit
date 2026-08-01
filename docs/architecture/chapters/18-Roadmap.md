@@ -67,9 +67,12 @@
 ## 18.5 Runtime and generation
 
 ```text
-[ ] define Runtime IR
+[done] define structural Runtime IR contracts
+[done] assign deterministic integer node IDs, slots, and dependency order
+[done] lower structural runtime types
 [ ] lower typed FEEL AST
 [ ] lower decision tables
+[ ] lower complete linked model sets
 [ ] implement Java generator
 [ ] activate generated models without application recompilation
 [ ] add public compiler API

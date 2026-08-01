@@ -70,12 +70,15 @@ Contains the semantic-analysis pipeline:
 - decision-table, BKM, item-definition, and decision-service validation
 - dependency validation, cycle detection, and deterministic compilation order
 
-Persisted resolved bindings, import/cross-model linking, and Runtime IR lowering remain future work.
+Expression and decision-table Runtime IR lowering remain future work.
+
+## `dmn-runtime-ir`
+
+Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer node IDs and value slots, lowers structural types, preserves dependency order through integer references, and rejects semantic results containing diagnostics. Expression instructions, constant pools, and model-set lowering remain future work.
 
 ## Planned modules
 
 ```text
-dmn-runtime-ir
 dmn-optimizer
 dmn-codegen-java
 dmn-runtime

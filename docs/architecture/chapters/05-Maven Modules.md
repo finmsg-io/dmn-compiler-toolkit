@@ -8,7 +8,8 @@ dmn-compiler-toolkit
 ├── dmn-protobuf
 ├── dmn-frontend-xml
 ├── dmn-feel-parser
-└── dmn-semantic-analysis
+├── dmn-semantic-analysis
+└── dmn-runtime-ir
 ```
 
 All modules use:
@@ -97,10 +98,27 @@ Responsibilities currently implemented:
 
 `dmn-feel-parser` and `dmn-frontend-xml` are test-scoped dependencies only.
 
-## 5.6 Target modules
+## 5.6 `dmn-runtime-ir`
+
+Production dependency:
 
 ```text
-dmn-runtime-ir
+dmn-semantic-analysis
+```
+
+Implemented baseline responsibilities:
+
+- immutable, protobuf-free runtime contracts
+- deterministic integer node IDs and value slots
+- structural runtime-type lowering
+- integer dependency references and evaluation order
+- rejection of unsuccessful semantic-analysis results
+
+Expression instructions, constant pools, and model-set lowering remain future work.
+
+## 5.7 Target modules
+
+```text
 dmn-optimizer
 dmn-codegen-java
 dmn-runtime
@@ -108,7 +126,7 @@ dmn-compiler-api
 dmn-benchmarks
 ```
 
-## 5.7 Module rules
+## 5.8 Module rules
 
 1. One architectural responsibility per module.
 2. Production dependencies point toward lower-level contracts.

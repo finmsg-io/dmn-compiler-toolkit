@@ -20,6 +20,7 @@
         <module>dmn-frontend-xml</module>
         <module>dmn-feel-parser</module>
         <module>dmn-semantic-analysis</module>
+        <module>dmn-runtime-ir</module>
     </modules>
 
     <properties>

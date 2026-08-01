@@ -46,7 +46,9 @@
 
 ## Later stages
 
-- [ ] Runtime IR
+- [x] Structural Runtime IR module and deterministic graph/type lowering
+- [ ] FEEL expression and decision-table instruction lowering
+- [ ] Model-set Runtime IR lowering
 - [ ] Constant folding and expression simplification
 - [ ] Java code generation
 - [ ] Runtime activation

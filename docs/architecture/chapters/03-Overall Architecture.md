@@ -24,7 +24,7 @@ Semantic Analysis           implemented for the current single-model scope
 Optimization                future
    │
    ▼
-Runtime IR                  future
+Runtime IR                  structural baseline implemented
    │
    ▼
 Code Generation             future
@@ -43,7 +43,7 @@ Each stage has a stable protobuf input/output boundary and treats its input as i
 | FEEL parser | Semantic `Definitions` | copied `Definitions` with parsed FEEL | Implemented |
 | Semantic pipeline | parsed `Definitions` | typed model, compilation order, and diagnostics | Implemented for the current single-model scope |
 | Optimizer | validated model | optimized model | Future |
-| Runtime builder | optimized model | Runtime IR | Future |
+| Runtime builder | typed model | structural Runtime IR | Deterministic graph/type baseline implemented |
 | Code generator | Runtime IR | target code | Future |
 
 ## 3.3 Representation strategy
