@@ -78,7 +78,7 @@ Runtime IR lowering for the remaining expression forms and decision tables remai
 
 ## `dmn-runtime-ir`
 
-Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer node IDs, global value slots, and lexical local slots; lowers structural types; preserves dependency order through integer references; and rejects semantic results containing diagnostics. It recursively lowers every protobuf FEEL AST expression except the decision-table marker, including static and dynamic invocation and descendant access. Decision-table and remaining boxed-logic lowering, constant pooling, and model-set lowering remain future work.
+Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer IDs and slots, lowers structural types and every protobuf FEEL AST expression variant, preserves dependency order, and rejects unsuccessful semantic results. Boxed decision tables lower inputs, outputs/defaults, unary tests, rules, annotations, hit policies, and aggregations. Remaining non-table boxed logic, constant pooling, and model-set lowering remain future work.
 
 ## Planned modules
 

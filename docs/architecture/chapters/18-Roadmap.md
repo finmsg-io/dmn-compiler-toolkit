@@ -41,8 +41,9 @@
 [done] lower ranges, filters, and remaining comparison/test expressions to Runtime IR
 [done] lower iteration, quantified, and function-definition expressions to Runtime IR
 [done] lower invocation and descendant-access expressions to Runtime IR
-[ ] lower the decision-table expression marker and boxed decision-table logic to Runtime IR
-[ ] lower decision tables and complete linked model sets
+[done] lower the decision-table expression marker and boxed decision-table logic to Runtime IR
+[ ] lower non-table boxed decision logic
+[ ] complete linked model-set Runtime IR lowering
 ```
 
 ## 18.4 Model extensions requiring design decisions

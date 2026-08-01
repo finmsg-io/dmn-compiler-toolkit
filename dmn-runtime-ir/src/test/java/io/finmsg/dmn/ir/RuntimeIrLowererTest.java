@@ -538,6 +538,74 @@ class RuntimeIrLowererTest {
     assertThat(runtimeDescendant.source()).isInstanceOf(RuntimeContextExpression.class);
   }
 
+  @Test
+  void lowersBoxedDecisionTablesAndTableReferences() {
+    TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
+    UnaryTestsExpression wildcard = UnaryTestsExpression.newBuilder().setWildcard(true).build();
+    DecisionTable table = DecisionTable.newBuilder()
+        .setNode(Node.newBuilder().setId("table-id"))
+        .setHitPolicy(HitPolicySpec.newBuilder()
+            .setPolicy(HitPolicy.HIT_POLICY_COLLECT)
+            .setAggregation(Aggregation.AGGREGATION_SUM))
+        .addInputs(InputClause.newBuilder()
+            .setType(number)
+            .setInputExpression(Feel.newBuilder().setParsed(FeelParsed.newBuilder()
+                .setAst(literal(LiteralKind.LITERAL_KIND_NUMBER, "1", number)))))
+        .addOutputs(OutputClause.newBuilder()
+            .setNode(Node.newBuilder().setName("score"))
+            .setType(number)
+            .setDefaultOutputEntry(ExpressionNode.newBuilder().setParsed(
+                ExpressionParsed.newBuilder().setFeel(FeelParsed.newBuilder()
+                    .setAst(literal(LiteralKind.LITERAL_KIND_NUMBER, "0", number))))))
+        .addAnnotations(AnnotationClause.newBuilder()
+            .setNode(Node.newBuilder().setName("note")))
+        .addRules(DecisionRule.newBuilder().setRuleIndex(0)
+            .addInputEntries(UnaryTest.newBuilder().setParsed(
+                UnaryTestParsed.newBuilder().setTests(wildcard)))
+            .addOutputEntries(Feel.newBuilder().setParsed(FeelParsed.newBuilder()
+                .setAst(literal(LiteralKind.LITERAL_KIND_NUMBER, "10", number))))
+            .addAnnotationEntries(RuleAnnotation.newBuilder().setText("matched")))
+        .build();
+    DrgElement owner = DrgElement.newBuilder().setDecision(Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("owner-id").setName("Table owner"))
+        .setVariable(InformationItem.newBuilder().setType(number))
+        .setLogic(DecisionLogic.newBuilder().setDecisionTable(table))).build();
+    Expression reference = Expression.newBuilder()
+        .setDecisionTable(DecisionTableExpression.newBuilder().setDecisionTableId("table-id"))
+        .setInferredType(number).build();
+    DrgElement consumer = decisionWithExpression(
+        "consumer-id", "Consumer", number, reference);
+    Definitions model = Definitions.newBuilder()
+        .addDrgElements(owner).addDrgElements(consumer).build();
+
+    RuntimeModel lowered = lowerer.lower(new DmnSemanticPipelineResult(
+        model, List.of(owner, consumer), List.of()));
+
+    RuntimeDecision runtimeOwner = lowered.decisions().get(0);
+    assertThat(runtimeOwner.expression()).isEmpty();
+    assertThat(runtimeOwner.decisionTable()).isPresent();
+    RuntimeDecisionTable runtimeTable = runtimeOwner.decisionTable().orElseThrow();
+    assertThat(runtimeTable.hitPolicy()).isEqualTo(RuntimeHitPolicy.COLLECT);
+    assertThat(runtimeTable.aggregation()).contains(RuntimeAggregation.SUM);
+    assertThat(runtimeTable.inputs()).singleElement()
+        .extracting(input -> input.type().kind()).isEqualTo(RuntimeTypeKind.NUMBER);
+    assertThat(runtimeTable.outputs()).singleElement().satisfies(output -> {
+      assertThat(output.name()).contains("score");
+      assertThat(output.defaultValue()).containsInstanceOf(RuntimeConstant.class);
+    });
+    assertThat(runtimeTable.rules()).singleElement().satisfies(rule -> {
+      assertThat(rule.inputEntries()).singleElement()
+          .satisfies(tests -> assertThat(tests.wildcard()).isTrue());
+      assertThat(rule.outputEntries()).singleElement()
+          .isInstanceOf(RuntimeConstant.class);
+      assertThat(rule.annotations()).containsExactly("matched");
+    });
+    RuntimeExpression runtimeReference = lowered.decisions().get(1)
+        .expression().orElseThrow();
+    assertThat(runtimeReference).isEqualTo(new RuntimeDecisionTableReference(
+        runtimeOwner.resultSlot(), RuntimeType.scalar(RuntimeTypeKind.NUMBER)));
+  }
+
   private static DrgElement decisionWithExpression(
       String id, String name, TypeReference type, Expression expression) {
     return DrgElement.newBuilder().setDecision(Decision.newBuilder()

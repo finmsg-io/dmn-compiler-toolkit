@@ -121,8 +121,9 @@ Implemented baseline responsibilities:
 Typed constants, bound global and lexical-local references, recursive unary/binary operators,
 conditional expressions, list and context literals, named function calls, path/property access,
 ranges, filters, comparison/test expressions, iteration, quantification, function definitions,
-static/dynamic invocation, and descendant access are implemented. Decision-table and remaining
-boxed-logic lowering, constant pools, and model-set lowering remain future work.
+static/dynamic invocation, descendant access, and boxed decision tables are implemented. All
+protobuf FEEL AST variants now lower. Non-table boxed logic, constant pools, and model-set
+lowering remain future work.
 
 ## 5.7 Target modules
 

@@ -22,6 +22,7 @@ public sealed interface RuntimeExpression permits
     RuntimeQuantifiedExpression,
     RuntimeFunctionDefinition,
     RuntimeInvocationExpression,
-    RuntimeDescendantExpression {
+    RuntimeDescendantExpression,
+    RuntimeDecisionTableReference {
   RuntimeType type();
 }

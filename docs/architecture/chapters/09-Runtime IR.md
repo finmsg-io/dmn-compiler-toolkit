@@ -2,7 +2,7 @@
 
 ## 9.1 Purpose
 
-Implementation baseline as of August 2026: `dmn-runtime-ir` provides immutable runtime model, input, decision, BKM, structural type, and recursive expression contracts. `RuntimeIrLowerer` assigns deterministic integer IDs, global value slots, and lexical local slots; lowers local named and structural types; converts dependencies and semantic compilation order to integer references; lowers every protobuf FEEL AST expression except the decision-table marker, including static/dynamic invocation and descendant access; and rejects unsuccessful semantic results. Decision-table and remaining boxed-logic lowering, constant pools, serialization, optimization, and complete model-set lowering remain targets described by the rest of this chapter.
+Implementation baseline as of August 2026: `dmn-runtime-ir` provides immutable runtime model, input, decision, BKM, structural type, recursive expression, and decision-table contracts. `RuntimeIrLowerer` assigns deterministic integer IDs, global value slots, and lexical local slots; lowers local named and structural types; converts dependencies and semantic compilation order to integer references; lowers every protobuf FEEL AST expression variant; lowers boxed decision-table inputs, outputs/defaults, unary tests, rules, annotations, hit policies, and aggregations; and rejects unsuccessful semantic results. Non-table boxed logic, constant pools, serialization, optimization, and complete model-set lowering remain targets described by the rest of this chapter.
 
 The Runtime Intermediate Representation (Runtime IR) is the central
 execution representation of the DMN Compiler Toolkit.
