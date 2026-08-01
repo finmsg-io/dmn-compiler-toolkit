@@ -58,6 +58,9 @@ public final class DmnTypeAnalyzer {
 
     private Definitions analyze() {
       Definitions.Builder output = input.toBuilder();
+      for (int i = 0; i < input.getItemDefinitionsCount(); i++) {
+        output.setItemDefinitions(i, typeItemDefinition(input.getItemDefinitions(i), i));
+      }
       for (int i = 0; i < input.getDrgElementsCount(); i++) {
         DrgElement element = input.getDrgElements(i);
         if (element.hasDecision()) {
@@ -68,6 +71,40 @@ public final class DmnTypeAnalyzer {
         }
       }
       return output.build();
+    }
+
+    private ItemDefinition typeItemDefinition(ItemDefinition item, int index) {
+      String name = item.getNode().getName().isBlank() ? Integer.toString(index)
+          : item.getNode().getName();
+      String path = "definitions/itemDefinition[" + name + "]";
+      ItemDefinition.Builder output = item.toBuilder();
+      if (item.hasConstraint() && item.getConstraint().hasParsed()) {
+        output.setConstraint(typeConstraint(item.getConstraint(), item.getType(),
+            path + "/typeConstraint", item.getNode().getSourceLocation()));
+      }
+      for (int i = 0; i < item.getComponentsCount(); i++) {
+        ItemComponent component = item.getComponents(i);
+        if (component.hasConstraint() && component.getConstraint().hasParsed()) {
+          String componentName = component.getNode().getName().isBlank() ? Integer.toString(i)
+              : component.getNode().getName();
+          output.setComponents(i, component.toBuilder().setConstraint(
+              typeConstraint(component.getConstraint(), component.getType(),
+                  path + "/component[" + componentName + "]/typeConstraint",
+                  component.getNode().getSourceLocation())));
+        }
+      }
+      return output.build();
+    }
+
+    private TypeConstraint typeConstraint(TypeConstraint constraint, TypeReference subject,
+        String path, SourceLocation location) {
+      Expression wrapped = Expression.newBuilder()
+          .setUnaryTests(constraint.getParsed().getTests()).build();
+      FeelTypeAnalysisResult typed = infer(wrapped, Map.of(), path, location);
+      UnaryTestsExpression tests = typed.expression().getUnaryTests();
+      validateUnaryTests(tests, subject, "TYPE_CONSTRAINT_TYPE_MISMATCH", path, location);
+      return constraint.toBuilder().setParsed(
+          constraint.getParsed().toBuilder().setTests(tests)).build();
     }
 
     private Decision typeDecision(Decision decision) {
@@ -378,6 +415,12 @@ public final class DmnTypeAnalyzer {
     private void validateUnaryTests(
         UnaryTestsExpression tests, TypeReference subject,
         String path, SourceLocation location) {
+      validateUnaryTests(tests, subject, "UNARY_TEST_TYPE_MISMATCH", path, location);
+    }
+
+    private void validateUnaryTests(
+        UnaryTestsExpression tests, TypeReference subject, String code,
+        String path, SourceLocation location) {
       if (isUnknown(subject)) {
         return;
       }
@@ -386,19 +429,19 @@ public final class DmnTypeAnalyzer {
         switch (test.getTypeCase()) {
           case COMPARISON -> validateValueType(
               test.getComparison().getEndpoint().getInferredType(), subject,
-              "UNARY_TEST_TYPE_MISMATCH", path + "/test[" + i + "]", location);
+              code, path + "/test[" + i + "]", location);
           case RANGE -> {
             if (test.getRange().hasLower()) {
               validateValueType(test.getRange().getLower().getInferredType(), subject,
-                  "UNARY_TEST_TYPE_MISMATCH", path + "/test[" + i + "]/lower", location);
+                  code, path + "/test[" + i + "]/lower", location);
             }
             if (test.getRange().hasUpper()) {
               validateValueType(test.getRange().getUpper().getInferredType(), subject,
-                  "UNARY_TEST_TYPE_MISMATCH", path + "/test[" + i + "]/upper", location);
+                  code, path + "/test[" + i + "]/upper", location);
             }
           }
           case EXPRESSION -> validateValueType(test.getExpression().getInferredType(), subject,
-              "UNARY_TEST_TYPE_MISMATCH", path + "/test[" + i + "]", location);
+              code, path + "/test[" + i + "]", location);
           case TYPE_NOT_SET -> { }
         }
       }

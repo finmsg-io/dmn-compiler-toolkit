@@ -19,6 +19,8 @@ import io.finmsg.dmn.model.HitPolicy;
 import io.finmsg.dmn.model.HitPolicySpec;
 import io.finmsg.dmn.model.InformationItem;
 import io.finmsg.dmn.model.InputClause;
+import io.finmsg.dmn.model.ItemComponent;
+import io.finmsg.dmn.model.ItemDefinition;
 import io.finmsg.dmn.model.Node;
 import io.finmsg.dmn.model.OutputClause;
 import io.finmsg.dmn.model.Expression;
@@ -29,6 +31,7 @@ import io.finmsg.dmn.model.FunctionDefinition;
 import io.finmsg.dmn.model.Invocation;
 import io.finmsg.dmn.model.KnowledgeRequirement;
 import io.finmsg.dmn.model.TypeReference;
+import io.finmsg.dmn.model.TypeConstraint;
 import io.finmsg.dmn.model.UnaryTest;
 import org.junit.jupiter.api.Test;
 
@@ -218,6 +221,30 @@ class DmnTypeAnalyzerTest {
         .containsExactly("INVOCATION_ARGUMENT_TYPE_MISMATCH");
   }
 
+  @Test
+  void typesAndValidatesItemDefinitionConstraints() {
+    ItemDefinition item = ItemDefinition.newBuilder()
+        .setNode(Node.newBuilder().setName("Limits"))
+        .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))
+        .setIsCollection(true)
+        .setConstraint(parsedConstraint("< 10"))
+        .addComponents(ItemComponent.newBuilder()
+            .setNode(Node.newBuilder().setName("label"))
+            .setType(builtin(BuiltinType.BUILTIN_TYPE_STRING))
+            .setConstraint(parsedConstraint("1")))
+        .build();
+
+    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
+        .addItemDefinitions(item)
+        .build());
+
+    assertThat(result.diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("TYPE_CONSTRAINT_TYPE_MISMATCH");
+    assertThat(result.model().getItemDefinitions(0).getConstraint().getParsed()
+        .getTests().getTests(0).getComparison().getEndpoint().hasInferredType()).isTrue();
+  }
+
   private DrgElement decision(String name, TypeReference declaredType, String expression) {
     Decision decision = Decision.newBuilder()
         .setNode(Node.newBuilder().setName(name))
@@ -261,6 +288,10 @@ class DmnTypeAnalyzerTest {
         .setVariable(InformationItem.newBuilder().setType(returnType))
         .setFunction(FunctionDefinition.newBuilder().setLogic(parsedFeel(expression)))
         .build();
+  }
+
+  private TypeConstraint parsedConstraint(String source) {
+    return TypeConstraint.newBuilder().setParsed(parser.parseUnaryTestsAst(source)).build();
   }
 
   private static TypeReference builtin(BuiltinType type) {
