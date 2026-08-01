@@ -1,7 +1,6 @@
 package io.finmsg.dmn.frontend.xml.dmn;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.finmsg.dmn.model.BuiltinType;
 import io.finmsg.dmn.model.AuthorityRequirement;
@@ -57,7 +56,6 @@ import io.finmsg.dmn.model.RelationText;
 import io.finmsg.dmn.model.TypeReference;
 import io.finmsg.dmn.model.TypeConstraint;
 import io.finmsg.dmn.model.UnaryTest;
-import io.finmsg.dmn.frontend.xml.exception.XmlWriteException;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
@@ -456,16 +454,46 @@ class DmnWriterTest {
   }
 
   @Test
-  void rejectsConflictingNonDmnDefaultNamespace() {
+  void writesPrefixedDmnWhenBusinessNamespaceIsDefault() {
     Definitions definitions =
         Definitions.newBuilder()
+            .setNode(Node.getDefaultInstance())
             .addNamespaces(
                 Namespace.newBuilder().setUri("https://example.com/business-types"))
+            .addDrgElements(
+                DrgElement.newBuilder()
+                    .setInputData(
+                        InputData.newBuilder()
+                            .setNode(Node.newBuilder().setId("input-1").setName("Applicant"))))
             .build();
 
-    assertThatThrownBy(() -> new DmnWriter().write(definitions))
-        .isInstanceOf(XmlWriteException.class)
-        .hasMessageContaining("non-DMN default namespace");
+    byte[] bytes = new DmnWriter().write(definitions);
+    String xml = new String(bytes, StandardCharsets.UTF_8);
+
+    assertThat(xml)
+        .contains("<dmn:definitions")
+        .contains("xmlns:dmn=\"https://www.omg.org/spec/DMN/20230324/MODEL/\"")
+        .contains("xmlns=\"https://example.com/business-types\"")
+        .contains("<dmn:inputData");
+    assertThat(new DmnXmlReader().read(bytes)).isEqualTo(definitions);
+  }
+
+  @Test
+  void avoidsAnExistingDmnPrefixWhenWritingPrefixedDmn() {
+    Definitions definitions =
+        Definitions.newBuilder()
+            .setNode(Node.getDefaultInstance())
+            .addNamespaces(Namespace.newBuilder().setUri("https://example.com/business-types"))
+            .addNamespaces(
+                Namespace.newBuilder().setPrefix("dmn").setUri("https://example.com/vendor"))
+            .build();
+
+    String xml = new String(new DmnWriter().write(definitions), StandardCharsets.UTF_8);
+
+    assertThat(xml)
+        .contains("<dmn1:definitions")
+        .contains("xmlns:dmn1=\"https://www.omg.org/spec/DMN/20230324/MODEL/\"")
+        .contains("xmlns:dmn=\"https://example.com/vendor\"");
   }
 
   @Test

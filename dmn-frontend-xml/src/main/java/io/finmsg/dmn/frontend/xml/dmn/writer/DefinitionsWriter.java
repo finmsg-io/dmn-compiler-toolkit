@@ -4,7 +4,8 @@ import io.finmsg.dmn.frontend.xml.XmlEmitter;
 import io.finmsg.dmn.frontend.xml.XmlWriter;
 import io.finmsg.dmn.model.Definitions;
 import io.finmsg.dmn.frontend.xml.dmn.DmnNamespaces;
-import io.finmsg.dmn.frontend.xml.exception.XmlWriteException;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class DefinitionsWriter implements XmlWriter<Definitions> {
 
@@ -18,16 +19,23 @@ public final class DefinitionsWriter implements XmlWriter<Definitions> {
 
   @Override
   public void write(XmlEmitter xml, Definitions value) {
-    xml.startElement("definitions");
     String modelNamespace = value.getModelNamespaceUri().isEmpty()
         ? DMN_1_5_NAMESPACE : value.getModelNamespaceUri();
-    xml.defaultNamespace(modelNamespace);
+    boolean hasBusinessDefault = value.getNamespacesList().stream()
+        .anyMatch(namespace -> namespace.getPrefix().isEmpty()
+            && !namespace.getUri().equals(modelNamespace));
+    String dmnPrefix = hasBusinessDefault ? availableDmnPrefix(value) : "";
+    if (hasBusinessDefault) {
+      xml.elementNamespace(dmnPrefix, modelNamespace);
+    }
+    xml.startElement("definitions");
+    if (hasBusinessDefault) {
+      xml.namespace(dmnPrefix, modelNamespace);
+    } else {
+      xml.defaultNamespace(modelNamespace);
+    }
     value.getNamespacesList().forEach(namespace -> {
       if (!namespace.getUri().equals(modelNamespace)) {
-        if (namespace.getPrefix().isEmpty()) {
-          throw new XmlWriteException(
-              "Cannot preserve a non-DMN default namespace with unprefixed DMN output.");
-        }
         xml.namespace(namespace.getPrefix(), namespace.getUri());
       }
     });
@@ -44,5 +52,16 @@ public final class DefinitionsWriter implements XmlWriter<Definitions> {
     value.getDrgElementsList().forEach(item -> drgElementWriter.write(xml, item));
 
     xml.endElement();
+  }
+
+  private static String availableDmnPrefix(Definitions value) {
+    Set<String> prefixes = new HashSet<>();
+    value.getNamespacesList().forEach(namespace -> prefixes.add(namespace.getPrefix()));
+    String candidate = "dmn";
+    int suffix = 1;
+    while (prefixes.contains(candidate)) {
+      candidate = "dmn" + suffix++;
+    }
+    return candidate;
   }
 }

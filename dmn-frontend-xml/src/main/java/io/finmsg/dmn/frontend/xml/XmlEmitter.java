@@ -9,6 +9,8 @@ import javax.xml.stream.XMLStreamWriter;
 public final class XmlEmitter implements AutoCloseable {
 
   private final XMLStreamWriter writer;
+  private String elementNamespace = "";
+  private String elementPrefix = "";
 
   public XmlEmitter(OutputStream output) {
     try {
@@ -23,7 +25,20 @@ public final class XmlEmitter implements AutoCloseable {
   }
 
   public void startElement(String name) {
-    execute(() -> writer.writeStartElement(name));
+    if (elementNamespace.isEmpty()) {
+      execute(() -> writer.writeStartElement(name));
+    } else {
+      execute(() -> writer.writeStartElement(elementPrefix, name, elementNamespace));
+    }
+  }
+
+  /** Configures the namespace used by subsequent ordinary element starts. */
+  public void elementNamespace(String prefix, String namespace) {
+    elementPrefix = prefix == null ? "" : prefix;
+    elementNamespace = namespace == null ? "" : namespace;
+    if (!elementNamespace.isEmpty()) {
+      execute(() -> writer.setPrefix(elementPrefix, elementNamespace));
+    }
   }
 
   public void startElement(String namespace, String name) {
