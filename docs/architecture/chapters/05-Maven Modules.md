@@ -126,7 +126,8 @@ protobuf FEEL AST variants now lower. Decision logic also covers recursive boxed
 contexts/relations/lists/functions and DMN invocations. BKM slots contain executable typed
 function bodies with preserved function kind. Decisions and nested functions persist isolated
 lexical frame sizes, and closure captures carry lexical depth. Declared and expression-derived
-references drive deterministic runtime scheduling. Indexed context fields, constant pools, and
+references drive deterministic runtime scheduling. Context types retain indexed field layouts,
+and statically known path and descendant access is resolved to those indices. Constant pools and
 model-set lowering remain future work.
 
 ## 5.7 Target modules

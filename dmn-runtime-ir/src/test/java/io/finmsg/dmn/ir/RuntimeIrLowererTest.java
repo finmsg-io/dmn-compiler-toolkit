@@ -2,6 +2,7 @@ package io.finmsg.dmn.ir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import io.finmsg.dmn.model.*;
 import io.finmsg.dmn.semantic.analysis.DmnSemanticDiagnostic;
@@ -64,6 +65,9 @@ class RuntimeIrLowererTest {
       assertThat(value.type().kind()).isEqualTo(RuntimeTypeKind.CONTEXT);
       assertThat(value.type().fields()).extracting(RuntimeType::kind)
           .containsExactly(RuntimeTypeKind.NUMBER, RuntimeTypeKind.LIST);
+      assertThat(value.type().fieldLayout())
+          .extracting(RuntimeField::index, RuntimeField::name)
+          .containsExactly(tuple(0, "age"), tuple(1, "tags"));
     });
     assertThat(result.businessKnowledgeModels()).singleElement()
         .satisfies(value -> assertThat(value.id()).isEqualTo(1));
@@ -284,6 +288,7 @@ class RuntimeIrLowererTest {
     assertThat(lowered).isInstanceOf(RuntimePathExpression.class);
     RuntimePathExpression runtimePath = (RuntimePathExpression) lowered;
     assertThat(runtimePath.member()).isEqualTo("b");
+    assertThat(runtimePath.fieldIndex()).isEqualTo(1);
     assertThat(runtimePath.type().kind()).isEqualTo(RuntimeTypeKind.NUMBER);
     assertThat(runtimePath.source()).isInstanceOf(RuntimeContextExpression.class);
     RuntimeContextExpression runtimeContext =
@@ -292,6 +297,9 @@ class RuntimeIrLowererTest {
         .containsExactly("a", "b");
     assertThat(runtimeContext.entries()).extracting(RuntimeContextEntry::localSlot)
         .containsExactly(0, 1);
+    assertThat(runtimeContext.type().fieldLayout())
+        .extracting(RuntimeField::index, RuntimeField::name)
+        .containsExactly(tuple(0, "a"), tuple(1, "b"));
     RuntimeBinaryExpression second =
         (RuntimeBinaryExpression) runtimeContext.entries().get(1).expression();
     assertThat(second.left()).isEqualTo(new RuntimeLocalReference(
@@ -544,6 +552,7 @@ class RuntimeIrLowererTest {
     RuntimeDescendantExpression runtimeDescendant =
         (RuntimeDescendantExpression) lowered.elements().get(2);
     assertThat(runtimeDescendant.member()).isEqualTo("amount");
+    assertThat(runtimeDescendant.fieldIndex()).isZero();
     assertThat(runtimeDescendant.source()).isInstanceOf(RuntimeContextExpression.class);
   }
 

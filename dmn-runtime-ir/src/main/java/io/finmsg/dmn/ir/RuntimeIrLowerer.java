@@ -262,7 +262,7 @@ public final class RuntimeIrLowerer {
       case CONTEXT -> {
         List<RuntimeContextEntry> entries = new ArrayList<>();
         Map<String, LocalSlotAddress> contextSlots = new HashMap<>(localSlots);
-        List<RuntimeType> fieldTypes = new ArrayList<>();
+        List<RuntimeField> fields = new ArrayList<>();
         for (int index = 0; index < boxed.getContext().getEntriesCount(); index++) {
           ContextEntryParsed entry = boxed.getContext().getEntries(index);
           String entryPath = path + "/context/entry[" + index + "]";
@@ -277,10 +277,11 @@ public final class RuntimeIrLowerer {
               new LocalSlotAddress(0, localSlot));
           entries.add(new RuntimeContextEntry(
               entry.getVariable().getNode().getName(), localSlot, expression));
-          fieldTypes.add(expression.type());
+          fields.add(new RuntimeField(index,
+              entry.getVariable().getNode().getName(), expression.type()));
         }
         yield new RuntimeContextExpression(entries,
-            expectedType == null ? RuntimeType.context(fieldTypes) : expectedType);
+            expectedType == null ? RuntimeType.contextFields(fields) : expectedType);
       }
       case LIST -> {
         List<RuntimeExpression> elements = new ArrayList<>();
@@ -313,7 +314,7 @@ public final class RuntimeIrLowerer {
         }
         RuntimeType relationType = expectedType == null
             ? RuntimeType.element(RuntimeTypeKind.LIST,
-                RuntimeType.context(columns.stream().map(RuntimeRelationColumn::type).toList()))
+                RuntimeType.contextFields(relationFields(columns)))
             : expectedType;
         yield new RuntimeRelationExpression(columns, rows, relationType);
       }
@@ -533,10 +534,12 @@ public final class RuntimeIrLowerer {
         }
         yield new RuntimeContextExpression(entries, type);
       }
-      case PATH -> new RuntimePathExpression(
-          lowerExpression(expression.getPath().getSource(), path + "/source", bindings, slots,
-              itemTypes, localSlots, nextLocalSlot),
-          expression.getPath().getMember(), type);
+      case PATH -> {
+        RuntimeExpression source = lowerExpression(expression.getPath().getSource(),
+            path + "/source", bindings, slots, itemTypes, localSlots, nextLocalSlot);
+        yield new RuntimePathExpression(source, expression.getPath().getMember(),
+            resolvedFieldIndex(source.type(), expression.getPath().getMember()), type);
+      }
       case RANGE -> lowerRange(expression.getRange(), type, path, bindings, slots, itemTypes,
           localSlots, nextLocalSlot);
       case FILTER -> new RuntimeFilterExpression(
@@ -575,10 +578,12 @@ public final class RuntimeIrLowerer {
           localSlots, nextLocalSlot);
       case INVOCATION -> lowerInvocation(expression.getInvocation(), type, path, bindings, slots,
           itemTypes, localSlots, nextLocalSlot);
-      case DESCENDANT -> new RuntimeDescendantExpression(
-          lowerExpression(expression.getDescendant().getSource(), path + "/source", bindings, slots,
-              itemTypes, localSlots, nextLocalSlot),
-          expression.getDescendant().getMember(), type);
+      case DESCENDANT -> {
+        RuntimeExpression source = lowerExpression(expression.getDescendant().getSource(),
+            path + "/source", bindings, slots, itemTypes, localSlots, nextLocalSlot);
+        yield new RuntimeDescendantExpression(source, expression.getDescendant().getMember(),
+            resolvedFieldIndex(source.type(), expression.getDescendant().getMember()), type);
+      }
       case DECISION_TABLE -> {
         Integer decisionSlot = slots.get(expression.getDecisionTable().getDecisionTableId());
         if (decisionSlot == null) {
@@ -1075,14 +1080,47 @@ public final class RuntimeIrLowerer {
           lowerType(type.getList().getElementType(), items, resolving));
       case RANGE -> RuntimeType.element(RuntimeTypeKind.RANGE,
           lowerType(type.getRange().getElementType(), items, resolving));
-      case CONTEXT -> RuntimeType.context(type.getContext().getEntriesList().stream()
-          .map(entry -> lowerType(entry.getType(), items, new HashSet<>(resolving))).toList());
+      case CONTEXT -> lowerContextType(type.getContext(), items, resolving);
       case FUNCTION -> RuntimeType.function(type.getFunction().getParameterTypeList().stream()
               .map(parameter -> lowerType(parameter, items, new HashSet<>(resolving))).toList(),
           lowerType(type.getFunction().getReturnType(), items, new HashSet<>(resolving)));
       case NAMED -> lowerNamed(type.getNamed(), items, resolving);
       case KIND_NOT_SET -> RuntimeType.scalar(RuntimeTypeKind.ANY);
     };
+  }
+
+  private static RuntimeType lowerContextType(
+      ContextTypeReference context,
+      Map<String, ItemDefinition> items,
+      Set<String> resolving) {
+    List<RuntimeField> fields = new ArrayList<>();
+    for (int index = 0; index < context.getEntriesCount(); index++) {
+      ContextEntryTypeReference entry = context.getEntries(index);
+      fields.add(new RuntimeField(index, entry.getName(),
+          lowerType(entry.getType(), items, new HashSet<>(resolving))));
+    }
+    return RuntimeType.contextFields(fields);
+  }
+
+  private static List<RuntimeField> relationFields(List<RuntimeRelationColumn> columns) {
+    List<RuntimeField> fields = new ArrayList<>();
+    for (int index = 0; index < columns.size(); index++) {
+      RuntimeRelationColumn column = columns.get(index);
+      fields.add(new RuntimeField(index, column.name(), column.type()));
+    }
+    return List.copyOf(fields);
+  }
+
+  private static int resolvedFieldIndex(RuntimeType source, String member) {
+    RuntimeType candidate = source.kind() == RuntimeTypeKind.LIST ? source.elementType() : source;
+    if (candidate == null || candidate.kind() != RuntimeTypeKind.CONTEXT) {
+      return -1;
+    }
+    return candidate.fieldLayout().stream()
+        .filter(field -> field.name().equals(member))
+        .map(RuntimeField::index)
+        .findFirst()
+        .orElse(-1);
   }
 
   private static RuntimeType lowerFeelType(
@@ -1110,8 +1148,14 @@ public final class RuntimeIrLowerer {
           lowerFeelType(type.getRange().getElementType(), items));
       case LIST -> RuntimeType.element(RuntimeTypeKind.LIST,
           lowerFeelType(type.getList().getElementType(), items));
-      case CONTEXT -> RuntimeType.context(type.getContext().getEntriesList().stream()
-          .map(entry -> lowerFeelType(entry.getType(), items)).toList());
+      case CONTEXT -> {
+        List<RuntimeField> fields = new ArrayList<>();
+        for (int index = 0; index < type.getContext().getEntriesCount(); index++) {
+          ContextTypeEntry entry = type.getContext().getEntries(index);
+          fields.add(new RuntimeField(index, entry.getName(), lowerFeelType(entry.getType(), items)));
+        }
+        yield RuntimeType.contextFields(fields);
+      }
       case FUNCTION -> RuntimeType.function(type.getFunction().getParameterTypesList().stream()
               .map(parameter -> lowerFeelType(parameter, items)).toList(),
           lowerFeelType(type.getFunction().getReturnType(), items));
@@ -1131,12 +1175,16 @@ public final class RuntimeIrLowerer {
     }
     RuntimeType result;
     if (item.getComponentsCount() > 0) {
-      result = RuntimeType.context(item.getComponentsList().stream()
-          .map(component -> {
-            RuntimeType field = lowerType(component.getType(), items, new HashSet<>(resolving));
-            return component.getIsCollection()
-                ? RuntimeType.element(RuntimeTypeKind.LIST, field) : field;
-          }).toList());
+      List<RuntimeField> fields = new ArrayList<>();
+      for (int index = 0; index < item.getComponentsCount(); index++) {
+        ItemComponent component = item.getComponents(index);
+        RuntimeType field = lowerType(component.getType(), items, new HashSet<>(resolving));
+        if (component.getIsCollection()) {
+          field = RuntimeType.element(RuntimeTypeKind.LIST, field);
+        }
+        fields.add(new RuntimeField(index, component.getNode().getName(), field));
+      }
+      result = RuntimeType.contextFields(fields);
     } else {
       result = lowerType(item.getType(), items, resolving);
     }
