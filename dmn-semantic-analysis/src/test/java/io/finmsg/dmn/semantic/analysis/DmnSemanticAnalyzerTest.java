@@ -186,6 +186,43 @@ class DmnSemanticAnalyzerTest {
   }
 
   @Test
+  void requiresDecisionServiceOutputDecision() {
+    DecisionService service = DecisionService.newBuilder()
+        .setNode(Node.newBuilder().setName("Empty service"))
+        .build();
+
+    assertThat(analyzer.analyze(Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setDecisionService(service))
+        .build()).diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("MISSING_OUTPUT_DECISION");
+  }
+
+  @Test
+  void rejectsDuplicateAndConflictingDecisionServiceReferences() {
+    Decision decision = Decision.newBuilder()
+        .setNode(Node.newBuilder().setId("decision-id").setName("Decision"))
+        .build();
+    DecisionService service = DecisionService.newBuilder()
+        .setNode(Node.newBuilder().setName("Service"))
+        .addOutputDecisions(reference("#decision-id"))
+        .addOutputDecisions(reference("#decision-id"))
+        .addEncapsulatedDecisions(reference("#decision-id"))
+        .build();
+
+    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
+        .addDrgElements(DrgElement.newBuilder().setDecisionService(service))
+        .build());
+
+    assertThat(result.diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly(
+            "DUPLICATE_DECISION_SERVICE_REFERENCE",
+            "CONFLICTING_DECISION_SERVICE_ROLE");
+  }
+
+  @Test
   void validatesInvocationBindingsAgainstBkmParameters() {
     BusinessKnowledgeModel bkm = BusinessKnowledgeModel.newBuilder()
         .setNode(Node.newBuilder().setId("bkm-id").setName("Calculator"))

@@ -346,6 +346,11 @@ public final class DmnSemanticAnalyzer {
     private void analyzeDecisionService(DecisionService service, int index) {
       String path = "definitions/decisionService["
           + displayName(service.getNode().getName(), index) + "]";
+      if (service.getOutputDecisionsCount() == 0) {
+        error("MISSING_OUTPUT_DECISION", path + "/outputDecision",
+            "A decision service must expose at least one output decision.",
+            service.getNode().getSourceLocation());
+      }
       validateReferences(service.getOutputDecisionsList(), Set.of(SymbolKind.DECISION),
           path + "/outputDecision", service.getNode().getSourceLocation());
       validateReferences(service.getEncapsulatedDecisionsList(), Set.of(SymbolKind.DECISION),
@@ -354,6 +359,57 @@ public final class DmnSemanticAnalyzer {
           path + "/inputDecision", service.getNode().getSourceLocation());
       validateReferences(service.getInputDataList(), Set.of(SymbolKind.INPUT_DATA),
           path + "/inputData", service.getNode().getSourceLocation());
+      validateUniqueReferences(service.getOutputDecisionsList(), path + "/outputDecision",
+          service.getNode().getSourceLocation());
+      validateUniqueReferences(service.getEncapsulatedDecisionsList(),
+          path + "/encapsulatedDecision", service.getNode().getSourceLocation());
+      validateUniqueReferences(service.getInputDecisionsList(), path + "/inputDecision",
+          service.getNode().getSourceLocation());
+      validateUniqueReferences(service.getInputDataList(), path + "/inputData",
+          service.getNode().getSourceLocation());
+      validateDecisionServiceRoles(service, path, service.getNode().getSourceLocation());
+    }
+
+    private void validateUniqueReferences(
+        List<ElementReference> references, String path, SourceLocation location) {
+      Set<String> seen = new HashSet<>();
+      for (int i = 0; i < references.size(); i++) {
+        String id = referenceId(references.get(i).getHref());
+        if (!id.isBlank() && !seen.add(id)) {
+          error("DUPLICATE_DECISION_SERVICE_REFERENCE", path + "[" + i + "]",
+              "Decision-service reference '" + references.get(i).getHref()
+                  + "' is listed more than once.", location);
+        }
+      }
+    }
+
+    private void validateDecisionServiceRoles(
+        DecisionService service, String path, SourceLocation location) {
+      Map<String, String> roles = new LinkedHashMap<>();
+      registerDecisionServiceRoles(service.getOutputDecisionsList(), "outputDecision",
+          path, location, roles);
+      registerDecisionServiceRoles(service.getEncapsulatedDecisionsList(),
+          "encapsulatedDecision", path, location, roles);
+      registerDecisionServiceRoles(service.getInputDecisionsList(), "inputDecision",
+          path, location, roles);
+    }
+
+    private void registerDecisionServiceRoles(
+        List<ElementReference> references, String role, String path, SourceLocation location,
+        Map<String, String> roles) {
+      Set<String> seenInRole = new HashSet<>();
+      for (int i = 0; i < references.size(); i++) {
+        String id = referenceId(references.get(i).getHref());
+        if (id.isBlank() || !seenInRole.add(id)) {
+          continue;
+        }
+        String previous = roles.putIfAbsent(id, role);
+        if (previous != null && !previous.equals(role)) {
+          error("CONFLICTING_DECISION_SERVICE_ROLE", path + "/" + role + "[" + i + "]",
+              "Decision '" + references.get(i).getHref() + "' is listed as both "
+                  + previous + " and " + role + ".", location);
+        }
+      }
     }
 
     private void validateReferences(
