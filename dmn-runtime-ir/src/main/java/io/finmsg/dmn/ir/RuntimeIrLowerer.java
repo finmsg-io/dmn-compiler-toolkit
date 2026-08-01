@@ -130,8 +130,8 @@ public final class RuntimeIrLowerer {
             .findFirst()
             .orElseThrow(() -> new RuntimeIrLoweringException(
                 "Missing semantic binding for decision expression at " + path + "."));
-        if (binding.kind()
-            == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE) {
+        if (binding.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE
+            || binding.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.PARAMETER) {
           Integer localSlot = localSlots.get(binding.declarationPath());
           if (localSlot == null) {
             throw new RuntimeIrLoweringException(
@@ -240,9 +240,128 @@ public final class RuntimeIrLowerer {
       case UNARY_TESTS -> new RuntimeUnaryTestsExpression(
           lowerUnaryTests(expression.getUnaryTests(), path, bindings, slots, itemTypes,
               localSlots, nextLocalSlot), type);
+      case FOR_EXPRESSION -> lowerFor(expression.getForExpression(), type, path, bindings, slots,
+          itemTypes, localSlots, nextLocalSlot);
+      case QUANTIFIED -> lowerQuantified(expression.getQuantified(), type, path, bindings, slots,
+          itemTypes, localSlots, nextLocalSlot);
+      case FUNCTION_DEFINITION -> lowerFunctionDefinition(
+          expression.getFunctionDefinition(), type, path, bindings, slots, itemTypes,
+          localSlots, nextLocalSlot);
       default -> throw new RuntimeIrLoweringException(
           "Unsupported Runtime IR expression " + expression.getNodeCase()
               + " at " + path + ".");
+    };
+  }
+
+  private static RuntimeForExpression lowerFor(
+      ForExpression value,
+      RuntimeType type,
+      String path,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, Integer> localSlots,
+      int[] nextLocalSlot) {
+    List<RuntimeIteration> iterations = new ArrayList<>();
+    Map<String, Integer> iterationSlots = new HashMap<>(localSlots);
+    if (value.getIterationsCount() == 0) {
+      if (value.getVariable().isBlank()) {
+        throw new RuntimeIrLoweringException("For expression has no iteration at " + path + ".");
+      }
+      RuntimeExpression source = lowerExpression(value.getIn(), path + "/in", bindings, slots,
+          itemTypes, iterationSlots, nextLocalSlot);
+      int localSlot = nextLocalSlot[0]++;
+      iterationSlots.put(path, localSlot);
+      iterations.add(new RuntimeIteration(localSlot, source, Optional.empty()));
+    } else {
+      for (int index = 0; index < value.getIterationsCount(); index++) {
+        IterationContext iteration = value.getIterations(index);
+        String iterationPath = path + "/iteration[" + index + "]";
+        RuntimeExpression source = lowerExpression(iteration.getStart(), iterationPath + "/in",
+            bindings, slots, itemTypes, iterationSlots, nextLocalSlot);
+        Optional<RuntimeExpression> end = iteration.hasEnd()
+            ? Optional.of(lowerExpression(iteration.getEnd(), iterationPath + "/end", bindings,
+                slots, itemTypes, iterationSlots, nextLocalSlot)) : Optional.empty();
+        int localSlot = nextLocalSlot[0]++;
+        iterationSlots.put(iterationPath, localSlot);
+        iterations.add(new RuntimeIteration(localSlot, source, end));
+      }
+    }
+    RuntimeExpression result = lowerExpression(value.getReturnExpression(), path + "/return",
+        bindings, slots, itemTypes, iterationSlots, nextLocalSlot);
+    return new RuntimeForExpression(iterations, result, type);
+  }
+
+  private static RuntimeQuantifiedExpression lowerQuantified(
+      QuantifiedExpression value,
+      RuntimeType type,
+      String path,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, Integer> localSlots,
+      int[] nextLocalSlot) {
+    List<RuntimeQuantifiedBinding> loweredBindings = new ArrayList<>();
+    Map<String, Integer> quantifiedSlots = new HashMap<>(localSlots);
+    if (value.getBindingsCount() == 0) {
+      if (value.getVariable().isBlank()) {
+        throw new RuntimeIrLoweringException(
+            "Quantified expression has no binding at " + path + ".");
+      }
+      RuntimeExpression source = lowerExpression(value.getIn(), path + "/in", bindings, slots,
+          itemTypes, quantifiedSlots, nextLocalSlot);
+      int localSlot = nextLocalSlot[0]++;
+      quantifiedSlots.put(path, localSlot);
+      loweredBindings.add(new RuntimeQuantifiedBinding(localSlot, source));
+    } else {
+      for (int index = 0; index < value.getBindingsCount(); index++) {
+        IterationBinding binding = value.getBindings(index);
+        String bindingPath = path + "/binding[" + index + "]";
+        RuntimeExpression source = lowerExpression(binding.getIn(), bindingPath + "/in", bindings,
+            slots, itemTypes, quantifiedSlots, nextLocalSlot);
+        int localSlot = nextLocalSlot[0]++;
+        quantifiedSlots.put(bindingPath, localSlot);
+        loweredBindings.add(new RuntimeQuantifiedBinding(localSlot, source));
+      }
+    }
+    RuntimeExpression satisfies = lowerExpression(value.getSatisfies(), path + "/satisfies",
+        bindings, slots, itemTypes, quantifiedSlots, nextLocalSlot);
+    return new RuntimeQuantifiedExpression(
+        quantifier(value.getQuantifier()), loweredBindings, satisfies, type);
+  }
+
+  private static RuntimeFunctionDefinition lowerFunctionDefinition(
+      FunctionDefinitionExpression value,
+      RuntimeType type,
+      String path,
+      List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings,
+      Map<String, Integer> slots,
+      Map<String, ItemDefinition> itemTypes,
+      Map<String, Integer> localSlots,
+      int[] nextLocalSlot) {
+    List<RuntimeFunctionParameter> parameters = new ArrayList<>();
+    Map<String, Integer> parameterSlots = new HashMap<>(localSlots);
+    for (int index = 0; index < value.getParametersCount(); index++) {
+      FormalParameter parameter = value.getParameters(index);
+      String parameterPath = path + "/parameter[" + index + "]";
+      int localSlot = nextLocalSlot[0]++;
+      parameterSlots.put(parameterPath, localSlot);
+      parameters.add(new RuntimeFunctionParameter(
+          parameter.getName(), localSlot, lowerFeelType(parameter.getType(), itemTypes)));
+    }
+    Optional<RuntimeExpression> body = value.getBody().getNodeCase() == Expression.NodeCase.NODE_NOT_SET
+        ? Optional.empty()
+        : Optional.of(lowerExpression(value.getBody(), path + "/body", bindings, slots,
+            itemTypes, parameterSlots, nextLocalSlot));
+    return new RuntimeFunctionDefinition(parameters, body, value.getExternal(), type);
+  }
+
+  private static RuntimeQuantifier quantifier(Quantifier quantifier) {
+    return switch (quantifier) {
+      case QUANTIFIER_SOME -> RuntimeQuantifier.SOME;
+      case QUANTIFIER_EVERY -> RuntimeQuantifier.EVERY;
+      case QUANTIFIER_UNSPECIFIED, UNRECOGNIZED -> throw new RuntimeIrLoweringException(
+          "Unsupported FEEL quantifier " + quantifier + ".");
     };
   }
 

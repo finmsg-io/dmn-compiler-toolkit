@@ -374,6 +374,93 @@ class RuntimeIrLowererTest {
     assertThat(runtimeTests.tests().wildcard()).isTrue();
   }
 
+  @Test
+  void lowersIterationQuantificationAndFunctionDefinitions() {
+    TypeReference any = builtin(BuiltinType.BUILTIN_TYPE_ANY);
+    TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
+    TypeReference booleanType = builtin(BuiltinType.BUILTIN_TYPE_BOOLEAN);
+    TypeReference numberList = TypeReference.newBuilder()
+        .setList(ListTypeReference.newBuilder().setElementType(number)).build();
+    TypeReference functionType = TypeReference.newBuilder()
+        .setFunction(FunctionTypeReference.newBuilder()
+            .addParameterType(number).setReturnType(number)).build();
+    TypeReference anyList = TypeReference.newBuilder()
+        .setList(ListTypeReference.newBuilder().setElementType(any)).build();
+    Expression iterationName = name("x", number);
+    Expression forExpression = Expression.newBuilder()
+        .setForExpression(ForExpression.newBuilder()
+            .addIterations(IterationContext.newBuilder().setVariable("x")
+                .setStart(literal(LiteralKind.LITERAL_KIND_NUMBER, "1", number))
+                .setEnd(literal(LiteralKind.LITERAL_KIND_NUMBER, "3", number)))
+            .setReturnExpression(iterationName))
+        .setInferredType(numberList).build();
+    Expression quantifiedName = name("y", number);
+    Expression satisfies = Expression.newBuilder()
+        .setBinary(BinaryExpression.newBuilder()
+            .setOperator(BinaryOperator.BINARY_OPERATOR_GREATER)
+            .setLeft(quantifiedName)
+            .setRight(literal(LiteralKind.LITERAL_KIND_NUMBER, "0", number)))
+        .setInferredType(booleanType).build();
+    Expression quantified = Expression.newBuilder()
+        .setQuantified(QuantifiedExpression.newBuilder()
+            .setQuantifier(Quantifier.QUANTIFIER_EVERY)
+            .addBindings(IterationBinding.newBuilder().setVariable("y")
+                .setIn(Expression.newBuilder().setList(ListExpression.newBuilder()
+                        .addElements(literal(LiteralKind.LITERAL_KIND_NUMBER, "1", number)))
+                    .setInferredType(numberList)))
+            .setSatisfies(satisfies))
+        .setInferredType(booleanType).build();
+    Expression function = Expression.newBuilder()
+        .setFunctionDefinition(FunctionDefinitionExpression.newBuilder()
+            .addParameters(FormalParameter.newBuilder().setName("value")
+                .setType(FeelType.newBuilder().setQualifiedName("number")))
+            .setBody(name("value", number)))
+        .setInferredType(functionType).build();
+    Expression expression = Expression.newBuilder()
+        .setList(ListExpression.newBuilder()
+            .addElements(forExpression).addElements(quantified).addElements(function))
+        .setInferredType(anyList).build();
+    DrgElement decision = decisionWithExpression(
+        "decision-id", "Result", anyList, expression);
+    String root = "definitions/decision[Result]/logic/literalExpression";
+    List<DmnSymbolBinding> bindings = List.of(
+        new DmnSymbolBinding(root + "/element[0]/return",
+            root + "/element[0]/iteration[0]", "x", "",
+            DmnSymbolKind.LOCAL_VARIABLE, number),
+        new DmnSymbolBinding(root + "/element[1]/satisfies/left",
+            root + "/element[1]/binding[0]", "y", "",
+            DmnSymbolKind.LOCAL_VARIABLE, number),
+        new DmnSymbolBinding(root + "/element[2]/body",
+            root + "/element[2]/parameter[0]", "value", "",
+            DmnSymbolKind.PARAMETER, number));
+
+    RuntimeListExpression lowered = (RuntimeListExpression) lowerer.lower(
+        new DmnSemanticPipelineResult(
+            Definitions.newBuilder().addDrgElements(decision).build(),
+            List.of(decision), List.of(), bindings))
+        .decisions().getFirst().expression().orElseThrow();
+
+    RuntimeForExpression runtimeFor = (RuntimeForExpression) lowered.elements().get(0);
+    assertThat(runtimeFor.iterations()).singleElement().satisfies(iteration -> {
+      assertThat(iteration.localSlot()).isZero();
+      assertThat(iteration.end()).isPresent();
+    });
+    assertThat(runtimeFor.result()).isInstanceOf(RuntimeLocalReference.class);
+    RuntimeQuantifiedExpression runtimeQuantified =
+        (RuntimeQuantifiedExpression) lowered.elements().get(1);
+    assertThat(runtimeQuantified.quantifier()).isEqualTo(RuntimeQuantifier.EVERY);
+    assertThat(runtimeQuantified.bindings()).singleElement()
+        .extracting(RuntimeQuantifiedBinding::localSlot).isEqualTo(1);
+    RuntimeFunctionDefinition runtimeFunction =
+        (RuntimeFunctionDefinition) lowered.elements().get(2);
+    assertThat(runtimeFunction.parameters()).singleElement().satisfies(parameter -> {
+      assertThat(parameter.name()).isEqualTo("value");
+      assertThat(parameter.localSlot()).isEqualTo(2);
+      assertThat(parameter.type().kind()).isEqualTo(RuntimeTypeKind.NUMBER);
+    });
+    assertThat(runtimeFunction.body()).containsInstanceOf(RuntimeLocalReference.class);
+  }
+
   private static DrgElement decisionWithExpression(
       String id, String name, TypeReference type, Expression expression) {
     return DrgElement.newBuilder().setDecision(Decision.newBuilder()
@@ -390,6 +477,11 @@ class RuntimeIrLowererTest {
         .setLiteral(LiteralExpression.newBuilder().setKind(kind).setValue(value))
         .setInferredType(type)
         .build();
+  }
+
+  private static Expression name(String value, TypeReference type) {
+    return Expression.newBuilder().setName(NameExpression.newBuilder().setName(value))
+        .setInferredType(type).build();
   }
 
   private static ElementReference ref(String href) {

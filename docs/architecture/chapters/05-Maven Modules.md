@@ -120,9 +120,9 @@ Implemented baseline responsibilities:
 
 Typed constants, bound global and lexical-local references, recursive unary/binary operators,
 conditional expressions, list and context literals, named function calls, path/property access,
-ranges, filters, and comparison/test expressions are implemented. Iteration, quantified,
-function-definition, invocation, remaining boxed expressions, constant pools, decision tables,
-and model-set lowering remain future work.
+ranges, filters, comparison/test expressions, iteration, quantification, and function definitions
+are implemented. Invocation, descendant access, remaining boxed expressions, constant pools,
+decision tables, and model-set lowering remain future work.
 
 ## 5.7 Target modules
 
