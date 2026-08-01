@@ -127,6 +127,9 @@ public interface XmlCursor extends AutoCloseable {
 
   int depth();
 
+  /** Maximum element depth present in the document. */
+  int maximumDepth();
+
   int line();
 
   int column();

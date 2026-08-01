@@ -16,9 +16,10 @@ model or throw. `readResult` returns `DmnReadResult`, containing an optional mod
 diagnostics. `DmnReadOptions` supplies a system ID, a configurable input-size limit (16 MiB by
 default), and opt-in source-location capture.
 
-Diagnostics currently distinguish oversized input (`DMN-XML-001`), I/O failures
-(`DMN-XML-002`), malformed XML (`DMN-XML-003`), and recognized-but-unsupported DMN content
-(`DMN-XML-004`).
+Diagnostics distinguish oversized input (`DMN-XML-001`), I/O failures (`DMN-XML-002`),
+malformed XML (`DMN-XML-003`), recognized-but-unsupported DMN content (`DMN-XML-004`),
+prohibited DTD/entity declarations (`DMN-XML-005`), and excessive element depth
+(`DMN-XML-006`).
 
 ## 11.3 Namespace and version behavior
 
@@ -67,7 +68,7 @@ protobuf model. Adding them requires a semantic-model decision rather than reade
 
 Before the current subset is declared compiler-grade complete:
 
-1. add the multi-version, namespace-shadowing, conformance, and hostile-input matrix;
-2. run the complete Maven reactor.
+1. run the complete Maven reactor;
+2. publish the supported-subset contract.
 
 See [the XML completeness audit](../../audits/dmn-frontend-xml-completeness.md).

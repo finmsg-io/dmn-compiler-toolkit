@@ -416,6 +416,11 @@ public final class VtdXmlCursor implements XmlCursor {
   }
 
   @Override
+  public int maximumDepth() {
+    return nav.getNestingLevel();
+  }
+
+  @Override
   public int line() {
     int offset = offset();
     if (offset < 0) return -1;

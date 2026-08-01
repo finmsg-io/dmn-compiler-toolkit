@@ -22,8 +22,8 @@
 ```text
 [done] preserve QName typeRef namespaces through XML read/write
 [done] diagnose unsupported DMN-namespace children consistently
-[ ] add multi-version and namespace-shadowing fixtures
-[ ] add DTD/XXE, deep-nesting, malformed-encoding, and hostile-input tests
+[done] add multi-version and namespace-shadowing fixtures
+[done] add DTD/XXE, deep-nesting, malformed-encoding, and hostile-input tests
 [ ] run and stabilize the full reactor
 [ ] publish the supported-subset contract
 ```

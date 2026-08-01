@@ -8,7 +8,7 @@ XML-representable portion of the current protobuf model.
 - [x] Resolve QName `typeRef` prefixes in element scope and store `NamedTypeReference.namespace`.
 - [x] Select or declare the correct prefix when writing a namespace-qualified named type.
 - [x] Report unknown DMN-namespace children consistently instead of silently skipping them.
-- [ ] Add multi-version, namespace-shadowing, malformed-encoding, DTD/XXE, and deep-nesting tests.
+- [x] Add multi-version, namespace-shadowing, malformed-encoding, DTD/XXE, and deep-nesting tests.
 - [ ] Run the complete reactor and publish the supported-subset contract.
 
 ## Completed
@@ -21,7 +21,7 @@ XML-representable portion of the current protobuf model.
 - [x] Item definitions, components, collections, and constraints.
 - [x] Documentation and one-level structured extension preservation.
 - [x] DMN version/root namespace round trips and prefixed-DMN output.
-- [x] Semantic read-write-read tests; 26 XML frontend tests currently pass.
+- [x] Semantic read-write-read tests; 36 XML frontend tests currently pass.
 
 ## Requires protobuf/model extension
 

@@ -8,10 +8,12 @@
 3. FeelAstBuilder structure tests
 4. DmnFeelParser traversal and idempotency tests
 5. model-aware multi-error diagnostic tests
-6. XML writer tests
-7. Traffic Violation XML-to-FEEL integration test
-8. semantic-analysis unit tests
-9. Traffic Violation full frontend-to-semantic-analysis test
+6. XML semantic round-trip tests
+7. XML multi-version, namespace, malformed-input, DTD/XXE, and depth-limit tests
+8. Traffic Violation XML-to-FEEL integration test
+9. semantic-analysis unit and cross-model tests
+10. Traffic Violation full frontend-to-semantic-analysis test
+11. structural Runtime IR lowering tests
 ```
 
 ## 15.2 Traffic Violation pipeline
@@ -50,13 +52,7 @@ Semantic-analysis tests verify:
 
 ## 15.4 Next test priorities
 
-- XML reader unit and negative tests
-- complete XML writer round-trip tests
-- source-location assertions
-- import and namespace tests
-- semantic type-inference tests
-- dependency-cycle tests
+- complete-reactor XML frontend validation
 - broader DMN and FEEL conformance fixtures
-- security tests for hostile XML
 - deterministic protobuf serialization tests
-
+- Runtime IR expression and decision-table lowering tests

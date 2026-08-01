@@ -43,7 +43,7 @@
 
 - [x] Preserve QName `typeRef` namespaces during XML read/write
 - [x] Diagnose unsupported DMN-namespace content consistently across readers
-- [ ] Add the multi-version, conformance, namespace-shadowing, and hostile-input matrix
+- [x] Add the multi-version, conformance, namespace-shadowing, and hostile-input matrix
 - [ ] Run and stabilize the complete reactor
 
 ## Compiler glue and Runtime IR

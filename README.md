@@ -10,8 +10,7 @@ The project is under active development.
 
 Current focus:
 
-- XML conformance and hostile-input coverage
-- XML conformance and security hardening
+- full-reactor stabilization of the XML frontend completion gate
 - Runtime IR expression and decision-table lowering
 - compiler facade and model-resolution glue
 
@@ -190,8 +189,7 @@ mkdocs build
 
 ## Roadmap
 
-- Complete the XML conformance and security matrix
-- Complete XML conformance and hostile-input coverage
+- Run and stabilize the complete Maven reactor
 - Lower FEEL expressions and decision tables into Runtime IR instructions
 - Add optimizer passes
 - Generate optimized Java code

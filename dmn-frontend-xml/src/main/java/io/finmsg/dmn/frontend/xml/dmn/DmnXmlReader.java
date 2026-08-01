@@ -74,8 +74,17 @@ public final class DmnXmlReader {
     if (xml.length > options.maxInputBytes()) {
       return failure("DMN-XML-001", "DMN XML exceeds the configured input limit.", options);
     }
+    if (containsAsciiIgnoringNulls(xml, "<!DOCTYPE")
+        || containsAsciiIgnoringNulls(xml, "<!ENTITY")) {
+      return failure(
+          "DMN-XML-005", "DTD and entity declarations are prohibited in DMN XML.", options);
+    }
     try (XmlCursor cursor = new VtdXmlCursor(
         xml, options.systemId(), options.captureSourceLocations())) {
+      if (cursor.maximumDepth() > options.maxElementDepth()) {
+        return failure(
+            "DMN-XML-006", "DMN XML exceeds the configured element-depth limit.", options);
+      }
       return new DmnReadResult(read(cursor), List.of());
     } catch (UnsupportedDmnXmlException exception) {
       return failure("DMN-XML-004", exception.getMessage(), options);
@@ -83,6 +92,28 @@ public final class DmnXmlReader {
       String message = exception.getMessage() == null ? "Cannot parse DMN XML." : exception.getMessage();
       return failure("DMN-XML-003", message, options);
     }
+  }
+
+  private static boolean containsAsciiIgnoringNulls(byte[] input, String wanted) {
+    int matched = 0;
+    for (byte value : input) {
+      int character = value & 0xff;
+      if (character == 0) {
+        continue;
+      }
+      if (character >= 'a' && character <= 'z') {
+        character -= 'a' - 'A';
+      }
+      if (character == wanted.charAt(matched)) {
+        matched++;
+        if (matched == wanted.length()) {
+          return true;
+        }
+      } else {
+        matched = character == wanted.charAt(0) ? 1 : 0;
+      }
+    }
+    return false;
   }
 
   private Definitions read(XmlCursor cursor) {

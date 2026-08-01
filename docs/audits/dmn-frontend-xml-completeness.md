@@ -6,8 +6,8 @@ Status: audited 2026-08-01 against the current protobuf model and the reader/wri
 
 `dmn-frontend-xml` is feature-complete for the XML-representable portion of the current
 `dmn-protobuf` core model. QName type references are namespace-safe in both directions. The
-module should not yet be called complete for the entire DMN specification because unsupported
-content diagnostics and the conformance/security matrix remain incomplete.
+module should not yet be called complete for the entire DMN specification because broader
+model extensions remain intentionally outside the current protobuf subset.
 
 The reader and writer currently round-trip definitions metadata and namespaces, imports,
 item definitions and constraints, all five modeled DRG element variants, requirements,
@@ -51,11 +51,12 @@ Unknown DMN-namespace children produce `DMN-XML-004` throughout the reader hiera
 intentionally unmodeled metadata is explicit, and foreign-namespace extension content remains
 permitted or preserved according to its structural location.
 
-### P1 — Conformance and hardening matrix
+### Completed — Conformance and hardening matrix
 
-Add representative DMN 1.1 through 1.5 fixtures, QName type-reference cases, namespace
-shadowing cases, malformed and oversized input cases, and read-write-read conformance tests.
-Run the complete multi-module reactor after this matrix is in place.
+Tests cover supported DMN 1.2 through 1.6 vocabulary namespaces, QName scope/shadowing,
+malformed and oversized input, exact byte limits, DTD/XXE declarations in UTF-8 and UTF-16,
+configurable depth limits, and semantic read-write-read conformance. The remaining completion
+gate is the complete multi-module reactor.
 
 ## Model-extension boundary
 
@@ -72,6 +73,6 @@ These are extensions to the semantic model, not reader/writer glue-code defects.
 
 ## Completion gate
 
-The current frontend subset can be declared complete after the conformance matrix passes and the
-full reactor succeeds. Full DMN-spec completeness additionally requires an
+The current frontend subset can be declared complete after the full reactor succeeds. Full
+DMN-spec completeness additionally requires an
 explicit decision about each model-extension item above.
