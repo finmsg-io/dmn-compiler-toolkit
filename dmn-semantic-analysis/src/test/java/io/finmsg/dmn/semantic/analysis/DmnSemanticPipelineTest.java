@@ -126,6 +126,10 @@ class DmnSemanticPipelineTest {
         binding.targetNamespace().equals("urn:base"))
         .extracting(DmnSymbolBinding::symbolId)
         .contains("applicant-type", "external-input");
+    assertThat(result.bindings()).filteredOn(binding ->
+        binding.symbolId().equals("external-input"))
+        .allSatisfy(binding ->
+            assertThat(binding.type().getNamed().getNamespace()).isEqualTo("urn:base"));
   }
 
   @Test

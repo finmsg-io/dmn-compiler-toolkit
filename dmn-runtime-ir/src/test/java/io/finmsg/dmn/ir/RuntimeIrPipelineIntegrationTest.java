@@ -15,6 +15,66 @@ import org.junit.jupiter.api.Test;
 class RuntimeIrPipelineIntegrationTest {
 
   @Test
+  void linksTwoXmlModelsIntoOneNamespaceFreeRuntimeModel() {
+    String baseXml = """
+        <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+            id="base" name="Base" namespace="urn:base">
+          <itemDefinition id="applicant-type" name="Applicant">
+            <itemComponent id="score-field" name="score" typeRef="number"/>
+          </itemDefinition>
+          <inputData id="external-input" name="ExternalInput">
+            <variable id="external-variable" name="ExternalInput" typeRef="Applicant"/>
+          </inputData>
+        </definitions>
+        """;
+    String rootXml = """
+        <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+            xmlns:base="urn:base" id="root" name="Root" namespace="urn:root">
+          <import id="base-import" name="base" namespace="urn:base" importType="DMN"/>
+          <decision id="root-decision" name="Result">
+            <variable id="root-variable" name="Result" typeRef="number"/>
+            <informationRequirement>
+              <requiredInput href="urn:base#external-input"/>
+            </informationRequirement>
+            <literalExpression><text>ExternalInput.score</text></literalExpression>
+          </decision>
+        </definitions>
+        """;
+
+    DmnXmlReader reader = new DmnXmlReader();
+    DmnFeelParser parser = new DmnFeelParser();
+    Definitions base = parser.parse(reader.read(baseXml.getBytes(StandardCharsets.UTF_8)));
+    Definitions root = parser.parse(reader.read(rootXml.getBytes(StandardCharsets.UTF_8)));
+    DmnSemanticPipeline pipeline = new DmnSemanticPipeline();
+    DmnSemanticPipelineResult baseAnalysis = pipeline.analyze(base);
+    DmnSemanticPipelineResult rootAnalysis = pipeline.analyze(root, java.util.List.of(base));
+    assertThat(baseAnalysis.diagnostics()).isEmpty();
+    assertThat(rootAnalysis.diagnostics()).isEmpty();
+
+    RuntimeModel runtime = new RuntimeIrLowerer().lowerModelSet(
+        java.util.List.of(baseAnalysis, rootAnalysis));
+
+    assertThat(runtime.valueSlotCount()).isEqualTo(2);
+    assertThat(runtime.inputs()).singleElement().satisfies(input -> {
+      assertThat(input.id()).isZero();
+      assertThat(input.type().fieldLayout()).singleElement().satisfies(field -> {
+        assertThat(field.index()).isZero();
+        assertThat(field.name()).isEqualTo("score");
+      });
+    });
+    assertThat(runtime.decisions()).singleElement().satisfies(decision -> {
+      assertThat(decision.id()).isEqualTo(1);
+      assertThat(decision.dependencies()).containsExactly(0);
+      RuntimePathExpression path =
+          (RuntimePathExpression) decision.expression().orElseThrow();
+      assertThat(path.fieldIndex()).isZero();
+      assertThat(path.source()).isEqualTo(new RuntimeValueReference(
+          0, runtime.inputs().getFirst().type()));
+    });
+    assertThat(runtime.evaluationOrder()).containsExactly(1);
+  }
+
+  @Test
   void lowersExecutableBkmBodyFromXmlThroughEveryCompilerPhase() {
     String xml = """
         <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"

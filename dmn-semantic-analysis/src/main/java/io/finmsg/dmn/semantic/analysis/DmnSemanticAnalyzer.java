@@ -580,9 +580,40 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
         default -> throw new IllegalArgumentException(
             "Unsupported DRG element kind: " + element.getElementCase());
       }
+      type = qualifyExternalType(type, resolved.model().getNamespace());
       return new Symbol(node.getName(), node.getId(), type, kind, node.getSourceLocation(),
           parameters, "definitions/drgElement[" + node.getId() + "]",
           resolved.model().getNamespace());
+    }
+
+    private TypeReference qualifyExternalType(TypeReference type, String namespace) {
+      return switch (type.getKindCase()) {
+        case NAMED -> type.getNamed().getNamespace().isBlank()
+            ? type.toBuilder().setNamed(type.getNamed().toBuilder().setNamespace(namespace)).build()
+            : type;
+        case LIST -> type.toBuilder().setList(type.getList().toBuilder().setElementType(
+            qualifyExternalType(type.getList().getElementType(), namespace))).build();
+        case RANGE -> type.toBuilder().setRange(type.getRange().toBuilder().setElementType(
+            qualifyExternalType(type.getRange().getElementType(), namespace))).build();
+        case CONTEXT -> {
+          ContextTypeReference.Builder context = type.getContext().toBuilder().clearEntries();
+          type.getContext().getEntriesList().forEach(entry -> context.addEntries(
+              entry.toBuilder().setType(qualifyExternalType(entry.getType(), namespace))));
+          yield type.toBuilder().setContext(context).build();
+        }
+        case FUNCTION -> {
+          FunctionTypeReference.Builder function = type.getFunction().toBuilder()
+              .clearParameterType();
+          type.getFunction().getParameterTypeList().forEach(parameter ->
+              function.addParameterType(qualifyExternalType(parameter, namespace)));
+          if (type.getFunction().hasReturnType()) {
+            function.setReturnType(
+                qualifyExternalType(type.getFunction().getReturnType(), namespace));
+          }
+          yield type.toBuilder().setFunction(function).build();
+        }
+        case BUILTIN, KIND_NOT_SET -> type;
+      };
     }
 
     private static String expectedKinds(Set<SymbolKind> kinds) {
@@ -996,12 +1027,19 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
       if (!source.hasNamed()) {
         return TypeReference.getDefaultInstance();
       }
-      ItemDefinition item = itemDefinitions.get(source.getNamed().getName());
-      if (item == null) {
+      List<DmnModelRepository.ResolvedItemDefinition> resolvedTypes =
+          repository.resolveType(model, source.getNamed());
+      if (resolvedTypes.isEmpty()) {
         error("UNKNOWN_TYPE", path,
             "Unknown type '" + source.getNamed().getName() + "'.", location);
         return TypeReference.getDefaultInstance();
       }
+      if (resolvedTypes.size() > 1) {
+        error("AMBIGUOUS_TYPE", path,
+            "Type '" + source.getNamed().getName() + "' is ambiguous.", location);
+        return TypeReference.getDefaultInstance();
+      }
+      ItemDefinition item = resolvedTypes.getFirst().item();
       List<ItemComponent> matches = item.getComponentsList().stream()
           .filter(component -> component.getNode().getName().equals(member))
           .toList();

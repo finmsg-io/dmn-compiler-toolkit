@@ -127,8 +127,8 @@ contexts/relations/lists/functions and DMN invocations. BKM slots contain execut
 function bodies with preserved function kind. Decisions and nested functions persist isolated
 lexical frame sizes, and closure captures carry lexical depth. Declared and expression-derived
 references drive deterministic runtime scheduling. Context types retain indexed field layouts,
-and statically known path and descendant access is resolved to those indices. Constant pools and
-model-set lowering remain future work.
+and statically known path and descendant access is resolved to those indices. Linked semantic
+models lower into one namespace-free slot space. Constant pools remain future work.
 
 ## 5.7 Target modules
 

@@ -13,52 +13,70 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.Optional;
 
-/** Lowers a successfully typed, single-model semantic result into structural Runtime IR. */
+/** Lowers successfully typed semantic results into structural Runtime IR. */
 public final class RuntimeIrLowerer {
 
   public RuntimeModel lower(DmnSemanticPipelineResult analysis) {
-    Objects.requireNonNull(analysis, "analysis");
-    if (!analysis.isSuccess()) {
-      throw new RuntimeIrLoweringException(
-          "Runtime IR requires successful semantic analysis; found "
-              + analysis.diagnostics().size() + " diagnostic(s).");
-    }
+    return lowerModelSet(List.of(Objects.requireNonNull(analysis, "analysis")));
+  }
 
-    Definitions model = analysis.model();
-    Map<String, ItemDefinition> itemTypes = new LinkedHashMap<>();
-    model.getItemDefinitionsList().forEach(item ->
-        itemTypes.put(item.getNode().getName(), item));
+  /** Lowers an ordered set of analyzed models into one linked, namespace-free runtime model. */
+  public RuntimeModel lowerModelSet(List<DmnSemanticPipelineResult> analyses) {
+    Objects.requireNonNull(analyses, "analyses");
+    if (analyses.isEmpty()) {
+      throw new IllegalArgumentException("At least one semantic model is required.");
+    }
+    Set<String> namespaces = new HashSet<>();
+    for (DmnSemanticPipelineResult analysis : analyses) {
+      Objects.requireNonNull(analysis, "analysis");
+      if (!analysis.isSuccess()) {
+        throw new RuntimeIrLoweringException(
+            "Runtime IR requires successful semantic analysis; found "
+                + analysis.diagnostics().size() + " diagnostic(s).");
+      }
+      if (!namespaces.add(analysis.model().getNamespace())) {
+        throw new RuntimeIrLoweringException(
+            "Runtime model-set contains duplicate namespace '"
+                + analysis.model().getNamespace() + "'.");
+      }
+    }
 
     Map<String, Integer> runtimeIdBySourceId = new HashMap<>();
     Map<String, Integer> valueSlotBySourceId = new HashMap<>();
-    Map<String, DrgElement> elementBySourceId = new HashMap<>();
     int nextId = 0;
-    for (DrgElement element : model.getDrgElementsList()) {
-      Node node = executableNode(element);
-      if (node == null) {
-        continue;
+    for (DmnSemanticPipelineResult analysis : analyses) {
+      String namespace = analysis.model().getNamespace();
+      for (DrgElement element : analysis.model().getDrgElementsList()) {
+        Node node = executableNode(element);
+        if (node == null) {
+          continue;
+        }
+        if (!node.getId().isBlank()) {
+          putSourceAddress(runtimeIdBySourceId, namespace, node.getId(), nextId);
+          putSourceAddress(valueSlotBySourceId, namespace, node.getId(), nextId);
+        }
+        if (element.hasDecision()
+            && element.getDecision().hasLogic()
+            && element.getDecision().getLogic().hasDecisionTable()
+            && !element.getDecision().getLogic().getDecisionTable().getNode().getId().isBlank()) {
+          putSourceAddress(valueSlotBySourceId, namespace,
+              element.getDecision().getLogic().getDecisionTable().getNode().getId(), nextId);
+        }
+        nextId++;
       }
-      if (!node.getId().isBlank()) {
-        runtimeIdBySourceId.put(node.getId(), nextId);
-        valueSlotBySourceId.put(node.getId(), nextId);
-        elementBySourceId.put(node.getId(), element);
-      }
-      if (element.hasDecision()
-          && element.getDecision().hasLogic()
-          && element.getDecision().getLogic().hasDecisionTable()
-          && !element.getDecision().getLogic().getDecisionTable().getNode().getId().isBlank()) {
-        valueSlotBySourceId.put(
-            element.getDecision().getLogic().getDecisionTable().getNode().getId(), nextId);
-      }
-      nextId++;
     }
 
     List<RuntimeInput> inputs = new ArrayList<>();
     List<RuntimeDecision> decisions = new ArrayList<>();
     List<RuntimeBkm> bkms = new ArrayList<>();
     int runtimeId = 0;
-    for (DrgElement element : model.getDrgElementsList()) {
-      switch (element.getElementCase()) {
+    for (DmnSemanticPipelineResult analysis : analyses) {
+      Definitions model = analysis.model();
+      Map<String, ItemDefinition> itemTypes = itemTypes(model, analyses);
+      Map<String, Integer> modelIds = modelAddresses(runtimeIdBySourceId, model.getNamespace());
+      Map<String, Integer> modelSlots = modelAddresses(valueSlotBySourceId, model.getNamespace());
+      for (DrgElement element : model.getDrgElementsList()) {
+        switch (element.getElementCase()) {
         case INPUT_DATA -> {
           InputData input = element.getInputData();
           inputs.add(new RuntimeInput(runtimeId, runtimeId,
@@ -70,13 +88,13 @@ public final class RuntimeIrLowerer {
           Map<String, LocalSlotAddress> localSlots = new HashMap<>();
           int[] nextLocalSlot = {0};
           Optional<RuntimeExpression> expression = lowerDecisionExpression(
-              decision, analysis.bindings(), valueSlotBySourceId, itemTypes,
+              decision, analysis.bindings(), modelSlots, itemTypes,
               localSlots, nextLocalSlot);
           Optional<RuntimeDecisionTable> decisionTable = lowerDecisionTable(
-              decision, analysis.bindings(), valueSlotBySourceId, itemTypes,
+              decision, analysis.bindings(), modelSlots, itemTypes,
               localSlots, nextLocalSlot);
           Set<Integer> dependencies = new LinkedHashSet<>(
-              decisionDependencies(decision, runtimeIdBySourceId));
+              decisionDependencies(decision, modelIds));
           expression.ifPresent(value -> collectReferencedSlots(value, dependencies));
           decisionTable.ifPresent(value -> collectReferencedSlots(value, dependencies));
           decisions.add(new RuntimeDecision(runtimeId, runtimeId,
@@ -88,9 +106,9 @@ public final class RuntimeIrLowerer {
         case BUSINESS_KNOWLEDGE_MODEL -> {
           BusinessKnowledgeModel bkm = element.getBusinessKnowledgeModel();
           RuntimeFunctionDefinition function = lowerBkmFunction(
-              bkm, analysis.bindings(), valueSlotBySourceId, itemTypes);
+              bkm, analysis.bindings(), modelSlots, itemTypes);
           Set<Integer> dependencies = new LinkedHashSet<>(
-              bkmDependencies(bkm, runtimeIdBySourceId));
+              bkmDependencies(bkm, modelIds));
           collectReferencedSlots(function, dependencies);
           bkms.add(new RuntimeBkm(runtimeId, runtimeId,
               lowerType(bkm.getVariable().getType(), itemTypes, new HashSet<>()),
@@ -100,20 +118,46 @@ public final class RuntimeIrLowerer {
           runtimeId++;
         }
         default -> { }
-      }
-    }
-
-    // Preserve the semantic model-set guard even though runtime order is recomputed below.
-    for (DrgElement element : analysis.compilationOrder()) {
-      Node node = executableNode(element);
-      Integer id = node == null ? null : runtimeIdBySourceId.get(node.getId());
-      if (id == null || elementBySourceId.get(node.getId()) == null) {
-        throw new RuntimeIrLoweringException(
-            "Model-set compilation order requires model-set Runtime IR lowering.");
+        }
       }
     }
     List<Integer> order = runtimeEvaluationOrder(decisions, bkms);
     return new RuntimeModel(inputs, decisions, bkms, order, runtimeId);
+  }
+
+  private static void putSourceAddress(
+      Map<String, Integer> addresses, String namespace, String sourceId, int runtimeId) {
+    String key = namespace + "#" + sourceId;
+    if (addresses.putIfAbsent(key, runtimeId) != null) {
+      throw new RuntimeIrLoweringException("Duplicate runtime source address '" + key + "'.");
+    }
+  }
+
+  private static Map<String, Integer> modelAddresses(
+      Map<String, Integer> global, String namespace) {
+    Map<String, Integer> result = new HashMap<>(global);
+    String prefix = namespace + "#";
+    global.forEach((key, value) -> {
+      if (key.startsWith(prefix)) {
+        result.put(key.substring(prefix.length()), value);
+      }
+    });
+    return result;
+  }
+
+  private static Map<String, ItemDefinition> itemTypes(
+      Definitions local, List<DmnSemanticPipelineResult> analyses) {
+    Map<String, ItemDefinition> result = new LinkedHashMap<>();
+    for (DmnSemanticPipelineResult analysis : analyses) {
+      String namespace = analysis.model().getNamespace();
+      analysis.model().getItemDefinitionsList().forEach(item -> {
+        result.put(namespace + "#" + item.getNode().getName(), item);
+        result.putIfAbsent(item.getNode().getName(), item);
+      });
+    }
+    local.getItemDefinitionsList().forEach(item ->
+        result.put(item.getNode().getName(), item));
+    return result;
   }
 
   private static RuntimeFunctionDefinition lowerBkmFunction(
@@ -469,7 +513,9 @@ public final class RuntimeIrLowerer {
           }
           yield new RuntimeLocalReference(localSlot.lexicalDepth(), localSlot.localSlot(), type);
         }
-        Integer slot = slots.get(binding.symbolId());
+        String slotKey = binding.targetNamespace().isBlank()
+            ? binding.symbolId() : binding.targetNamespace() + "#" + binding.symbolId();
+        Integer slot = slots.get(slotKey);
         if (slot == null) {
           throw new RuntimeIrLoweringException(
               "Expression binding targets a value outside the current runtime model: '"
@@ -1055,7 +1101,9 @@ public final class RuntimeIrLowerer {
   }
 
   private static void addReference(Set<Integer> result, String href, Map<String, Integer> ids) {
-    Integer id = ids.get(referenceId(href));
+    int hash = href.lastIndexOf('#');
+    String key = hash > 0 ? href : referenceId(href);
+    Integer id = ids.get(key);
     if (id != null) {
       result.add(id);
     }
@@ -1168,12 +1216,10 @@ public final class RuntimeIrLowerer {
 
   private static RuntimeType lowerNamed(
       NamedTypeReference named, Map<String, ItemDefinition> items, Set<String> resolving) {
-    if (!named.getNamespace().isBlank()) {
-      throw new RuntimeIrLoweringException(
-          "Imported named types require model-set Runtime IR lowering.");
-    }
-    ItemDefinition item = items.get(named.getName());
-    if (item == null || !resolving.add(named.getName())) {
+    String key = named.getNamespace().isBlank()
+        ? named.getName() : named.getNamespace() + "#" + named.getName();
+    ItemDefinition item = items.get(key);
+    if (item == null || !resolving.add(key)) {
       throw new RuntimeIrLoweringException("Unresolved runtime type '" + named.getName() + "'.");
     }
     RuntimeType result;

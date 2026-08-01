@@ -48,7 +48,7 @@
 [done] add implicit Runtime IR dependency edges from expression references
 [done] introduce indexed context-field layouts and resolved member access
 [done] add XML-to-FEEL-to-semantic-to-Runtime-IR integration fixtures
-[ ] complete linked model-set Runtime IR lowering
+[done] complete linked model-set Runtime IR lowering
 ```
 
 ## 18.4 Model extensions requiring design decisions
