@@ -47,12 +47,20 @@ public final class DmnSemanticAnalyzer {
       for (int i = 0; i < model.getDrgElementsCount(); i++) {
         DrgElement element = model.getDrgElements(i);
         switch (element.getElementCase()) {
+          case INPUT_DATA -> analyzeInputData(element.getInputData(), i);
           case DECISION -> analyzeDecision(element.getDecision(), i);
           case BUSINESS_KNOWLEDGE_MODEL -> analyzeBkm(element.getBusinessKnowledgeModel(), i);
           case DECISION_SERVICE -> analyzeDecisionService(element.getDecisionService(), i);
-          case INPUT_DATA, KNOWLEDGE_SOURCE, ELEMENT_NOT_SET -> { }
+          case KNOWLEDGE_SOURCE, ELEMENT_NOT_SET -> { }
         }
       }
+    }
+
+    private void analyzeInputData(InputData input, int index) {
+      String path = "definitions/inputData["
+          + displayName(input.getNode().getName(), index) + "]";
+      validateTypeReference(input.getVariable().getType(), path + "/variable/type",
+          input.getNode().getSourceLocation());
     }
 
     private void collectItemDefinitions() {
@@ -262,6 +270,8 @@ public final class DmnSemanticAnalyzer {
     private void analyzeDecision(Decision decision, int index) {
       String path = "definitions/decision["
           + displayName(decision.getNode().getName(), index) + "]";
+      validateTypeReference(decision.getVariable().getType(), path + "/variable/type",
+          decision.getNode().getSourceLocation());
       Scope scope = new Scope(null);
       for (int i = 0; i < decision.getInformationRequirementsCount(); i++) {
         InformationRequirement requirement = decision.getInformationRequirements(i);
@@ -524,6 +534,7 @@ public final class DmnSemanticAnalyzer {
         DecisionTable table, Scope scope, String path, SourceLocation location) {
       for (int i = 0; i < table.getInputsCount(); i++) {
         InputClause input = table.getInputs(i);
+        validateTypeReference(input.getType(), path + "/input[" + i + "]/type", location);
         analyzeFeel(input.getInputExpression(), scope, path + "/input[" + i + "]", location);
         if (input.hasInputValues() && input.getInputValues().hasParsed()) {
           analyzeUnaryTests(input.getInputValues().getParsed().getAst().getUnaryTests(), scope,
@@ -532,6 +543,7 @@ public final class DmnSemanticAnalyzer {
       }
       for (int i = 0; i < table.getOutputsCount(); i++) {
         OutputClause output = table.getOutputs(i);
+        validateTypeReference(output.getType(), path + "/output[" + i + "]/type", location);
         if (output.hasOutputValues() && output.getOutputValues().hasParsed()) {
           analyzeUnaryTests(output.getOutputValues().getParsed().getAst().getUnaryTests(), scope,
               path + "/output[" + i + "]/outputValues", location);
@@ -615,6 +627,12 @@ public final class DmnSemanticAnalyzer {
       switch (parsed.getTypeCase()) {
         case CONTEXT -> analyzeContext(parsed.getContext(), scope, path + "/context", location);
         case RELATION -> {
+          for (int i = 0; i < parsed.getRelation().getColumnsCount(); i++) {
+            InformationItem variable = parsed.getRelation().getColumns(i).getVariable();
+            validateTypeReference(variable.getType(),
+                path + "/relation/column[" + i + "]/type",
+                variable.getNode().getSourceLocation());
+          }
           for (int i = 0; i < parsed.getRelation().getRowsCount(); i++) {
             RelationRowParsed row = parsed.getRelation().getRows(i);
             for (int j = 0; j < row.getExpressionsCount(); j++) {
@@ -634,6 +652,8 @@ public final class DmnSemanticAnalyzer {
           FunctionDefinitionParsed function = parsed.getFunctionDefinition();
           for (int i = 0; i < function.getParametersCount(); i++) {
             InformationItem parameter = function.getParameters(i);
+            validateTypeReference(parameter.getType(), path + "/parameter[" + i + "]/type",
+                parameter.getNode().getSourceLocation());
             define(functionScope, parameter.getNode().getName(), parameter.getType(),
                 SymbolKind.PARAMETER, path + "/parameter[" + i + "]", location);
           }
@@ -656,6 +676,8 @@ public final class DmnSemanticAnalyzer {
         }
         if (entry.hasVariable()) {
           InformationItem variable = entry.getVariable();
+          validateTypeReference(variable.getType(), path + "/entry[" + i + "]/variable/type",
+              variable.getNode().getSourceLocation());
           define(scope, variable.getNode().getName(), variable.getType(), SymbolKind.LOCAL,
               path + "/entry[" + i + "]", variable.getNode().getSourceLocation());
         }

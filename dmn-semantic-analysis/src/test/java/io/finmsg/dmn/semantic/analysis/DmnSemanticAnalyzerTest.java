@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.finmsg.dmn.feel.parser.FeelParserFacade;
 import io.finmsg.dmn.model.Decision;
 import io.finmsg.dmn.model.DecisionLogic;
+import io.finmsg.dmn.model.DecisionTable;
 import io.finmsg.dmn.model.DecisionService;
 import io.finmsg.dmn.model.Definitions;
 import io.finmsg.dmn.model.DrgElement;
@@ -13,6 +14,7 @@ import io.finmsg.dmn.model.Feel;
 import io.finmsg.dmn.model.InformationItem;
 import io.finmsg.dmn.model.InformationRequirement;
 import io.finmsg.dmn.model.InputData;
+import io.finmsg.dmn.model.InputClause;
 import io.finmsg.dmn.model.Invocation;
 import io.finmsg.dmn.model.ItemComponent;
 import io.finmsg.dmn.model.ItemDefinition;
@@ -26,6 +28,7 @@ import io.finmsg.dmn.model.KnowledgeSource;
 import io.finmsg.dmn.model.AuthorityRequirement;
 import io.finmsg.dmn.model.NamedTypeReference;
 import io.finmsg.dmn.model.Node;
+import io.finmsg.dmn.model.OutputClause;
 import io.finmsg.dmn.model.TypeReference;
 import org.junit.jupiter.api.Test;
 
@@ -93,6 +96,39 @@ class DmnSemanticAnalyzerTest {
     assertThat(analyzer.analyze(model).diagnostics())
         .extracting(DmnSemanticDiagnostic::code)
         .containsExactly("DUPLICATE_NAME");
+  }
+
+  @Test
+  void validatesDeclaredTypesAcrossDrgElementsAndDecisionTables() {
+    InputData input = InputData.newBuilder()
+        .setNode(Node.newBuilder().setName("Input"))
+        .setVariable(InformationItem.newBuilder().setType(namedType("MissingInputType")))
+        .build();
+    DecisionTable table = DecisionTable.newBuilder()
+        .addInputs(InputClause.newBuilder().setType(namedType("MissingInputClauseType")))
+        .addOutputs(OutputClause.newBuilder().setType(namedType("MissingOutputClauseType")))
+        .build();
+    Decision decision = Decision.newBuilder()
+        .setNode(Node.newBuilder().setName("Decision"))
+        .setVariable(InformationItem.newBuilder().setType(namedType("MissingDecisionType")))
+        .setLogic(DecisionLogic.newBuilder().setDecisionTable(table))
+        .build();
+
+    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
+        .addDrgElements(DrgElement.newBuilder().setInputData(input))
+        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
+        .build());
+
+    assertThat(result.diagnostics())
+        .extracting(DmnSemanticDiagnostic::code)
+        .containsExactly("UNKNOWN_TYPE", "UNKNOWN_TYPE", "UNKNOWN_TYPE", "UNKNOWN_TYPE");
+    assertThat(result.diagnostics())
+        .extracting(DmnSemanticDiagnostic::path)
+        .containsExactly(
+            "definitions/inputData[Input]/variable/type",
+            "definitions/decision[Decision]/variable/type",
+            "definitions/decision[Decision]/logic/decisionTable/input[0]/type",
+            "definitions/decision[Decision]/logic/decisionTable/output[0]/type");
   }
 
   @Test
