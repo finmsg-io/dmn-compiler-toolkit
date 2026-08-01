@@ -36,7 +36,8 @@
 [ ] add a compiler facade and phase-aware diagnostic aggregation
 [ ] add an import source/model resolver boundary
 [ ] stabilize linked semantic results as Runtime IR input
-[ ] lower conditional, collection, and call expressions to Runtime IR
+[done] lower conditional expressions, list literals, and named function calls to Runtime IR
+[ ] lower context and path/property-access expressions to Runtime IR
 [ ] lower decision tables and complete linked model sets
 ```
 

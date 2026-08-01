@@ -147,6 +147,36 @@ public final class RuntimeIrLowerer {
           lowerExpression(
               expression.getBinary().getRight(), path + "/right", bindings, slots, itemTypes),
           type);
+      case IF_EXPRESSION -> new RuntimeConditionalExpression(
+          lowerExpression(
+              expression.getIfExpression().getCondition(),
+              path + "/condition", bindings, slots, itemTypes),
+          lowerExpression(
+              expression.getIfExpression().getThenExpression(),
+              path + "/then", bindings, slots, itemTypes),
+          lowerExpression(
+              expression.getIfExpression().getElseExpression(),
+              path + "/else", bindings, slots, itemTypes),
+          type);
+      case LIST -> {
+        List<RuntimeExpression> elements = new ArrayList<>();
+        for (int index = 0; index < expression.getList().getElementsCount(); index++) {
+          elements.add(lowerExpression(
+              expression.getList().getElements(index), path + "/element[" + index + "]",
+              bindings, slots, itemTypes));
+        }
+        yield new RuntimeListExpression(elements, type);
+      }
+      case FUNCTION_CALL -> {
+        List<RuntimeExpression> arguments = new ArrayList<>();
+        for (int index = 0; index < expression.getFunctionCall().getArgumentsCount(); index++) {
+          arguments.add(lowerExpression(
+              expression.getFunctionCall().getArguments(index), path + "/argument[" + index + "]",
+              bindings, slots, itemTypes));
+        }
+        yield new RuntimeFunctionCall(
+            expression.getFunctionCall().getFunction(), arguments, type);
+      }
       default -> throw new RuntimeIrLoweringException(
           "Unsupported Runtime IR expression " + expression.getNodeCase()
               + " at " + path + ".");

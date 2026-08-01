@@ -74,11 +74,11 @@ Contains the semantic-analysis pipeline:
 - persisted/exposed symbol and named-type bindings
 - namespace-indexed cross-model imports, references, and dependency ordering
 
-Expression and decision-table Runtime IR lowering remain future work.
+Runtime IR lowering for the remaining expression forms and decision tables remains future work.
 
 ## `dmn-runtime-ir`
 
-Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer node IDs and value slots, lowers structural types, preserves dependency order through integer references, and rejects semantic results containing diagnostics. It also recursively lowers typed FEEL constants, semantically bound global names, unary operators, and all binary operators. Conditionals, collections, function calls, decision tables, constant pooling, and model-set lowering remain future work.
+Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer node IDs and value slots, lowers structural types, preserves dependency order through integer references, and rejects semantic results containing diagnostics. It also recursively lowers typed FEEL constants, semantically bound global names, unary and binary operators, conditional expressions, list literals, and named function calls. Remaining compound and boxed expressions, decision tables, constant pooling, and model-set lowering remain future work.
 
 ## Planned modules
 

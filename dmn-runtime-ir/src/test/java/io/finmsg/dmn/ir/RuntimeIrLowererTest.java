@@ -185,6 +185,56 @@ class RuntimeIrLowererTest {
     assertThat(binary.type().kind()).isEqualTo(RuntimeTypeKind.NUMBER);
   }
 
+  @Test
+  void lowersConditionalListAndFunctionCallExpressions() {
+    TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
+    TypeReference booleanType = builtin(BuiltinType.BUILTIN_TYPE_BOOLEAN);
+    TypeReference numberList = TypeReference.newBuilder()
+        .setList(ListTypeReference.newBuilder().setElementType(number)).build();
+    Expression condition = literal(
+        LiteralKind.LITERAL_KIND_BOOLEAN, "true", booleanType);
+    Expression call = Expression.newBuilder()
+        .setFunctionCall(FunctionCall.newBuilder()
+            .setFunction("abs")
+            .addArguments(literal(LiteralKind.LITERAL_KIND_NUMBER, "-2", number)))
+        .setInferredType(number).build();
+    Expression conditional = Expression.newBuilder()
+        .setIfExpression(IfExpression.newBuilder()
+            .setCondition(condition)
+            .setThenExpression(call)
+            .setElseExpression(literal(LiteralKind.LITERAL_KIND_NUMBER, "0", number)))
+        .setInferredType(number).build();
+    Expression list = Expression.newBuilder()
+        .setList(ListExpression.newBuilder()
+            .addElements(conditional)
+            .addElements(literal(LiteralKind.LITERAL_KIND_NUMBER, "3", number)))
+        .setInferredType(numberList).build();
+    DrgElement decision = decisionWithExpression(
+        "decision-id", "Result", numberList, list);
+    Definitions model = Definitions.newBuilder().addDrgElements(decision).build();
+
+    RuntimeExpression lowered = lowerer.lower(
+        new DmnSemanticPipelineResult(model, List.of(decision), List.of()))
+        .decisions().getFirst().expression().orElseThrow();
+
+    assertThat(lowered).isInstanceOf(RuntimeListExpression.class);
+    RuntimeListExpression runtimeList = (RuntimeListExpression) lowered;
+    assertThat(runtimeList.type().kind()).isEqualTo(RuntimeTypeKind.LIST);
+    assertThat(runtimeList.elements()).hasSize(2);
+    assertThat(runtimeList.elements().getFirst())
+        .isInstanceOf(RuntimeConditionalExpression.class);
+    RuntimeConditionalExpression runtimeConditional =
+        (RuntimeConditionalExpression) runtimeList.elements().getFirst();
+    assertThat(runtimeConditional.condition()).isInstanceOf(RuntimeConstant.class);
+    assertThat(runtimeConditional.thenExpression()).isInstanceOf(RuntimeFunctionCall.class);
+    RuntimeFunctionCall runtimeCall =
+        (RuntimeFunctionCall) runtimeConditional.thenExpression();
+    assertThat(runtimeCall.function()).isEqualTo("abs");
+    assertThat(runtimeCall.arguments()).singleElement()
+        .isInstanceOf(RuntimeConstant.class);
+    assertThat(runtimeConditional.elseExpression()).isInstanceOf(RuntimeConstant.class);
+  }
+
   private static DrgElement decisionWithExpression(
       String id, String name, TypeReference type, Expression expression) {
     return DrgElement.newBuilder().setDecision(Decision.newBuilder()
@@ -193,6 +243,14 @@ class RuntimeIrLowererTest {
         .setLogic(DecisionLogic.newBuilder().setLiteralExpression(
             Feel.newBuilder().setParsed(
                 FeelParsed.newBuilder().setAst(expression))))).build();
+  }
+
+  private static Expression literal(
+      LiteralKind kind, String value, TypeReference type) {
+    return Expression.newBuilder()
+        .setLiteral(LiteralExpression.newBuilder().setKind(kind).setValue(value))
+        .setInferredType(type)
+        .build();
   }
 
   private static ElementReference ref(String href) {
