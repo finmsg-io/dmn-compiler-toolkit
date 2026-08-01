@@ -83,3 +83,8 @@ Name resolution is the currently implemented first step.
 
 A generic pass manager, shared compiler context, optimization pipeline, and timing metrics should be introduced only when multiple later passes require them. The current explicit stage APIs keep dependencies and failure behavior clear.
 
+## 10.6 Implemented semantic pass contract
+
+Semantic-analysis stages implement `DmnSemanticPass<R>`. The contract keeps orchestration dependent
+on a stable pass abstraction while allowing each stage to expose its purpose-specific result type.
+Passes receive an immutable `Definitions` model and must remain stateless.

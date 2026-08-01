@@ -8,13 +8,14 @@ import java.util.Map;
 import java.util.Objects;
 
 /** Applies {@link FeelTypeAnalyzer} to every supported parsed FEEL node in a DMN model. */
-public final class DmnTypeAnalyzer {
+public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysisResult> {
 
   private static final TypeReference ANY = builtin(BuiltinType.BUILTIN_TYPE_ANY);
   private static final TypeReference NUMBER = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
   private static final TypeReference NULL = builtin(BuiltinType.BUILTIN_TYPE_NULL);
   private final FeelTypeAnalyzer feelTypes = new FeelTypeAnalyzer();
 
+  @Override
   public DmnSemanticAnalysisResult analyze(Definitions parsedModel) {
     Objects.requireNonNull(parsedModel, "parsedModel");
     Session session = new Session(parsedModel);

@@ -12,13 +12,14 @@ import java.util.Objects;
 import java.util.Set;
 
 /** First semantic-analysis pass: declaration collection and FEEL name resolution. */
-public final class DmnSemanticAnalyzer {
+public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAnalysisResult> {
 
   private static final Set<String> BUILTIN_NAMES = Set.of(
       "date", "time", "date and time", "duration", "years and months duration",
       "days and time duration", "string", "number", "boolean", "context", "list", "range",
       "any", "null");
 
+  @Override
   public DmnSemanticAnalysisResult analyze(Definitions parsedModel) {
     Objects.requireNonNull(parsedModel, "parsedModel");
     Session session = new Session(parsedModel);

@@ -3,10 +3,8 @@ package io.finmsg.dmn.frontend.xml.dmn;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.finmsg.dmn.model.Definitions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-@Disabled
 class DmnXmlReaderTest {
 
     private static final String DMN = """

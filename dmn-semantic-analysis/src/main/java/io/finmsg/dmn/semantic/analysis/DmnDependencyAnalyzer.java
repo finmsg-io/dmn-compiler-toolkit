@@ -18,8 +18,10 @@ import java.util.Objects;
 import java.util.Set;
 
 /** Builds the executable DRG dependency graph and detects cycles. */
-public final class DmnDependencyAnalyzer {
+public final class DmnDependencyAnalyzer
+    implements DmnSemanticPass<DmnDependencyAnalysisResult> {
 
+  @Override
   public DmnDependencyAnalysisResult analyze(Definitions model) {
     Objects.requireNonNull(model, "model");
     Session session = new Session(model);

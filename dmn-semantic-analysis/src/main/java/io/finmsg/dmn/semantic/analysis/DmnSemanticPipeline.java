@@ -10,18 +10,18 @@ import java.util.Set;
 /** Public entry point that executes all semantic-analysis passes in dependency order. */
 public final class DmnSemanticPipeline {
 
-  private final DmnSemanticAnalyzer references;
-  private final DmnTypeAnalyzer types;
-  private final DmnDependencyAnalyzer dependencies;
+  private final DmnSemanticPass<DmnSemanticAnalysisResult> references;
+  private final DmnSemanticPass<DmnSemanticAnalysisResult> types;
+  private final DmnSemanticPass<DmnDependencyAnalysisResult> dependencies;
 
   public DmnSemanticPipeline() {
     this(new DmnSemanticAnalyzer(), new DmnTypeAnalyzer(), new DmnDependencyAnalyzer());
   }
 
   DmnSemanticPipeline(
-      DmnSemanticAnalyzer references,
-      DmnTypeAnalyzer types,
-      DmnDependencyAnalyzer dependencies) {
+      DmnSemanticPass<DmnSemanticAnalysisResult> references,
+      DmnSemanticPass<DmnSemanticAnalysisResult> types,
+      DmnSemanticPass<DmnDependencyAnalysisResult> dependencies) {
     this.references = Objects.requireNonNull(references, "references");
     this.types = Objects.requireNonNull(types, "types");
     this.dependencies = Objects.requireNonNull(dependencies, "dependencies");
