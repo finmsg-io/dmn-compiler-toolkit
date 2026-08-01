@@ -15,6 +15,7 @@ public final class DecisionWriter implements XmlWriter<Decision> {
   public void write(XmlEmitter xml, Decision value) {
     xml.startElement("decision");
     nodeWriter.writeAttributes(xml, value.getNode());
+    nodeWriter.writeChildren(xml, value.getNode());
     if (value.hasVariable()) {
       informationItemWriter.write(xml, "variable", value.getVariable());
     }

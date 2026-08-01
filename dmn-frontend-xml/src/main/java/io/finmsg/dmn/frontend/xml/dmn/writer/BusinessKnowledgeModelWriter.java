@@ -15,6 +15,7 @@ public final class BusinessKnowledgeModelWriter implements XmlWriter<BusinessKno
   public void write(XmlEmitter xml, BusinessKnowledgeModel value) {
     xml.startElement("businessKnowledgeModel");
     nodeWriter.writeAttributes(xml, value.getNode());
+    nodeWriter.writeChildren(xml, value.getNode());
     if (value.hasVariable()) {
       informationItemWriter.write(xml, "variable", value.getVariable());
     }

@@ -13,6 +13,7 @@ public final class InputDataWriter implements XmlWriter<InputData> {
   public void write(XmlEmitter xml, InputData value) {
     xml.startElement("inputData");
     nodeWriter.writeAttributes(xml, value.getNode());
+    nodeWriter.writeChildren(xml, value.getNode());
     if (value.hasVariable()) {
       informationItemWriter.write(xml, "variable", value.getVariable());
     }

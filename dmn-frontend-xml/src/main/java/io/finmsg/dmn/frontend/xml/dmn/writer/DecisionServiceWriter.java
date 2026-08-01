@@ -13,6 +13,7 @@ public final class DecisionServiceWriter implements XmlWriter<DecisionService> {
   public void write(XmlEmitter xml, DecisionService value) {
     xml.startElement("decisionService");
     nodeWriter.writeAttributes(xml, value.getNode());
+    nodeWriter.writeChildren(xml, value.getNode());
     value.getOutputDecisionsList()
         .forEach(reference -> referenceWriter.write(xml, "outputDecision", reference));
     value.getEncapsulatedDecisionsList()

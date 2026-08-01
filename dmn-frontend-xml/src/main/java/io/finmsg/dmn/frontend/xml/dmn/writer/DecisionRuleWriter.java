@@ -12,6 +12,7 @@ final class DecisionRuleWriter {
   void write(XmlEmitter xml, DecisionRule value) {
     xml.startElement("rule");
     nodeWriter.writeAttributes(xml, value.getNode());
+    nodeWriter.writeChildren(xml, value.getNode());
     value.getInputEntriesList().forEach(entry -> writeInputEntry(xml, entry));
     value.getOutputEntriesList().forEach(
         entry -> InputClauseWriter.writeFeel(xml, "outputEntry", entry.getText().getText(), ""));
