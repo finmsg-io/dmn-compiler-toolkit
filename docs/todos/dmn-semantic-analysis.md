@@ -1,11 +1,18 @@
 # `dmn-semantic-analysis` TODO
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Current work](#contents-section-1)
+<!-- generated-toc:end -->
+
 Last reviewed: 2026-08-02
 
 Semantic analysis is a compiler-grade baseline for the modeled DMN/FEEL subset,
 including persisted bindings, named types, cross-model linking, cycles, and
 deterministic compilation order.
 
+<a id="contents-section-1"></a>
 ## Current work
 
 | Priority | Work item | Completion evidence |

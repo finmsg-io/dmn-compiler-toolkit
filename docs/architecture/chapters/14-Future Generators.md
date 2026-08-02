@@ -1,5 +1,27 @@
 # Chapter 14 — Future Generators [FUTURE]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [14.1 Purpose](#contents-section-1)
+- [BG-001 --- Runtime IR Is the Universal Contract](#contents-section-2)
+- [Purpose](#contents-section-3)
+- [Purpose](#contents-section-4)
+- [Purpose](#contents-section-5)
+- [Predicate Pushdown](#contents-section-6)
+- [Column Pruning](#contents-section-7)
+- [Vectorized Execution](#contents-section-8)
+- [Purpose](#contents-section-9)
+- [Purpose](#contents-section-10)
+- [Semantic Equivalence Tests](#contents-section-11)
+- [Step 1](#contents-section-12)
+- [Step 2](#contents-section-13)
+- [Step 3](#contents-section-14)
+- [Step 4](#contents-section-15)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## 14.1 Purpose
 
 The DMN Compiler Toolkit is designed as a **multi-backend compiler
@@ -39,6 +61,7 @@ The architecture:
 
 # 14.2 Backend Design Principle
 
+<a id="contents-section-2"></a>
 ## BG-001 --- Runtime IR Is the Universal Contract
 
 Every backend consumes:
@@ -251,6 +274,7 @@ may not be supported.
 
 # 14.6 Rust Generator
 
+<a id="contents-section-3"></a>
 ## Purpose
 
 Generate native high-performance decision engines.
@@ -329,6 +353,7 @@ Advantages:
 
 # 14.7 Go Generator
 
+<a id="contents-section-4"></a>
 ## Purpose
 
 Generate cloud-native decision services.
@@ -383,6 +408,7 @@ Use cases:
 
 # 14.8 Spark SQL Generator
 
+<a id="contents-section-5"></a>
 ## Purpose
 
 Generate distributed decision execution.
@@ -451,6 +477,7 @@ Advantages:
 
 Runtime IR enables:
 
+<a id="contents-section-6"></a>
 ## Predicate Pushdown
 
 Example:
@@ -477,6 +504,7 @@ Decision
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-7"></a>
 ## Column Pruning
 
 Only required inputs are selected.
@@ -497,6 +525,7 @@ age column
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-8"></a>
 ## Vectorized Execution
 
 Instead of:
@@ -526,6 +555,7 @@ vector evaluation
 
 # 14.10 LLVM Generator
 
+<a id="contents-section-9"></a>
 ## Purpose
 
 Generate native machine code.
@@ -588,6 +618,7 @@ br
 
 # 14.11 WebAssembly Generator
 
+<a id="contents-section-10"></a>
 ## Purpose
 
 Execute decisions everywhere.
@@ -672,6 +703,7 @@ The semantic meaning remains identical.
 
 Every generator must pass:
 
+<a id="contents-section-11"></a>
 ## Semantic Equivalence Tests
 
 Example:
@@ -741,6 +773,7 @@ explicit configuration.
 
 A contributor creating a new backend implements:
 
+<a id="contents-section-12"></a>
 ## Step 1
 
 Runtime IR reader
@@ -751,6 +784,7 @@ RuntimeModel
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-13"></a>
 ## Step 2
 
 Target mapping
@@ -769,6 +803,7 @@ target language add operator
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-14"></a>
 ## Step 3
 
 Artifact writer
@@ -787,6 +822,7 @@ Example:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-15"></a>
 ## Step 4
 
 Compliance tests

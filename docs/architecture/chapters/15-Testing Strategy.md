@@ -1,5 +1,16 @@
 # Chapter 15 — Testing Strategy [NORMATIVE]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [15.1 Current test layers](#contents-section-1)
+- [15.2 Traffic Violation pipeline](#contents-section-2)
+- [15.3 Diagnostic tests](#contents-section-3)
+- [15.4 Next test priorities](#contents-section-4)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## 15.1 Current test layers
 
 ```text
@@ -16,6 +27,7 @@
 11. structural Runtime IR lowering tests
 ```
 
+<a id="contents-section-2"></a>
 ## 15.2 Traffic Violation pipeline
 
 The representative integration path is:
@@ -32,6 +44,7 @@ TrafficViolation.dmn
 
 Assertions cover input-model immutability, decision-table expressions, unary tests, type constraints, boxed context expressions, AST structure, name resolution, property resolution, and parser idempotency.
 
+<a id="contents-section-3"></a>
 ## 15.3 Diagnostic tests
 
 FEEL diagnostic tests verify:
@@ -50,6 +63,7 @@ Semantic-analysis tests verify:
 - invalid structured properties
 - successful Traffic Violation resolution
 
+<a id="contents-section-4"></a>
 ## 15.4 Next test priorities
 
 - compiler-facade and import-resolution integration tests

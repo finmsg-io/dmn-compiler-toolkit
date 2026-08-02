@@ -1,5 +1,16 @@
 # Chapter 19 — Internal Compiler Architecture [FUTURE]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [19.1 Purpose](#contents-section-1)
+- [Why a Compiler Context?](#contents-section-2)
+  - [Validation](#contents-section-3)
+  - [Analysis](#contents-section-4)
+  - [Optimization](#contents-section-5)
+  - [Transformation](#contents-section-6)
+<!-- generated-toc:end -->
+
 !!! note "Status boundary"
     This chapter is a target design for compiler infrastructure that does not yet
     exist as one unified framework. The current repository has explicit XML, FEEL,
@@ -10,6 +21,7 @@
     [development plan](../../development-plan.md) for current status.
 
 
+<a id="contents-section-1"></a>
 ## 19.1 Purpose
 
 The previous chapters describe the logical architecture of the DMN
@@ -115,6 +127,7 @@ Compiler passes must never access global state.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-2"></a>
 ## Why a Compiler Context?
 
 Without a context:
@@ -226,6 +239,7 @@ Characteristics:
 
 Compiler passes fall into several categories.
 
+<a id="contents-section-3"></a>
 ### Validation
 
 Examples:
@@ -236,6 +250,7 @@ Examples:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-4"></a>
 ### Analysis
 
 Examples:
@@ -246,6 +261,7 @@ Examples:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-5"></a>
 ### Optimization
 
 Examples:
@@ -256,6 +272,7 @@ Examples:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-6"></a>
 ### Transformation
 
 Examples:

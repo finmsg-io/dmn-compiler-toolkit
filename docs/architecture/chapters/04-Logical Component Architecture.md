@@ -1,5 +1,22 @@
 # Chapter 4 — Logical Component Architecture [NORMATIVE]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [4.1 Purpose](#contents-section-1)
+- [Responsibility](#contents-section-2)
+  - [Responsibilities](#contents-section-3)
+  - [Does NOT](#contents-section-4)
+  - [Input](#contents-section-5)
+  - [Output](#contents-section-6)
+  - [Responsibilities](#contents-section-7)
+- [Responsibility](#contents-section-8)
+  - [Input](#contents-section-9)
+  - [Output](#contents-section-10)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## 4.1 Purpose
 
 The DMN Compiler Toolkit is composed of a set of loosely coupled
@@ -81,10 +98,12 @@ Current implementation status:
 
 # 4.3 XML Frontend
 
+<a id="contents-section-2"></a>
 ## Responsibility
 
 Read and write DMN XML documents.
 
+<a id="contents-section-3"></a>
 ### Responsibilities
 
 -   XML parsing
@@ -94,6 +113,7 @@ Read and write DMN XML documents.
 -   extension element preservation
 -   XML serialization
 
+<a id="contents-section-4"></a>
 ### Does NOT
 
 -   parse FEEL
@@ -101,12 +121,14 @@ Read and write DMN XML documents.
 -   validate types
 -   optimize expressions
 
+<a id="contents-section-5"></a>
 ### Input
 
 ``` text
 DMN XML
 ```
 
+<a id="contents-section-6"></a>
 ### Output
 
 ``` text
@@ -121,6 +143,7 @@ The Semantic Model is the canonical representation of a DMN document.
 
 It represents the specification, not the XML syntax.
 
+<a id="contents-section-7"></a>
 ### Responsibilities
 
 Represent
@@ -140,16 +163,19 @@ The Semantic Model is immutable after construction.
 
 # 4.5 FEEL Parser
 
+<a id="contents-section-8"></a>
 ## Responsibility
 
 Convert FEEL source code into an Abstract Syntax Tree.
 
+<a id="contents-section-9"></a>
 ### Input
 
 ``` text
 "a+b*c"
 ```
 
+<a id="contents-section-10"></a>
 ### Output
 
 ``` text

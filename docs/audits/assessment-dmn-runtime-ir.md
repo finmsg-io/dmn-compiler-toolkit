@@ -1,9 +1,26 @@
 
 # `dmn-runtime-ir` assessment
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Assessment](#contents-section-1)
+- [Current completion boundary](#contents-section-2)
+- [High-priority gaps](#contents-section-3)
+- [Medium-priority improvements](#contents-section-4)
+  - [1. Extend pipeline-level lowering tests](#contents-section-5)
+  - [2. Lowerer decomposition](#contents-section-6)
+  - [3. Constant and built-in optimization](#contents-section-7)
+  - [4. Serialization and compatibility policy](#contents-section-8)
+- [Improvements to avoid for now](#contents-section-9)
+- [Recommended implementation order](#contents-section-10)
+- [Verification baseline](#contents-section-11)
+<!-- generated-toc:end -->
+
 Status: assessed 2026-08-01 against the implementation, architecture, semantic contracts, and
 the passing six-module reactor.
 
+<a id="contents-section-1"></a>
 ## Assessment
 
 `dmn-runtime-ir` now has a sound compiler-facing baseline. It is immutable, protobuf-free,
@@ -16,6 +33,7 @@ The module is compiler-grade as a **lowering contract**, but it is not yet a com
 IR. Several pieces of metadata required by a fast evaluator are currently implicit or recoverable
 only by rescanning expression trees.
 
+<a id="contents-section-2"></a>
 ## Current completion boundary
 
 | Area | Status |
@@ -37,10 +55,13 @@ only by rescanning expression trees.
 | Stable built-in operation IDs | complete for validated built-ins |
 | Runtime evaluator or code generator | not yet implemented |
 
+<a id="contents-section-3"></a>
 ## High-priority gaps
 
+<a id="contents-section-4"></a>
 ## Medium-priority improvements
 
+<a id="contents-section-5"></a>
 ### 1. Extend pipeline-level lowering tests
 
 Two integration fixtures now run:
@@ -52,6 +73,7 @@ DMN XML -> XML reader -> FEEL parser -> semantic analysis -> Runtime IR
 They cover Traffic Violation's decision table and nested boxed context, an executable BKM function
 body, and a two-model XML import with an imported structured type and value reference.
 
+<a id="contents-section-6"></a>
 ### 2. Lowerer decomposition
 
 `RuntimeModelIndex` now owns model-set validation, deterministic source IDs/value slots, local and
@@ -65,6 +87,7 @@ policy metadata. `RuntimeBoxedExpressionLowerer` owns recursive boxed contexts, 
 and functions. `RuntimeIrLowerer` is now the stable public orchestration facade for model elements,
 dependencies, and runtime ordering. This decomposition slice is complete.
 
+<a id="contents-section-7"></a>
 ### 3. Constant and built-in optimization
 
 `RuntimeIrOptimizer` preserves the lossless model while producing a deterministic optimized
@@ -72,6 +95,7 @@ companion with deduplicated typed constants, expression-to-pool uses, and stable
 static built-ins. Numeric, boolean, string, date, time, date-time, and duration values are parsed
 once. Unknown and dynamic calls remain unbound for later extension/runtime dispatch.
 
+<a id="contents-section-8"></a>
 ### 4. Serialization and compatibility policy
 
 ADR-0025 defines current Runtime IR as process-local. Java records, enum ordinals, and expression
@@ -81,6 +105,7 @@ The policy defines version/capability negotiation, explicit IDs, deterministic s
 integrity metadata, bounded decoding, migrations, and conformance requirements for that future
 schema. The semantic protobuf model and Java native serialization are explicitly excluded.
 
+<a id="contents-section-9"></a>
 ## Improvements to avoid for now
 
 Do not yet:
@@ -91,10 +116,12 @@ Do not yet:
 - freeze Java record serialization as the persistence format;
 - optimize away source-independent structure before correctness fixtures exist.
 
+<a id="contents-section-10"></a>
 ## Recommended implementation order
 
 1. Choose the next execution consumer: interpreter/runtime or Java code generation.
 
+<a id="contents-section-11"></a>
 ## Verification baseline
 
 The six-module Maven reactor passes. `dmn-runtime-ir` currently has 27 tests, and the complete

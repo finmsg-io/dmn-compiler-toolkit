@@ -1,5 +1,12 @@
 # `dmn-frontend-xml` TODO
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Current work](#contents-section-1)
+- [Deferred model scope](#contents-section-2)
+<!-- generated-toc:end -->
+
 Last reviewed: 2026-08-02
 
 The XML frontend has completed its original stabilization gate: namespace-aware
@@ -7,6 +14,7 @@ dispatch, QName-safe `typeRef` handling, supported-subset read/write symmetry,
 multi-version fixtures, hostile-input coverage, structured diagnostics, and optional
 source locations are implemented.
 
+<a id="contents-section-1"></a>
 ## Current work
 
 | Priority | Work item | Completion evidence |
@@ -17,6 +25,7 @@ source locations are implemented.
 | P2 | Publish the XML security boundary in public API documentation | Supported encodings, DTD/XXE behavior, depth/size limits, and extension handling are explicit |
 | P3 | Remove or integrate dead exception types and generated artifacts | No misleading unused API remains and source trees stay clean after tests |
 
+<a id="contents-section-2"></a>
 ## Deferred model scope
 
 DMNDI, artifacts/associations, organization units, performance indicators, decision

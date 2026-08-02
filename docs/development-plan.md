@@ -1,5 +1,27 @@
 # Development Plan
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Plan metadata](#contents-section-1)
+- [Status vocabulary](#contents-section-2)
+- [Current baseline](#contents-section-3)
+- [Target delivery architecture](#contents-section-4)
+- [Milestone overview](#contents-section-5)
+- [P1 — Compiler facade and model resolution](#contents-section-6)
+- [P2 — Real multi-file DMN corpus](#contents-section-7)
+- [P3 — Runtime semantic baseline](#contents-section-8)
+- [P4 — Stable compiled-model API](#contents-section-9)
+- [P5 — Java code generation](#contents-section-10)
+- [P6 — Performance validation](#contents-section-11)
+- [P7 — Generic gRPC generation](#contents-section-12)
+- [P8 — Typed Protobuf and gRPC generation](#contents-section-13)
+- [Cross-cutting rules](#contents-section-14)
+- [Decisions required](#contents-section-15)
+- [Change log](#contents-section-16)
+- [How to maintain this document](#contents-section-17)
+<!-- generated-toc:end -->
+
 This is the living delivery plan for the DMN Compiler Toolkit. It translates the
 high-level [roadmap](roadmap.md) into trackable milestones with explicit outcomes,
 dependencies, and acceptance evidence.
@@ -8,6 +30,7 @@ The plan is intentionally stored beside the code and changed through normal Git
 commits and pull requests. It describes the current direction rather than a fixed
 promise. Update it whenever implementation evidence or priorities materially change.
 
+<a id="contents-section-1"></a>
 ## Plan metadata
 
 | Field | Value |
@@ -18,6 +41,7 @@ promise. Update it whenever implementation evidence or priorities materially cha
 | Primary objective | compile, validate, and execute realistic linked DMN model sets |
 | Next major objective | generate correct, benchmarkable Java from optimized Runtime IR |
 
+<a id="contents-section-2"></a>
 ## Status vocabulary
 
 Use only these states in milestone and work-item tables:
@@ -34,6 +58,7 @@ Use only these states in milestone and work-item tables:
 Percent-complete estimates are deliberately avoided. A work item moves to `done`
 only when its acceptance evidence is present.
 
+<a id="contents-section-3"></a>
 ## Current baseline
 
 As of the last review, the repository contains:
@@ -60,6 +85,7 @@ The main gaps are:
 - no Java, Protobuf API, or gRPC generator;
 - no JMH baseline validating performance claims.
 
+<a id="contents-section-4"></a>
 ## Target delivery architecture
 
 ```text
@@ -83,6 +109,7 @@ Reference interpreter   Java source generator
 The interpreter and generators must consume the same optimized Runtime IR. gRPC is
 a transport adapter around generated Java, not a separate DMN execution engine.
 
+<a id="contents-section-5"></a>
 ## Milestone overview
 
 | ID | Milestone | State | Depends on | Exit outcome |
@@ -96,6 +123,7 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P7 | Generic gRPC generation | `proposed` | P4, P5 | Generated service exposes dynamic DMN evaluation |
 | P8 | Typed Protobuf and gRPC generation | `proposed` | P7 | Eligible DMN types produce deterministic typed service contracts |
 
+<a id="contents-section-6"></a>
 ## P1 — Compiler facade and model resolution
 
 **Goal:** provide one supported entry point that compiles a root DMN and its
@@ -104,7 +132,7 @@ transitive imports while aggregating phase-aware, model-aware diagnostics.
 | ID | Work item | State | Evidence |
 | --- | --- | --- | --- |
 | P1.1 | Define source identity and `DmnModelResolver` contracts | `done` | `DmnModelResolverTest` (5 tests) and passing seven-module reactor |
-| P1.2 | Implement filesystem, classpath, and in-memory resolver variants | `proposed` | — |
+| P1.2 | Implement filesystem, classpath, and in-memory resolver variants | `done` | 13 compiler resolver tests and passing seven-module reactor |
 | P1.3 | Load transitive imports with deterministic ordering and caching | `proposed` | — |
 | P1.4 | Detect missing, duplicate, ambiguous, and cyclic import structures | `proposed` | — |
 | P1.5 | Add diagnostic severity, phase, and source-model identity | `proposed` | — |
@@ -120,6 +148,7 @@ Acceptance criteria:
 - single-file compilation remains a convenient special case;
 - focused unit tests and end-to-end facade tests pass.
 
+<a id="contents-section-7"></a>
 ## P2 — Real multi-file DMN corpus
 
 **Goal:** replace programmatic-only confidence with version-controlled DMN files that
@@ -152,6 +181,7 @@ Acceptance criteria:
 - source identity survives through diagnostics;
 - fixtures are reusable by Java and gRPC generator parity tests.
 
+<a id="contents-section-8"></a>
 ## P3 — Runtime semantic baseline
 
 **Goal:** make the Runtime IR interpreter sufficiently conformant to serve as the
@@ -178,6 +208,7 @@ Acceptance criteria:
   rejected earlier with an explicit diagnostic;
 - the P2 corpus executes with stable expected results.
 
+<a id="contents-section-9"></a>
 ## P4 — Stable compiled-model API
 
 **Goal:** hide compiler-assigned slots and expose stable external addresses.
@@ -197,6 +228,7 @@ Acceptance criteria:
 - an application can compile once and evaluate many times concurrently;
 - the same public model metadata can drive Java and gRPC generation.
 
+<a id="contents-section-10"></a>
 ## P5 — Java code generation
 
 **Goal:** generate readable, deterministic, high-performance Java from optimized
@@ -223,6 +255,7 @@ Acceptance criteria:
 - hot-path execution uses direct Java control flow and indexed/local values;
 - generator-specific optimizations do not redefine FEEL semantics.
 
+<a id="contents-section-11"></a>
 ## P6 — Performance validation
 
 **Goal:** turn performance intentions into repeatable measurements.
@@ -240,6 +273,7 @@ Record the JDK, JVM flags, hardware, warmup, measurement configuration, and mode
 fixture with every published result. Optimize only after semantic parity is retained
 and a benchmark demonstrates a meaningful improvement.
 
+<a id="contents-section-12"></a>
 ## P7 — Generic gRPC generation
 
 **Goal:** generate a transport-neutral dynamic evaluation contract and a Java gRPC
@@ -256,6 +290,7 @@ Acceptance criteria:
 - generated service tests run in-process against the P2 corpus;
 - business logic is delegated to the same generated Java backend used without gRPC.
 
+<a id="contents-section-13"></a>
 ## P8 — Typed Protobuf and gRPC generation
 
 **Goal:** generate ergonomic per-model or per-decision Protobuf contracts when DMN
@@ -270,6 +305,7 @@ Open design questions that must be resolved before this milestone becomes `ready
 - compatibility rules for regenerated `.proto` files;
 - fallback behavior for `Any`, open contexts, heterogeneous lists, and functions.
 
+<a id="contents-section-14"></a>
 ## Cross-cutting rules
 
 These constraints apply to every milestone:
@@ -287,6 +323,7 @@ These constraints apply to every milestone:
 6. **Compatibility is explicit.** Public API, Runtime IR serialization, and generated
    contract compatibility are distinct policies and must be documented separately.
 
+<a id="contents-section-15"></a>
 ## Decisions required
 
 | ID | Decision | Needed by | State | Resolution |
@@ -300,6 +337,7 @@ These constraints apply to every milestone:
 Material architectural decisions should graduate to an ADR. This table tracks only
 when a decision is needed and where its final resolution can be found.
 
+<a id="contents-section-16"></a>
 ## Change log
 
 Record meaningful plan changes, not routine status transitions already visible in
@@ -309,6 +347,7 @@ the milestone tables.
 | --- | --- | --- | --- |
 | 2026-08-02 | Created the living plan and prioritized multi-file compilation before code generation | Real DMN repositories provide the shared correctness target for interpreter, Java, and gRPC work | Current module assessments and test baseline |
 
+<a id="contents-section-17"></a>
 ## How to maintain this document
 
 When work starts:

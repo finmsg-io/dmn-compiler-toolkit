@@ -1,5 +1,20 @@
 # Modules
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [dmn-protobuf](#contents-section-1)
+- [dmn-frontend-xml](#contents-section-2)
+- [dmn-feel-parser](#contents-section-3)
+- [dmn-semantic-analysis](#contents-section-4)
+- [dmn-runtime-ir](#contents-section-5)
+- [dmn-runtime](#contents-section-6)
+- [dmn-compiler](#contents-section-7)
+- [Planned modules](#contents-section-8)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## `dmn-protobuf`
 
 Defines the canonical protobuf model in package `io.finmsg.dmn.model`.
@@ -20,6 +35,7 @@ model.proto
 
 `feel.proto` defines replaceable nodes whose `oneof` representation is either textual or parsed. This includes `Feel`, `ExpressionNode`, and `BoxedExpression`. Decision-table `UnaryTest` and model `TypeConstraint` use the same text/parsed pattern.
 
+<a id="contents-section-2"></a>
 ## `dmn-frontend-xml`
 
 Reads DMN XML with VTD-XML and creates a semantic `Definitions` model containing FEEL text.
@@ -40,6 +56,7 @@ Reader and writer coverage is symmetric for the XML-representable portion of the
 
 QName `typeRef` values are resolved in element scope, stored by namespace URI, and written using an existing or collision-free declared prefix. DMNDI, artifacts, business-context metadata, and deeper arbitrary extension trees require protobuf model extensions and are not part of the current round-trip claim. See the [completeness audit](audits/dmn-frontend-xml-completeness.md).
 
+<a id="contents-section-3"></a>
 ## `dmn-feel-parser`
 
 Contains:
@@ -55,6 +72,7 @@ Contains:
 
 The pass returns a copied `Definitions` message. The input semantic model remains unchanged.
 
+<a id="contents-section-4"></a>
 ## `dmn-semantic-analysis`
 
 Contains the semantic-analysis pipeline:
@@ -76,6 +94,7 @@ Contains the semantic-analysis pipeline:
 
 These linked semantic results now feed combined model-set Runtime IR lowering.
 
+<a id="contents-section-5"></a>
 ## `dmn-runtime-ir`
 
 Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer IDs and slots across linked model namespaces, lowers structural types and every protobuf FEEL AST expression variant, and rejects unsuccessful semantic results. Decisions and functions persist lexical frames. Declared and expression-derived global references are merged into dependencies and a deterministic runtime topological order. Context types preserve stable indexed field layouts, and statically known path and descendant access carries resolved field indices. A separate optimizer produces typed constant pools and stable built-in operation bindings while preserving lossless IR.
@@ -83,12 +102,25 @@ Contains the immutable, protobuf-free runtime contracts and the semantic-to-runt
 See the [implementation assessment](audits/assessment-dmn-runtime-ir.md) for the
 execution-readiness gaps and recommended implementation order.
 
+<a id="contents-section-6"></a>
+## `dmn-runtime`
+
+Contains the process-local interpreter for executable Runtime IR. It evaluates dependency
+schedules, global and lexical slots, contexts, functions and closures, core FEEL operations,
+unary tests, and decision tables without depending on XML, ANTLR, or semantic protobuf models.
+
+See the [implementation assessment](audits/assessment-dmn-runtime.md) for the
+conformance gaps and recommended implementation order.
+
+<a id="contents-section-7"></a>
 ## `dmn-compiler`
 
 Owns public compiler orchestration and resolver-independent source-loading contracts.
-The current first slice defines stable source identities, immutable source bytes, import
-requests, deterministic resolution results, and an in-memory location-based resolver.
+The current source layer defines stable source identities, immutable source bytes, import
+requests, deterministic resolution results, and root-confined filesystem, classpath, and
+in-memory resolvers.
 
+<a id="contents-section-8"></a>
 ## Planned modules
 
 ```text

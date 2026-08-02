@@ -1,9 +1,19 @@
 
 # Documentation Structure
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Proposed structure](#contents-section-1)
+- [Document authority](#contents-section-2)
+- [Maintenance rules](#contents-section-3)
+- [Architecture chapter classifications](#contents-section-4)
+<!-- generated-toc:end -->
+
 This page defines the proposed long-term organization of project documentation.
 The goal is to make every document's authority and update cadence obvious.
 
+<a id="contents-section-1"></a>
 ## Proposed structure
 
 ```text
@@ -34,6 +44,7 @@ The filename `generall-adr.md` follows the requested repository convention. New 
 files should retain four-digit identifiers and descriptive slugs (`adr-0026-title.md`, not `adr-26.md`) so names
 sort correctly and existing references remain stable.
 
+<a id="contents-section-2"></a>
 ## Document authority
 
 | Question | Authoritative document |
@@ -46,6 +57,7 @@ sort correctly and existing references remain stable.
 | What did an assessment find at a point in time? | `audits/*.md` |
 | Why was an architectural choice made? | `architecture/adr/adr-NNNN-title.md` |
 
+<a id="contents-section-3"></a>
 ## Maintenance rules
 
 1. Do not use audits as TODO lists; copy still-valid actions into the module TODO.
@@ -58,6 +70,7 @@ sort correctly and existing references remain stable.
 6. Update implementation summaries in the same change that crosses a material
    capability boundary.
 
+<a id="contents-section-4"></a>
 ## Architecture chapter classifications
 
 Every architecture chapter carries exactly one classification in its title:

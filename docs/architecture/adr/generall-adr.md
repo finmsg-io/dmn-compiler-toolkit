@@ -2,6 +2,19 @@
 
 # Appendix A — Architecture Decision Records (ADR)
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [A.1 Purpose](#contents-section-1)
+- [Accepted decisions](#contents-section-2)
+- [ADR lifecycle](#contents-section-3)
+- [ADR template](#contents-section-4)
+- [Future ADRs](#contents-section-5)
+- [ADR management guidelines](#contents-section-6)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## A.1 Purpose
 
 Architecture Decision Records (ADRs) capture the rationale behind significant architectural decisions made during the development of the DMN Compiler Toolkit.
@@ -17,6 +30,7 @@ Each ADR documents:
 
 ADRs provide historical context, improve maintainability, and help future contributors understand the reasoning behind architectural choices.
 
+<a id="contents-section-2"></a>
 ## Accepted decisions
 
 | ADR | Decision |
@@ -40,6 +54,7 @@ ADRs provide historical context, improve maintainability, and help future contri
 
 ---
 
+<a id="contents-section-3"></a>
 ## ADR lifecycle
 
 Each Architecture Decision Record progresses through one of the following states.
@@ -54,6 +69,7 @@ Each Architecture Decision Record progresses through one of the following states
 
 ---
 
+<a id="contents-section-4"></a>
 ## ADR template
 
 Every Architecture Decision Record should follow a consistent structure.
@@ -78,6 +94,7 @@ References
 
 ---
 
+<a id="contents-section-5"></a>
 ## Future ADRs
 
 The following topics are expected to require additional Architecture Decision Records as the project evolves:
@@ -96,6 +113,7 @@ The following topics are expected to require additional Architecture Decision Re
 
 ---
 
+<a id="contents-section-6"></a>
 ## ADR management guidelines
 
 Architecture Decision Records should be:

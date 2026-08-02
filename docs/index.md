@@ -1,9 +1,17 @@
 # DMN Compiler Toolkit
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Current implementation](#contents-section-1)
+- [Design goals](#contents-section-2)
+<!-- generated-toc:end -->
+
 The DMN Compiler Toolkit is a performance-oriented compiler infrastructure for Decision Model and Notation (DMN).
 
 It parses DMN XML once, creates an immutable protobuf semantic model, parses FEEL into protobuf AST nodes, performs semantic analysis, and lowers the validated model into an execution-oriented Runtime IR.
 
+<a id="contents-section-1"></a>
 ## Current implementation
 
 The repository currently contains seven active Maven modules:
@@ -42,6 +50,7 @@ Semantic-analysis result and diagnostics
 
 Cross-model semantic linking, QName-safe XML type references, linked model-set Runtime IR lowering, all protobuf FEEL AST expression variants, all modeled decision logic, executable BKM functions, persisted lexical frame layouts, expression-derived runtime dependencies, indexed context-field access, initial optimization, and process-local interpretation are implemented. Further optimization, production runtime semantics, and code generation remain work in progress.
 
+<a id="contents-section-2"></a>
 ## Design goals
 
 - Faithful DMN 1.5 model support

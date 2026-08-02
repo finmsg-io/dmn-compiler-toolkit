@@ -1,7 +1,19 @@
 # dmn-feel-parser
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Current boundary](#contents-section-1)
+- [Deliberately not implemented yet](#contents-section-2)
+- [Add to the parent reactor](#contents-section-3)
+- [Build](#contents-section-4)
+- [Generate ANTLR Java sources](#contents-section-5)
+- [Grammar validation](#contents-section-6)
+<!-- generated-toc:end -->
+
 Bootstrap ANTLR4 module for the DMN Compiler Toolkit.
 
+<a id="contents-section-1"></a>
 ## Current boundary
 
 The module currently provides:
@@ -22,6 +34,7 @@ The parser currently handles the initial subset:
 - lists, contexts and function definitions
 - initial type syntax
 
+<a id="contents-section-2"></a>
 ## Deliberately not implemented yet
 
 - multi-word FEEL names
@@ -33,18 +46,21 @@ The parser currently handles the initial subset:
 
 Multi-word names should be implemented as a separate name-aware token source or token-normalization stage. Do not add Kogito-style scope management or jDMN-style AST actions to the grammar.
 
+<a id="contents-section-3"></a>
 ## Add to the parent reactor
 
 ```xml
 <module>dmn-feel-parser</module>
 ```
 
+<a id="contents-section-4"></a>
 ## Build
 
 ```shell
 mvn clean test
 ```
 
+<a id="contents-section-5"></a>
 ## Generate ANTLR Java sources
 
 Generate the lexer/parser into `src/gen/java` and compile all sources with:
@@ -62,6 +78,7 @@ The `generate-code` profile performs these steps during `generate-sources`:
 Generated Java package declarations are supplied by each grammar's `@header` block. The grammar directory structure is retained beneath `src/gen/java`.
 
 
+<a id="contents-section-6"></a>
 ## Grammar validation
 
 The test suite validates both acceptance and parse-tree structure:

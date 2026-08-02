@@ -1,12 +1,42 @@
 # Chapter 20 — Reference and Glossary [NORMATIVE]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Glossary](#contents-section-1)
+  - [Purpose](#contents-section-2)
+  - [A](#contents-section-3)
+  - [B](#contents-section-4)
+  - [C](#contents-section-5)
+  - [D](#contents-section-6)
+  - [E](#contents-section-7)
+  - [F](#contents-section-8)
+  - [I](#contents-section-9)
+  - [J](#contents-section-10)
+  - [L](#contents-section-11)
+  - [M](#contents-section-12)
+  - [O](#contents-section-13)
+  - [P](#contents-section-14)
+  - [R](#contents-section-15)
+  - [S](#contents-section-16)
+  - [T](#contents-section-17)
+  - [V](#contents-section-18)
+  - [X](#contents-section-19)
+  - [Acronyms](#contents-section-20)
+  - [Compiler pipeline terminology](#contents-section-21)
+  - [Naming conventions](#contents-section-22)
+  - [Summary](#contents-section-23)
+<!-- generated-toc:end -->
+
 Accepted design decisions are indexed in the
 [ADR guide](../adr/generall-adr.md); they are not duplicated here. Module dependency
 rules are defined by [Chapter 5](05-Maven%20Modules.md) and contributor conventions
 by the [style guide](../../dev/style.md).
 
+<a id="contents-section-1"></a>
 ## Glossary
 
+<a id="contents-section-2"></a>
 ### Purpose
 
 This glossary defines the terminology used throughout the DMN Compiler Toolkit.
@@ -15,6 +45,7 @@ The definitions are normative for this project and may differ from informal usag
 
 ---
 
+<a id="contents-section-3"></a>
 ### A
 
 #### Abstract Syntax Tree (AST)
@@ -43,6 +74,7 @@ Binary(+)
 
 ---
 
+<a id="contents-section-4"></a>
 ### B
 
 #### Backend
@@ -68,6 +100,7 @@ A BKM behaves similarly to a function.
 
 ---
 
+<a id="contents-section-5"></a>
 ### C
 
 #### Canonical Representation
@@ -160,6 +193,7 @@ Example:
 
 ---
 
+<a id="contents-section-6"></a>
 ### D
 
 #### Decision
@@ -206,6 +240,7 @@ The dependency graph defined by the DMN specification.
 
 ---
 
+<a id="contents-section-7"></a>
 ### E
 
 #### Execution Graph
@@ -228,6 +263,7 @@ Examples:
 
 ---
 
+<a id="contents-section-8"></a>
 ### F
 
 #### FEEL
@@ -258,6 +294,7 @@ Responsibilities include:
 
 ---
 
+<a id="contents-section-9"></a>
 ### I
 
 #### Immutable
@@ -279,6 +316,7 @@ Examples:
 
 ---
 
+<a id="contents-section-10"></a>
 ### J
 
 #### Java Generator
@@ -287,6 +325,7 @@ The backend that produces Java source code from Runtime IR.
 
 ---
 
+<a id="contents-section-11"></a>
 ### L
 
 #### Lowering
@@ -305,6 +344,7 @@ Runtime IR
 
 ---
 
+<a id="contents-section-12"></a>
 ### M
 
 #### Model Validator
@@ -315,6 +355,7 @@ It performs checks before semantic analysis.
 
 ---
 
+<a id="contents-section-13"></a>
 ### O
 
 #### Optimization
@@ -329,6 +370,7 @@ Examples:
 
 ---
 
+<a id="contents-section-14"></a>
 ### P
 
 #### Pass
@@ -357,6 +399,7 @@ The schema language used for the Semantic Model.
 
 ---
 
+<a id="contents-section-15"></a>
 ### R
 
 #### Reference Resolution
@@ -402,6 +445,7 @@ Characteristics:
 
 ---
 
+<a id="contents-section-16"></a>
 ### S
 
 #### Semantic Analysis
@@ -438,6 +482,7 @@ Used for diagnostics.
 
 ---
 
+<a id="contents-section-17"></a>
 ### T
 
 #### Type Inference
@@ -452,6 +497,7 @@ The compiler process of resolving named types into internal representations.
 
 ---
 
+<a id="contents-section-18"></a>
 ### V
 
 #### Validation
@@ -462,6 +508,7 @@ Validation occurs in multiple compiler stages.
 
 ---
 
+<a id="contents-section-19"></a>
 ### X
 
 #### XML Frontend
@@ -472,6 +519,7 @@ The XML Frontend is not part of the runtime.
 
 ---
 
+<a id="contents-section-20"></a>
 ### Acronyms
 
 | Acronym  | Meaning                             |
@@ -495,6 +543,7 @@ The XML Frontend is not part of the runtime.
 
 ---
 
+<a id="contents-section-21"></a>
 ### Compiler pipeline terminology
 
 The following terms describe the progression of a DMN model through the compiler.
@@ -531,6 +580,7 @@ Each stage has a clearly defined input and output, ensuring that responsibilitie
 
 ---
 
+<a id="contents-section-22"></a>
 ### Naming conventions
 
 Throughout this specification, the following naming conventions are used consistently:
@@ -548,6 +598,7 @@ Throughout this specification, the following naming conventions are used consist
 
 ---
 
+<a id="contents-section-23"></a>
 ### Summary
 
 The glossary establishes a common vocabulary for contributors, reviewers, and users of the DMN Compiler Toolkit. By using these definitions consistently across the architecture specification, source code, API documentation, and ADRs, the project minimizes ambiguity and makes collaboration easier as the codebase and community grow.

@@ -1,5 +1,18 @@
 # Chapter 3 — Overall Architecture [IMPLEMENTATION-ALIGNED]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [3.1 Pipeline](#contents-section-1)
+- [3.2 Implemented transformations](#contents-section-2)
+- [3.3 Representation strategy](#contents-section-3)
+- [3.4 Dependency direction](#contents-section-4)
+- [3.5 Current semantic analysis](#contents-section-5)
+- [3.6 Runtime boundary](#contents-section-6)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## 3.1 Pipeline
 
 ```text
@@ -35,6 +48,7 @@ Runtime                     future
 
 Each stage has a stable protobuf input/output boundary and treats its input as immutable.
 
+<a id="contents-section-2"></a>
 ## 3.2 Implemented transformations
 
 | Stage | Input | Output | Status |
@@ -46,6 +60,7 @@ Each stage has a stable protobuf input/output boundary and treats its input as i
 | Runtime builder | typed model | Runtime IR | Deterministic graph/type, constant, and bound value-reference lowering implemented |
 | Code generator | Runtime IR | target code | Future |
 
+<a id="contents-section-3"></a>
 ## 3.3 Representation strategy
 
 The semantic and parsed compiler models share the same protobuf schema. Replaceable nodes use a `oneof`:
@@ -56,6 +71,7 @@ text representation  →  parsed representation
 
 The XML frontend selects the text branch. `DmnFeelParser` creates a copied model and selects the parsed branch only for successfully parsed nodes. The original semantic model remains unchanged.
 
+<a id="contents-section-4"></a>
 ## 3.4 Dependency direction
 
 ```text
@@ -77,6 +93,7 @@ dmn-protobuf
 
 The parser and XML frontend are test-scoped dependencies of semantic-analysis integration tests; they are not production dependencies of the analyzer.
 
+<a id="contents-section-5"></a>
 ## 3.5 Current semantic analysis
 
 Implemented:
@@ -100,6 +117,7 @@ Not yet implemented:
 
 - Runtime IR expression and decision-table instruction lowering
 
+<a id="contents-section-6"></a>
 ## 3.6 Runtime boundary
 
 Runtime IR and generators must remain independent from XML, VTD-XML, ANTLR, source-text nodes, and frontend diagnostics.

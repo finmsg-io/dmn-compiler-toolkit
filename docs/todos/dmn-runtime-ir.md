@@ -1,5 +1,11 @@
 # `dmn-runtime-ir` TODO
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Current work](#contents-section-1)
+<!-- generated-toc:end -->
+
 Last reviewed: 2026-08-02
 
 Runtime IR is immutable, protobuf-free, namespace-free at execution time, and covers
@@ -7,6 +13,7 @@ all currently modeled FEEL expressions and boxed decision logic. Model-set lower
 lexical frames, dependencies, indexed contexts, constant pooling, and stable built-in
 IDs are implemented.
 
+<a id="contents-section-1"></a>
 ## Current work
 
 | Priority | Work item | Completion evidence |

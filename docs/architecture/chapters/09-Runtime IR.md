@@ -1,5 +1,26 @@
 # Chapter 9 — Runtime IR [IMPLEMENTATION-ALIGNED]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [9.1 Purpose](#contents-section-1)
+- [RIR-001 --- No Source Language Concepts](#contents-section-2)
+- [Model A --- Expression Graph](#contents-section-3)
+- [Model B --- Instruction Stream](#contents-section-4)
+- [Dead instruction elimination](#contents-section-5)
+- [Constant folding](#contents-section-6)
+- [Variable slot optimization](#contents-section-7)
+- [Java](#contents-section-8)
+- [Spark SQL](#contents-section-9)
+- [Rust](#contents-section-10)
+- [Compilation correctness](#contents-section-11)
+- [Serialization](#contents-section-12)
+- [Execution equivalence](#contents-section-13)
+- [Performance](#contents-section-14)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## 9.1 Purpose
 
 Implementation baseline as of August 2026: `dmn-runtime-ir` provides immutable runtime model, input, decision, executable BKM, structural type, recursive expression, relation, and decision-table contracts. `RuntimeIrLowerer` assigns deterministic integer IDs, global value slots, lexical local slots, and stable context-field indices; combines linked semantic models into one namespace-free runtime slot space; lowers every protobuf FEEL AST expression variant and all modeled decision logic; resolves statically known path and descendant members; lowers executable BKM functions; persists lexical frame layouts; merges declared and recursively discovered expression references into dependencies; recomputes deterministic runtime topological order; and rejects unsuccessful semantic results. Aggregate constructors enforce ID/slot uniqueness and bounds, dependency and evaluation-order integrity, table widths and aggregation compatibility, and lexical-frame reference bounds. `RuntimeIrOptimizer` builds typed constant pools and stable built-in bindings without changing lossless IR. The `dmn-runtime` module interprets scheduled decisions/BKMs, lexical closures, contexts, relations, collections, unary tests, built-ins, and decision tables. External JAVA/PMML host bindings, serialization, and further optimization remain future targets.
@@ -116,6 +137,7 @@ targets.
 
 # 9.4 Runtime IR Principles
 
+<a id="contents-section-2"></a>
 ## RIR-001 --- No Source Language Concepts
 
 Runtime IR must not contain:
@@ -534,6 +556,7 @@ Two possible execution models are supported.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-3"></a>
 ## Model A --- Expression Graph
 
 Example:
@@ -552,6 +575,7 @@ Advantages:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-4"></a>
 ## Model B --- Instruction Stream
 
 Example:
@@ -823,6 +847,7 @@ Examples:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-5"></a>
 ## Dead instruction elimination
 
 Before:
@@ -845,6 +870,7 @@ removed
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-6"></a>
 ## Constant folding
 
 Before:
@@ -865,6 +891,7 @@ LOAD 30
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-7"></a>
 ## Variable slot optimization
 
 Before:
@@ -887,6 +914,7 @@ slot 12
 
 Runtime IR becomes:
 
+<a id="contents-section-8"></a>
 ## Java
 
 ``` java
@@ -899,6 +927,7 @@ if(speed > 100){
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-9"></a>
 ## Spark SQL
 
 ``` sql
@@ -910,6 +939,7 @@ END
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-10"></a>
 ## Rust
 
 ``` rust
@@ -961,6 +991,7 @@ No synchronization required.
 
 Runtime IR tests:
 
+<a id="contents-section-11"></a>
 ## Compilation correctness
 
 ``` text
@@ -973,6 +1004,7 @@ Runtime IR
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-12"></a>
 ## Serialization
 
 ``` text
@@ -989,6 +1021,7 @@ Runtime IR
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-13"></a>
 ## Execution equivalence
 
 Compare:
@@ -1003,6 +1036,7 @@ Runtime IR Execution
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-14"></a>
 ## Performance
 
 Measure:

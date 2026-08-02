@@ -1,11 +1,18 @@
 # `dmn-protobuf` TODO
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Current work](#contents-section-1)
+<!-- generated-toc:end -->
+
 Last reviewed: 2026-08-02
 
 The protobuf schemas are the stable compiler-facing semantic contracts. Current
 schemas cover the implemented DMN/FEEL subset, replaceable text/parsed FEEL nodes,
 imports, item-definition components, constraints, source locations, and extensions.
 
+<a id="contents-section-1"></a>
 ## Current work
 
 | Priority | Work item | Completion evidence |

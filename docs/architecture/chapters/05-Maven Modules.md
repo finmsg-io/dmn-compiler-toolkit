@@ -1,5 +1,22 @@
 # Chapter 5 — Maven Modules [IMPLEMENTATION-ALIGNED]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [5.1 Current project structure](#contents-section-1)
+- [5.2 dmn-protobuf](#contents-section-2)
+- [5.3 dmn-frontend-xml](#contents-section-3)
+- [5.4 dmn-feel-parser](#contents-section-4)
+- [5.5 dmn-semantic-analysis](#contents-section-5)
+- [5.6 dmn-runtime-ir](#contents-section-6)
+- [5.7 dmn-runtime](#contents-section-7)
+- [5.8 dmn-compiler](#contents-section-8)
+- [5.9 Target modules](#contents-section-9)
+- [5.10 Module rules](#contents-section-10)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## 5.1 Current project structure
 
 ```text
@@ -22,6 +39,7 @@ version: 1.0.0-SNAPSHOT
 Java:    25
 ```
 
+<a id="contents-section-2"></a>
 ## 5.2 `dmn-protobuf`
 
 Defines generated contracts in `io.finmsg.dmn.model`.
@@ -40,6 +58,7 @@ model.proto
 
 The text schema does not depend on the parsed schema. `feel.proto` composes both through replaceable wrapper messages.
 
+<a id="contents-section-3"></a>
 ## 5.3 `dmn-frontend-xml`
 
 Production dependencies:
@@ -60,6 +79,7 @@ Responsibilities:
 - structured read diagnostics, bounded input, and opt-in source locations
 - namespace/version preservation and prefixed-DMN output
 
+<a id="contents-section-4"></a>
 ## 5.4 `dmn-feel-parser`
 
 Production dependencies:
@@ -79,6 +99,7 @@ Responsibilities:
 
 `dmn-frontend-xml` is test-scoped for the Traffic Violation integration test.
 
+<a id="contents-section-5"></a>
 ## 5.5 `dmn-semantic-analysis`
 
 Production dependency:
@@ -104,6 +125,7 @@ Responsibilities currently implemented:
 
 `dmn-feel-parser` and `dmn-frontend-xml` are test-scoped dependencies only.
 
+<a id="contents-section-6"></a>
 ## 5.6 `dmn-runtime-ir`
 
 Production dependency:
@@ -133,6 +155,7 @@ and statically known path and descendant access is resolved to those indices. Li
 models lower into one namespace-free slot space. Typed constant pools and stable built-in IDs are
 provided by a separate optimization pass.
 
+<a id="contents-section-7"></a>
 ## 5.7 `dmn-runtime`
 
 Production dependency: `dmn-runtime-ir`.
@@ -142,12 +165,15 @@ frames and closures, core FEEL expressions, contexts and relations, iterations a
 expressions, built-ins, invocations, unary tests, and decision tables. External JAVA/PMML
 functions require a future host-binding boundary.
 
+<a id="contents-section-8"></a>
 ## 5.8 `dmn-compiler`
 
 The compiler module owns orchestration and resolver-independent model-source contracts.
-Its source layer has no production dependency on protobuf, XML, semantic-analysis, or Runtime
-IR types. Later facade slices will add explicit dependencies on the stages they orchestrate.
+Its source layer includes root-confined filesystem, classpath, and in-memory resolvers and has
+no production dependency on protobuf, XML, semantic-analysis, or Runtime IR types. Later facade
+slices will add explicit dependencies on the stages they orchestrate.
 
+<a id="contents-section-9"></a>
 ## 5.9 Target modules
 
 ```text
@@ -156,6 +182,7 @@ dmn-codegen-java
 dmn-benchmarks
 ```
 
+<a id="contents-section-10"></a>
 ## 5.10 Module rules
 
 1. One architectural responsibility per module.

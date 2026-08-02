@@ -1,8 +1,27 @@
 
 # `dmn-runtime` assessment
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Executive conclusion](#contents-section-1)
+- [Verified strengths](#contents-section-2)
+- [Findings and recommended actions](#contents-section-3)
+  - [P0 — Implement FEEL null and three-valued logic semantics](#contents-section-4)
+  - [P0 — Correct filter evaluation](#contents-section-5)
+  - [P0 — Complete decision-table hit-policy semantics](#contents-section-6)
+  - [P1 — Implement temporal, duration, and complete numeric semantics](#contents-section-7)
+  - [P1 — Align built-ins across semantic analysis, IR, and runtime](#contents-section-8)
+  - [P1 — Add an end-to-end compiler-to-execution API and fixtures](#contents-section-9)
+  - [P1 — Add execution limits and cycle-safe host-value traversal](#contents-section-10)
+  - [P2 — Decompose DmnRuntime](#contents-section-11)
+  - [P2 — Improve result and error contracts](#contents-section-12)
+- [Recommended sequence](#contents-section-13)
+<!-- generated-toc:end -->
+
 Assessment date: 2026-08-02
 
+<a id="contents-section-1"></a>
 ## Executive conclusion
 
 `dmn-runtime` is a valid first interpreter baseline and proves that the current Runtime IR is
@@ -25,6 +44,7 @@ work should prioritize semantic correctness before performance or Rust/code-gene
 | Test maturity | early: five passing tests |
 | Production readiness | not yet |
 
+<a id="contents-section-2"></a>
 ## Verified strengths
 
 - `DmnRuntime.evaluate` is stateless per call and consumes only `dmn-runtime-ir`.
@@ -39,8 +59,10 @@ work should prioritize semantic correctness before performance or Rust/code-gene
 - Five tests cover dependency order, BKM closure parameters, a UNIQUE table, indexed context/path
   access, missing inputs, and external-function rejection.
 
+<a id="contents-section-3"></a>
 ## Findings and recommended actions
 
+<a id="contents-section-4"></a>
 ### P0 — Implement FEEL null and three-valued logic semantics
 
 Boolean operations currently require Java `Boolean`; comparisons and arithmetic commonly throw on
@@ -50,6 +72,7 @@ unary tests, and decision-table inputs. Java equality/string coercion is not a s
 Recommendation: centralize FEEL value semantics in dedicated operations (`FeelBooleanOps`,
 `FeelNumberOps`, `FeelComparison`, and error/null propagation) and add table-driven conformance tests.
 
+<a id="contents-section-5"></a>
 ### P0 — Correct filter evaluation
 
 `RuntimeFilterExpression` evaluates its predicate once, outside an item frame. A predicate must be
@@ -60,6 +83,7 @@ This also exposes a Runtime IR contract gap: the filter node does not persist an
 Recommendation: extend Runtime IR with the filter item slot/frame layout, lower it explicitly, and
 evaluate the predicate per element.
 
+<a id="contents-section-6"></a>
 ### P0 — Complete decision-table hit-policy semantics
 
 `PRIORITY` currently behaves as `FIRST`, and `OUTPUT_ORDER` behaves as `RULE_ORDER`. Output priority
@@ -69,6 +93,7 @@ runtime, and COLLECT aggregation needs multi-output and null/error conformance d
 Recommendation: normalize priority metadata during lowering/optimization and implement each hit
 policy separately, with positive and negative tests for multiple matches and invalid outputs.
 
+<a id="contents-section-7"></a>
 ### P1 — Implement temporal, duration, and complete numeric semantics
 
 Semantic analysis accepts temporal and duration arithmetic, but runtime binary operations currently
@@ -78,6 +103,7 @@ decimal determinism. Date/time zone handling and duration distinctions need expl
 Recommendation: dispatch arithmetic by Runtime IR type/operator, use deterministic decimal rules,
 and implement every combination accepted by semantic analysis.
 
+<a id="contents-section-8"></a>
 ### P1 — Align built-ins across semantic analysis, IR, and runtime
 
 Runtime dispatch is hand-written and only partially aligned with the semantic registry and optimized
@@ -87,6 +113,7 @@ is absent, and the interpreter evaluates `RuntimeModel` rather than consuming op
 Recommendation: establish one built-in catalog/specification, dispatch by stable operation ID, and
 validate arity, overloads, named arguments, null behavior, and return values consistently.
 
+<a id="contents-section-9"></a>
 ### P1 — Add an end-to-end compiler-to-execution API and fixtures
 
 The public runtime accepts `Map<Integer, ?>`, requiring callers to know compiler-assigned slots and
@@ -97,6 +124,7 @@ Recommendation: let the future compiler facade return a compiled-model handle co
 external input/decision addresses while retaining integer slots internally. Add single- and
 multi-model execution fixtures.
 
+<a id="contents-section-10"></a>
 ### P1 — Add execution limits and cycle-safe host-value traversal
 
 Large numeric iterations, deeply nested descendants, recursive functions, and cyclic caller-supplied
@@ -105,18 +133,21 @@ maps/lists can consume unbounded CPU/stack or recurse indefinitely.
 Recommendation: add configurable step, recursion, collection, and output limits plus identity-based
 cycle detection for foreign context/list values.
 
+<a id="contents-section-11"></a>
 ### P2 — Decompose `DmnRuntime`
 
 The interpreter currently combines scheduling, values, expression dispatch, functions, built-ins,
 unary tests, and decision tables in one class. Split these only after semantic rules are captured by
 tests: model executor, expression evaluator, FEEL operations, function dispatcher, and table evaluator.
 
+<a id="contents-section-12"></a>
 ### P2 — Improve result and error contracts
 
 Errors currently stop the whole evaluation and carry only a message. A production API needs decision
 identity, expression/IR location, error code, cause category, and possibly partial results. Runtime
 values also need a documented host-value conversion contract.
 
+<a id="contents-section-13"></a>
 ## Recommended sequence
 
 1. Add XML-to-runtime and focused FEEL conformance fixtures.

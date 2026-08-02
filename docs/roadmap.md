@@ -1,5 +1,16 @@
 # Roadmap
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Completed foundation](#contents-section-1)
+- [XML frontend completion gate](#contents-section-2)
+- [Next: compiler glue and Runtime IR](#contents-section-3)
+- [Later stages](#contents-section-4)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## Completed foundation
 
 - [x] Protobuf semantic model
@@ -42,6 +53,7 @@
 - [x] Typed constant canonicalization and stable built-in operation IDs
 - [x] Runtime IR interpreter with dependency scheduling, lexical frames, contexts, functions, and decision tables
 
+<a id="contents-section-2"></a>
 ## XML frontend completion gate
 
 - [x] Preserve QName `typeRef` namespaces during XML read/write
@@ -50,12 +62,14 @@
 - [x] Run and stabilize the complete reactor
 - [x] Publish the supported-subset contract and explicit model-extension boundary
 
+<a id="contents-section-3"></a>
 ## Next: compiler glue and Runtime IR
 
 - [ ] Add a compiler facade that aggregates phase diagnostics
 - [ ] Add a model resolver/loading boundary for imports
 - [x] Stabilize the semantic result contract consumed by Runtime IR
 
+<a id="contents-section-4"></a>
 ## Later stages
 
 - [x] Structural Runtime IR module and deterministic graph/type lowering

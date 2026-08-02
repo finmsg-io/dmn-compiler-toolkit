@@ -1,10 +1,17 @@
 # `dmn-runtime` TODO
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Current work](#contents-section-1)
+<!-- generated-toc:end -->
+
 Last reviewed: 2026-08-02
 
 The runtime is an experimental interpreter baseline that proves Runtime IR is
 executable. It is not yet the production semantics oracle or performance target.
 
+<a id="contents-section-1"></a>
 ## Current work
 
 | Priority | Work item | Completion evidence |

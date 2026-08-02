@@ -1,5 +1,19 @@
 # Chapter 11 — XML Frontend [IMPLEMENTATION-ALIGNED]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [11.1 Boundary](#contents-section-1)
+- [11.2 Reader API](#contents-section-2)
+- [11.3 Namespace and version behavior](#contents-section-3)
+- [11.4 Symmetric reader/writer coverage](#contents-section-4)
+- [11.5 Source locations and extensions](#contents-section-5)
+- [11.6 Explicit model boundary](#contents-section-6)
+- [11.7 Completion status](#contents-section-7)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## 11.1 Boundary
 
 ```text
@@ -9,6 +23,7 @@ DMN XML ⇄ Definitions with FEEL text
 `dmn-frontend-xml` owns XML parsing and semantic XML emission. FEEL parsing, reference/type
 resolution, imported-model loading, and execution belong to later compiler stages.
 
+<a id="contents-section-2"></a>
 ## 11.2 Reader API
 
 `DmnXmlReader` accepts `Path`, `InputStream`, or `byte[]`. The legacy `read` methods return a
@@ -21,6 +36,7 @@ malformed XML (`DMN-XML-003`), recognized-but-unsupported DMN content (`DMN-XML-
 prohibited DTD/entity declarations (`DMN-XML-005`), and excessive element depth
 (`DMN-XML-006`).
 
+<a id="contents-section-3"></a>
 ## 11.3 Namespace and version behavior
 
 - element dispatch uses the effective namespace URI plus local name;
@@ -34,6 +50,7 @@ prohibited DTD/entity declarations (`DMN-XML-005`), and excessive element depth
 QName `typeRef` values are resolved in the element's namespace scope and stored as a local type
 name plus namespace URI. The writer reuses an existing prefix or declares a collision-free one.
 
+<a id="contents-section-4"></a>
 ## 11.4 Symmetric reader/writer coverage
 
 The XML-representable portion of the current protobuf model has symmetric reader/writer and
@@ -51,6 +68,7 @@ semantic read-write-read coverage:
 The writer rejects parsed-only FEEL, unary tests, constraints, or boxed expressions when no
 source text exists. Compiler metadata such as inferred types and semantic bindings is not XML.
 
+<a id="contents-section-5"></a>
 ## 11.5 Source locations and extensions
 
 When enabled, semantic nodes receive system ID, line, column, and byte offset. Capture is off by
@@ -58,12 +76,14 @@ default because locations are compiler metadata and would otherwise break semant
 equality. Extensions preserve one level of namespace-qualified elements, attributes, text, and
 root namespace declarations; arbitrary deep XML trees and formatting are not preserved.
 
+<a id="contents-section-6"></a>
 ## 11.6 Explicit model boundary
 
 DMNDI, artifacts/associations, organization units, performance indicators, decision questions,
 allowed answers, and some expression/requirement IDs are not representable in the current
 protobuf model. Adding them requires a semantic-model decision rather than reader/writer glue.
 
+<a id="contents-section-7"></a>
 ## 11.7 Completion status
 
 The current protobuf-supported subset is compiler-grade complete:

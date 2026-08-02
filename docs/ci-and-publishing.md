@@ -1,7 +1,17 @@
 # CI and publishing
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Workflow behavior](#contents-section-1)
+- [Feature snapshots](#contents-section-2)
+- [Releases from main](#contents-section-3)
+- [GitHub Packages repository](#contents-section-4)
+<!-- generated-toc:end -->
+
 The project uses GitHub Actions.
 
+<a id="contents-section-1"></a>
 ## Workflow behavior
 
 ```text
@@ -10,6 +20,7 @@ Pull request         -> build and test
 Main branch push     -> build, test, publish release
 ```
 
+<a id="contents-section-2"></a>
 ## Feature snapshots
 
 A feature branch receives a branch-specific Maven version.
@@ -23,6 +34,7 @@ Version: 1.0.0-feature-initiate-SNAPSHOT
 
 This prevents different feature branches from publishing the same snapshot version.
 
+<a id="contents-section-3"></a>
 ## Releases from `main`
 
 When a pull request is merged into `main`, GitHub emits a push event for `main`.
@@ -38,6 +50,7 @@ Published version: 1.0.0
 
 The checked-in POM is not modified by the workflow.
 
+<a id="contents-section-4"></a>
 ## GitHub Packages repository
 
 ```text

@@ -1,5 +1,18 @@
 # Chapter 13 — Java Generator [FUTURE]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [13.1 Purpose](#contents-section-1)
+- [Strategy A --- Generic Context](#contents-section-2)
+- [Strategy B --- Generated Types](#contents-section-3)
+- [Avoid Boxing](#contents-section-4)
+- [Avoid Reflection](#contents-section-5)
+- [Avoid Generic Dispatch](#contents-section-6)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## 13.1 Purpose
 
 The Java Generator is the first production backend of the DMN Compiler
@@ -265,6 +278,7 @@ Two strategies are supported.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-2"></a>
 ## Strategy A --- Generic Context
 
 Example:
@@ -285,6 +299,7 @@ Disadvantages:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-3"></a>
 ## Strategy B --- Generated Types
 
 Example:
@@ -413,6 +428,7 @@ The generator should produce JVM-friendly code.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-4"></a>
 ## Avoid Boxing
 
 Bad:
@@ -429,6 +445,7 @@ int speed;
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-5"></a>
 ## Avoid Reflection
 
 Forbidden:
@@ -447,6 +464,7 @@ input.speed()
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-6"></a>
 ## Avoid Generic Dispatch
 
 Bad:

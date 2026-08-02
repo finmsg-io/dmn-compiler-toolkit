@@ -1,11 +1,20 @@
 
 # ADR-0025 — Runtime IR Persistence and Compatibility Boundary
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Context](#contents-section-1)
+- [Decision](#contents-section-2)
+- [Consequences](#contents-section-3)
+<!-- generated-toc:end -->
+
 | Field | Value |
 | --- | --- |
 | Status | Accepted |
 | Decision | ADR-0025 |
 
+<a id="contents-section-1"></a>
 ## Context
 
 Runtime IR is implemented as immutable Java records and an optimized companion model. The
@@ -16,6 +25,7 @@ consumer defines the required lifetime and interoperability constraints.
 
 ---
 
+<a id="contents-section-2"></a>
 ## Decision
 
 Runtime IR is process-local until a concrete durable cache or deployment/transport consumer is
@@ -29,6 +39,7 @@ model or Java native serialization.
 
 ---
 
+<a id="contents-section-3"></a>
 ## Consequences
 
 Advantages

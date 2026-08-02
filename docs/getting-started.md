@@ -1,11 +1,24 @@
 # Getting started
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Requirements](#contents-section-1)
+- [Clone and build](#contents-section-2)
+- [Build individual stages](#contents-section-3)
+- [Use the implemented pipeline](#contents-section-4)
+- [Run documentation locally](#contents-section-5)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## Requirements
 
 - JDK 25
 - Maven 3.9 or later
 - Git
 
+<a id="contents-section-2"></a>
 ## Clone and build
 
 ```bash
@@ -20,6 +33,7 @@ The `generate-code` profile regenerates ANTLR sources below:
 dmn-feel-parser/src/gen/java
 ```
 
+<a id="contents-section-3"></a>
 ## Build individual stages
 
 ```bash
@@ -28,6 +42,7 @@ mvn -pl dmn-feel-parser -am test -Pgenerate-code
 mvn -pl dmn-semantic-analysis -am test -Pgenerate-code
 ```
 
+<a id="contents-section-4"></a>
 ## Use the implemented pipeline
 
 ```java
@@ -55,6 +70,7 @@ Definitions parsedModel = new DmnFeelParser().parse(semanticModel);
 
 It throws `DmnFeelParseException` after collecting all syntax errors.
 
+<a id="contents-section-5"></a>
 ## Run documentation locally
 
 ```bash

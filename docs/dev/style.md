@@ -1,7 +1,25 @@
 # STYLE.md
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Project Style Guide](#contents-section-1)
+- [One message = one concept](#contents-section-2)
+- [Messages use singular names](#contents-section-3)
+- [Repeated fields use plural names](#contents-section-4)
+- [IDs](#contents-section-5)
+- [Names](#contents-section-6)
+- [Labels](#contents-section-7)
+- [Documentation](#contents-section-8)
+- [Extension Elements](#contents-section-9)
+- [Field numbering](#contents-section-10)
+- [Enum values](#contents-section-11)
+- [Imports](#contents-section-12)
+<!-- generated-toc:end -->
+
 # DMN Compiler Toolkit
 
+<a id="contents-section-1"></a>
 ## Project Style Guide
 
 **Version 1.0**
@@ -132,6 +150,7 @@ EMPTY_CONTEXT
 
 # 5. Protobuf Conventions
 
+<a id="contents-section-2"></a>
 ## One message = one concept
 
 Good
@@ -154,6 +173,7 @@ GenericNode
 
 ---
 
+<a id="contents-section-3"></a>
 ## Messages use singular names
 
 Correct
@@ -170,6 +190,7 @@ message Decisions
 
 ---
 
+<a id="contents-section-4"></a>
 ## Repeated fields use plural names
 
 Correct
@@ -182,6 +203,7 @@ repeated Rule rules = 2;
 
 ---
 
+<a id="contents-section-5"></a>
 ## IDs
 
 Every DMN element contains
@@ -192,6 +214,7 @@ string id = 1;
 
 ---
 
+<a id="contents-section-6"></a>
 ## Names
 
 ```
@@ -200,6 +223,7 @@ string name = 2;
 
 ---
 
+<a id="contents-section-7"></a>
 ## Labels
 
 ```
@@ -208,6 +232,7 @@ string label = 3;
 
 ---
 
+<a id="contents-section-8"></a>
 ## Documentation
 
 ```
@@ -216,6 +241,7 @@ Documentation documentation = 10;
 
 ---
 
+<a id="contents-section-9"></a>
 ## Extension Elements
 
 ```
@@ -224,6 +250,7 @@ ExtensionElements extension_elements = 11;
 
 ---
 
+<a id="contents-section-10"></a>
 ## Field numbering
 
 Reserve numbers by responsibility.
@@ -254,6 +281,7 @@ Avoid renumbering fields after publication.
 
 ---
 
+<a id="contents-section-11"></a>
 ## Enum values
 
 Always prefix enum constants.
@@ -286,6 +314,7 @@ This avoids protobuf namespace collisions.
 
 ---
 
+<a id="contents-section-12"></a>
 ## Imports
 
 Only import files that are actually required.

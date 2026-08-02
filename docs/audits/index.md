@@ -1,4 +1,11 @@
+<a id="contents-section-1"></a>
 # Audits
+
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Audits](#contents-section-1)
+<!-- generated-toc:end -->
 
 Audits are dated snapshots of implementation evidence, risks, and recommendations.
 They are retained for historical context and are not active work queues. Current

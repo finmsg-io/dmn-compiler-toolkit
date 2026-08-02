@@ -1,7 +1,21 @@
 # DMN XML frontend completeness audit
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Conclusion](#contents-section-1)
+- [Coverage matrix](#contents-section-2)
+- [Remaining implementation gaps](#contents-section-3)
+  - [Completed — QName type-reference namespace preservation](#contents-section-4)
+  - [Completed — Consistent unsupported-content diagnostics](#contents-section-5)
+  - [Completed — Conformance and hardening matrix](#contents-section-6)
+- [Model-extension boundary](#contents-section-7)
+- [Completion gate](#contents-section-8)
+<!-- generated-toc:end -->
+
 Status: audited 2026-08-01 against the current protobuf model and the reader/writer test suite.
 
+<a id="contents-section-1"></a>
 ## Conclusion
 
 `dmn-frontend-xml` is compiler-grade complete for the XML-representable portion of the current
@@ -14,6 +28,7 @@ item definitions and constraints, all five modeled DRG element variants, require
 decision services, decision tables, invocations, and the modeled boxed-expression variants.
 Node documentation and structured extension elements are also preserved.
 
+<a id="contents-section-2"></a>
 ## Coverage matrix
 
 | Area | Reader | Writer | Round trip | Status |
@@ -37,20 +52,24 @@ Node documentation and structured extension elements are also preserved.
 Parsed FEEL, inferred types, and resolved semantic bindings are compiler products rather than
 source XML. Writers correctly reject parsed-only values when source text is unavailable.
 
+<a id="contents-section-3"></a>
 ## Remaining implementation gaps
 
+<a id="contents-section-4"></a>
 ### Completed — QName type-reference namespace preservation
 
 `TypeReferenceReader` resolves values such as `risk:Applicant` in element scope and stores
 both `Applicant` and the namespace URI. The writer reuses an existing prefix or declares a
 collision-free prefix when serializing the named reference.
 
+<a id="contents-section-5"></a>
 ### Completed — Consistent unsupported-content diagnostics
 
 Unknown DMN-namespace children produce `DMN-XML-004` throughout the reader hierarchy. Known
 intentionally unmodeled metadata is explicit, and foreign-namespace extension content remains
 permitted or preserved according to its structural location.
 
+<a id="contents-section-6"></a>
 ### Completed — Conformance and hardening matrix
 
 Tests cover supported DMN 1.2 through 1.6 vocabulary namespaces, QName scope/shadowing,
@@ -58,6 +77,7 @@ malformed and oversized input, exact byte limits, DTD/XXE declarations in UTF-8 
 configurable depth limits, and semantic read-write-read conformance. The remaining completion
 gate is the complete multi-module reactor.
 
+<a id="contents-section-7"></a>
 ## Model-extension boundary
 
 The following DMN content is not representable in the current protobuf model and requires a
@@ -71,6 +91,7 @@ model-design decision before frontend code should be added:
 
 These are extensions to the semantic model, not reader/writer glue-code defects.
 
+<a id="contents-section-8"></a>
 ## Completion gate
 
 The current frontend subset is complete: the conformance matrix and complete six-module reactor

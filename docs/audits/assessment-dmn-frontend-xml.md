@@ -1,8 +1,25 @@
 
 # `dmn-frontend-xml` assessment
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Executive conclusion](#contents-section-1)
+- [Verified strengths](#contents-section-2)
+- [Findings and recommended actions](#contents-section-3)
+  - [P1 — Define and correct caller-owned OutputStream behavior](#contents-section-4)
+  - [P2 — Make bounded path reads genuinely streaming](#contents-section-5)
+  - [P2 — Reduce accidental public API surface](#contents-section-6)
+  - [P2 — Formalize the XML security boundary](#contents-section-7)
+  - [P3 — Remove dead and misleading exception types](#contents-section-8)
+  - [P3 — Clean test and build hygiene](#contents-section-9)
+- [Deferred model extensions](#contents-section-10)
+- [Recommended sequence](#contents-section-11)
+<!-- generated-toc:end -->
+
 Assessment date: 2026-08-02
 
+<a id="contents-section-1"></a>
 ## Executive conclusion
 
 `dmn-frontend-xml` is complete and usable as the XML boundary for the current
@@ -26,6 +43,7 @@ Indicative status:
 | Full DMN specification coverage | intentionally incomplete |
 | Public-library/API maturity | good, with cleanup remaining |
 
+<a id="contents-section-2"></a>
 ## Verified strengths
 
 - Reader and writer cover definitions metadata, imports, item definitions, five modeled DRG
@@ -41,8 +59,10 @@ Indicative status:
 - The current suite contains 36 passing tests: 13 writer, 12 reader, 10 conformance/security,
   and one version-detector test. The complete seven-module reactor also passes.
 
+<a id="contents-section-3"></a>
 ## Findings and recommended actions
 
+<a id="contents-section-4"></a>
 ### P1 — Define and correct caller-owned `OutputStream` behavior
 
 `DmnWriter.write(OutputStream, Definitions)` constructs `XmlEmitter` in try-with-resources.
@@ -53,6 +73,7 @@ caller-supplied stream. Java APIs normally leave caller-owned streams open, whil
 Recommendation: explicitly adopt one ownership rule, document it, and test it. Prefer flushing
 but not closing caller-provided streams; retain closing behavior only in the `Path` overload.
 
+<a id="contents-section-5"></a>
 ### P2 — Make bounded path reads genuinely streaming
 
 `readResult(Path, ...)` checks `Files.size` and then calls `Files.readAllBytes`. A file that grows
@@ -62,6 +83,7 @@ rejects it. The `InputStream` overload already implements bounded incremental re
 Recommendation: open the path as an input stream and delegate to the bounded stream overload.
 The initial size check can remain as a fast rejection, but should not be the enforcement boundary.
 
+<a id="contents-section-6"></a>
 ### P2 — Reduce accidental public API surface
 
 Most element-specific readers and writers are public, despite the intended stable boundary being
@@ -71,6 +93,7 @@ refactoring appear source-incompatible to consumers.
 Recommendation: make implementation classes package-private where practical and document the
 supported public packages/API. Treat this as compatibility cleanup, not a mapping blocker.
 
+<a id="contents-section-7"></a>
 ### P2 — Formalize the XML security boundary
 
 DTD/entity rejection currently includes a pre-parse byte signature check and hostile-input tests.
@@ -81,6 +104,7 @@ Recommendation: document the exact VTD-XML parser behavior and supported input e
 tests for all accepted encodings, and keep the scanner as defense in depth. If VTD cannot provide
 a parser-level prohibition, state that constraint explicitly in the public read contract.
 
+<a id="contents-section-8"></a>
 ### P3 — Remove dead and misleading exception types
 
 `NamespaceException` and `NavigationException` are empty ordinary classes and do not extend
@@ -89,6 +113,7 @@ exception taxonomy.
 
 Recommendation: remove them if unused, or implement and integrate them intentionally.
 
+<a id="contents-section-9"></a>
 ### P3 — Clean test and build hygiene
 
 - `DmnVersionDetectorTest` prints an entire model to standard output, making reactor logs noisy.
@@ -96,6 +121,7 @@ Recommendation: remove them if unused, or implement and integrate them intention
 - The active TODO says 36 tests, which is currently correct, but raw `@Test` counting undercounts
   parameterized cases; report counts from Surefire when updating status documents.
 
+<a id="contents-section-10"></a>
 ## Deferred model extensions
 
 These are not frontend defects until the semantic protobuf model is extended:
@@ -108,6 +134,7 @@ These are not frontend defects until the semantic protobuf model is extended:
 - arbitrary-depth extension XML and mixed-content fidelity;
 - formatting, comments, attribute order, and lexical-preserving round trips.
 
+<a id="contents-section-11"></a>
 ## Recommended sequence
 
 1. Fix and test output-stream ownership.

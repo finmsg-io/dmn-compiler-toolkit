@@ -1,4 +1,11 @@
+<a id="contents-section-1"></a>
 # Module TODOs
+
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Module TODOs](#contents-section-1)
+<!-- generated-toc:end -->
 
 This directory contains exactly one current work list per active Maven module. These
 documents track module-local gaps; cross-module delivery sequencing belongs in the

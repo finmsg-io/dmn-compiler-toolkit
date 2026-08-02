@@ -1,11 +1,18 @@
 # `dmn-feel-parser` TODO
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Current work](#contents-section-1)
+<!-- generated-toc:end -->
+
 Last reviewed: 2026-08-02
 
 The module provides the ANTLR grammar, protobuf AST builder, immutable depth-first
 model pass, structured diagnostics, and integration coverage for the currently
 modeled FEEL syntax.
 
+<a id="contents-section-1"></a>
 ## Current work
 
 | Priority | Work item | Completion evidence |

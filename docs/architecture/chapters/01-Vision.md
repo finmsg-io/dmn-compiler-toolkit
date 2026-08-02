@@ -1,5 +1,15 @@
 # Chapter 1 — Vision [NORMATIVE]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [Why another DMN implementation?](#contents-section-1)
+  - [Goals](#contents-section-2)
+  - [Non-goals](#contents-section-3)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## Why another DMN implementation?
 
 Most existing DMN implementations focus on XML processing and runtime
@@ -22,6 +32,7 @@ generating highly optimized executable artifacts for multiple target
 platforms while remaining fully compatible with the OMG DMN
 specification.
 
+<a id="contents-section-2"></a>
 ### Goals
 
 -   High-performance DMN compiler
@@ -36,6 +47,7 @@ specification.
 -   Clear separation of concerns
 -   Long-term maintainability
 
+<a id="contents-section-3"></a>
 ### Non-goals
 
 -   Graphical editor

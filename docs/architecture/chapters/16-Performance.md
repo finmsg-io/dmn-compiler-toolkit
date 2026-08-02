@@ -1,5 +1,28 @@
 # Chapter 16 — Performance [FUTURE]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [16.1 Purpose](#contents-section-1)
+- [PERF-001 --- Compile Once, Execute Many Times](#contents-section-2)
+- [Object-heavy design](#contents-section-3)
+- [Runtime IR design](#contents-section-4)
+- [Method Inlining](#contents-section-5)
+- [Branch Prediction](#contents-section-6)
+- [Escape Analysis](#contents-section-7)
+- [JIT Compilation](#contents-section-8)
+- [Incremental compilation](#contents-section-9)
+- [Compiler caching](#contents-section-10)
+- [Parallel compilation](#contents-section-11)
+- [Compilation Metrics](#contents-section-12)
+- [Runtime Metrics](#contents-section-13)
+- [Micro Benchmarks](#contents-section-14)
+- [Macro Benchmarks](#contents-section-15)
+- [Comparison Benchmarks](#contents-section-16)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## 16.1 Purpose
 
 Performance is a primary architectural objective of the DMN Compiler
@@ -128,6 +151,7 @@ Target characteristics:
 
 # 16.4 Performance Principles
 
+<a id="contents-section-2"></a>
 ## PERF-001 --- Compile Once, Execute Many Times
 
 The most important optimization.
@@ -252,6 +276,7 @@ The runtime avoids unnecessary objects.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-3"></a>
 ## Object-heavy design
 
 Example:
@@ -272,6 +297,7 @@ Many allocations.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-4"></a>
 ## Runtime IR design
 
 Example:
@@ -452,6 +478,7 @@ The JVM can optimize the first form.
 
 The Java backend benefits from:
 
+<a id="contents-section-5"></a>
 ## Method Inlining
 
 Small decision methods:
@@ -464,6 +491,7 @@ can be inlined.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-6"></a>
 ## Branch Prediction
 
 Simple branches:
@@ -476,12 +504,14 @@ allow CPU optimization.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-7"></a>
 ## Escape Analysis
 
 Avoid unnecessary temporary objects.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-8"></a>
 ## JIT Compilation
 
 Generated code becomes optimized machine code.
@@ -752,12 +782,14 @@ Targets:
 
 Optimization techniques:
 
+<a id="contents-section-9"></a>
 ## Incremental compilation
 
 Only changed models compile.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-10"></a>
 ## Compiler caching
 
 Example:
@@ -772,6 +804,7 @@ Example:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-11"></a>
 ## Parallel compilation
 
 Example:
@@ -788,6 +821,7 @@ Example:
 
 The compiler exposes:
 
+<a id="contents-section-12"></a>
 ## Compilation Metrics
 
 Example:
@@ -810,6 +844,7 @@ Example:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-13"></a>
 ## Runtime Metrics
 
 Example:
@@ -838,6 +873,7 @@ Benchmark categories:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-14"></a>
 ## Micro Benchmarks
 
 Examples:
@@ -852,6 +888,7 @@ Technology:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-15"></a>
 ## Macro Benchmarks
 
 Examples:
@@ -862,6 +899,7 @@ Examples:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-16"></a>
 ## Comparison Benchmarks
 
 Compare:

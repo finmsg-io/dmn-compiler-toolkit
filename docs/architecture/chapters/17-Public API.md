@@ -1,5 +1,18 @@
 # Chapter 17 — Public API [FUTURE]
 
+<!-- generated-toc:start -->
+## Table of contents
+
+- [17.1 Purpose](#contents-section-1)
+- [API-001 --- Simple Entry Point](#contents-section-2)
+- [API-002 --- Hide Compiler Internals](#contents-section-3)
+- [API-003 --- Stable Contracts](#contents-section-4)
+- [Generic Input](#contents-section-5)
+- [Generated Input](#contents-section-6)
+<!-- generated-toc:end -->
+
+
+<a id="contents-section-1"></a>
 ## 17.1 Purpose
 
 The Public API defines the stable integration boundary between users and
@@ -40,6 +53,7 @@ Executable Decision Model
 
 # 17.2 API Design Principles
 
+<a id="contents-section-2"></a>
 ## API-001 --- Simple Entry Point
 
 The common use case should require minimal code.
@@ -59,6 +73,7 @@ DecisionModel model =
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-3"></a>
 ## API-002 --- Hide Compiler Internals
 
 Application code should never directly access:
@@ -87,6 +102,7 @@ is the facade.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-4"></a>
 ## API-003 --- Stable Contracts
 
 Public interfaces evolve slowly.
@@ -369,6 +385,7 @@ Two supported modes.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-5"></a>
 ## Generic Input
 
 Flexible:
@@ -387,6 +404,7 @@ DecisionInput input =
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-6"></a>
 ## Generated Input
 
 High-performance:
