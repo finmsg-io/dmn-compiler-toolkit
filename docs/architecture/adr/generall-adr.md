@@ -19,6 +19,9 @@
 
 Architecture Decision Records (ADRs) capture the rationale behind significant architectural decisions made during the development of the DMN Compiler Toolkit.
 
+Terms used by the ADRs have their normative definitions in the project
+[glossary](../../glossary.md).
+
 While the architecture specification describes *what* the system is, ADRs explain *why* it was designed that way.
 
 Each ADR documents:
@@ -126,4 +129,3 @@ Architecture Decision Records should be:
 When a decision is replaced, the original ADR should be marked **Superseded** and linked to its successor, preserving the historical reasoning.
 
 ---
-

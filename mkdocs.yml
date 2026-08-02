@@ -21,6 +21,7 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Glossary: glossary.md
 
   - Architecture:
       - Overview: architecture.md
@@ -64,7 +65,7 @@ nav:
           - Public API: "architecture/chapters/17-Public API.md"
           - Roadmap: "architecture/chapters/18-Roadmap.md"
           - Internal Compiler Architecture: "architecture/chapters/19-Internal Compiler Architecture.md"
-          - Appendices: "architecture/chapters/20-Appendices.md"
+          - Reference Material: "architecture/chapters/20-Appendices.md"
 
   - Modules: modules.md
   - Development:

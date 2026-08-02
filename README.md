@@ -202,6 +202,11 @@ Feature branch versions use a branch-specific suffix, for example:
 
 The documentation site is located in the `docs` directory and is built with MkDocs.
 
+Key references are the [architecture overview](docs/architecture.md), the normative
+[architecture specification](docs/architecture/architecture-spec.md), the
+[ADR index](docs/architecture/adr/generall-adr.md), and the project
+[glossary](docs/glossary.md).
+
 Install MkDocs:
 
 ```bash

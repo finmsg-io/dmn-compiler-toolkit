@@ -24,6 +24,7 @@ docs/
 ├── roadmap.md                     Concise capability checklist
 ├── development-plan.md            Living milestones, sequencing, and decisions needed
 ├── documentation-structure.md     This ownership and placement guide
+├── glossary.md                    Normative project terminology and acronyms
 ├── architecture.md                Short architecture overview
 ├── architecture/
 │   ├── architecture-spec.md       Normative system architecture
@@ -56,6 +57,7 @@ sort correctly and existing references remain stable.
 | What remains inside one module? | `todos/<module>.md` |
 | What did an assessment find at a point in time? | `audits/*.md` |
 | Why was an architectural choice made? | `architecture/adr/adr-NNNN-title.md` |
+| What does a project term mean? | `glossary.md` |
 
 <a id="contents-section-3"></a>
 ## Maintenance rules
@@ -83,7 +85,8 @@ Every architecture chapter carries exactly one classification in its title:
 
 Chapter 18 points to the canonical planning documents instead of duplicating their
 checklists. Chapter 19 is explicitly future compiler-infrastructure design and names
-the major facilities that do not yet exist. Chapter 20 contains only shared reference
-material and the glossary; duplicated ADR and dependency examples were removed.
+the major facilities that do not yet exist. Chapter 20 links to canonical reference
+documents. The glossary is maintained independently at `docs/glossary.md` and is
+available globally through site navigation.
 
 Accepted ADR decision bodies were not changed during this classification cleanup.

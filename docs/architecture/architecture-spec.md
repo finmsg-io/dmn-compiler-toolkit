@@ -4,6 +4,11 @@
 
 **Version 1.2 — Implementation-Aligned Baseline**
 
+Related normative material:
+
+- [Glossary](../glossary.md) — shared terminology and acronyms.
+- [ADR guide and index](adr/generall-adr.md) — accepted decisions and their rationale.
+
 ## Document status
 
 This version reflects the implementation available in August 2026.
@@ -60,4 +65,5 @@ The semantic-analysis stage implements reference and structured-property resolut
 17. [Public API](./chapters/17-Public%20API.md)
 18. [Roadmap](./chapters/18-Roadmap.md)
 19. [Internal Compiler Architecture](./chapters/19-Internal%20Compiler%20Architecture.md)
-20. [Appendices](./chapters/20-Appendices.md)
+20. [Reference Material](./chapters/20-Appendices.md)
+21. [Glossary](../glossary.md)

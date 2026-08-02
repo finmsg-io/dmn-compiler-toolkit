@@ -15,7 +15,9 @@
 
 The normative, detailed design is maintained in the
 [architecture specification](architecture/architecture-spec.md). This page is the
-short implementation-oriented overview.
+short implementation-oriented overview. Accepted decisions and their rationale are indexed in
+the [ADR guide](architecture/adr/generall-adr.md), and project terminology is defined by the
+[glossary](glossary.md).
 
 <a id="contents-section-1"></a>
 ## Implemented architecture
