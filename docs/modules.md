@@ -131,7 +131,9 @@ Owns public compiler orchestration and resolver-independent source-loading contr
 The current source layer defines stable source identities, immutable source bytes, import
 requests, deterministic resolution results, and root-confined filesystem, classpath, and
 in-memory resolvers. Its bounded transitive loader parses each stable source identity once
-and returns an immutable, deterministically ordered set of loaded models and import edges.
+and returns an immutable, deterministically ordered set of loaded models, import edges, and
+import-structure diagnostics. Missing, ambiguous, duplicate, and cyclic imports invalidate the
+result without discarding the safely loaded partial graph.
 
 Assessments: [implementation](audits/assessment-implementation-dmn-compiler.md) ·
 [architecture](audits/assessment-architecture-dmn-compiler.md)

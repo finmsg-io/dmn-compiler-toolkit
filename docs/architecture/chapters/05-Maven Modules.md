@@ -172,8 +172,11 @@ The compiler module owns orchestration and resolver-independent model-source con
 Its source layer includes root-confined filesystem, classpath, and in-memory resolvers. The
 transitive loader uses the XML frontend to parse location-addressable imports, caches loaded
 models by stable source identity, enforces graph bounds, and produces an immutable graph with
-deterministically ordered models and import edges. Later facade slices will add explicit
-dependencies on semantic-analysis and Runtime IR stages as orchestration expands.
+deterministically ordered models and import edges. Missing, ambiguous, conflicting-identity,
+duplicate-model-identity, and cyclic structures are retained as stable ordered diagnostics;
+the result exposes its validity while preserving the safely loaded partial graph. Later facade
+slices will add explicit dependencies on semantic-analysis and Runtime IR stages as orchestration
+expands. P1.5 enriches these import classifications with the shared compiler diagnostic fields.
 
 <a id="contents-section-9"></a>
 ## 5.9 Target modules

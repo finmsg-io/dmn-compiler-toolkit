@@ -24,9 +24,13 @@ class DmnModelLoaderTest {
     assertThat(result.rootId()).isEqualTo(root.id());
     assertThat(result.models()).extracting(LoadedDmnModel::id).containsExactly(root.id());
     assertThat(result.importEdges()).isEmpty();
+    assertThat(result.isValid()).isTrue();
+    assertThat(result.diagnostics()).isEmpty();
     assertThatThrownBy(() -> result.models().clear())
         .isInstanceOf(UnsupportedOperationException.class);
     assertThatThrownBy(() -> result.importEdges().clear())
+        .isInstanceOf(UnsupportedOperationException.class);
+    assertThatThrownBy(() -> result.diagnostics().clear())
         .isInstanceOf(UnsupportedOperationException.class);
   }
 
@@ -132,6 +136,118 @@ class DmnModelLoaderTest {
       assertThat(edge.imported()).isEqualTo(root.id());
     });
     assertThat(resolver.totalCalls()).isOne();
+    assertThat(result.diagnostics()).singleElement().satisfies(diagnostic -> {
+      assertThat(diagnostic.code()).isEqualTo(DmnImportDiagnosticCode.CYCLE);
+      assertThat(diagnostic.cyclePath())
+          .containsExactly(other.id(), root.id(), other.id());
+    });
+  }
+
+  @Test
+  void reportsMissingImportsAndContinuesIndependentBranches() {
+    DmnSource root = source("root.dmn", "missing-b.dmn", "missing-a.dmn");
+
+    DmnModelLoadResult result = loader.load(
+        root, new InMemoryDmnModelResolver(List.of()));
+
+    assertThat(result.hasErrors()).isTrue();
+    assertThat(result.models()).extracting(LoadedDmnModel::id).containsExactly(root.id());
+    assertThat(result.diagnostics()).extracting(DmnImportDiagnostic::code)
+        .containsExactly(DmnImportDiagnosticCode.MISSING, DmnImportDiagnosticCode.MISSING);
+    assertThat(result.diagnostics()).extracting(diagnostic -> diagnostic.request().location())
+        .containsExactly("missing-b.dmn", "missing-a.dmn");
+  }
+
+  @Test
+  void reportsAmbiguousCandidatesInStableIdentityOrder() {
+    DmnSource root = source("root.dmn", "choice.dmn");
+    DmnSource first = source("a.dmn");
+    DmnSource second = source("b.dmn");
+    DmnModelResolver forward = request ->
+        new DmnResolutionResult(request, List.of(second, first));
+    DmnModelResolver reverse = request ->
+        new DmnResolutionResult(request, List.of(first, second));
+
+    DmnModelLoadResult firstResult = loader.load(root, forward);
+    DmnModelLoadResult secondResult = loader.load(root, reverse);
+
+    assertThat(secondResult).isEqualTo(firstResult);
+    assertThat(firstResult.importEdges()).isEmpty();
+    assertThat(firstResult.diagnostics()).singleElement().satisfies(diagnostic -> {
+      assertThat(diagnostic.code()).isEqualTo(DmnImportDiagnosticCode.AMBIGUOUS);
+      assertThat(diagnostic.relatedSourceIds()).containsExactly(first.id(), second.id());
+    });
+  }
+
+  @Test
+  void repeatedEquivalentCanonicalSourceIsNotDuplicate() {
+    DmnSource root = source("root.dmn", "first.dmn", "second.dmn");
+    DmnSource canonical = source("canonical.dmn");
+    CountingResolver resolver = new CountingResolver(
+        request -> DmnResolutionResult.resolved(request, canonical));
+
+    DmnModelLoadResult result = loader.load(root, resolver);
+
+    assertThat(result.isValid()).isTrue();
+    assertThat(result.models()).hasSize(2);
+    assertThat(result.importEdges()).hasSize(2);
+  }
+
+  @Test
+  void reportsConflictingContentForOneStableSourceIdentity() {
+    DmnSource root = source("root.dmn", "first.dmn", "second.dmn");
+    DmnSourceId sharedId = DmnSourceId.of("memory:/models/shared.dmn");
+    DmnSource first = new DmnSource(sharedId, xml("first-content.dmn").getBytes(StandardCharsets.UTF_8));
+    DmnSource second = new DmnSource(sharedId, xml("second-content.dmn").getBytes(StandardCharsets.UTF_8));
+    DmnModelResolver resolver = request -> DmnResolutionResult.resolved(
+        request, request.location().equals("first.dmn") ? first : second);
+
+    DmnModelLoadResult result = loader.load(root, resolver);
+
+    assertThat(result.models()).hasSize(2);
+    assertThat(result.importEdges()).hasSize(2);
+    assertThat(result.diagnostics()).singleElement().satisfies(diagnostic -> {
+      assertThat(diagnostic.code()).isEqualTo(DmnImportDiagnosticCode.DUPLICATE);
+      assertThat(diagnostic.relatedSourceIds()).containsExactly(sharedId);
+    });
+  }
+
+  @Test
+  void reportsDuplicateNamespaceAndModelNameAcrossSources() {
+    DmnSource root = source("root.dmn", "first.dmn", "second.dmn");
+    String duplicateXml = xml("logical-model.dmn");
+    DmnSource first = new DmnSource(
+        DmnSourceId.of("memory:/models/first.dmn"), duplicateXml.getBytes(StandardCharsets.UTF_8));
+    DmnSource second = new DmnSource(
+        DmnSourceId.of("memory:/models/second.dmn"), duplicateXml.getBytes(StandardCharsets.UTF_8));
+
+    DmnModelLoadResult result = loader.load(
+        root, new InMemoryDmnModelResolver(List.of(first, second)));
+
+    assertThat(result.models()).hasSize(3);
+    assertThat(result.diagnostics()).singleElement().satisfies(diagnostic -> {
+      assertThat(diagnostic.code()).isEqualTo(DmnImportDiagnosticCode.DUPLICATE);
+      assertThat(diagnostic.relatedSourceIds()).containsExactly(first.id(), second.id());
+    });
+  }
+
+  @Test
+  void canonicalizesSelfAndTransitiveCyclePaths() {
+    DmnSource self = source("self.dmn", "self.dmn");
+    DmnModelLoadResult selfResult = loader.load(
+        self, new InMemoryDmnModelResolver(List.of(self)));
+    assertThat(selfResult.diagnostics()).singleElement().satisfies(diagnostic ->
+        assertThat(diagnostic.cyclePath()).containsExactly(self.id(), self.id()));
+
+    DmnSource root = source("z-root.dmn", "b.dmn");
+    DmnSource middle = source("b.dmn", "a.dmn");
+    DmnSource leaf = source("a.dmn", "z-root.dmn");
+    DmnModelLoadResult transitive = loader.load(
+        root, new InMemoryDmnModelResolver(List.of(root, middle, leaf)));
+
+    assertThat(transitive.diagnostics()).singleElement().satisfies(diagnostic ->
+        assertThat(diagnostic.cyclePath())
+            .containsExactly(leaf.id(), root.id(), middle.id(), leaf.id()));
   }
 
   @Test

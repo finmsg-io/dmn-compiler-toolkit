@@ -11,7 +11,8 @@ import java.util.Set;
 public record DmnModelLoadResult(
     DmnSourceId rootId,
     List<LoadedDmnModel> models,
-    List<DmnImportEdge> importEdges) {
+    List<DmnImportEdge> importEdges,
+    List<DmnImportDiagnostic> diagnostics) {
 
   private static final Comparator<DmnImportEdge> EDGE_ORDER = Comparator
       .comparing(DmnImportEdge::importer)
@@ -22,6 +23,7 @@ public record DmnModelLoadResult(
     Objects.requireNonNull(rootId, "rootId");
     Objects.requireNonNull(models, "models");
     Objects.requireNonNull(importEdges, "importEdges");
+    Objects.requireNonNull(diagnostics, "diagnostics");
     models = models.stream()
         .map(model -> Objects.requireNonNull(model, "model"))
         .sorted(Comparator.comparing(LoadedDmnModel::id))
@@ -29,6 +31,10 @@ public record DmnModelLoadResult(
     importEdges = importEdges.stream()
         .map(edge -> Objects.requireNonNull(edge, "importEdge"))
         .sorted(EDGE_ORDER)
+        .toList();
+    diagnostics = diagnostics.stream()
+        .map(diagnostic -> Objects.requireNonNull(diagnostic, "diagnostic"))
+        .sorted(DmnImportDiagnostic.ORDER)
         .toList();
     long distinctIds = models.stream().map(LoadedDmnModel::id).distinct().count();
     if (distinctIds != models.size()) {
@@ -47,5 +53,13 @@ public record DmnModelLoadResult(
   public Optional<LoadedDmnModel> model(DmnSourceId id) {
     Objects.requireNonNull(id, "id");
     return models.stream().filter(model -> model.id().equals(id)).findFirst();
+  }
+
+  public boolean isValid() {
+    return diagnostics.isEmpty();
+  }
+
+  public boolean hasErrors() {
+    return !isValid();
   }
 }
