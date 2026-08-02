@@ -83,11 +83,16 @@ Contains the immutable, protobuf-free runtime contracts and the semantic-to-runt
 See the [implementation assessment](audits/assessment-dmn-runtime-ir.md) for the
 execution-readiness gaps and recommended implementation order.
 
+## `dmn-compiler`
+
+Owns public compiler orchestration and resolver-independent source-loading contracts.
+The current first slice defines stable source identities, immutable source bytes, import
+requests, deterministic resolution results, and an in-memory location-based resolver.
+
 ## Planned modules
 
 ```text
 dmn-optimizer
 dmn-codegen-java
-dmn-compiler-api
 dmn-benchmarks
 ```

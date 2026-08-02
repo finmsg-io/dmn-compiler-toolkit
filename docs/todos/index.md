@@ -7,6 +7,7 @@ documents track module-local gaps; cross-module delivery sequencing belongs in t
 
 | Module | Current TODO |
 | --- | --- |
+| `dmn-compiler` | [Compiler facade and resolution](dmn-compiler.md) |
 | `dmn-protobuf` | [Protobuf semantic contracts](dmn-protobuf.md) |
 | `dmn-frontend-xml` | [XML frontend](dmn-frontend-xml.md) |
 | `dmn-feel-parser` | [FEEL parser](dmn-feel-parser.md) |

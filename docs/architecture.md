@@ -19,7 +19,8 @@ DMN XML
   → structural Runtime IR
 ```
 
-Six Maven modules implement this pipeline through cross-model typed semantic analysis, deterministic Runtime IR lowering, and interpretation.
+Seven Maven modules implement this pipeline through cross-model typed semantic analysis,
+deterministic Runtime IR lowering, interpretation, and compiler-facing source resolution.
 
 ## Stage boundaries
 

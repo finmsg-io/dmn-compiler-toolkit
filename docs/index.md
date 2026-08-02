@@ -6,7 +6,7 @@ It parses DMN XML once, creates an immutable protobuf semantic model, parses FEE
 
 ## Current implementation
 
-The repository currently contains six active Maven modules:
+The repository currently contains seven active Maven modules:
 
 - `dmn-protobuf` — semantic model, replaceable FEEL text/parsed nodes, and FEEL AST
 - `dmn-frontend-xml` — namespace-aware VTD-XML reader and writer for the current protobuf-supported DMN subset
@@ -14,6 +14,7 @@ The repository currently contains six active Maven modules:
 - `dmn-semantic-analysis` — reference resolution, type analysis, DMN validation, and deterministic dependency ordering
 - `dmn-runtime-ir` — immutable Runtime IR with deterministic structure, constants, and bound value references
 - `dmn-runtime` — experimental process-local interpreter for executable Runtime IR
+- `dmn-compiler` — compiler orchestration and resolver-independent model-source contracts
 
 The implemented pipeline is:
 

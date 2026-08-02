@@ -57,8 +57,9 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-semantic-analysis` | Reference resolution, type analysis, DMN validation, and dependency ordering |
 | `dmn-runtime-ir` | Immutable Runtime IR with structural, constant, and value-reference lowering |
 | `dmn-runtime` | Deterministic interpreter for executable Runtime IR |
+| `dmn-compiler` | Compiler orchestration and resolver-independent model-source contracts |
 
-Planned modules include further optimization, Java code generation, and a compiler API.
+Planned modules include further optimization and Java code generation.
 
 ## Requirements
 

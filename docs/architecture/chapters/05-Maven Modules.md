@@ -10,7 +10,8 @@ dmn-compiler-toolkit
 ├── dmn-feel-parser
 ├── dmn-semantic-analysis
 ├── dmn-runtime-ir
-└── dmn-runtime
+├── dmn-runtime
+└── dmn-compiler
 ```
 
 All modules use:
@@ -141,16 +142,21 @@ frames and closures, core FEEL expressions, contexts and relations, iterations a
 expressions, built-ins, invocations, unary tests, and decision tables. External JAVA/PMML
 functions require a future host-binding boundary.
 
-## 5.8 Target modules
+## 5.8 `dmn-compiler`
+
+The compiler module owns orchestration and resolver-independent model-source contracts.
+Its source layer has no production dependency on protobuf, XML, semantic-analysis, or Runtime
+IR types. Later facade slices will add explicit dependencies on the stages they orchestrate.
+
+## 5.9 Target modules
 
 ```text
 dmn-optimizer
 dmn-codegen-java
-dmn-compiler-api
 dmn-benchmarks
 ```
 
-## 5.9 Module rules
+## 5.10 Module rules
 
 1. One architectural responsibility per module.
 2. Production dependencies point toward lower-level contracts.

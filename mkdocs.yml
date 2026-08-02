@@ -72,6 +72,7 @@ nav:
       - Documentation Structure: documentation-structure.md
       - Module TODOs:
           - Overview: todos/index.md
+          - Compiler: todos/dmn-compiler.md
           - Protobuf: todos/dmn-protobuf.md
           - XML Frontend: todos/dmn-frontend-xml.md
           - FEEL Parser: todos/dmn-feel-parser.md
