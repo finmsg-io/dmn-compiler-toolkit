@@ -66,6 +66,16 @@ nav:
           - Roadmap: "architecture/chapters/18-Roadmap.md"
           - Internal Compiler Architecture: "architecture/chapters/19-Internal Compiler Architecture.md"
           - Reference Material: "architecture/chapters/20-Appendices.md"
+          - Stakeholders and Quality Attributes: "architecture/chapters/21-Stakeholders and Quality Attributes.md"
+          - System Context and External Interfaces: "architecture/chapters/22-System Context and External Interfaces.md"
+          - Deployment and Operational Architecture: "architecture/chapters/23-Deployment and Operational Architecture.md"
+          - Security and Trust Boundaries: "architecture/chapters/24-Security and Trust Boundaries.md"
+          - Failure Model and Resilience: "architecture/chapters/25-Failure Model and Resilience.md"
+          - Data Lifecycle, Caching, and Compatibility: "architecture/chapters/26-Data Lifecycle Caching and Compatibility.md"
+          - Observability and Supportability: "architecture/chapters/27-Observability and Supportability.md"
+          - Build, Release, and Supply Chain: "architecture/chapters/28-Build Release and Supply Chain.md"
+          - Architecture Traceability and Conformance: "architecture/chapters/29-Architecture Traceability and Conformance.md"
+          - Architecture Risks and Technical Debt: "architecture/chapters/30-Architecture Risks and Technical Debt.md"
 
   - Modules: modules.md
   - Development:

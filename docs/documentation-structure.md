@@ -83,6 +83,9 @@ Every architecture chapter carries exactly one classification in its title:
 | `IMPLEMENTATION-ALIGNED` | Describes the current implementation and must be updated with material code changes |
 | `FUTURE` | Target or exploratory design that is not a statement of present capability |
 
+An unaccepted proposal may append the review-state modifier `— UNREVIEWED` to its single
+classification and must include a prominent notice stating that it is not authoritative.
+
 Chapter 18 points to the canonical planning documents instead of duplicating their
 checklists. Chapter 19 is explicitly future compiler-infrastructure design and names
 the major facilities that do not yet exist. Chapter 20 links to canonical reference
