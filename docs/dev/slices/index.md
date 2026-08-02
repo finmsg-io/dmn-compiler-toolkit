@@ -18,3 +18,4 @@ evidence.
 | [P1.3 — Load transitive imports deterministically](P1.3-load-transitive-imports.md) | done | Bounded recursive loading with identity caching and stable graph order |
 | [P1.4 — Diagnose invalid import structures deterministically](P1.4-diagnose-invalid-import-structures.md) | done | Stable import-graph diagnostics and partial results |
 | [P1.5 — Add shared diagnostic context](P1.5-add-shared-diagnostic-context.md) | done | Shared severity, phase, source, and model identity |
+| [P1.6 — Introduce a whole-model-set semantic result](P1.6-whole-model-set-semantic-result.md) | done | Source-addressable linked semantic models and shared diagnostics |

@@ -136,6 +136,10 @@ import-structure diagnostics. Missing, ambiguous, duplicate, and cyclic imports 
 result without discarding the safely loaded partial graph. The shared compiler diagnostic contract
 adds type-safe severity and phase, stable string codes, source and optional model identity, import
 context, related sources, and canonical cycle paths. Only `ERROR` diagnostics invalidate results.
+The whole-model-set semantic analyzer applies explicit load and FEEL phase gates, analyzes every
+valid parsed model against the complete repository, and returns source-addressable semantic models
+with per-model compilation order and bindings. FEEL and semantic failures are adapted to the shared
+compiler diagnostic contract.
 
 Assessments: [implementation](audits/assessment-implementation-dmn-compiler.md) ·
 [architecture](audits/assessment-architecture-dmn-compiler.md)

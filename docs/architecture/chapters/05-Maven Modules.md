@@ -182,6 +182,13 @@ Later facade slices will adapt lower-stage diagnostics and add explicit dependen
 analysis and Runtime IR as orchestration expands; lower-level modules do not depend on compiler
 diagnostic types.
 
+The whole-model-set semantic boundary depends on the FEEL parser and semantic-analysis modules in
+that direction only. It first parses every loaded source, stops the set before semantics if FEEL
+errors exist, and otherwise analyzes every model against the same complete repository. Its
+immutable result is ordered by source identity and retains model identity, per-model compilation
+order, bindings, import edges, and normalized compiler diagnostics. The final compiler facade and
+Runtime IR orchestration remain later slices.
+
 <a id="contents-section-9"></a>
 ## 5.9 Target modules
 

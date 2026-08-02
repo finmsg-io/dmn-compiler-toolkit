@@ -15,6 +15,8 @@ immutable source-and-import graph. Invalid import structures produce stable, ord
 diagnostics while preserving every safely loaded model and resolved edge. Shared compiler
 diagnostics carry severity, phase, stable code, source/model identity, and structured import
 context; result validity depends only on error severity.
+Whole-model-set analysis now parses FEEL behind a phase gate and analyzes every valid source against
+the complete repository while retaining per-model order and binding evidence.
 
 <a id="contents-section-1"></a>
 ## Current work
@@ -22,6 +24,6 @@ context; result validity depends only on error severity.
 | Priority | Work item | Completion evidence |
 | --- | --- | --- |
 | P1 | Adapt and aggregate diagnostics from all compiler stages | XML, FEEL, semantic, lowering, optimization, and generation diagnostics use the shared contract |
-| P1 | Expose the immutable compiler facade and model-set result | One call compiles a root source through optimized Runtime IR |
+| P1 | Expose the immutable compiler facade | One call compiles a root source through optimized Runtime IR |
 
 Historical context: [compiler assessment](../audits/assessment-implementation-dmn-compiler.md).
