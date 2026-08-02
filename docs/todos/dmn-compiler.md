@@ -20,3 +20,5 @@ results, plus root-confined filesystem, classpath, and in-memory resolvers.
 | P0 | Load, cache, and order transitive imports deterministically | Diamond and cycle fixtures prove one load per identity |
 | P1 | Aggregate phase-aware, source-aware diagnostics | Every diagnostic identifies phase and originating source |
 | P1 | Expose the immutable compiler facade and model-set result | One call compiles a root source through optimized Runtime IR |
+
+Historical context: [compiler assessment](../audits/assessment-implementation-dmn-compiler.md).

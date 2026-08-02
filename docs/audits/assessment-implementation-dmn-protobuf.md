@@ -1,3 +1,6 @@
+# `dmn-protobuf` assessment
+
+Assessment date: 2026-08-02
 
 <a id="contents-section-1"></a>
 ## Assessment

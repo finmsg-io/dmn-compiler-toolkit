@@ -26,4 +26,4 @@ executable. It is not yet the production semantics oracle or performance target.
 | P1 | Add execution step, recursion, collection, and output limits plus cycle detection | Adversarial host values and models fail deterministically |
 | P2 | Decompose the interpreter after semantics are locked by tests | Focused evaluator components retain parity with the baseline |
 
-Historical context: [runtime assessment](../audits/assessment-dmn-runtime.md).
+Historical context: [runtime assessment](../audits/assessment-implementation-dmn-runtime.md).

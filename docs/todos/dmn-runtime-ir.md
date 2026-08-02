@@ -28,4 +28,4 @@ IDs are implemented.
 Runtime IR remains process-local under ADR-0025. A durable schema is deferred until
 there is a compilation-cache or transport requirement.
 
-Historical context: [Runtime IR assessment](../audits/assessment-dmn-runtime-ir.md).
+Historical context: [Runtime IR assessment](../audits/assessment-implementation-dmn-runtime-ir.md).

@@ -81,12 +81,23 @@ nav:
           - Runtime: todos/dmn-runtime.md
       - Audits:
           - Overview: audits/index.md
-          - Protobuf Assessment: audits/assessment-dmn-protobuf.md
-          - XML Frontend Assessment: audits/assessment-dmn-frontend-xml.md
+          - Protobuf Assessment: audits/assessment-implementation-dmn-protobuf.md
+          - XML Frontend Assessment: audits/assessment-implementation-dmn-frontend-xml.md
           - XML Frontend Completeness: audits/dmn-frontend-xml-completeness.md
-          - Semantic Analysis Assessment: audits/assessment-dmn-semantic-analysis.md
-          - Runtime IR Assessment: audits/assessment-dmn-runtime-ir.md
-          - Runtime Assessment: audits/assessment-dmn-runtime.md
+          - FEEL Parser Assessment: audits/assessment-implementation-dmn-feel-parser.md
+          - Semantic Analysis Assessment: audits/assessment-implementation-dmn-semantic-analysis.md
+          - Runtime IR Assessment: audits/assessment-implementation-dmn-runtime-ir.md
+          - Runtime Assessment: audits/assessment-implementation-dmn-runtime.md
+          - Compiler Assessment: audits/assessment-implementation-dmn-compiler.md
+          - Module Architecture Assessment: audits/assessment-module-architecture.md
+          - Architecture by Module:
+              - Protobuf: audits/assessment-architecture-dmn-protobuf.md
+              - XML Frontend: audits/assessment-architecture-dmn-frontend-xml.md
+              - FEEL Parser: audits/assessment-architecture-dmn-feel-parser.md
+              - Semantic Analysis: audits/assessment-architecture-dmn-semantic-analysis.md
+              - Runtime IR: audits/assessment-architecture-dmn-runtime-ir.md
+              - Runtime: audits/assessment-architecture-dmn-runtime.md
+              - Compiler: audits/assessment-architecture-dmn-compiler.md
       - Style Guide: dev/style.md
       - CI and Publishing: ci-and-publishing.md
   - Roadmap: roadmap.md

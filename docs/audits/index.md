@@ -14,12 +14,22 @@ actions belong in the [module TODOs](../todos/index.md) or the
 
 | Audit | Scope |
 | --- | --- |
-| [Protobuf assessment](assessment-dmn-protobuf.md) | Semantic protobuf contracts |
-| [XML frontend assessment](assessment-dmn-frontend-xml.md) | Production-readiness findings |
+| [Protobuf assessment](assessment-implementation-dmn-protobuf.md) | Semantic protobuf contracts |
+| [XML frontend assessment](assessment-implementation-dmn-frontend-xml.md) | Production-readiness findings |
 | [XML frontend completeness](dmn-frontend-xml-completeness.md) | Supported XML subset and completion evidence |
-| [Semantic-analysis assessment](assessment-dmn-semantic-analysis.md) | Semantic compiler baseline and risks |
-| [Runtime IR assessment](assessment-dmn-runtime-ir.md) | Lowering contract and optimization boundary |
-| [Runtime assessment](assessment-dmn-runtime.md) | Interpreter correctness and readiness |
+| [FEEL parser assessment](assessment-implementation-dmn-feel-parser.md) | FEEL grammar, AST, model pass, and build risks |
+| [Semantic-analysis assessment](assessment-implementation-dmn-semantic-analysis.md) | Semantic compiler baseline and risks |
+| [Runtime IR assessment](assessment-implementation-dmn-runtime-ir.md) | Lowering contract and optimization boundary |
+| [Runtime assessment](assessment-implementation-dmn-runtime.md) | Interpreter correctness and readiness |
+| [Compiler assessment](assessment-implementation-dmn-compiler.md) | Source resolution and compiler-facade readiness |
+| [Module architecture assessment](assessment-module-architecture.md) | Responsibilities, dependencies, and cross-module boundaries |
+| [Protobuf architecture assessment](assessment-architecture-dmn-protobuf.md) | Serialized module architecture opinion |
+| [XML frontend architecture assessment](assessment-architecture-dmn-frontend-xml.md) | Serialized module architecture opinion |
+| [FEEL parser architecture assessment](assessment-architecture-dmn-feel-parser.md) | Serialized module architecture opinion |
+| [Semantic-analysis architecture assessment](assessment-architecture-dmn-semantic-analysis.md) | Serialized module architecture opinion |
+| [Runtime IR architecture assessment](assessment-architecture-dmn-runtime-ir.md) | Serialized module architecture opinion |
+| [Runtime architecture assessment](assessment-architecture-dmn-runtime.md) | Serialized module architecture opinion |
+| [Compiler architecture assessment](assessment-architecture-dmn-compiler.md) | Serialized module architecture opinion |
 
 Audit statements may become stale as implementation advances. Each audit retains
 its assessment date; consult current TODOs and executable tests before acting on it.

@@ -99,7 +99,7 @@ These linked semantic results now feed combined model-set Runtime IR lowering.
 
 Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer IDs and slots across linked model namespaces, lowers structural types and every protobuf FEEL AST expression variant, and rejects unsuccessful semantic results. Decisions and functions persist lexical frames. Declared and expression-derived global references are merged into dependencies and a deterministic runtime topological order. Context types preserve stable indexed field layouts, and statically known path and descendant access carries resolved field indices. A separate optimizer produces typed constant pools and stable built-in operation bindings while preserving lossless IR.
 
-See the [implementation assessment](audits/assessment-dmn-runtime-ir.md) for the
+See the [implementation assessment](audits/assessment-implementation-dmn-runtime-ir.md) for the
 execution-readiness gaps and recommended implementation order.
 
 <a id="contents-section-6"></a>
@@ -109,7 +109,7 @@ Contains the process-local interpreter for executable Runtime IR. It evaluates d
 schedules, global and lexical slots, contexts, functions and closures, core FEEL operations,
 unary tests, and decision tables without depending on XML, ANTLR, or semantic protobuf models.
 
-See the [implementation assessment](audits/assessment-dmn-runtime.md) for the
+See the [implementation assessment](audits/assessment-implementation-dmn-runtime.md) for the
 conformance gaps and recommended implementation order.
 
 <a id="contents-section-7"></a>

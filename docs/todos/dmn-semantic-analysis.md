@@ -24,4 +24,4 @@ deterministic compilation order.
 | P2 | Decompose large analyzers after shared traversal behavior is protected by tests | Schema evolution has one obvious exhaustive traversal path |
 | P3 | Document protobuf input/output ownership and preservation guarantees | Pass contracts state copying, mutation, and preserved fields explicitly |
 
-Historical context: [semantic-analysis assessment](../audits/assessment-dmn-semantic-analysis.md).
+Historical context: [semantic-analysis assessment](../audits/assessment-implementation-dmn-semantic-analysis.md).

@@ -32,5 +32,5 @@ DMNDI, artifacts/associations, organization units, performance indicators, decis
 questions/allowed answers, and deeper arbitrary extension trees require semantic
 model decisions before frontend implementation.
 
-Historical context: [frontend assessment](../audits/assessment-dmn-frontend-xml.md)
+Historical context: [frontend assessment](../audits/assessment-implementation-dmn-frontend-xml.md)
 and [completeness audit](../audits/dmn-frontend-xml-completeness.md).

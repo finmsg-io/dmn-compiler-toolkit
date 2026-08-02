@@ -28,4 +28,4 @@ Recursive item-definition components and constraints are implemented and are no
 longer TODOs. Resolved symbol/type bindings remain side tables unless a separate ADR
 establishes a durable serialization use case.
 
-Historical context: [protobuf assessment](../audits/assessment-dmn-protobuf.md).
+Historical context: [protobuf assessment](../audits/assessment-implementation-dmn-protobuf.md).

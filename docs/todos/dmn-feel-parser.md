@@ -25,3 +25,5 @@ modeled FEEL syntax.
 
 Built-in function semantics and overload validation belong primarily to semantic
 analysis and the shared runtime catalog, not to grammar parsing.
+
+Historical context: [FEEL parser assessment](../audits/assessment-implementation-dmn-feel-parser.md).
