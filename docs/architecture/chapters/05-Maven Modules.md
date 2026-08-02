@@ -174,9 +174,13 @@ transitive loader uses the XML frontend to parse location-addressable imports, c
 models by stable source identity, enforces graph bounds, and produces an immutable graph with
 deterministically ordered models and import edges. Missing, ambiguous, conflicting-identity,
 duplicate-model-identity, and cyclic structures are retained as stable ordered diagnostics;
-the result exposes its validity while preserving the safely loaded partial graph. Later facade
-slices will add explicit dependencies on semantic-analysis and Runtime IR stages as orchestration
-expands. P1.5 enriches these import classifications with the shared compiler diagnostic fields.
+the result exposes its validity while preserving the safely loaded partial graph. Shared compiler
+diagnostics carry type-safe severity and phase, stable string codes, source and optional model
+identity, optional import context, related source identities, and canonical cycle paths. An
+explicit comparator makes ordering reproducible, and only error severity invalidates a result.
+Later facade slices will adapt lower-stage diagnostics and add explicit dependencies on semantic
+analysis and Runtime IR as orchestration expands; lower-level modules do not depend on compiler
+diagnostic types.
 
 <a id="contents-section-9"></a>
 ## 5.9 Target modules

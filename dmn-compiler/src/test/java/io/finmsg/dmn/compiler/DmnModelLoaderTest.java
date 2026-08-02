@@ -137,7 +137,9 @@ class DmnModelLoaderTest {
     });
     assertThat(resolver.totalCalls()).isOne();
     assertThat(result.diagnostics()).singleElement().satisfies(diagnostic -> {
-      assertThat(diagnostic.code()).isEqualTo(DmnImportDiagnosticCode.CYCLE);
+      assertThat(diagnostic.code()).isEqualTo(DmnDiagnosticCodes.IMPORT_CYCLE);
+      assertThat(diagnostic.severity()).isEqualTo(DmnDiagnosticSeverity.ERROR);
+      assertThat(diagnostic.phase()).isEqualTo(DmnCompilerPhase.SOURCE_RESOLUTION);
       assertThat(diagnostic.cyclePath())
           .containsExactly(other.id(), root.id(), other.id());
     });
@@ -152,10 +154,19 @@ class DmnModelLoaderTest {
 
     assertThat(result.hasErrors()).isTrue();
     assertThat(result.models()).extracting(LoadedDmnModel::id).containsExactly(root.id());
-    assertThat(result.diagnostics()).extracting(DmnImportDiagnostic::code)
-        .containsExactly(DmnImportDiagnosticCode.MISSING, DmnImportDiagnosticCode.MISSING);
-    assertThat(result.diagnostics()).extracting(diagnostic -> diagnostic.request().location())
+    assertThat(result.diagnostics()).extracting(DmnCompilerDiagnostic::code)
+        .containsExactly(DmnDiagnosticCodes.IMPORT_MISSING, DmnDiagnosticCodes.IMPORT_MISSING);
+    assertThat(result.diagnostics()).extracting(
+            diagnostic -> diagnostic.importRequest().orElseThrow().location())
         .containsExactly("missing-b.dmn", "missing-a.dmn");
+    assertThat(result.diagnostics()).allSatisfy(diagnostic -> {
+      assertThat(diagnostic.severity()).isEqualTo(DmnDiagnosticSeverity.ERROR);
+      assertThat(diagnostic.phase()).isEqualTo(DmnCompilerPhase.SOURCE_RESOLUTION);
+      assertThat(diagnostic.origin().sourceId()).isEqualTo(root.id());
+      assertThat(diagnostic.origin().modelIdentity()).contains(
+          new DmnModelIdentity("urn:test:root.dmn", "root.dmn"));
+      assertThat(diagnostic.origin().importIndex()).isPresent();
+    });
   }
 
   @Test
@@ -174,7 +185,7 @@ class DmnModelLoaderTest {
     assertThat(secondResult).isEqualTo(firstResult);
     assertThat(firstResult.importEdges()).isEmpty();
     assertThat(firstResult.diagnostics()).singleElement().satisfies(diagnostic -> {
-      assertThat(diagnostic.code()).isEqualTo(DmnImportDiagnosticCode.AMBIGUOUS);
+      assertThat(diagnostic.code()).isEqualTo(DmnDiagnosticCodes.IMPORT_AMBIGUOUS);
       assertThat(diagnostic.relatedSourceIds()).containsExactly(first.id(), second.id());
     });
   }
@@ -207,7 +218,7 @@ class DmnModelLoaderTest {
     assertThat(result.models()).hasSize(2);
     assertThat(result.importEdges()).hasSize(2);
     assertThat(result.diagnostics()).singleElement().satisfies(diagnostic -> {
-      assertThat(diagnostic.code()).isEqualTo(DmnImportDiagnosticCode.DUPLICATE);
+      assertThat(diagnostic.code()).isEqualTo(DmnDiagnosticCodes.IMPORT_DUPLICATE);
       assertThat(diagnostic.relatedSourceIds()).containsExactly(sharedId);
     });
   }
@@ -226,7 +237,7 @@ class DmnModelLoaderTest {
 
     assertThat(result.models()).hasSize(3);
     assertThat(result.diagnostics()).singleElement().satisfies(diagnostic -> {
-      assertThat(diagnostic.code()).isEqualTo(DmnImportDiagnosticCode.DUPLICATE);
+      assertThat(diagnostic.code()).isEqualTo(DmnDiagnosticCodes.IMPORT_DUPLICATE);
       assertThat(diagnostic.relatedSourceIds()).containsExactly(first.id(), second.id());
     });
   }

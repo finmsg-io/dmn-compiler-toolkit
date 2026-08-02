@@ -12,7 +12,7 @@ public record DmnModelLoadResult(
     DmnSourceId rootId,
     List<LoadedDmnModel> models,
     List<DmnImportEdge> importEdges,
-    List<DmnImportDiagnostic> diagnostics) {
+    List<DmnCompilerDiagnostic> diagnostics) {
 
   private static final Comparator<DmnImportEdge> EDGE_ORDER = Comparator
       .comparing(DmnImportEdge::importer)
@@ -34,7 +34,7 @@ public record DmnModelLoadResult(
         .toList();
     diagnostics = diagnostics.stream()
         .map(diagnostic -> Objects.requireNonNull(diagnostic, "diagnostic"))
-        .sorted(DmnImportDiagnostic.ORDER)
+        .sorted(DmnCompilerDiagnostic.ORDER)
         .toList();
     long distinctIds = models.stream().map(LoadedDmnModel::id).distinct().count();
     if (distinctIds != models.size()) {
@@ -56,10 +56,11 @@ public record DmnModelLoadResult(
   }
 
   public boolean isValid() {
-    return diagnostics.isEmpty();
+    return !hasErrors();
   }
 
   public boolean hasErrors() {
-    return !isValid();
+    return diagnostics.stream()
+        .anyMatch(diagnostic -> diagnostic.severity() == DmnDiagnosticSeverity.ERROR);
   }
 }

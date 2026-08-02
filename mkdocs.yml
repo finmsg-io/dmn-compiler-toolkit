@@ -111,7 +111,11 @@ nav:
               - Compiler: audits/assessment-architecture-dmn-compiler.md
       - Style Guide: dev/style.md
       - Evidence-Backed Spec-Driven Development: dev/evidence-backed-spec-driven-development.md
-      - "P1.4 Import Diagnostics Slice": "dev/slice-spec-P1.4 Diagnose invalid import structures deterministically.md"
+      - Development Slices:
+          - Overview: dev/slices/index.md
+          - P1.3 Transitive Import Loading: dev/slices/P1.3-load-transitive-imports.md
+          - P1.4 Import Diagnostics: dev/slices/P1.4-diagnose-invalid-import-structures.md
+          - P1.5 Shared Diagnostic Context: dev/slices/P1.5-add-shared-diagnostic-context.md
       - CI and Publishing: ci-and-publishing.md
   - Roadmap: roadmap.md
 markdown_extensions:

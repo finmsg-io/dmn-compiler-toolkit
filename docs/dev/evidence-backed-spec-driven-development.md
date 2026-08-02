@@ -11,9 +11,6 @@
 - [Reusable completion gate](#contents-section-6)
 - [Proportional verification](#contents-section-7)
 - [Example: P1.3 transitive import loading](#contents-section-8)
-  - [Slice specification](#contents-section-9)
-  - [Suggested delivery sequence](#contents-section-10)
-  - [Expected evidence](#contents-section-11)
 - [Reusable slice template](#contents-section-12)
 - [Process guardrails](#contents-section-13)
 <!-- generated-toc:end -->
@@ -69,7 +66,7 @@ The process is deliberately not “specify the entire product first.” Future m
 | [ADRs](../architecture/adr/generall-adr.md) | Significant decisions, alternatives, rationale, and consequences |
 | [Development plan](../development-plan.md) | Milestone sequencing, acceptance criteria, state, and evidence |
 | [Module TODOs](../todos/index.md) | Current module-local gaps, not completion history |
-| Slice specification | Temporary implementation contract for one bounded increment |
+| [Slice specification](slices/index.md) | Temporary implementation contract for one bounded increment |
 | Tests and benchmarks | Executable behavioral and quality evidence |
 | Assessments | Dated snapshots; not active work queues |
 
@@ -128,84 +125,21 @@ running every expensive check for an isolated low-risk edit.
 ## Example: P1.3 transitive import loading
 
 This example applies the process to development-plan item P1.3: load transitive imports with
-deterministic ordering and caching.
+deterministic ordering and caching. Its specification, delivery sequence, acceptance scenarios,
+and completion evidence now live in the standalone
+[P1.3 transitive-import slice](slices/P1.3-load-transitive-imports.md).
 
-<a id="contents-section-9"></a>
-### Slice specification
-
-**Requirement links:** AR-002 (determinism), AR-006 (resolver-independent transitive imports),
-AR-008 (bounded model graphs).
-
-**Outcome:** given a root `DmnSource`, load every location-addressable transitive import once and
-return an immutable model-source graph in deterministic order.
-
-**First vertical increment:**
-
-```text
-root DmnSource
-    -> parse root imports
-    -> resolve one imported source
-    -> parse imported model
-    -> cache by DmnSourceId
-    -> return deterministic loaded source set
-```
-
-**In scope:**
-
-- location-based imports resolved through `DmnModelResolver`;
-- recursive traversal of imported sources;
-- one resolver call and parse per stable `DmnSourceId`;
-- deterministic source ordering independent of map iteration;
-- immutable result containing root identity, sources, and import edges;
-- focused single-level, transitive, and diamond tests.
-
-**Non-goals for the first increment:**
-
-- namespace/model-name fallback when `locationURI` is absent;
-- complete missing/ambiguous/cycle diagnostic taxonomy from P1.4;
-- semantic analysis, Runtime IR lowering, or execution;
-- durable caches shared between compilations;
-- filesystem watching or hot reload.
-
-**Acceptance scenarios:**
-
-1. A root with no imports returns exactly the root source.
-2. A root importing one model resolves and returns both sources.
-3. A three-level chain loads root, intermediate, and leaf in stable order.
-4. A diamond graph resolves and parses the shared leaf exactly once.
-5. Reordering resolver registration does not change the result order.
-6. A resolver returning a source whose identity was already loaded reuses the cached source.
-7. Exceeding configured source-count or import-depth limits fails deterministically.
-
-**Open decision intentionally deferred:** cycle classification belongs to P1.4. P1.3 may stop
-recursion through its identity cache and preserve the edge so P1.4 can diagnose the cycle later.
-
-<a id="contents-section-10"></a>
-### Suggested delivery sequence
-
-1. Define immutable loaded-source and import-edge result contracts.
-2. Implement the root-only case.
-3. Add one direct import through the in-memory resolver.
-4. Add recursive traversal and identity-based caching.
-5. Define and test deterministic ordering.
-6. Add diamond and limit tests.
-7. Run `dmn-compiler` tests, then the complete reactor because the compiler contract is public.
-8. Mark P1.3 complete only when evidence is linked from the development plan.
-
-<a id="contents-section-11"></a>
-### Expected evidence
-
-- Focused loader tests covering all acceptance scenarios.
-- Resolver spy/counting evidence that diamond dependencies load once.
-- Deterministic results across different registration/insertion orders.
-- Complete Maven reactor success.
-- Updated compiler module documentation and P1.3 evidence entry.
+See the [development slice catalog](slices/index.md) for subsequent examples that apply the same
+process to import diagnostics and shared compiler diagnostic context.
 
 <a id="contents-section-12"></a>
 ## Reusable slice template
 
 Copy the following template into the development-plan work item, an issue, or a temporary design
 note. A separate document is unnecessary for a small slice when the plan entry remains readable.
+For serialized examples, see [P1.3](slices/P1.3-load-transitive-imports.md),
+[P1.4](slices/P1.4-diagnose-invalid-import-structures.md), and
+[P1.5](slices/P1.5-add-shared-diagnostic-context.md).
 
 ```markdown
 # <Slice ID> — <Outcome-oriented title>
@@ -281,4 +215,3 @@ Milestone: <plan item>
 - Automate recurring integrity checks instead of repeating manual documentation audits.
 - Revisit the process when it adds delay without finding defects or when escaped defects reveal a
   missing gate.
-

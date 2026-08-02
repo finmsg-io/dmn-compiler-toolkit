@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Loads and parses a bounded graph of location-addressable DMN imports. */
 public final class DmnModelLoader {
@@ -46,7 +47,7 @@ public final class DmnModelLoader {
     private final Map<DmnSourceId, LoadedDmnModel> models = new LinkedHashMap<>();
     private final Map<DmnSourceId, DmnSourceId> aliases = new HashMap<>();
     private final List<DmnImportEdge> edges = new ArrayList<>();
-    private final List<DmnImportDiagnostic> diagnostics = new ArrayList<>();
+    private final List<DmnCompilerDiagnostic> diagnostics = new ArrayList<>();
     private final List<DmnSourceId> activePath = new ArrayList<>();
 
     private LoadSession(DmnModelResolver resolver, DmnModelLoadOptions options) {
@@ -86,7 +87,7 @@ public final class DmnModelLoader {
             DmnResolutionResult resolution = resolver.resolve(request);
             if (resolution.isMissing()) {
               diagnostics.add(diagnostic(
-                  DmnImportDiagnosticCode.MISSING, index, request, List.of(), List.of(),
+                  DmnDiagnosticCodes.IMPORT_MISSING, index, request, List.of(), List.of(),
                   "Cannot resolve DMN import '" + request.location() + "' from " + source.id()));
               continue;
             }
@@ -94,7 +95,7 @@ public final class DmnModelLoader {
               List<DmnSourceId> candidates = resolution.candidates().stream()
                   .map(DmnSource::id).toList();
               diagnostics.add(diagnostic(
-                  DmnImportDiagnosticCode.AMBIGUOUS, index, request, candidates, List.of(),
+                  DmnDiagnosticCodes.IMPORT_AMBIGUOUS, index, request, candidates, List.of(),
                   "Ambiguous DMN import '" + request.location() + "' from " + source.id()));
               continue;
             }
@@ -108,14 +109,14 @@ public final class DmnModelLoader {
           LoadedDmnModel existing = models.get(target.id());
           if (existing != null && !Arrays.equals(existing.source().content(), target.content())) {
             diagnostics.add(diagnostic(
-                DmnImportDiagnosticCode.DUPLICATE, index, request, List.of(target.id()), List.of(),
+                DmnDiagnosticCodes.IMPORT_DUPLICATE, index, request, List.of(target.id()), List.of(),
                 "Conflicting content for DMN source identity " + target.id()));
             continue;
           }
           if (activePath.contains(target.id())) {
             List<DmnSourceId> cycle = canonicalCycle(target.id());
             diagnostics.add(diagnostic(
-                DmnImportDiagnosticCode.CYCLE, index, request, cycle, cycle,
+                DmnDiagnosticCodes.IMPORT_CYCLE, index, request, cycle, cycle,
                 "Cyclic DMN import: " + cycle));
             continue;
           }
@@ -126,15 +127,29 @@ public final class DmnModelLoader {
       }
     }
 
-    private DmnImportDiagnostic diagnostic(
-        DmnImportDiagnosticCode code,
+    private DmnCompilerDiagnostic diagnostic(
+        String code,
         int importIndex,
         DmnImportRequest request,
         List<DmnSourceId> relatedSourceIds,
         List<DmnSourceId> cyclePath,
         String message) {
-      return new DmnImportDiagnostic(
-          code, request.importer(), importIndex, request, relatedSourceIds, cyclePath, message);
+      LoadedDmnModel importer = models.get(request.importer());
+      Optional<DmnModelIdentity> modelIdentity = importer == null
+          ? Optional.empty()
+          : Optional.of(new DmnModelIdentity(
+              importer.model().getNamespace(), importer.model().getNode().getName()));
+      DmnDiagnosticOrigin origin = new DmnDiagnosticOrigin(
+          request.importer(), modelIdentity, Optional.of(importIndex));
+      return new DmnCompilerDiagnostic(
+          DmnDiagnosticSeverity.ERROR,
+          DmnCompilerPhase.SOURCE_RESOLUTION,
+          code,
+          message,
+          origin,
+          Optional.of(request),
+          relatedSourceIds,
+          cyclePath);
     }
 
     private void detectDuplicateModelIdentity(
@@ -148,7 +163,7 @@ public final class DmnModelLoader {
           .filter(model -> model.model().getNode().getName().equals(definitions.getNode().getName()))
           .findFirst()
           .ifPresent(existing -> diagnostics.add(diagnostic(
-              DmnImportDiagnosticCode.DUPLICATE,
+              DmnDiagnosticCodes.IMPORT_DUPLICATE,
               incomingEdge.importIndex(),
               incomingEdge.request(),
               List.of(existing.id(), sourceId),

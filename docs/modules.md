@@ -133,7 +133,9 @@ requests, deterministic resolution results, and root-confined filesystem, classp
 in-memory resolvers. Its bounded transitive loader parses each stable source identity once
 and returns an immutable, deterministically ordered set of loaded models, import edges, and
 import-structure diagnostics. Missing, ambiguous, duplicate, and cyclic imports invalidate the
-result without discarding the safely loaded partial graph.
+result without discarding the safely loaded partial graph. The shared compiler diagnostic contract
+adds type-safe severity and phase, stable string codes, source and optional model identity, import
+context, related sources, and canonical cycle paths. Only `ERROR` diagnostics invalidate results.
 
 Assessments: [implementation](audits/assessment-implementation-dmn-compiler.md) ·
 [architecture](audits/assessment-architecture-dmn-compiler.md)
