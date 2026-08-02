@@ -1,4 +1,4 @@
-# Chapter 7 — Semantic Model [IMPLEMENTED]
+# Chapter 7 — Semantic Model [IMPLEMENTATION-ALIGNED]
 
 ## 7.1 Canonical representation
 

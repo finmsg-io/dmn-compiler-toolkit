@@ -1,3 +1,4 @@
+
 site_name: DMN Compiler Toolkit
 site_description: High-performance compiler infrastructure for DMN 1.5
 site_url: https://finmsg-io.github.io/dmn-compiler-toolkit/
@@ -24,7 +25,24 @@ nav:
   - Architecture:
       - Overview: architecture.md
       - Architecture Specification: architecture/architecture-spec.md
-      - Architecture Decisions: architecture/adr/adrs-all.md
+      - Architecture Decisions:
+          - ADR Guide and Index: architecture/adr/generall-adr.md
+          - ADR-0001 Compiler Architecture: architecture/adr/adr-0001-compiler-architecture-instead-of-interpreter.md
+          - ADR-0002 Protobuf Semantic Model: architecture/adr/adr-0002-protobuf-as-internal-semantic-representation.md
+          - ADR-0003 VTD-XML: architecture/adr/adr-0003-vtd-xml-instead-of-dom-or-jaxb.md
+          - ADR-0004 ANTLR: architecture/adr/adr-0004-antlr-for-feel-parsing.md
+          - ADR-0005 Immutable IRs: architecture/adr/adr-0005-immutable-intermediate-representations.md
+          - ADR-0006 Runtime IR: architecture/adr/adr-0006-runtime-ir.md
+          - ADR-0007 Compiler Passes: architecture/adr/adr-0007-compiler-pass-architecture.md
+          - ADR-0008 XML-free Runtime: architecture/adr/adr-0008-runtime-without-xml-knowledge.md
+          - ADR-0009 Integer References: architecture/adr/adr-0009-integer-based-runtime-references.md
+          - ADR-0010 Multiple Backends: architecture/adr/adr-0010-multi-backend-architecture.md
+          - ADR-0011 Determinism: architecture/adr/adr-0011-deterministic-compilation.md
+          - ADR-0012 Diagnostics: architecture/adr/adr-0012-diagnostics-as-first-class-objects.md
+          - ADR-0013 No Reflection: architecture/adr/adr-0013-no-reflection-in-generated-code.md
+          - ADR-0014 Maven Modules: architecture/adr/adr-0014-maven-multi-module-architecture.md
+          - ADR-0015 Extensions: architecture/adr/adr-0015-open-extension-model.md
+          - ADR-0025 Runtime IR Persistence: architecture/adr/adr-0025-runtime-ir-persistence-and-compatibility-boundary.md
 
       - Chapters:
           - Vision: "architecture/chapters/01-Vision.md"
@@ -50,6 +68,24 @@ nav:
 
   - Modules: modules.md
   - Development:
+      - Living Development Plan: development-plan.md
+      - Documentation Structure: documentation-structure.md
+      - Module TODOs:
+          - Overview: todos/index.md
+          - Protobuf: todos/dmn-protobuf.md
+          - XML Frontend: todos/dmn-frontend-xml.md
+          - FEEL Parser: todos/dmn-feel-parser.md
+          - Semantic Analysis: todos/dmn-semantic-analysis.md
+          - Runtime IR: todos/dmn-runtime-ir.md
+          - Runtime: todos/dmn-runtime.md
+      - Audits:
+          - Overview: audits/index.md
+          - Protobuf Assessment: audits/assessment-dmn-protobuf.md
+          - XML Frontend Assessment: audits/assessment-dmn-frontend-xml.md
+          - XML Frontend Completeness: audits/dmn-frontend-xml-completeness.md
+          - Semantic Analysis Assessment: audits/assessment-dmn-semantic-analysis.md
+          - Runtime IR Assessment: audits/assessment-dmn-runtime-ir.md
+          - Runtime Assessment: audits/assessment-dmn-runtime.md
       - Style Guide: dev/style.md
       - CI and Publishing: ci-and-publishing.md
   - Roadmap: roadmap.md

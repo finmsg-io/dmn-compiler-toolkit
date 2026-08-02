@@ -1,4 +1,4 @@
-# Chapter 14 --- Future Generators \[FUTURE\]
+# Chapter 14 — Future Generators [FUTURE]
 
 ## 14.1 Purpose
 

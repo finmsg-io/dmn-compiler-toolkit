@@ -1,4 +1,4 @@
-# Chapter 5 — Maven Modules [IMPLEMENTED / TARGET]
+# Chapter 5 — Maven Modules [IMPLEMENTATION-ALIGNED]
 
 ## 5.1 Current project structure
 

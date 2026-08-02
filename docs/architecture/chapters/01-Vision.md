@@ -1,4 +1,4 @@
-# Chapter 1 --- Vision \[STABLE\]
+# Chapter 1 — Vision [NORMATIVE]
 
 ## Why another DMN implementation?
 

@@ -1,4 +1,4 @@
-# Chapter 8 — FEEL AST [IMPLEMENTED, EVOLVING]
+# Chapter 8 — FEEL AST [IMPLEMENTATION-ALIGNED]
 
 ## 8.1 Purpose
 

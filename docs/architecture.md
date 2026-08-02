@@ -1,5 +1,9 @@
 # Architecture
 
+The normative, detailed design is maintained in the
+[architecture specification](architecture/architecture-spec.md). This page is the
+short implementation-oriented overview.
+
 ## Implemented architecture
 
 The toolkit is a staged compiler rather than an XML-centric interpreter.

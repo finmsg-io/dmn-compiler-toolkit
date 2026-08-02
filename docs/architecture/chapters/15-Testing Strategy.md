@@ -1,4 +1,4 @@
-# Chapter 15 — Testing Strategy [IMPLEMENTED BASELINE]
+# Chapter 15 — Testing Strategy [NORMATIVE]
 
 ## 15.1 Current test layers
 

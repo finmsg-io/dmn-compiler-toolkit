@@ -1,93 +1,13 @@
-# Appendices
+# Chapter 20 — Reference and Glossary [NORMATIVE]
 
-## Appendix A — Design Decisions (ADR)
+Accepted design decisions are indexed in the
+[ADR guide](../adr/generall-adr.md); they are not duplicated here. Module dependency
+rules are defined by [Chapter 5](05-Maven%20Modules.md) and contributor conventions
+by the [style guide](../../dev/style.md).
 
-Every major decision gets documented.
+## Glossary
 
-Example
-
-```text
-ADR-0001
-
-Why protobuf?
-
-ADR-0002
-
-Why VTD-XML?
-
-ADR-0003
-
-Why Runtime IR?
-
-ADR-0004
-
-Why immutable compiler passes?
-
-ADR-0005
-
-Why compiler architecture instead of interpreter?
-```
-
-Years later you'll know **why** decisions were made.
-
----
-
-## Appendix B — Dependency Rules
-
-For example
-
-```text
-generator-java
-
-        ↓
-
-runtime
-
-        ↓
-
-semantic
-
-        ↓
-
-feel
-
-        ↓
-
-model
-
-        ↓
-
-xml
-```
-
-Never the opposite.
-
----
-
-## Appendix C — Coding Standards
-
-Naming
-
-Builders
-
-Exceptions
-
-Logging
-
-Testing
-
-Performance
-
-Documentation
-
----
-I strongly recommend adding a glossary. For a compiler project of this size, a shared vocabulary is almost as important as the architecture itself. It reduces ambiguity for contributors and avoids repeated explanations across the documentation.
-
----
-
-## Appendix D — Glossary
-
-### D.1 Purpose
+### Purpose
 
 This glossary defines the terminology used throughout the DMN Compiler Toolkit.
 
@@ -218,7 +138,7 @@ Examples:
 
 ---
 
-##### Compiler Pipeline#
+#### Compiler Pipeline
 
 The ordered sequence of compiler passes executed during compilation.
 
@@ -526,8 +446,6 @@ Automatic determination of FEEL expression types.
 
 ---
 
-### T
-
 #### Type Resolution
 
 The compiler process of resolving named types into internal representations.
@@ -546,7 +464,7 @@ Validation occurs in multiple compiler stages.
 
 ### X
 
-####     XML Frontend
+#### XML Frontend
 
 The compiler component responsible for reading and writing DMN XML.
 
@@ -554,7 +472,7 @@ The XML Frontend is not part of the runtime.
 
 ---
 
-### D.2 Acronyms
+### Acronyms
 
 | Acronym  | Meaning                             |
 | -------- | ----------------------------------- |
@@ -577,7 +495,7 @@ The XML Frontend is not part of the runtime.
 
 ---
 
-### D.3 Compiler Pipeline Terminology
+### Compiler pipeline terminology
 
 The following terms describe the progression of a DMN model through the compiler.
 
@@ -613,7 +531,7 @@ Each stage has a clearly defined input and output, ensuring that responsibilitie
 
 ---
 
-### D.4 Naming Conventions
+### Naming conventions
 
 Throughout this specification, the following naming conventions are used consistently:
 
@@ -630,6 +548,6 @@ Throughout this specification, the following naming conventions are used consist
 
 ---
 
-### D.5 Summary
+### Summary
 
 The glossary establishes a common vocabulary for contributors, reviewers, and users of the DMN Compiler Toolkit. By using these definitions consistently across the architecture specification, source code, API documentation, and ADRs, the project minimizes ambiguity and makes collaboration easier as the codebase and community grow.

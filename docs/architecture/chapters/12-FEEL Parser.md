@@ -1,4 +1,4 @@
-# Chapter 12 — FEEL Parser [IMPLEMENTED]
+# Chapter 12 — FEEL Parser [IMPLEMENTATION-ALIGNED]
 
 ## 12.1 Module
 
@@ -90,4 +90,3 @@ The module contains:
 - precise XML-derived source locations
 - recovery behavior for multiple errors inside one individual FEEL source
 - grammar/AST coverage for any remaining DMN 1.5 edge cases
-

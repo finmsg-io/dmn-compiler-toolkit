@@ -1,3 +1,4 @@
+
 # `dmn-runtime-ir` assessment
 
 Status: assessed 2026-08-01 against the implementation, architecture, semantic contracts, and
@@ -98,3 +99,4 @@ Do not yet:
 
 The six-module Maven reactor passes. `dmn-runtime-ir` currently has 27 tests, and the complete
 reactor has 177 passing tests. `git diff --check` passes for the current implementation.
+

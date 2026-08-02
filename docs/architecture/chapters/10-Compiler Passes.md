@@ -1,4 +1,4 @@
-# Chapter 10 — Compiler Passes [PARTIALLY IMPLEMENTED]
+# Chapter 10 — Compiler Passes [IMPLEMENTATION-ALIGNED]
 
 ## 10.1 Implemented passes
 

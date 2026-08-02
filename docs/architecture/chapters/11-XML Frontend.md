@@ -1,4 +1,4 @@
-# Chapter 11 — XML Frontend [IMPLEMENTED FOR CURRENT MODEL SUBSET]
+# Chapter 11 — XML Frontend [IMPLEMENTATION-ALIGNED]
 
 ## 11.1 Boundary
 

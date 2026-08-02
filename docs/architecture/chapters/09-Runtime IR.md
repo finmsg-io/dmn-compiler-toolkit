@@ -1,4 +1,4 @@
-# Chapter 9 --- Runtime IR [IMPLEMENTED BASELINE]
+# Chapter 9 — Runtime IR [IMPLEMENTATION-ALIGNED]
 
 ## 9.1 Purpose
 

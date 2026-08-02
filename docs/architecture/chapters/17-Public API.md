@@ -1,4 +1,4 @@
-# Chapter 17 --- Public API \[FUTURE\]
+# Chapter 17 — Public API [FUTURE]
 
 ## 17.1 Purpose
 

@@ -1,3 +1,4 @@
+
 ## Assessment
 
 `dmn-protobuf` is architecturally sound and fits the parent architecture well. It correctly serves as the dependency-free contract layer shared by the XML frontend, FEEL parser, and semantic-analysis modules. I would retain the current protobuf-centric design.
@@ -11,7 +12,8 @@ The module aligns particularly well with:
 - text-to-parsed FEEL replacement through `oneof`;
 - a separate future Runtime IR rather than reusing the semantic model at runtime.
 
-The schema organization also closely matches the structure prescribed in [Chapter 7](/C:/00-finmsg.io/dmn-compiler-toolkit/docs/architecture/chapters/07-Semantic%20Model.md).
+The schema organization also closely matches the structure prescribed in
+[Chapter 7](../architecture/chapters/07-Semantic%20Model.md).
 
 ## Worthwhile improvements
 
@@ -29,9 +31,13 @@ Introduce:
 
 This becomes important because generated messages are already effectively public APIs.
 
-Also reserve removed fields and names. For example, `Import.import_type = 4` is commented out in [model.proto](/C:/00-finmsg.io/dmn-compiler-toolkit/dmn-protobuf/src/main/proto/model.proto:44), but field 4 is not reserved. A future contributor could accidentally reuse it incompatibly.
+Also reserve removed fields and names. For example, `Import.import_type = 4` is
+commented out in `dmn-protobuf/src/main/proto/model.proto`, but field 4 is not
+reserved. A future contributor could accidentally reuse it incompatibly.
 
-The legacy fields in `ForExpression` and `QuantifiedExpression` should be marked `[deprecated = true]` while compatibility requires retaining them; see [feel_parsed.proto](/C:/00-finmsg.io/dmn-compiler-toolkit/dmn-protobuf/src/main/proto/feel_parsed.proto:186).
+The legacy fields in `ForExpression` and `QuantifiedExpression` should be marked
+`[deprecated = true]` while compatibility requires retaining them; see
+`dmn-protobuf/src/main/proto/feel_parsed.proto`.
 
 ### 2. Complete the DMN import contract — high priority
 
@@ -41,7 +47,9 @@ This is not merely XML fidelity: import type and location affect model linking a
 
 ### 3. Support recursive item definitions — high priority
 
-`ItemDefinition` has components, but `ItemComponent` cannot itself contain components in [model.proto](/C:/00-finmsg.io/dmn-compiler-toolkit/dmn-protobuf/src/main/proto/model.proto:65). The architecture already lists this as a known gap.
+`ItemDefinition` has components, but `ItemComponent` cannot itself contain components
+in `dmn-protobuf/src/main/proto/model.proto`. The architecture already lists this as
+a known gap.
 
 Add something like:
 
@@ -66,7 +74,9 @@ This would materially improve AP-020 observability and diagnostic precision. Kee
 
 ### 5. Unify the diagnostics model — medium priority
 
-The protobuf module defines a generic `Diagnostic` in [common.proto](/C:/00-finmsg.io/dmn-compiler-toolkit/dmn-protobuf/src/main/proto/common.proto:76), but the parser and semantic analyzer expose their own Java diagnostic records.
+The protobuf module defines a generic `Diagnostic` in
+`dmn-protobuf/src/main/proto/common.proto`, but the parser and semantic analyzer
+expose their own Java diagnostic records.
 
 Additionally, ADR-0012 requires optional remediation, while the protobuf message contains no remediation or semantic-model path.
 
@@ -79,13 +89,19 @@ I favor stage-specific diagnostics internally, normalized into one public diagno
 
 ### 6. Add resolved-reference annotations carefully — medium priority
 
-Names, function calls, and decision-table references remain string-based, for example [FunctionCall](/C:/00-finmsg.io/dmn-compiler-toolkit/dmn-protobuf/src/main/proto/feel_parsed.proto:160). This is acceptable before semantic analysis, but later passes should not repeatedly resolve strings.
+Names, function calls, and decision-table references remain string-based, for
+example `FunctionCall` in `dmn-protobuf/src/main/proto/feel_parsed.proto`. This is
+acceptable before semantic analysis, but later passes should not repeatedly resolve
+strings.
 
 Add optional stable semantic symbol references to the analyzed copy of the model. Do not use final Runtime IR integer indices here: those belong in `dmn-runtime-ir` and may depend on lowering order.
 
 ### 7. Clarify extension preservation — low priority
 
-`ExtensionElement` stores a flat name/value/attribute representation in [common.proto](/C:/00-finmsg.io/dmn-compiler-toolkit/dmn-protobuf/src/main/proto/common.proto:32), while its comment promises preservation of unknown extensions for round-trip serialization. It cannot faithfully preserve nested XML content, mixed text, or ordering.
+`ExtensionElement` stores a flat name/value/attribute representation in
+`dmn-protobuf/src/main/proto/common.proto`, while its comment promises preservation
+of unknown extensions for round-trip serialization. It cannot faithfully preserve
+nested XML content, mixed text, or ordering.
 
 Given the project’s “semantics over XML fidelity” principle, the best improvement is probably to narrow that promise rather than build a complete XML subtree model.
 

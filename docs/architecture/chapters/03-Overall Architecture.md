@@ -1,4 +1,4 @@
-# Chapter 3 — Overall Architecture [PARTIALLY IMPLEMENTED]
+# Chapter 3 — Overall Architecture [IMPLEMENTATION-ALIGNED]
 
 ## 3.1 Pipeline
 

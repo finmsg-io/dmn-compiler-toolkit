@@ -1,4 +1,4 @@
-# Chapter 2 --- Architecture Principles \[STABLE\]
+# Chapter 2 — Architecture Principles [NORMATIVE]
 
 This chapter defines the fundamental architectural principles governing
 the entire project.

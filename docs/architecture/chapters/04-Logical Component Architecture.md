@@ -1,4 +1,4 @@
-# Chapter 4 --- Logical Component Architecture \[STABLE TARGET / PARTIALLY IMPLEMENTED\]
+# Chapter 4 — Logical Component Architecture [NORMATIVE]
 
 ## 4.1 Purpose
 

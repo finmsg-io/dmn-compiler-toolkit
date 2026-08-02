@@ -1,4 +1,4 @@
-# Chapter 16 --- Performance \[FUTURE\]
+# Chapter 16 — Performance [FUTURE]
 
 ## 16.1 Purpose
 

@@ -1,4 +1,4 @@
-# Chapter 13 --- Java Generator \[FUTURE\]
+# Chapter 13 — Java Generator [FUTURE]
 
 ## 13.1 Purpose
 

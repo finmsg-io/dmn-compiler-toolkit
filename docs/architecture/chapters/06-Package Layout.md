@@ -1,4 +1,4 @@
-# Chapter 6 — Package Layout [IMPLEMENTED]
+# Chapter 6 — Package Layout [IMPLEMENTATION-ALIGNED]
 
 ## 6.1 Generated model
 
@@ -78,4 +78,3 @@ These are compiler-stage APIs. A stable high-level compiler facade remains futur
 3. FEEL parsing stays below `feel.parser`.
 4. Semantic passes stay below `semantic.analysis`.
 5. Later stages must not import XML or ANTLR implementation types.
-

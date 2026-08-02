@@ -1,3 +1,4 @@
+
 # `dmn-frontend-xml` assessment
 
 Assessment date: 2026-08-02
@@ -118,3 +119,4 @@ These are not frontend defects until the semantic protobuf model is extended:
 
 After items 1–4, the module can reasonably be declared production-ready for its documented
 subset. Full DMN XML completeness remains a separate product-scope decision.
+

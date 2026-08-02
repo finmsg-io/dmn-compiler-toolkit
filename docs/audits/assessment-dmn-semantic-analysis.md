@@ -1,3 +1,4 @@
+
 # `dmn-semantic-analysis` assessment
 
 Assessment date: 2026-08-02
@@ -108,3 +109,4 @@ compiler-facing contract.
 
 The first two items are the most valuable compiler-glue work. The module does not need a rewrite
 and does not block Runtime IR or runtime iteration.
+
