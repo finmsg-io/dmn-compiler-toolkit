@@ -169,9 +169,11 @@ functions require a future host-binding boundary.
 ## 5.8 `dmn-compiler`
 
 The compiler module owns orchestration and resolver-independent model-source contracts.
-Its source layer includes root-confined filesystem, classpath, and in-memory resolvers and has
-no production dependency on protobuf, XML, semantic-analysis, or Runtime IR types. Later facade
-slices will add explicit dependencies on the stages they orchestrate.
+Its source layer includes root-confined filesystem, classpath, and in-memory resolvers. The
+transitive loader uses the XML frontend to parse location-addressable imports, caches loaded
+models by stable source identity, enforces graph bounds, and produces an immutable graph with
+deterministically ordered models and import edges. Later facade slices will add explicit
+dependencies on semantic-analysis and Runtime IR stages as orchestration expands.
 
 <a id="contents-section-9"></a>
 ## 5.9 Target modules

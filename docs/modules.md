@@ -130,7 +130,8 @@ Assessments: [implementation](audits/assessment-implementation-dmn-runtime.md) Â
 Owns public compiler orchestration and resolver-independent source-loading contracts.
 The current source layer defines stable source identities, immutable source bytes, import
 requests, deterministic resolution results, and root-confined filesystem, classpath, and
-in-memory resolvers.
+in-memory resolvers. Its bounded transitive loader parses each stable source identity once
+and returns an immutable, deterministically ordered set of loaded models and import edges.
 
 Assessments: [implementation](audits/assessment-implementation-dmn-compiler.md) Â·
 [architecture](audits/assessment-architecture-dmn-compiler.md)

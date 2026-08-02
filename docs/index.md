@@ -27,7 +27,7 @@ The repository currently contains seven active Maven modules:
 - `dmn-semantic-analysis` — reference resolution, type analysis, DMN validation, and deterministic dependency ordering
 - `dmn-runtime-ir` — immutable Runtime IR with deterministic structure, constants, and bound value references
 - `dmn-runtime` — experimental process-local interpreter for executable Runtime IR
-- `dmn-compiler` — compiler orchestration and resolver-independent model-source contracts
+- `dmn-compiler` — compiler orchestration, resolver-independent sources, and bounded deterministic transitive loading
 
 The implemented pipeline is:
 

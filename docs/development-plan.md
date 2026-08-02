@@ -133,7 +133,7 @@ transitive imports while aggregating phase-aware, model-aware diagnostics.
 | --- | --- | --- | --- |
 | P1.1 | Define source identity and `DmnModelResolver` contracts | `done` | `DmnModelResolverTest` (5 tests) and passing seven-module reactor |
 | P1.2 | Implement filesystem, classpath, and in-memory resolver variants | `done` | 13 compiler resolver tests and passing seven-module reactor |
-| P1.3 | Load transitive imports with deterministic ordering and caching | `proposed` | — |
+| P1.3 | Load transitive imports with deterministic ordering and caching | `done` | `DmnModelLoaderTest` (8 acceptance tests), 21 compiler tests, and passing seven-module reactor |
 | P1.4 | Detect missing, duplicate, ambiguous, and cyclic import structures | `proposed` | — |
 | P1.5 | Add diagnostic severity, phase, and source-model identity | `proposed` | — |
 | P1.6 | Introduce a whole-model-set semantic result | `proposed` | — |

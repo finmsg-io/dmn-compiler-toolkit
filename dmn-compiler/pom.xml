@@ -13,6 +13,11 @@
     <description>Public compiler orchestration and model-source resolution contracts</description>
     <dependencies>
         <dependency>
+            <groupId>io.finmsg.dmn</groupId>
+            <artifactId>dmn-frontend-xml</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
