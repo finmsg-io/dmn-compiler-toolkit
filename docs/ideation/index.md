@@ -13,3 +13,4 @@ items. An idea must pass its decision gates before it is promoted into
 | [IDEA-005](IDEA-005-decision-scenario-synthesizer.md) | Decision Scenario Synthesizer | exploring | Generate valid input witnesses and scalable datasets that provoke selected model behavior |
 | [IDEA-006](IDEA-006-continuous-architecture-stewardship.md) | Continuous Architecture Stewardship | exploring | Turn repository evidence and recurring reflection into prioritized simplification and improvement |
 | [IDEA-007](IDEA-007-delivery-acceleration-system.md) | Delivery Acceleration System | exploring | Shorten the path from an approved product slice to trustworthy, releasable evidence |
+| [IDEA-008](IDEA-008-stateless-decision-flow.md) | Stateless Decision Flow | exploring | Compose rules and decision services into understandable decision pipelines without requiring BPMN |
