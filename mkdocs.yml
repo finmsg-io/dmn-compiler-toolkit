@@ -117,6 +117,7 @@ nav:
           - P1.4 Import Diagnostics: dev/slices/P1.4-diagnose-invalid-import-structures.md
           - P1.5 Shared Diagnostic Context: dev/slices/P1.5-add-shared-diagnostic-context.md
           - P1.6 Whole-Model-Set Semantics: dev/slices/P1.6-whole-model-set-semantic-result.md
+          - P1.7 Immutable Compiler Facade: dev/slices/P1.7-immutable-compiler-facade.md
       - CI and Publishing: ci-and-publishing.md
   - Roadmap: roadmap.md
 markdown_extensions:

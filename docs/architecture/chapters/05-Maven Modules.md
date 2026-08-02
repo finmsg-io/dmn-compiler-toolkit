@@ -189,6 +189,13 @@ immutable result is ordered by source identity and retains model identity, per-m
 order, bindings, import edges, and normalized compiler diagnostics. The final compiler facade and
 Runtime IR orchestration remain later slices.
 
+The public `DmnCompiler` facade now composes source loading, whole-set semantics, Runtime IR
+lowering, and optimization. `DmnCompilerOptions` initially carries deterministic graph bounds.
+`DmnCompilationResult` retains immutable loaded and semantic stage results, authoritative ordered
+diagnostics, and optional optimized Runtime IR. Error diagnostics prevent later phases; expected
+lowering failures are adapted at the compiler boundary. This completes the P1 orchestration layer
+without introducing reverse dependencies from any lower-level module.
+
 <a id="contents-section-9"></a>
 ## 5.9 Target modules
 

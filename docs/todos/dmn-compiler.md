@@ -24,6 +24,5 @@ the complete repository while retaining per-model order and binding evidence.
 | Priority | Work item | Completion evidence |
 | --- | --- | --- |
 | P1 | Adapt and aggregate diagnostics from all compiler stages | XML, FEEL, semantic, lowering, optimization, and generation diagnostics use the shared contract |
-| P1 | Expose the immutable compiler facade | One call compiles a root source through optimized Runtime IR |
 
 Historical context: [compiler assessment](../audits/assessment-implementation-dmn-compiler.md).

@@ -140,6 +140,10 @@ The whole-model-set semantic analyzer applies explicit load and FEEL phase gates
 valid parsed model against the complete repository, and returns source-addressable semantic models
 with per-model compilation order and bindings. FEEL and semantic failures are adapted to the shared
 compiler diagnostic contract.
+`DmnCompiler` is the supported one-call facade. Immutable options carry graph limits; the
+compilation result retains loaded and semantic stage evidence, authoritative diagnostics, and an
+optional optimized linked Runtime IR model. Error diagnostics gate later phases, and expected
+lowering failures are normalized at the compiler boundary.
 
 Assessments: [implementation](audits/assessment-implementation-dmn-compiler.md) ·
 [architecture](audits/assessment-architecture-dmn-compiler.md)

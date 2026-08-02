@@ -137,7 +137,7 @@ transitive imports while aggregating phase-aware, model-aware diagnostics.
 | P1.4 | Detect missing, duplicate, ambiguous, and cyclic import structures | `done` | `DmnModelLoaderTest` (14 tests), 27 compiler tests, deterministic import diagnostics, and passing eight-project reactor |
 | P1.5 | Add diagnostic severity, phase, and source-model identity | `done` | `DmnCompilerDiagnosticTest` (5 tests), 32 compiler tests, shared diagnostic contract, and passing eight-project reactor |
 | P1.6 | Introduce a whole-model-set semantic result | `done` | [slice and result](dev/slices/P1.6-whole-model-set-semantic-result.md), `DmnModelSetSemanticAnalyzerTest` (5 tests), 37 compiler tests, and passing eight-project reactor |
-| P1.7 | Expose `DmnCompiler` and immutable compilation result contracts | `proposed` | — |
+| P1.7 | Expose `DmnCompiler` and immutable compilation result contracts | `done` | [slice and result](dev/slices/P1.7-immutable-compiler-facade.md), `DmnCompilerTest` (6 tests), 43 compiler tests, and passing eight-project reactor |
 
 Acceptance criteria:
 
