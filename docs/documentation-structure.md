@@ -38,7 +38,7 @@ docs/
 ├── todos/
 │   ├── index.md                   Active module-work catalog
 │   └── <module>.md                Exactly one current TODO per Maven module
-└── dev/                           Contributor processes and style
+└── dev/                           Contributor processes, delivery method, and style
 ```
 
 The filename `generall-adr.md` follows the requested repository convention. New ADR

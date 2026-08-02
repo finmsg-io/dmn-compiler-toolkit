@@ -110,6 +110,7 @@ nav:
               - Runtime: audits/assessment-architecture-dmn-runtime.md
               - Compiler: audits/assessment-architecture-dmn-compiler.md
       - Style Guide: dev/style.md
+      - Evidence-Backed Spec-Driven Development: dev/evidence-backed-spec-driven-development.md
       - CI and Publishing: ci-and-publishing.md
   - Roadmap: roadmap.md
 markdown_extensions:
