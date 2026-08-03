@@ -80,6 +80,7 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-runtime-ir` | Immutable Runtime IR with structural, constant, and value-reference lowering |
 | `dmn-runtime` | Deterministic interpreter for executable Runtime IR |
 | `dmn-compiler` | Compiler orchestration and resolver-independent model-source contracts |
+| `dmn-tck-runner` | TCK test-case decoding and compiler-to-interpreter conformance adapter |
 
 Planned modules include further optimization and Java code generation.
 

@@ -20,3 +20,4 @@ evidence.
 | [P1.5 — Add shared diagnostic context](P1.5-add-shared-diagnostic-context.md) | done | Shared severity, phase, source, and model identity |
 | [P1.6 — Introduce a whole-model-set semantic result](P1.6-whole-model-set-semantic-result.md) | done | Source-addressable linked semantic models and shared diagnostics |
 | [P1.7 — Expose the immutable compiler facade](P1.7-immutable-compiler-facade.md) | done | One-call compilation through optimized Runtime IR |
+| [TCK.2–3a — Establish a scalar TCK smoke runner](TCK.2-3a-scalar-smoke-runner.md) | done | TCK-defined scalar cases compile and execute through the interpreter |
