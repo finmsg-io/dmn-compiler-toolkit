@@ -23,6 +23,7 @@
         <module>dmn-runtime-ir</module>
         <module>dmn-runtime</module>
         <module>dmn-compiler</module>
+        <module>dmn-generator-java</module>
         <module>dmn-tck-runner</module>
     </modules>
 

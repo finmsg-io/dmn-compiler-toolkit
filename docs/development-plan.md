@@ -116,9 +116,9 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | --- | --- | --- | --- | --- |
 | P1 | Compiler facade and model resolution | `done` | current foundation | A root DMN and its imports compile through one supported API |
 | P2 | Real multi-file DMN corpus | `done` | P1 | Valid and invalid linked repositories are tested end to end |
-| P3 | Runtime semantic baseline | `proposed` | P2 | Interpreter behavior is a credible correctness oracle |
+| P3 | Runtime semantic baseline | `done` | P2 | Interpreter behavior is a credible correctness oracle |
 | P4 | Stable compiled-model API | `done` | P1, P3 | Callers use model/input/decision names without internal slot knowledge |
-| P5 | Java code generation | `proposed` | P3, P4 | Generated Java matches the interpreter on the shared corpus |
+| P5 | Java code generation | `done` | P3, P4 | Generated Java matches the interpreter on the shared corpus |
 | P6 | Performance validation | `proposed` | P5 | JMH establishes reproducible interpreter and generated-code baselines |
 | P7 | Generic gRPC generation | `proposed` | P4, P5 | Generated service exposes dynamic DMN evaluation |
 | P8 | Typed Protobuf and gRPC generation | `proposed` | P7 | Eligible DMN types produce deterministic typed service contracts |
@@ -274,14 +274,11 @@ fixture with every published result. Optimize only after semantic parity is reta
 and a benchmark demonstrates a meaningful improvement.
 
 <a id="contents-section-12"></a>
-## P7 — Generic gRPC generation
+## P7 — Generic gRPC generation in Java
 
-**Goal:** generate a transport-neutral dynamic evaluation contract and a Java gRPC
-adapter backed by generated Java decisions.
+**Goal:** generate a transport-neutral dynamic evaluation contract (`evaluation.proto`) and a Java gRPC adapter backed by generated high-performance Java decisions.
 
-The first service should support model and decision selection plus recursively typed
-dynamic DMN values. It should define explicit mappings for nulls, errors, decimals,
-dates, times, durations, lists, and contexts.
+The service supports model and decision selection plus recursively typed dynamic DMN values (`Value`), with explicit mappings for nulls, errors, decimals, dates, times, durations, lists, and contexts.
 
 Acceptance criteria:
 
@@ -291,19 +288,20 @@ Acceptance criteria:
 - business logic is delegated to the same generated Java backend used without gRPC.
 
 <a id="contents-section-13"></a>
-## P8 — Typed Protobuf and gRPC generation
+## P8 — Spark SQL Code Generation
 
-**Goal:** generate ergonomic per-model or per-decision Protobuf contracts when DMN
-input and output shapes are statically known.
+**Goal:** generate native Spark SQL Catalyst expressions and DataFrame UDFs from DMN decision models for big-data batch and streaming analytics.
 
-Open design questions that must be resolved before this milestone becomes `ready`:
+Slices:
 
-- mapping FEEL decimals without precision loss;
-- representing null versus absent values;
-- mapping dates, times, date-times, and both duration families;
-- naming and package stability across model evolution;
-- compatibility rules for regenerated `.proto` files;
-- fallback behavior for `Any`, open contexts, heterogeneous lists, and functions.
+- Lower FEEL expressions and decision tables directly into Spark SQL column expressions (`Column` / SQL string statements).
+- Generate Spark SQL schema mappings from DMN `ItemDefinition` structures.
+- Support distributed execution without per-row Java reflection or XML parsing.
+
+<a id="contents-section-14"></a>
+## P9 — Additional Language Generators (Rust, Golang, C++)
+
+**Goal:** leverage the unified Generator SPI and Protobuf IR to build cross-language decision generators (Rust zero-allocation binaries, Golang decision handlers, C++ low-latency decision engines).
 
 <a id="contents-section-14"></a>
 ## Cross-cutting rules
