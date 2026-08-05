@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 id="common-model-2"
+                 name="Common"
+                 namespace="urn:p2-06:ns2">
+    <dmn:decision id="ns2-dec" name="ns2Dec">
+        <dmn:variable id="var-ns2" name="ns2Dec" typeRef="number"/>
+        <dmn:literalExpression id="expr-ns2">
+            <dmn:text>200</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+</dmn:definitions>

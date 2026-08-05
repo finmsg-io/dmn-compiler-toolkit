@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 id="missing-import-model"
+                 name="Missing Import Model"
+                 namespace="urn:p2-07:missing-root">
+    <dmn:import namespace="urn:p2-07:non-existent" locationURI="non-existent.dmn" name="NonExistent" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+    <dmn:decision id="dummy-dec" name="Dummy">
+        <dmn:variable id="var-dummy" name="Dummy" typeRef="number"/>
+        <dmn:literalExpression id="expr-dummy">
+            <dmn:text>1</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+</dmn:definitions>

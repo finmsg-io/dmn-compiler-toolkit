@@ -114,8 +114,8 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 
 | ID | Milestone | State | Depends on | Exit outcome |
 | --- | --- | --- | --- | --- |
-| P1 | Compiler facade and model resolution | `ready` | current foundation | A root DMN and its imports compile through one supported API |
-| P2 | Real multi-file DMN corpus | `ready` | P1 | Valid and invalid linked repositories are tested end to end |
+| P1 | Compiler facade and model resolution | `done` | current foundation | A root DMN and its imports compile through one supported API |
+| P2 | Real multi-file DMN corpus | `done` | P1 | Valid and invalid linked repositories are tested end to end |
 | P3 | Runtime semantic baseline | `proposed` | P2 | Interpreter behavior is a credible correctness oracle |
 | P4 | Stable compiled-model API | `proposed` | P1, P3 | Callers use model/input/decision names without internal slot knowledge |
 | P5 | Java code generation | `proposed` | P3, P4 | Generated Java matches the interpreter on the shared corpus |
@@ -158,15 +158,15 @@ Initial fixture matrix:
 
 | ID | Scenario | Expected result | State |
 | --- | --- | --- | --- |
-| P2.1 | Root model imports one decision | compile and execute | `proposed` |
-| P2.2 | Three-level transitive import | compile and execute | `proposed` |
-| P2.3 | Diamond import | compile once and execute deterministically | `proposed` |
-| P2.4 | Imported BKM invocation | compile and execute | `proposed` |
-| P2.5 | Imported item definition | type-check and execute | `proposed` |
-| P2.6 | Same model name in distinct namespaces | resolve unambiguously | `proposed` |
-| P2.7 | Missing or ambiguous import | stable diagnostics | `proposed` |
-| P2.8 | Cross-model dependency cycle | stable cycle diagnostic | `proposed` |
-| P2.9 | Realistic business repository | assert representative business outputs | `proposed` |
+| P2.1 | Root model imports one decision | compile and execute | `done` |
+| P2.2 | Three-level transitive import | compile and execute | `done` |
+| P2.3 | Diamond import | compile once and execute deterministically | `done` |
+| P2.4 | Imported BKM invocation | compile and execute | `done` |
+| P2.5 | Imported item definition | type-check and execute | `done` |
+| P2.6 | Same model name in distinct namespaces | resolve unambiguously | `done` |
+| P2.7 | Missing or ambiguous import | stable diagnostics | `done` |
+| P2.8 | Cross-model dependency cycle | stable cycle diagnostic | `done` |
+| P2.9 | Realistic business repository | assert representative business outputs | `done` |
 
 The first realistic repository should be small enough to understand in review but
 large enough to contain multiple inputs, decisions, BKMs, item definitions, and
@@ -328,7 +328,7 @@ These constraints apply to every milestone:
 
 | ID | Decision | Needed by | State | Resolution |
 | --- | --- | --- | --- | --- |
-| D-001 | First realistic multi-file business domain | P2.9 | open | — |
+| D-001 | First realistic multi-file business domain | P2.9 | resolved | Lending / Credit Eligibility (`credit-application.dmn`, `applicant-score.dmn`, `policy-rules.dmn`) |
 | D-002 | Generated Java package and naming policy | P5.1 | open | — |
 | D-003 | Shared runtime helper dependency versus fully standalone generated Java | P5.1 | open | — |
 | D-004 | Generic gRPC dynamic-value schema | P7 | open | — |

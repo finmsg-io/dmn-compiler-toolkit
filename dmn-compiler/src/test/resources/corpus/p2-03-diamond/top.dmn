@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 id="model-top"
+                 name="Top"
+                 namespace="urn:p2-03:top">
+    <dmn:import namespace="urn:p2-03:left" locationURI="left.dmn" name="Left" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+    <dmn:import namespace="urn:p2-03:right" locationURI="right.dmn" name="Right" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+    <dmn:decision id="dec-top" name="totalVal">
+        <dmn:variable id="var-top" name="totalVal" typeRef="number"/>
+        <dmn:informationRequirement id="req-left">
+            <dmn:requiredDecision href="urn:p2-03:left#dec-left"/>
+        </dmn:informationRequirement>
+        <dmn:informationRequirement id="req-right">
+            <dmn:requiredDecision href="urn:p2-03:right#dec-right"/>
+        </dmn:informationRequirement>
+        <dmn:literalExpression id="expr-top">
+            <dmn:text>leftVal + rightVal</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+</dmn:definitions>
