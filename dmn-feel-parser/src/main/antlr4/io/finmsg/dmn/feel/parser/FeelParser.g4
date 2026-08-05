@@ -264,7 +264,7 @@ atLiteral
     ;
 
 name
-    : IDENTIFIER
+    : IDENTIFIER+
     ;
 
 qualifiedName

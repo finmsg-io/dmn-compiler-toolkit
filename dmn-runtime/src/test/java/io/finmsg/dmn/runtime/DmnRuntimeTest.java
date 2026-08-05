@@ -100,6 +100,65 @@ class DmnRuntimeTest {
         .isInstanceOf(DmnEvaluationException.class).hasMessageContaining("External BKM");
   }
 
+  @Test
+  void evaluatesThreeValuedLogicAndNullPropagation() {
+    RuntimeConstant nullConst = new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
+    RuntimeConstant trueConst = new RuntimeConstant(RuntimeConstantKind.BOOLEAN, "true", BOOLEAN);
+    RuntimeConstant falseConst = new RuntimeConstant(RuntimeConstantKind.BOOLEAN, "false", BOOLEAN);
+
+    // false AND null -> false
+    RuntimeDecision d1 = new RuntimeDecision(1, 0, BOOLEAN, List.of(), Optional.of(
+        new RuntimeBinaryExpression(RuntimeBinaryOperator.AND, falseConst, nullConst, BOOLEAN)));
+    // true AND null -> null
+    RuntimeDecision d2 = new RuntimeDecision(2, 1, BOOLEAN, List.of(), Optional.of(
+        new RuntimeBinaryExpression(RuntimeBinaryOperator.AND, trueConst, nullConst, BOOLEAN)));
+    // true OR null -> true
+    RuntimeDecision d3 = new RuntimeDecision(3, 2, BOOLEAN, List.of(), Optional.of(
+        new RuntimeBinaryExpression(RuntimeBinaryOperator.OR, trueConst, nullConst, BOOLEAN)));
+    // NOT(null) -> null
+    RuntimeDecision d4 = new RuntimeDecision(4, 3, BOOLEAN, List.of(), Optional.of(
+        new RuntimeUnaryExpression(RuntimeUnaryOperator.NOT, nullConst, BOOLEAN)));
+    // 5 + null -> null
+    RuntimeDecision d5 = new RuntimeDecision(5, 4, NUMBER, List.of(), Optional.of(
+        new RuntimeBinaryExpression(RuntimeBinaryOperator.ADD, number("5"), nullConst, NUMBER)));
+    // null = null -> true
+    RuntimeDecision d6 = new RuntimeDecision(6, 5, BOOLEAN, List.of(), Optional.of(
+        new RuntimeBinaryExpression(RuntimeBinaryOperator.EQUAL, nullConst, nullConst, BOOLEAN)));
+    // 5 = null -> false
+    RuntimeDecision d7 = new RuntimeDecision(7, 6, BOOLEAN, List.of(), Optional.of(
+        new RuntimeBinaryExpression(RuntimeBinaryOperator.EQUAL, number("5"), nullConst, BOOLEAN)));
+
+    RuntimeModel model = new RuntimeModel(List.of(), List.of(d1, d2, d3, d4, d5, d6, d7), List.of(),
+        List.of(1, 2, 3, 4, 5, 6, 7), 7);
+    DmnEvaluationResult result = new DmnRuntime().evaluate(model, Map.of());
+
+    assertThat(result.decisionValue(1)).isEqualTo(Boolean.FALSE);
+    assertThat(result.decisionValue(2)).isNull();
+    assertThat(result.decisionValue(3)).isEqualTo(Boolean.TRUE);
+    assertThat(result.decisionValue(4)).isNull();
+    assertThat(result.decisionValue(5)).isNull();
+    assertThat(result.decisionValue(6)).isEqualTo(Boolean.TRUE);
+    assertThat(result.decisionValue(7)).isEqualTo(Boolean.FALSE);
+  }
+
+  @Test
+  void executesCollectDecisionTableWithSumAggregation() {
+    RuntimeDecisionTable table = new RuntimeDecisionTable(RuntimeHitPolicy.COLLECT, Optional.of(RuntimeAggregation.SUM),
+        List.of(new RuntimeDecisionTableInput(new RuntimeValueReference(0, NUMBER), Optional.empty(), NUMBER)),
+        List.of(new RuntimeDecisionTableOutput(Optional.of("score"), NUMBER, Optional.empty(), Optional.empty())),
+        List.of(
+            new RuntimeDecisionTableRule(0, List.of(comparison(RuntimeUnaryTestOperator.GREATER, "10")),
+                List.of(number("100")), List.of()),
+            new RuntimeDecisionTableRule(1, List.of(comparison(RuntimeUnaryTestOperator.GREATER, "20")),
+                List.of(number("200")), List.of())), 0);
+    RuntimeModel model = new RuntimeModel(List.of(new RuntimeInput(1, 0, NUMBER)),
+        List.of(new RuntimeDecision(2, 1, NUMBER, List.of(1), Optional.empty(), Optional.of(table), 0)),
+        List.of(), List.of(2), 2);
+
+    DmnEvaluationResult result = new DmnRuntime().evaluate(model, Map.of(0, new BigDecimal("25")));
+    assertThat((BigDecimal) result.decisionValue(2)).isEqualByComparingTo(new BigDecimal("300"));
+  }
+
   private static RuntimeConstant number(String value) {
     return new RuntimeConstant(RuntimeConstantKind.NUMBER, value, NUMBER);
   }

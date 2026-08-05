@@ -125,16 +125,24 @@ public final class DmnRuntime {
 
     private Object unary(RuntimeUnaryOperator operator, Object operand) {
       return switch (operator) {
-        case POSITIVE -> number(operand);
-        case NEGATE -> number(operand).negate();
-        case NOT -> !truth(operand);
+        case POSITIVE -> operand == null ? null : number(operand);
+        case NEGATE -> operand == null ? null : number(operand).negate();
+        case NOT -> not(operand);
       };
     }
 
     private Object binary(RuntimeBinaryOperator operator, Object left, java.util.function.Supplier<Object> right) {
-      if (operator == RuntimeBinaryOperator.AND) return truth(left) && truth(right.get());
-      if (operator == RuntimeBinaryOperator.OR) return truth(left) || truth(right.get());
+      if (operator == RuntimeBinaryOperator.AND) return and(left, right);
+      if (operator == RuntimeBinaryOperator.OR) return or(left, right);
       Object r = right.get();
+      if (left == null || r == null) {
+        return switch (operator) {
+          case EQUAL -> equal(left, r);
+          case NOT_EQUAL -> !equal(left, r);
+          case ADD -> (left instanceof String || r instanceof String) ? String.valueOf(left) + String.valueOf(r) : null;
+          default -> null;
+        };
+      }
       return switch (operator) {
         case ADD -> left instanceof String || r instanceof String ? String.valueOf(left) + r : number(left).add(number(r));
         case SUBTRACT -> number(left).subtract(number(r));
@@ -350,7 +358,7 @@ public final class DmnRuntime {
         case DATE -> LocalDate.parse(String.valueOf(argument(arguments, 0)));
         case TIME -> LocalTime.parse(String.valueOf(argument(arguments, 0)));
         case DATE_AND_TIME -> LocalDateTime.parse(String.valueOf(argument(arguments, 0)));
-        case DURATION -> parseDuration(String.valueOf(argument(arguments, 0)));
+        case DURATION -> DmnRuntime.parseDuration(String.valueOf(argument(arguments, 0)));
         case COUNT -> BigDecimal.valueOf(list(argument(arguments, 0)).size());
         case SUM -> listArgument(arguments).stream().map(DmnRuntime::number).reduce(BigDecimal.ZERO, BigDecimal::add);
         case MIN -> listArgument(arguments).stream().min(DmnRuntime::compare).orElse(null);
@@ -363,14 +371,31 @@ public final class DmnRuntime {
     }
   }
 
+  private static TemporalAmount parseDuration(String value) { return value.contains("T") ? Duration.parse(value) : Period.parse(value); }
   private static Object argument(List<Object> values, int index) {
     if (index >= values.size()) throw new DmnEvaluationException("Missing function argument " + index);
     return values.get(index);
   }
-  private static TemporalAmount parseDuration(String value) { return value.contains("T") ? Duration.parse(value) : Period.parse(value); }
+  private static Object not(Object operand) {
+    if (operand instanceof Boolean b) return !b;
+    return null;
+  }
+  private static Object and(Object left, java.util.function.Supplier<Object> rightSupplier) {
+    if (Boolean.FALSE.equals(left)) return Boolean.FALSE;
+    Object right = rightSupplier.get();
+    if (Boolean.FALSE.equals(right)) return Boolean.FALSE;
+    if (Boolean.TRUE.equals(left) && Boolean.TRUE.equals(right)) return Boolean.TRUE;
+    return null;
+  }
+  private static Object or(Object left, java.util.function.Supplier<Object> rightSupplier) {
+    if (Boolean.TRUE.equals(left)) return Boolean.TRUE;
+    Object right = rightSupplier.get();
+    if (Boolean.TRUE.equals(right)) return Boolean.TRUE;
+    if (Boolean.FALSE.equals(left) && Boolean.FALSE.equals(right)) return Boolean.FALSE;
+    return null;
+  }
   private static boolean truth(Object value) {
-    if (value instanceof Boolean booleanValue) return booleanValue;
-    throw new DmnEvaluationException("Expected boolean, got " + (value == null ? "null" : value.getClass().getSimpleName()));
+    return Boolean.TRUE.equals(value);
   }
   private static BigDecimal number(Object value) {
     if (value instanceof BigDecimal decimal) return decimal;
@@ -379,11 +404,14 @@ public final class DmnRuntime {
   }
   @SuppressWarnings({"rawtypes", "unchecked"})
   private static int compare(Object left, Object right) {
+    if (left == null || right == null) throw new DmnEvaluationException("Cannot compare null values");
     if (left instanceof Number && right instanceof Number) return number(left).compareTo(number(right));
     if (left instanceof Comparable comparable && left.getClass().isInstance(right)) return comparable.compareTo(right);
     throw new DmnEvaluationException("Values are not comparable: " + left + " and " + right);
   }
   private static boolean equal(Object left, Object right) {
+    if (left == null && right == null) return true;
+    if (left == null || right == null) return false;
     if (left instanceof Number && right instanceof Number) return number(left).compareTo(number(right)) == 0;
     return Objects.equals(left, right);
   }

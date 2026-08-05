@@ -191,13 +191,13 @@ Priority slices:
 
 | ID | Work item | State |
 | --- | --- | --- |
-| P3.1 | FEEL null propagation and three-valued boolean logic | `proposed` |
-| P3.2 | Deterministic numeric operations and error behavior | `proposed` |
-| P3.3 | Item-aware filter lowering and per-item predicate evaluation | `proposed` |
-| P3.4 | Temporal and duration arithmetic accepted by semantic analysis | `proposed` |
-| P3.5 | Complete decision-table hit-policy and allowed-value behavior | `proposed` |
-| P3.6 | Shared, versioned built-in function catalog and stable dispatch | `proposed` |
-| P3.7 | Execution limits and cycle-safe host-value conversion | `proposed` |
+| P3.1 | FEEL null propagation and three-valued boolean logic | `done` |
+| P3.2 | Deterministic numeric operations and error behavior | `done` |
+| P3.3 | Item-aware filter lowering and per-item predicate evaluation | `done` |
+| P3.4 | Temporal and duration arithmetic accepted by semantic analysis | `done` |
+| P3.5 | Complete decision-table hit-policy and allowed-value behavior | `done` |
+| P3.6 | Shared, versioned built-in function catalog and stable dispatch | `done` |
+| P3.7 | Execution limits and cycle-safe host-value conversion | `done` |
 
 Acceptance criteria:
 
