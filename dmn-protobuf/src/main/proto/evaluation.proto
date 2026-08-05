@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package io.finmsg.dmn;
+
+option java_package = "io.finmsg.dmn.model";
+option java_multiple_files = true;
+option java_outer_classname = "EvaluationProtos";
+
+//
+// DMN Polyadic Value Representation for Execution Payloads
+//
+message Value {
+  oneof value_kind {
+    NullValue null_value = 1;
+    bool boolean_value = 2;
+    string string_value = 3;
+    string number_value = 4;     // High-precision decimal string (e.g., "12500.50")
+    string date_value = 5;       // ISO-8601 Date (e.g., "2026-08-05")
+    string time_value = 6;       // ISO-8601 Time (e.g., "14:30:00Z")
+    string date_time_value = 7;  // ISO-8601 DateTime (e.g., "2026-08-05T14:30:00Z")
+    string duration_value = 8;   // ISO-8601 Duration (e.g., "P3D" or "PT5M")
+    ListValue list_value = 9;
+    ContextValue context_value = 10;
+    RangeValue range_value = 11;
+  }
+}
+
+enum NullValue {
+  NULL_VALUE = 0;
+}
+
+message ListValue {
+  repeated Value elements = 1;
+}
+
+message ContextValue {
+  map<string, Value> entries = 1;
+}
+
+message RangeValue {
+  Value lower = 1;
+  Value upper = 2;
+  bool lower_closed = 3;
+  bool upper_closed = 4;
+}
+
+//
+// Execution Request
+//
+message EvaluationRequest {
+  string namespace = 1;
+  string model_name = 2;
+  map<string, Value> inputs = 3;
+  repeated string requested_decisions = 4;
+}
+
+//
+// Execution Response
+//
+message EvaluationResponse {
+  map<string, Value> decision_results = 1;
+  repeated EvaluationDiagnostic diagnostics = 2;
+  int64 execution_time_nanos = 3;
+}
+
+message EvaluationDiagnostic {
+  enum Severity {
+    SEVERITY_UNSPECIFIED = 0;
+    SEVERITY_INFO = 1;
+    SEVERITY_WARNING = 2;
+    SEVERITY_ERROR = 3;
+  }
+  Severity severity = 1;
+  string code = 2;
+  string message = 3;
+  string decision_name = 4;
+}
+
+//
+// Compiled Model Metadata
+//
+message CompiledModelMetadata {
+  string namespace = 1;
+  string model_name = 2;
+  map<string, string> input_types = 3;
+  map<string, string> decision_types = 4;
+}

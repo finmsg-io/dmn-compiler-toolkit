@@ -117,7 +117,7 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P1 | Compiler facade and model resolution | `done` | current foundation | A root DMN and its imports compile through one supported API |
 | P2 | Real multi-file DMN corpus | `done` | P1 | Valid and invalid linked repositories are tested end to end |
 | P3 | Runtime semantic baseline | `proposed` | P2 | Interpreter behavior is a credible correctness oracle |
-| P4 | Stable compiled-model API | `proposed` | P1, P3 | Callers use model/input/decision names without internal slot knowledge |
+| P4 | Stable compiled-model API | `done` | P1, P3 | Callers use model/input/decision names without internal slot knowledge |
 | P5 | Java code generation | `proposed` | P3, P4 | Generated Java matches the interpreter on the shared corpus |
 | P6 | Performance validation | `proposed` | P5 | JMH establishes reproducible interpreter and generated-code baselines |
 | P7 | Generic gRPC generation | `proposed` | P4, P5 | Generated service exposes dynamic DMN evaluation |

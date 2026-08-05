@@ -22,4 +22,5 @@ evidence.
 | [P1.7 — Expose the immutable compiler facade](P1.7-immutable-compiler-facade.md) | done | One-call compilation through optimized Runtime IR |
 | [P2.1–P2.9 — Real multi-file DMN corpus](P2.1-P2.9-real-multi-file-corpus.md) | done | 9 multi-file XML test scenarios and end-to-end business model test |
 | [P3.1–P3.7 — Runtime semantic baseline & FEEL conformance](P3.1-P3.7-runtime-semantic-baseline.md) | done | 3-valued logic, null propagation, decision table hit policies, multi-word FEEL names |
+| [P4.1–P4.4 — Stable compiled-model Protobuf-native API](P4.1-P4.4-stable-compiled-model-api.md) | done | Protobuf-backed evaluation request/response, name-based execution, and decision pruning |
 | [TCK.2–3a — Establish a scalar TCK smoke runner](TCK.2-3a-scalar-smoke-runner.md) | done | TCK-defined scalar cases compile and execute through the interpreter |

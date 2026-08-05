@@ -14,6 +14,11 @@
     <dependencies>
         <dependency>
             <groupId>io.finmsg.dmn</groupId>
+            <artifactId>dmn-protobuf</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.finmsg.dmn</groupId>
             <artifactId>dmn-frontend-xml</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -36,7 +41,6 @@
             <groupId>io.finmsg.dmn</groupId>
             <artifactId>dmn-runtime</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
