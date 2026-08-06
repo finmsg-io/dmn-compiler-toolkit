@@ -118,6 +118,11 @@ nav:
           - P1.5 Shared Diagnostic Context: dev/slices/P1.5-add-shared-diagnostic-context.md
           - P1.6 Whole-Model-Set Semantics: dev/slices/P1.6-whole-model-set-semantic-result.md
           - P1.7 Immutable Compiler Facade: dev/slices/P1.7-immutable-compiler-facade.md
+          - P2.1-P2.9 Real Multi-File Corpus: dev/slices/P2.1-P2.9-real-multi-file-corpus.md
+          - P3.1-P3.7 Runtime Semantic Baseline: dev/slices/P3.1-P3.7-runtime-semantic-baseline.md
+          - P4.1-P4.4 Stable Compiled-Model API: dev/slices/P4.1-P4.4-stable-compiled-model-api.md
+          - P5.1 Pure Java Generator: dev/slices/P5.1-pure-java-generator.md
+          - P6.1-P6.4 100% TCK Compliance: dev/slices/P6.1-P6.4-100-omg-dmn-1.5-tck-compliance.md
       - CI and Publishing: ci-and-publishing.md
   - Roadmap: roadmap.md
 markdown_extensions:

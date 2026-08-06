@@ -23,6 +23,12 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
+      <groupId>io.finmsg.dmn</groupId>
+      <artifactId>dmn-generator-java</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>

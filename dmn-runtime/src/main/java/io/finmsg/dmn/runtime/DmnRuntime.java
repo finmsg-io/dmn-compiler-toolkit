@@ -353,19 +353,162 @@ public final class DmnRuntime {
           .orElseThrow(() -> new DmnEvaluationException("Unsupported built-in function '" + name + "'"));
       return switch (operation) {
         case NOT -> !truth(argument(arguments, 0));
-        case STRING -> String.valueOf(argument(arguments, 0));
-        case NUMBER -> new BigDecimal(String.valueOf(argument(arguments, 0)));
-        case DATE -> LocalDate.parse(String.valueOf(argument(arguments, 0)));
-        case TIME -> LocalTime.parse(String.valueOf(argument(arguments, 0)));
-        case DATE_AND_TIME -> LocalDateTime.parse(String.valueOf(argument(arguments, 0)));
-        case DURATION -> DmnRuntime.parseDuration(String.valueOf(argument(arguments, 0)));
-        case COUNT -> BigDecimal.valueOf(list(argument(arguments, 0)).size());
+        case STRING -> argument(arguments, 0) == null ? null : String.valueOf(argument(arguments, 0));
+        case NUMBER -> argument(arguments, 0) == null ? null : new BigDecimal(String.valueOf(argument(arguments, 0)));
+        case DATE -> argument(arguments, 0) == null ? null : LocalDate.parse(String.valueOf(argument(arguments, 0)));
+        case TIME -> argument(arguments, 0) == null ? null : LocalTime.parse(String.valueOf(argument(arguments, 0)));
+        case DATE_AND_TIME -> argument(arguments, 0) == null ? null : LocalDateTime.parse(String.valueOf(argument(arguments, 0)));
+        case DURATION -> argument(arguments, 0) == null ? null : DmnRuntime.parseDuration(String.valueOf(argument(arguments, 0)));
+        case COUNT -> BigDecimal.valueOf(listArgument(arguments).size());
         case SUM -> listArgument(arguments).stream().map(DmnRuntime::number).reduce(BigDecimal.ZERO, BigDecimal::add);
         case MIN -> listArgument(arguments).stream().min(DmnRuntime::compare).orElse(null);
         case MAX -> listArgument(arguments).stream().max(DmnRuntime::compare).orElse(null);
-        case ABS -> number(argument(arguments, 0)).abs();
+        case ABS -> argument(arguments, 0) == null ? null : number(argument(arguments, 0)).abs();
+        case SUBSTRING -> substring(arguments);
+        case SUBSTRING_BEFORE -> substringBefore(arguments);
+        case SUBSTRING_AFTER -> substringAfter(arguments);
+        case STRING_LENGTH -> argument(arguments, 0) == null ? null : BigDecimal.valueOf(String.valueOf(argument(arguments, 0)).length());
+        case UPPER_CASE -> argument(arguments, 0) == null ? null : String.valueOf(argument(arguments, 0)).toUpperCase(Locale.ROOT);
+        case LOWER_CASE -> argument(arguments, 0) == null ? null : String.valueOf(argument(arguments, 0)).toLowerCase(Locale.ROOT);
+        case CONTAINS -> argument(arguments, 0) != null && argument(arguments, 1) != null && String.valueOf(argument(arguments, 0)).contains(String.valueOf(argument(arguments, 1)));
+        case STARTS_WITH -> argument(arguments, 0) != null && argument(arguments, 1) != null && String.valueOf(argument(arguments, 0)).startsWith(String.valueOf(argument(arguments, 1)));
+        case ENDS_WITH -> argument(arguments, 0) != null && argument(arguments, 1) != null && String.valueOf(argument(arguments, 0)).endsWith(String.valueOf(argument(arguments, 1)));
+        case MATCHES -> argument(arguments, 0) != null && argument(arguments, 1) != null && String.valueOf(argument(arguments, 0)).matches(String.valueOf(argument(arguments, 1)));
+        case REPLACE -> replace(arguments);
+        case SPLIT -> split(arguments);
+        case FLOOR -> argument(arguments, 0) == null ? null : number(argument(arguments, 0)).setScale(0, java.math.RoundingMode.FLOOR);
+        case CEILING -> argument(arguments, 0) == null ? null : number(argument(arguments, 0)).setScale(0, java.math.RoundingMode.CEILING);
+        case DECIMAL -> argument(arguments, 0) == null ? null : number(argument(arguments, 0)).setScale(number(argument(arguments, 1)).intValueExact(), java.math.RoundingMode.HALF_UP);
+        case ROUND_HALF_UP -> argument(arguments, 0) == null ? null : number(argument(arguments, 0)).setScale(number(argument(arguments, 1)).intValueExact(), java.math.RoundingMode.HALF_UP);
+        case ROUND_HALF_EVEN -> argument(arguments, 0) == null ? null : number(argument(arguments, 0)).setScale(number(argument(arguments, 1)).intValueExact(), java.math.RoundingMode.HALF_EVEN);
+        case SUBLIST -> sublist(arguments);
+        case CONCATENATE -> concatenate(arguments);
+        case DISTINCT_VALUES -> distinctValues(arguments);
+        case FLATTEN -> flatten(arguments);
+        case REVERSE -> reverse(arguments);
+        case INDEX_OF -> indexOf(arguments);
+        case YEARS_AND_MONTHS_DURATION -> yearsAndMonthsDuration(arguments);
       };
     }
+
+    private Object substring(List<Object> args) {
+      if (args.getFirst() == null) return null;
+      String str = String.valueOf(args.getFirst());
+      int start = number(args.get(1)).intValueExact();
+      int idx = start > 0 ? start - 1 : str.length() + start;
+      if (idx < 0 || idx >= str.length()) return "";
+      if (args.size() > 2 && args.get(2) != null) {
+        int len = number(args.get(2)).intValueExact();
+        int end = Math.min(str.length(), idx + len);
+        return str.substring(idx, end);
+      }
+      return str.substring(idx);
+    }
+
+    private Object substringBefore(List<Object> args) {
+      if (args.get(0) == null || args.get(1) == null) return null;
+      String str = String.valueOf(args.get(0));
+      String sub = String.valueOf(args.get(1));
+      int idx = str.indexOf(sub);
+      return idx < 0 ? "" : str.substring(0, idx);
+    }
+
+    private Object substringAfter(List<Object> args) {
+      if (args.get(0) == null || args.get(1) == null) return null;
+      String str = String.valueOf(args.get(0));
+      String sub = String.valueOf(args.get(1));
+      int idx = str.indexOf(sub);
+      return idx < 0 ? "" : str.substring(idx + sub.length());
+    }
+
+    private Object replace(List<Object> args) {
+      if (args.get(0) == null || args.get(1) == null || args.get(2) == null) return null;
+      String input = String.valueOf(args.get(0));
+      String pattern = String.valueOf(args.get(1));
+      String replacement = String.valueOf(args.get(2));
+      return input.replaceAll(pattern, replacement);
+    }
+
+    private Object split(List<Object> args) {
+      if (args.get(0) == null || args.get(1) == null) return null;
+      String input = String.valueOf(args.get(0));
+      String pattern = String.valueOf(args.get(1));
+      return Arrays.asList(input.split(pattern));
+    }
+
+    private Object sublist(List<Object> args) {
+      List<Object> list = listArgument(args);
+      int start = number(args.get(1)).intValueExact();
+      int idx = start > 0 ? start - 1 : list.size() + start;
+      if (idx < 0 || idx >= list.size()) return List.of();
+      if (args.size() > 2 && args.get(2) != null) {
+        int len = number(args.get(2)).intValueExact();
+        int end = Math.min(list.size(), idx + len);
+        return list.subList(idx, end);
+      }
+      return list.subList(idx, list.size());
+    }
+
+    private Object concatenate(List<Object> args) {
+      List<Object> result = new ArrayList<>();
+      for (Object arg : args) {
+        if (arg instanceof List<?> l) result.addAll(l);
+        else if (arg != null) result.add(arg);
+      }
+      return List.copyOf(result);
+    }
+
+    private Object distinctValues(List<Object> args) {
+      List<Object> list = listArgument(args);
+      List<Object> result = new ArrayList<>();
+      for (Object item : list) {
+        if (result.stream().noneMatch(existing -> equal(existing, item))) {
+          result.add(item);
+        }
+      }
+      return List.copyOf(result);
+    }
+
+    private Object flatten(List<Object> args) {
+      List<Object> result = new ArrayList<>();
+      flattenInto(args.size() == 1 ? args.getFirst() : args, result);
+      return List.copyOf(result);
+    }
+
+    private void flattenInto(Object item, List<Object> target) {
+      if (item instanceof List<?> list) {
+        list.forEach(elem -> flattenInto(elem, target));
+      } else if (item != null) {
+        target.add(item);
+      }
+    }
+
+    private Object reverse(List<Object> args) {
+      List<Object> list = new ArrayList<>(listArgument(args));
+      Collections.reverse(list);
+      return List.copyOf(list);
+    }
+
+    private Object indexOf(List<Object> args) {
+      List<Object> list = listArgument(args);
+      Object target = args.get(1);
+      List<Object> indices = new ArrayList<>();
+      for (int i = 0; i < list.size(); i++) {
+        if (equal(list.get(i), target)) {
+          indices.add(BigDecimal.valueOf(i + 1));
+        }
+      }
+      return List.copyOf(indices);
+    }
+
+    private Object yearsAndMonthsDuration(List<Object> args) {
+      if (args.get(0) == null || args.get(1) == null) return null;
+      LocalDateTime dt1 = (LocalDateTime) args.get(0);
+      LocalDateTime dt2 = (LocalDateTime) args.get(1);
+      Period p = Period.between(dt1.toLocalDate(), dt2.toLocalDate());
+      return p;
+    }
+
     private List<Object> listArgument(List<Object> arguments) {
       return arguments.size() == 1 && arguments.getFirst() instanceof List<?> ? list(arguments.getFirst()) : arguments;
     }

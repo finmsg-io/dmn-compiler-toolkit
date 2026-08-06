@@ -1,0 +1,8 @@
+io\finmsg\dmn\tck\DmnToolkitTckEngine$RuntimeNames.class
+io\finmsg\dmn\tck\TckTestCaseReader.class
+io\finmsg\dmn\tck\TckValue.class
+io\finmsg\dmn\tck\TckValue$Kind.class
+io\finmsg\dmn\tck\TckExecutionResult.class
+io\finmsg\dmn\tck\TckTestCase.class
+io\finmsg\dmn\tck\TckExecutionException.class
+io\finmsg\dmn\tck\DmnToolkitTckEngine.class

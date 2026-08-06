@@ -49,22 +49,30 @@ dmn-compiler-toolkit
 ├── dmn-frontend-xml
 ├── dmn-feel-parser
 ├── dmn-semantic-analysis
-└── dmn-runtime-ir
+├── dmn-runtime-ir
+├── dmn-runtime
+├── dmn-compiler
+├── dmn-generator-java
+└── dmn-tck-runner
 ```
 
 Current executable compiler path:
 
 ```text
-DMN XML
-  → DmnXmlReader
+DMN XML Source Graph
+  → DmnModelResolver / DmnCompiler Facade
+  → DmnXmlReader (VTD-XML)
   → Definitions with FEEL text
-  → DmnFeelParser
+  → DmnFeelParser (ANTLR4)
   → Definitions with parsed FEEL AST
-  → DmnSemanticPipeline
-  → typed model, deterministic compilation order, and semantic diagnostics
+  → DmnSemanticPipeline / DmnModelSetSemanticAnalyzer
+  → typed linked model set, deterministic compilation order, and semantic diagnostics
+  → RuntimeIrLowerer (immutable Runtime IR with integer slots)
+  ├── DmnInterpreter (process-local runtime execution)
+  └── DmnJavaGenerator (zero-reflection Java code generation)
 ```
 
-The semantic-analysis stage implements reference and structured-property resolution, exposes successful symbol and named-type bindings, performs type and expression analysis, validates operators, functions, imports, and DMN structures, and analyzes dependency graphs across namespace-linked models. Bindings are exposed as an immutable side table rather than persisted in protobuf AST nodes. Structural Runtime IR, typed constants, bound value-slot references, and unary/binary operators are implemented; remaining compound expression lowering, optimization, code generation, and runtime execution remain future stages.
+The semantic-analysis stage implements reference and structured-property resolution, exposes successful symbol and named-type bindings, performs type and expression analysis, validates operators, functions, imports, and DMN structures, and analyzes dependency graphs across namespace-linked models. Bindings are exposed as an immutable side table rather than persisted in protobuf AST nodes. Structural Runtime IR, typed constants, bound value-slot references, unary/binary operators, boxed logic, and decision tables are implemented. Process-local interpretation (`dmn-runtime`), one-call compiler facade (`dmn-compiler`), high-performance Java code generation (`dmn-generator-java`), and TCK conformance testing (`dmn-tck-runner`) are implemented. Optimization passes and multi-language backends (Rust, Go) remain future stages.
 
 ## Table of contents
 

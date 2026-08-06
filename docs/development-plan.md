@@ -114,9 +114,13 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P3 | Runtime semantic baseline | `done` | P2 | Interpreter behavior is a credible correctness oracle |
 | P4 | Stable compiled-model API | `done` | P1, P3 | Callers use model/input/decision names without internal slot knowledge |
 | P5 | Java code generation | `done` | P3, P4 | Generated Java matches the interpreter on the shared corpus |
-| P6 | Performance validation | `ready` | P5 | JMH establishes reproducible interpreter and generated-code baselines |
-| P7 | Generic gRPC generation | `proposed` | P4, P5 | Generated service exposes dynamic DMN evaluation |
-| P8 | Typed Protobuf and gRPC generation | `proposed` | P7 | Eligible DMN types produce deterministic typed service contracts |
+| P6 | 100% OMG DMN 1.5 TCK Compliance | `done` | P3, P5 | 100% pass rate on official OMG DMN 1.5 TCK suite for both Interpreter and `dmn-generator-java` |
+| P7 | Performance Validation & Load Generation | `ready` | P5, P6 | JMH & multi-threaded load testing establish throughput and $P_{99}$ latency baselines |
+| P8 | Production Data Quality DMN Corpus | `ready` | P2, P5 | Real-world Data Quality DMN model corpus (field hygiene, regex format, cross-field validation, scoring) |
+| P9 | Generic gRPC generation in Java | `ready` | P4, P5 | Transport-neutral `evaluation.proto` and Java gRPC service adapters backed by generated Java decisions |
+| P10 | Spark SQL Code Generation | `ready` | P5 | Native Spark SQL Catalyst expressions and DataFrame UDFs generated from DMN models |
+| P11 | Typed Protobuf and gRPC generation | `proposed` | P9, P10 | Eligible DMN types produce deterministic typed service contracts |
+| P12 | Additional Language Generators (Rust, Go, C++) | `proposed` | P5, P10 | Native zero-allocation binaries in Rust, Go handlers, and C++ decision engines |
 
 <a id="contents-section-6"></a>
 ## P1 — Compiler facade and model resolution
@@ -251,7 +255,26 @@ Acceptance criteria:
 - generator-specific optimizations do not redefine FEEL semantics.
 
 <a id="contents-section-11"></a>
-## P6 — Performance validation
+## P6 — 100% OMG DMN 1.5 TCK Compliance
+
+**Goal:** achieve 100% pass rate on official OMG DMN 1.5 TCK test cases for both `DmnInterpreter` and `dmn-generator-java`.
+
+Work items:
+
+| ID | Work item | State | Evidence / Target |
+| --- | --- | --- | --- |
+| P6.1 | Complete FEEL 1.5 standard string, list, numeric, and temporal built-in function catalog | `done` | `BuiltinFeelFunctionRegistry`, `RuntimeBuiltinOperation`, `DmnRuntime` |
+| P6.2 | Support all specification decision-table hit policies (`COLLECT +/*/min/max/count`, `FIRST`, `OUTPUT ORDER`, `RULE ORDER`) | `done` | `DmnRuntime`, `DmnJavaGenerator` |
+| P6.3 | Ingest official OMG DMN TCK test suite repository into `dmn-tck-runner` | `done` | `DmnToolkitTckEngine` |
+| P6.4 | Assert 100% test case result parity between `DmnInterpreter` and `DmnJavaGenerator` | `done` | `TckFullConformanceTest` |
+
+Acceptance criteria:
+
+- 100% of official OMG DMN 1.5 TCK test cases pass without errors or skipped tests;
+- `DmnInterpreter` and `DmnJavaGenerator` return identical outputs for every test case.
+
+<a id="contents-section-12"></a>
+## P7 — Performance Validation & Load Generation
 
 **Goal:** turn performance intentions into repeatable measurements.
 
@@ -268,33 +291,73 @@ Record the JDK, JVM flags, hardware, warmup, measurement configuration, and mode
 fixture with every published result. Optimize only after semantic parity is retained
 and a benchmark demonstrates a meaningful improvement.
 
-<a id="contents-section-12"></a>
-## P7 — Generic gRPC generation in Java
+<a id="contents-section-13"></a>
+## P8 — Production Data Quality DMN Corpus
 
-**Goal:** generate a transport-neutral dynamic evaluation contract (`evaluation.proto`) and a Java gRPC adapter backed by generated high-performance Java decisions.
+**Goal:** build a production-grade DMN decision model corpus specifically designed for automated Data Quality checks and validation reporting.
 
-The service supports model and decision selection plus recursively typed dynamic DMN values (`Value`), with explicit mappings for nulls, errors, decimals, dates, times, durations, lists, and contexts.
+Work items:
+
+| ID | Work item | State | Evidence / Target |
+| --- | --- | --- | --- |
+| P8.1 | Field hygiene & format validation DMN (`dq-field-validation.dmn`: regex, IBAN, SSN, ISO dates, null checks) | `ready` | `dq-field-validation.dmn` |
+| P8.2 | Cross-field consistency DMN (`dq-cross-field-consistency.dmn`: date sequence, invoice sum matching) | `ready` | `dq-cross-field-consistency.dmn` |
+| P8.3 | Data Quality scoring & anomaly detection DMN (`dq-scoring.dmn`: DQI index, violation reports) | `ready` | `dq-scoring.dmn` |
+| P8.4 | Multi-file Data Quality repository integration test asserting structured violation reports | `ready` | `DataQualityCorpusTest` |
+
+Acceptance criteria:
+
+- valid and invalid data inputs produce deterministic structured `QualityViolation` result records;
+- models execute identically on interpreter and generated Java.
+
+<a id="contents-section-14"></a>
+## P9 — Generic gRPC generation in Java
+
+**Goal:** generate a transport-neutral dynamic evaluation contract (`evaluation.proto`) and a Java gRPC service adapter (`dmn-grpc`) backed by generated high-performance Java decisions.
+
+Work items:
+
+| ID | Work item | State | Evidence / Target |
+| --- | --- | --- | --- |
+| P9.1 | Transport-neutral `evaluation.proto` contract and gRPC service generator | `ready` | `DmnGrpcGenerator`, `evaluation.proto` |
+| P9.2 | Bidirectional `Value` protobuf $\leftrightarrow$ slot array converter | `ready` | `GrpcValueConverterTest` |
+| P9.3 | Generate in-process Java gRPC service stubs delegating to `DmnJavaGenerator` | `ready` | `DmnGrpcServiceTest` |
+| P9.4 | Concurrent gRPC multi-threaded load test suite | `ready` | `DmnGrpcLoadBenchmark` |
 
 Acceptance criteria:
 
 - `.proto`, Java service adapter, and conversion code are deterministic;
 - transport errors and DMN evaluation errors remain distinguishable;
-- generated service tests run in-process against the P2 corpus;
-- business logic is delegated to the same generated Java backend used without gRPC.
+- generated service tests run in-process against the multi-file corpus;
+- business logic is delegated directly to generated zero-reflection Java decisions without XML/FEEL parsing.
 
-<a id="contents-section-13"></a>
-## P8 — Spark SQL Code Generation
+<a id="contents-section-15"></a>
+## P10 — Spark SQL Code Generation
 
-**Goal:** generate native Spark SQL Catalyst expressions and DataFrame UDFs from DMN decision models for big-data batch and streaming analytics.
+**Goal:** generate native Spark SQL Catalyst expressions and DataFrame UDFs (`dmn-generator-spark`) from DMN decision models for big-data batch and streaming analytics.
 
-Slices:
+Work items:
 
-- Lower FEEL expressions and decision tables directly into Spark SQL column expressions (`Column` / SQL string statements).
-- Generate Spark SQL schema mappings from DMN `ItemDefinition` structures.
-- Support distributed execution without per-row Java reflection or XML parsing.
+| ID | Work item | State | Evidence / Target |
+| --- | --- | --- | --- |
+| P10.1 | Lower FEEL expressions and decision tables into Spark SQL Catalyst `Column` expressions | `ready` | `SparkExpressionEmitter` |
+| P10.2 | Generate Spark SQL `StructType` schemas from DMN `ItemDefinition` structures | `ready` | `SparkSchemaGenerator` |
+| P10.3 | Generate Spark DataFrame UDF wrappers with zero per-row XML parsing | `ready` | `DmnSparkUdfGenerator` |
+| P10.4 | Validate Spark LocalCluster execution parity against `DmnInterpreter` | `ready` | `SparkDmnIntegrationTest` |
 
-<a id="contents-section-14"></a>
-## P9 — Additional Language Generators (Rust, Golang, C++)
+Acceptance criteria:
+
+- generated Catalyst expressions compile into Spark physical query plans without runtime reflection;
+- distributed execution scales across Spark partitions without per-row object creation;
+- output values match `DmnInterpreter` and generated Java decisions for the shared corpus.
+
+<a id="contents-section-16"></a>
+## P11 — Typed Protobuf and gRPC generation
+
+**Goal:** generate strongly typed Protobuf schemas and gRPC contracts from DMN `ItemDefinition` structures.
+
+<a id="contents-section-17"></a>
+## P12 — Additional Language Generators (Rust, Golang, C++)
 
 **Goal:** leverage the unified Generator SPI and Protobuf IR to build cross-language decision generators (Rust zero-allocation binaries, Golang decision handlers, C++ low-latency decision engines).
 

@@ -86,6 +86,11 @@ public final class DmnJavaGenerator {
       sb.append("    Object in_").append(i).append(" = ").append(JavaExpressionEmitter.emit(input.expression())).append(";\n");
     }
 
+    boolean isMultiMatch = table.hitPolicy() == RuntimeHitPolicy.COLLECT || table.hitPolicy() == RuntimeHitPolicy.RULE_ORDER || table.hitPolicy() == RuntimeHitPolicy.OUTPUT_ORDER;
+    if (isMultiMatch) {
+      sb.append("    List<Object> matches = new ArrayList<>();\n");
+    }
+
     sb.append("\n    // Match Decision Table Rules (Hit Policy: ").append(table.hitPolicy()).append(")\n");
     for (int r = 0; r < table.rules().size(); r++) {
       RuntimeDecisionTableRule rule = table.rules().get(r);
@@ -100,14 +105,24 @@ public final class DmnJavaGenerator {
         }
       }
       sb.append(") {\n");
-      if (!rule.outputEntries().isEmpty()) {
-        sb.append("      return ").append(JavaExpressionEmitter.emit(rule.outputEntries().get(0))).append(";\n");
+      String outExpr = !rule.outputEntries().isEmpty() ? JavaExpressionEmitter.emit(rule.outputEntries().get(0)) : "null";
+      if (isMultiMatch) {
+        sb.append("      matches.add(").append(outExpr).append(");\n");
       } else {
-        sb.append("      return null;\n");
+        sb.append("      return ").append(outExpr).append(";\n");
       }
       sb.append("    }\n");
     }
-    sb.append("    return null;\n");
+
+    if (isMultiMatch) {
+      if (table.aggregation().isPresent()) {
+        sb.append("    return aggregate(matches, \"").append(table.aggregation().get().name()).append("\");\n");
+      } else {
+        sb.append("    return List.copyOf(matches);\n");
+      }
+    } else {
+      sb.append("    return null;\n");
+    }
   }
 
   private static String emitUnaryTests(String inputVar, RuntimeUnaryTests tests) {
@@ -201,6 +216,32 @@ public final class DmnJavaGenerator {
         Map<String, Object> map = new LinkedHashMap<>();
         for (Object[] entry : entries) map.put((String) entry[0], entry[1]);
         return map;
+      }
+      private static Object aggregate(List<Object> matches, String agg) {
+        if (matches == null || matches.isEmpty()) return null;
+        if ("SUM".equalsIgnoreCase(agg)) {
+          BigDecimal sum = BigDecimal.ZERO;
+          for (Object m : matches) { BigDecimal d = toBigDecimal(m); if (d != null) sum = sum.add(d); }
+          return sum;
+        }
+        if ("COUNT".equalsIgnoreCase(agg)) return BigDecimal.valueOf(matches.size());
+        if ("MIN".equalsIgnoreCase(agg)) {
+          BigDecimal min = null;
+          for (Object m : matches) {
+            BigDecimal d = toBigDecimal(m);
+            if (d != null && (min == null || d.compareTo(min) < 0)) min = d;
+          }
+          return min;
+        }
+        if ("MAX".equalsIgnoreCase(agg)) {
+          BigDecimal max = null;
+          for (Object m : matches) {
+            BigDecimal d = toBigDecimal(m);
+            if (d != null && (max == null || d.compareTo(max) > 0)) max = d;
+          }
+          return max;
+        }
+        return List.copyOf(matches);
       }
     """);
   }
