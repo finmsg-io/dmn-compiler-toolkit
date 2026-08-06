@@ -9,15 +9,15 @@
 - [GitHub Packages repository](#contents-section-4)
 <!-- generated-toc:end -->
 
-The project uses GitHub Actions.
+The project uses GitHub Actions (`.github/workflows/ci.yml`) running on JDK 25 (Temurin distribution) with Maven caching.
 
 <a id="contents-section-1"></a>
 ## Workflow behavior
 
 ```text
-Feature branch push  -> build, test, publish branch SNAPSHOT
-Pull request         -> build and test
-Main branch push     -> build, test, publish release
+Feature branch push  -> build, test (`mvn verify`), publish branch SNAPSHOT
+Pull request         -> build and test (`mvn verify`)
+Main branch push     -> build, test (`mvn verify`), publish release
 ```
 
 <a id="contents-section-2"></a>

@@ -19,41 +19,45 @@ Start with the [architecture overview](architecture.md), consult the normative
 <a id="contents-section-1"></a>
 ## Current implementation
 
-The repository currently contains seven active Maven modules:
+The repository currently contains nine active Maven modules:
 
-- `dmn-protobuf` — semantic model, replaceable FEEL text/parsed nodes, and FEEL AST
+- `dmn-protobuf` — canonical semantic model, replaceable FEEL text/parsed nodes, and FEEL AST
 - `dmn-frontend-xml` — namespace-aware VTD-XML reader and writer for the current protobuf-supported DMN subset
 - `dmn-feel-parser` — ANTLR4 grammar, AST builder, complete DMN FEEL parsing pass, and model-aware diagnostics
 - `dmn-semantic-analysis` — reference resolution, type analysis, DMN validation, and deterministic dependency ordering
 - `dmn-runtime-ir` — immutable Runtime IR with deterministic structure, constants, and bound value references
-- `dmn-runtime` — experimental process-local interpreter for executable Runtime IR
-- `dmn-compiler` — one-call deterministic compilation from bounded source graphs to optimized linked Runtime IR
+- `dmn-runtime` — deterministic process-local interpreter for executable Runtime IR
+- `dmn-compiler` — public facade, resolver-independent model-source contracts, and bounded transitive load boundary
+- `dmn-generator-java` — high-performance Java source code generator from Runtime IR
+- `dmn-tck-runner` — DMN Technology Compatibility Kit (TCK) test suite runner and conformance adapter
 
 The implemented pipeline is:
 
 ```text
-DMN XML
+DMN XML Source Graph
    │
    ▼
-DmnXmlReader
+DmnCompiler Facade / Model Resolver
    │
    ▼
-Definitions with FEEL text
+Definitions with FEEL text (DmnXmlReader)
    │
    ▼
-DmnFeelParser
+Definitions with parsed FEEL AST (DmnFeelParser)
    │
    ▼
-Definitions with parsed FEEL AST
+Semantic-analysis result and diagnostics (DmnSemanticAnalyzer)
    │
    ▼
-DmnSemanticAnalyzer
+Immutable Runtime IR (RuntimeIrLowerer)
    │
-   ▼
-Semantic-analysis result and diagnostics
+   ├────────────────────────┐
+   ▼                        ▼
+Process-local Interpreter   Java Generator
+(dmn-runtime)               (dmn-generator-java)
 ```
 
-Cross-model semantic linking, QName-safe XML type references, linked model-set Runtime IR lowering, all protobuf FEEL AST expression variants, all modeled decision logic, executable BKM functions, persisted lexical frame layouts, expression-derived runtime dependencies, indexed context-field access, initial optimization, and process-local interpretation are implemented. Further optimization, production runtime semantics, and code generation remain work in progress.
+Cross-model semantic linking, QName-safe XML type references, linked model-set Runtime IR lowering, all protobuf FEEL AST expression variants, all modeled decision logic, executable BKM functions, persisted lexical frame layouts, expression-derived runtime dependencies, indexed context-field access, initial optimization, process-local interpretation, high-performance Java code generation, and TCK conformance suite testing are implemented. Further optimizer passes and multi-language code generation (Rust, Go) remain active focus areas.
 
 <a id="contents-section-2"></a>
 ## Design goals

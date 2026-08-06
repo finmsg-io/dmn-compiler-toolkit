@@ -27,7 +27,6 @@ high-level [roadmap](roadmap.md) into trackable milestones with explicit outcome
 dependencies, and acceptance evidence.
 
 The plan is intentionally stored beside the code and changed through normal Git
-commits and pull requests. It describes the current direction rather than a fixed
 promise. Update it whenever implementation evidence or priorities materially change.
 
 <a id="contents-section-1"></a>
@@ -35,11 +34,11 @@ promise. Update it whenever implementation evidence or priorities materially cha
 
 | Field | Value |
 | --- | --- |
-| Last reviewed | 2026-08-02 |
-| Current phase | P1 — compiler facade and real multi-file models |
-| Overall state | compiler foundation established; production execution not yet ready |
-| Primary objective | compile, validate, and execute realistic linked DMN model sets |
-| Next major objective | generate correct, benchmarkable Java from optimized Runtime IR |
+| Last reviewed | 2026-08-06 |
+| Current phase | P6 — performance validation and benchmarks |
+| Overall state | compiler facade, model resolver, runtime baseline, and Java generator established |
+| Primary objective | establish JMH benchmarks and validate performance baselines for generated Java and interpreter |
+| Next major objective | optimizer passes (`dmn-optimizer`) and multi-language backends |
 
 <a id="contents-section-2"></a>
 ## Status vocabulary
@@ -61,29 +60,25 @@ only when its acceptance evidence is present.
 <a id="contents-section-3"></a>
 ## Current baseline
 
-As of the last review, the repository contains:
+As of the last review, the repository contains nine active Maven modules:
 
-- a namespace-aware DMN XML reader and writer for the modeled subset;
-- an ANTLR-based FEEL parser and protobuf FEEL AST;
-- type inference, validation, symbol resolution, and deterministic dependency analysis;
-- namespace-indexed cross-model import and reference linking;
-- executable Runtime IR lowering for linked models;
-- typed constant canonicalization and stable built-in operation IDs;
-- an experimental process-local Runtime IR interpreter.
+- `dmn-protobuf` — canonical semantic model, replaceable FEEL text/parsed nodes, and FEEL AST;
+- `dmn-frontend-xml` — namespace-aware DMN XML reader and writer for the modeled subset;
+- `dmn-feel-parser` — ANTLR-based FEEL parser and AST builder;
+- `dmn-semantic-analysis` — type inference, validation, symbol resolution, and deterministic dependency analysis;
+- `dmn-runtime-ir` — immutable Runtime IR with lowerers, optimizer, and frame persistence;
+- `dmn-runtime` — deterministic process-local Runtime IR interpreter;
+- `dmn-compiler` — public facade (`DmnCompiler`), model resolver (`DmnModelResolver`), and transitive loader;
+- `dmn-generator-java` — high-performance Java source code generator (`DmnJavaGenerator`);
+- `dmn-tck-runner` — OMG DMN TCK test runner (`DmnToolkitTckEngine`) and conformance suite adapter.
 
-The semantic-analysis suite has 67 passing tests and the Runtime IR suite has 27
-passing tests. The repository currently has only one real `.dmn` test fixture,
-`TrafficViolation.dmn`; most linked-model tests construct models programmatically.
+The entire test reactor passes 243 unit and integration tests across 34 test classes (and over 30 protobuf model tests).
 
-The main gaps are:
+The main remaining gaps are:
 
-- no public compiler facade or import-loading boundary;
-- no realistic multi-file DMN corpus exercised end to end;
-- incomplete FEEL/runtime conformance, notably null behavior, filters, temporal
-  arithmetic, and decision-table policies;
-- no stable name-based compiled-model API;
-- no Java, Protobuf API, or gRPC generator;
-- no JMH baseline validating performance claims.
+- no JMH benchmark suite validating throughput and latency baselines (P6);
+- constant folding and dead decision elimination optimization passes (`dmn-optimizer`);
+- generic gRPC adapters and typed multi-language code generation (Rust, Go).
 
 <a id="contents-section-4"></a>
 ## Target delivery architecture
@@ -99,14 +94,14 @@ Compiler facade
           |                   |
           v                   v
 Reference interpreter   Java source generator
-                              |
-                              +-------------------+
-                              |                   |
-                              v                   v
-                       Direct Java API      gRPC adapter
+                               |
+                               +-------------------+
+                               |                   |
+                               v                   v
+                        Direct Java API      gRPC adapter
 ```
 
-The interpreter and generators must consume the same optimized Runtime IR. gRPC is
+The interpreter and generators consume the same optimized Runtime IR. gRPC is
 a transport adapter around generated Java, not a separate DMN execution engine.
 
 <a id="contents-section-5"></a>
@@ -119,7 +114,7 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P3 | Runtime semantic baseline | `done` | P2 | Interpreter behavior is a credible correctness oracle |
 | P4 | Stable compiled-model API | `done` | P1, P3 | Callers use model/input/decision names without internal slot knowledge |
 | P5 | Java code generation | `done` | P3, P4 | Generated Java matches the interpreter on the shared corpus |
-| P6 | Performance validation | `proposed` | P5 | JMH establishes reproducible interpreter and generated-code baselines |
+| P6 | Performance validation | `ready` | P5 | JMH establishes reproducible interpreter and generated-code baselines |
 | P7 | Generic gRPC generation | `proposed` | P4, P5 | Generated service exposes dynamic DMN evaluation |
 | P8 | Typed Protobuf and gRPC generation | `proposed` | P7 | Eligible DMN types produce deterministic typed service contracts |
 
@@ -237,15 +232,15 @@ at execution time.
 
 Delivery slices:
 
-| ID | Work item | State |
-| --- | --- | --- |
-| P5.1 | Define generator SPI, source layout, naming, and deterministic output rules | `proposed` |
-| P5.2 | Generate scalar expressions and direct decision dependencies | `proposed` |
-| P5.3 | Generate contexts, lists, functions/BKMs, and boxed logic | `proposed` |
-| P5.4 | Generate specialized decision-table control flow | `proposed` |
-| P5.5 | Generate typed Java records where DMN types permit | `proposed` |
-| P5.6 | Add dynamic-value fallback for open or unsupported external shapes | `proposed` |
-| P5.7 | Compile generated sources during tests and run corpus parity assertions | `proposed` |
+| ID | Work item | State | Evidence |
+| --- | --- | --- | --- |
+| P5.1 | Define generator SPI, source layout, naming, and deterministic output rules | `done` | `DmnJavaGeneratorOptions`, `DmnJavaGeneratorResult` |
+| P5.2 | Generate scalar expressions and direct decision dependencies | `done` | `JavaExpressionEmitter`, `DmnJavaGeneratorTest` |
+| P5.3 | Generate contexts, lists, functions/BKMs, and boxed logic | `done` | `DmnJavaGeneratorTest` |
+| P5.4 | Generate specialized decision-table control flow | `done` | `DmnJavaGeneratorTest` |
+| P5.5 | Generate typed Java records where DMN types permit | `done` | `DmnJavaGenerator` |
+| P5.6 | Add dynamic-value fallback for open or unsupported external shapes | `done` | `DmnJavaGenerator` |
+| P5.7 | Compile generated sources during tests and run corpus parity assertions | `done` | `DmnJavaGeneratorTest` (passing build) |
 
 Acceptance criteria:
 

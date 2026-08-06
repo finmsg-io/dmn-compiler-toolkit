@@ -10,7 +10,9 @@
 - [dmn-runtime-ir](#contents-section-5)
 - [dmn-runtime](#contents-section-6)
 - [dmn-compiler](#contents-section-7)
-- [Planned modules](#contents-section-8)
+- [dmn-generator-java](#contents-section-8)
+- [dmn-tck-runner](#contents-section-9)
+- [Planned modules](#contents-section-10)
 <!-- generated-toc:end -->
 
 
@@ -149,10 +151,32 @@ Assessments: [implementation](audits/assessment-implementation-dmn-compiler.md) 
 [architecture](audits/assessment-architecture-dmn-compiler.md)
 
 <a id="contents-section-8"></a>
+## `dmn-generator-java`
+
+Provides high-performance Java source code generation directly from Runtime IR models.
+`DmnJavaGenerator` generates clean, standalone, zero-reflection Java classes that evaluate decisions and expressions using direct Java control flow and indexed local variable lookup. The generated Java code requires no XML parsing, ANTLR dependency, or protobuf reflection at runtime, ensuring optimal JVM execution and low latency.
+
+Primary entry point:
+
+```java
+DmnJavaGenerator generator = new DmnJavaGenerator();
+String javaSource = generator.generate(runtimeModel);
+```
+
+Options (`DmnJavaGeneratorOptions`) allow customizing the generated package name, class name, and execution optimization strategies.
+
+<a id="contents-section-9"></a>
+## `dmn-tck-runner`
+
+Provides a conformance runner for OMG DMN Technology Compatibility Kit (TCK) test cases.
+`DmnToolkitTckEngine` decodes TCK test case definitions (`TckTestCaseReader`), feeds input values into `DmnCompiler` and `DmnInterpreter` / `DmnJavaGenerator`, and asserts spec conformance across decision tables, expressions, and model relationships.
+
+<a id="contents-section-10"></a>
 ## Planned modules
 
 ```text
 dmn-optimizer
-dmn-codegen-java
 dmn-benchmarks
+dmn-generator-rust
+dmn-generator-go
 ```

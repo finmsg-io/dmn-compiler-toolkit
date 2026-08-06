@@ -25,18 +25,21 @@ the [ADR guide](architecture/adr/generall-adr.md), and project terminology is de
 The toolkit is a staged compiler rather than an XML-centric interpreter.
 
 ```text
-DMN XML
-  → XML Frontend
+DMN XML Source Graph
+  → Model Resolver & DmnCompiler Facade
+  → XML Frontend (VTD-XML)
   → immutable protobuf Semantic Model with FEEL text
   → FEEL Parser pass
   → copied protobuf model with FEEL AST
-  → Semantic Analysis
+  → Whole-Model-Set Semantic Analysis
   → validated linked model set, bindings, order, and diagnostics
-  → structural Runtime IR
+  → structural Runtime IR lowering
+  ├── Process-Local Interpreter (dmn-runtime)
+  └── Java Code Generator (dmn-generator-java)
 ```
 
-Seven Maven modules implement this pipeline through cross-model typed semantic analysis,
-deterministic Runtime IR lowering, interpretation, and compiler-facing source resolution.
+Nine Maven modules implement this pipeline through cross-model typed semantic analysis,
+deterministic Runtime IR lowering, process-local interpretation, Java source generation, TCK conformance testing, and compiler-facing source resolution.
 
 <a id="contents-section-2"></a>
 ## Stage boundaries
@@ -61,10 +64,26 @@ Uses ANTLR4 and `FeelAstBuilder` to create protobuf AST nodes. `DmnFeelParser` t
 
 The implemented pipeline creates requirement-aware scopes, resolves local and imported symbols/types, validates and infers FEEL types, validates dependencies, and exposes deterministic bindings and compilation order.
 
+### Compiler facade and model resolution (`dmn-compiler`)
+
+Owns `DmnCompiler`, `DmnCompiledModel`, and resolver-independent source loading (`DmnModelResolver`, `FilesystemDmnModelResolver`, `ClasspathDmnModelResolver`, `InMemoryDmnModelResolver`). Aggregates phase-aware diagnostics and performs whole-model-set compilation.
+
+### Runtime IR (`dmn-runtime-ir`) & Interpreter (`dmn-runtime`)
+
+Lowers validated semantic models into compact, immutable Runtime IR with integer references and deterministic slot layouts. `DmnInterpreter` evaluates Runtime IR models in-memory without XML, ANTLR, or protobuf dependencies.
+
+### Java code generator (`dmn-generator-java`)
+
+Transforms Runtime IR into high-performance, direct Java source code, enabling zero-reflection execution without XML or FEEL dependencies at runtime.
+
+### TCK runner (`dmn-tck-runner`)
+
+Runs OMG DMN Technology Compatibility Kit (TCK) test cases against the toolkit to assert spec conformance and parity between interpreter and generated execution.
+
 <a id="contents-section-7"></a>
 ### Future stages
 
-Executable Runtime IR, typed constant/built-in indexing, and a process-local interpreter are implemented. Further optimizer passes, host bindings for external functions, and code generators remain future work.
+Further optimizer passes (constant folding, dead decision elimination), multi-language code generation (Rust, Go, C++), gRPC dynamic adapters, and JMH performance benchmark suites remain active future work.
 
 <a id="contents-section-8"></a>
 ## Core rules
@@ -74,4 +93,4 @@ Executable Runtime IR, typed constant/built-in indexing, and a process-local int
 3. Every pass treats its input as immutable.
 4. Traversal uses generated getters instead of protobuf reflection.
 5. Diagnostics identify the semantic-model path and source location where available.
-6. Runtime modules must not depend on XML or ANTLR.
+6. Runtime and generated code must not depend on XML or ANTLR.

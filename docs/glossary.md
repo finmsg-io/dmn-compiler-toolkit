@@ -157,6 +157,12 @@ Generated Java
 
 ---
 
+#### Compiler Facade
+
+The public one-call compiler orchestration API (`DmnCompiler`) that loads model source graphs, drives parsing, semantic analysis, and lowers models into executable Runtime IR (`DmnCompiledModel`).
+
+---
+
 #### Compiler Pass
 
 An isolated transformation or analysis step within the compiler.
@@ -484,6 +490,12 @@ Used for diagnostics.
 
 <a id="contents-section-17"></a>
 ### T
+
+#### TCK (Technology Compatibility Kit) Runner
+
+The conformance test execution harness (`dmn-tck-runner`) that verifies DMN specification compliance against standard OMG DMN TCK test cases.
+
+---
 
 #### Type Inference
 

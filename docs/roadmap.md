@@ -52,6 +52,10 @@
 - [x] Executable, namespace-free Runtime IR lowering for expressions, boxed logic, and linked models
 - [x] Typed constant canonicalization and stable built-in operation IDs
 - [x] Runtime IR interpreter with dependency scheduling, lexical frames, contexts, functions, and decision tables
+- [x] Immutable compiler facade (`DmnCompiler`) and phase-aware diagnostic aggregation
+- [x] Resolver-independent model loader boundary for imports (`DmnModelResolver`)
+- [x] High-performance Java source code generator (`dmn-generator-java`)
+- [x] DMN Technology Compatibility Kit (TCK) runner (`dmn-tck-runner`)
 
 <a id="contents-section-2"></a>
 ## XML frontend completion gate
@@ -63,21 +67,15 @@
 - [x] Publish the supported-subset contract and explicit model-extension boundary
 
 <a id="contents-section-3"></a>
-## Next: compiler glue and Runtime IR
+## Next: performance validation and optimizations
 
-- [ ] Add a compiler facade that aggregates phase diagnostics
-- [ ] Add a model resolver/loading boundary for imports
-- [x] Stabilize the semantic result contract consumed by Runtime IR
+- [ ] JMH performance benchmark suite for interpreter and generated Java
+- [ ] Constant folding and expression simplification pass (`dmn-optimizer`)
+- [ ] External JAVA/PMML function host bindings and conformance expansion
 
 <a id="contents-section-4"></a>
 ## Later stages
 
-- [x] Structural Runtime IR module and deterministic graph/type lowering
-- [x] FEEL expression and decision-table lowering
-- [x] Model-set Runtime IR lowering
-- [ ] Constant folding and expression simplification
-- [ ] Java code generation
-- [x] Runtime activation (process-local interpreter baseline)
-- [ ] External JAVA/PMML function host bindings and conformance expansion
-- [ ] Public compiler API and CLI
-- [ ] JMH performance benchmarks
+- [ ] Multi-language code generation (Rust, Go, C++)
+- [ ] Generic gRPC adapter generation from compiled models
+- [ ] Public CLI binary and standalone compiler tooling
