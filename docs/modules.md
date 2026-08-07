@@ -13,7 +13,8 @@
 - [dmn-generator-java](#contents-section-8)
 - [dmn-tck-runner](#contents-section-9)
 - [dmn-benchmarks](#contents-section-10)
-- [Planned modules](#contents-section-11)
+- [dmn-optimizer](#contents-section-11)
+- [Planned modules](#contents-section-12)
 <!-- generated-toc:end -->
 
 
@@ -198,10 +199,17 @@ Assessments: [implementation](audits/assessment-implementation-dmn-benchmarks.md
 [architecture](audits/assessment-architecture-dmn-benchmarks.md)
 
 <a id="contents-section-11"></a>
+## `dmn-optimizer`
+
+Provides constant folding (`ConstantFoldingPass`), algebraic identity simplification (`AlgebraicSimplificationPass`), and decision table rule pruning (`DecisionTableOptimizationPass`) for Runtime IR models. Operates on `RuntimeModel` IR before process-local evaluation in `DmnRuntime` or AOT code generation in `dmn-generator-java`.
+
+Assessments: [implementation](audits/assessment-implementation-dmn-optimizer.md) ·
+[architecture](audits/assessment-architecture-dmn-optimizer.md)
+
+<a id="contents-section-12"></a>
 ## Planned modules
 
 ```text
-dmn-optimizer
 dmn-grpc
 dmn-generator-spark
 dmn-generator-rust

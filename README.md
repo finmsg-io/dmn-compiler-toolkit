@@ -83,6 +83,7 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-generator-java` | High-performance Java source code generator directly from Runtime IR |
 | `dmn-tck-runner` | OMG DMN TCK test-case runner & dual-engine spec conformance adapter |
 | `dmn-benchmarks` | JMH microbenchmarks & DataFaker reference model workloads |
+| `dmn-optimizer` | Constant folding, algebraic simplification, and rule pruning passes |
 
 Planned modules include further optimization and native code generation backends.
 

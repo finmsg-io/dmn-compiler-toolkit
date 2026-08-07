@@ -75,7 +75,7 @@
 - [ ] Generic gRPC service adapter generator in Java (`dmn-grpc`) backed by compiled Java decisions
 - [ ] Spark SQL Catalyst expression & DataFrame UDF generator (`dmn-generator-spark`)
 - [ ] Production Data Quality DMN decision check corpus (field hygiene, cross-field validation, scoring)
-- [ ] Constant folding and expression simplification pass (`dmn-optimizer`)
+- [x] Constant folding and expression simplification pass (`dmn-optimizer`)
 
 <a id="contents-section-4"></a>
 ## Later stages

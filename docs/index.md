@@ -19,7 +19,7 @@ Start with the [architecture overview](architecture.md), explore our [toolkit as
 <a id="contents-section-1"></a>
 ## Current implementation
 
-The repository currently contains ten active Maven modules:
+The repository currently contains eleven active Maven modules:
 
 - `dmn-protobuf` — canonical semantic model, replaceable FEEL text/parsed nodes, and FEEL AST
 - `dmn-frontend-xml` — namespace-aware VTD-XML reader and writer for the current protobuf-supported DMN subset
@@ -31,6 +31,7 @@ The repository currently contains ten active Maven modules:
 - `dmn-generator-java` — high-performance Java source code generator from Runtime IR
 - `dmn-tck-runner` — DMN Technology Compatibility Kit (TCK) test suite runner and conformance adapter
 - `dmn-benchmarks` — JMH microbenchmarks and DataFaker reference model workloads
+- `dmn-optimizer` — static constant folding, algebraic simplification, and rule pruning passes
 
 The implemented pipeline is:
 

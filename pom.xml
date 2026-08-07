@@ -26,6 +26,7 @@
         <module>dmn-generator-java</module>
         <module>dmn-tck-runner</module>
         <module>dmn-benchmarks</module>
+        <module>dmn-optimizer</module>
     </modules>
 
     <properties>

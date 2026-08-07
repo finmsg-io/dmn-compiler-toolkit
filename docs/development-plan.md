@@ -35,10 +35,10 @@ promise. Update it whenever implementation evidence or priorities materially cha
 | Field | Value |
 | --- | --- |
 | Last reviewed | 2026-08-07 |
-| Current phase | P6 — 100% OMG DMN 1.5 TCK Compliance (CL2 & CL3) `done` |
-| Overall state | compiler facade, model resolver, runtime baseline, Java generator, and 100% OMG DMN 1.5 TCK conformance established |
-| Primary objective | performance validation (P7), Data Quality DMN corpus (P8), and generic gRPC adapters (P9) |
-| Next major objective | Spark SQL generation (P10) and multi-language backends (Rust, Go) |
+| Current phase | P8 — Constant folding & expression simplification pass (`dmn-optimizer`) `done` |
+| Overall state | compiler facade, model resolver, runtime baseline, Java generator, 100% OMG DMN 1.5 TCK conformance, JMH benchmarks, and dmn-optimizer established |
+| Primary objective | Data Quality DMN corpus (P9), generic gRPC adapters (P10), and Spark SQL generation (P11) |
+| Next major objective | Data Quality DMN corpus (P9), generic gRPC adapters (P10), and Spark SQL generation (P11) |
 
 <a id="contents-section-2"></a>
 ## Status vocabulary
