@@ -48,8 +48,8 @@ public final class ReferenceModelRegistry {
     try (InputStream is = resource.openStream()) {
       bytes = is.readAllBytes();
     }
-    String modelName = Path.of(resource.toURI()).getFileName().toString().replace(".dmn", "");
-    return compile(modelName, new DmnSource(new DmnSourceId(resource.toURI()), bytes));
+    String modelName = resourcePath.substring(resourcePath.lastIndexOf('/') + 1).replace(".dmn", "");
+    return compile(modelName, new DmnSource(new DmnSourceId(java.net.URI.create("urn:resource:" + modelName)), bytes));
   }
 
   public static CompiledModelHolder compile(String modelName, DmnSource source) throws Exception {
