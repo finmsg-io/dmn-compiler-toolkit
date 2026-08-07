@@ -4,8 +4,6 @@
 ## Table of contents
 
 - [Why another DMN implementation?](#contents-section-1)
-  - [Goals](#contents-section-2)
-  - [Non-goals](#contents-section-3)
 <!-- generated-toc:end -->
 
 

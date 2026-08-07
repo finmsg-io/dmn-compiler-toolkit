@@ -4,28 +4,6 @@
 ## Table of contents
 
 - [Terms and definitions](#contents-section-1)
-  - [Purpose](#contents-section-2)
-  - [A](#contents-section-3)
-  - [B](#contents-section-4)
-  - [C](#contents-section-5)
-  - [D](#contents-section-6)
-  - [E](#contents-section-7)
-  - [F](#contents-section-8)
-  - [I](#contents-section-9)
-  - [J](#contents-section-10)
-  - [L](#contents-section-11)
-  - [M](#contents-section-12)
-  - [O](#contents-section-13)
-  - [P](#contents-section-14)
-  - [R](#contents-section-15)
-  - [S](#contents-section-16)
-  - [T](#contents-section-17)
-  - [V](#contents-section-18)
-  - [X](#contents-section-19)
-  - [Acronyms](#contents-section-20)
-  - [Compiler pipeline terminology](#contents-section-21)
-  - [Naming conventions](#contents-section-22)
-  - [Summary](#contents-section-23)
 <!-- generated-toc:end -->
 
 Accepted design decisions are indexed in the

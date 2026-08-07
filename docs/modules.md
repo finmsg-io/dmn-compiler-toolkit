@@ -14,7 +14,8 @@
 - [dmn-tck-runner](#contents-section-9)
 - [dmn-benchmarks](#contents-section-10)
 - [dmn-optimizer](#contents-section-11)
-- [Planned modules](#contents-section-12)
+- [dmn-grpc](#contents-section-12)
+- [Planned modules](#contents-section-13)
 <!-- generated-toc:end -->
 
 

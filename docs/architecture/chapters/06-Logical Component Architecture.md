@@ -5,14 +5,7 @@
 
 - [4.1 Purpose](#contents-section-1)
 - [Responsibility](#contents-section-2)
-  - [Responsibilities](#contents-section-3)
-  - [Does NOT](#contents-section-4)
-  - [Input](#contents-section-5)
-  - [Output](#contents-section-6)
-  - [Responsibilities](#contents-section-7)
 - [Responsibility](#contents-section-8)
-  - [Input](#contents-section-9)
-  - [Output](#contents-section-10)
 <!-- generated-toc:end -->
 
 

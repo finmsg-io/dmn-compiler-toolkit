@@ -6,9 +6,6 @@
 - [Conclusion](#contents-section-1)
 - [Coverage matrix](#contents-section-2)
 - [Remaining implementation gaps](#contents-section-3)
-  - [Completed — QName type-reference namespace preservation](#contents-section-4)
-  - [Completed — Consistent unsupported-content diagnostics](#contents-section-5)
-  - [Completed — Conformance and hardening matrix](#contents-section-6)
 - [Model-extension boundary](#contents-section-7)
 - [Completion gate](#contents-section-8)
 <!-- generated-toc:end -->

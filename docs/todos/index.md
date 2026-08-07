@@ -3,7 +3,7 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [Module TODOs](#contents-section-1)
+
 <!-- generated-toc:end -->
 
 Last reviewed: 2026-08-07

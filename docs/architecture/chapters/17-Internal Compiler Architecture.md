@@ -5,10 +5,6 @@
 
 - [19.1 Purpose](#contents-section-1)
 - [Why a Compiler Context?](#contents-section-2)
-  - [Validation](#contents-section-3)
-  - [Analysis](#contents-section-4)
-  - [Optimization](#contents-section-5)
-  - [Transformation](#contents-section-6)
 <!-- generated-toc:end -->
 
 !!! note "Status boundary"

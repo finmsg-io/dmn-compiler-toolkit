@@ -5,7 +5,7 @@
 
 - [Completed foundation](#contents-section-1)
 - [XML frontend completion gate](#contents-section-2)
-- [Next: compiler glue and Runtime IR](#contents-section-3)
+- [Next: MVP completion, gRPC, Spark SQL, and load validation](#contents-section-3)
 - [Later stages](#contents-section-4)
 <!-- generated-toc:end -->
 

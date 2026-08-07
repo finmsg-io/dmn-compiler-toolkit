@@ -6,7 +6,7 @@
 - [15.1 Current test layers](#contents-section-1)
 - [15.2 Traffic Violation pipeline](#contents-section-2)
 - [15.3 Diagnostic tests](#contents-section-3)
-- [15.4 Next test priorities](#contents-section-4)
+- [15.4 Official OMG DMN 1.5 TCK Conformance Suite](#contents-section-4)
 <!-- generated-toc:end -->
 
 

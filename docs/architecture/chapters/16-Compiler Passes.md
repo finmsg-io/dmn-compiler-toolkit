@@ -4,8 +4,6 @@
 ## Table of contents
 
 - [10.1 Implemented passes](#contents-section-1)
-  - [FEEL parsing pass](#contents-section-2)
-  - [Semantic-analysis pipeline](#contents-section-3)
 - [10.2 Pass principles](#contents-section-4)
 - [10.3 Current order](#contents-section-5)
 - [10.4 Implemented semantic pass order](#contents-section-6)

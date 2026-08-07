@@ -4,7 +4,7 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [Chapter 18 — Roadmap \[IMPLEMENTATION-ALIGNED\]](#contents-section-1)
+
 <!-- generated-toc:end -->
 
 This chapter intentionally does not duplicate the project's changing delivery

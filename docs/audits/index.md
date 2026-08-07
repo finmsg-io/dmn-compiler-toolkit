@@ -4,7 +4,7 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [Audits](#contents-section-1)
+
 <!-- generated-toc:end -->
 
 Audits are dated snapshots of implementation evidence, risks, and recommendations.

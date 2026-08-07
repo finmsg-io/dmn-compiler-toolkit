@@ -10,7 +10,6 @@ The project compiles DMN models into an internal semantic representation that ca
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [Status](#contents-section-1)
 - [Architecture](#contents-section-2)
 - [Modules](#contents-section-3)
 - [Requirements](#contents-section-4)

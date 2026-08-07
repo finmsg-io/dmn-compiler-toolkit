@@ -5,9 +5,6 @@
 
 - [12.1 Module](#contents-section-1)
 - [12.2 Components](#contents-section-2)
-  - [FeelParserFacade](#contents-section-3)
-  - [FeelAstBuilder](#contents-section-4)
-  - [DmnFeelParser](#contents-section-5)
 - [12.3 APIs](#contents-section-6)
 - [12.4 Diagnostic behavior](#contents-section-7)
 - [12.5 Parsed paths](#contents-section-8)

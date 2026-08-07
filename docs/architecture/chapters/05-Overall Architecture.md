@@ -7,7 +7,7 @@
 - [3.2 Implemented transformations](#contents-section-2)
 - [3.3 Representation strategy](#contents-section-3)
 - [3.4 Dependency direction](#contents-section-4)
-- [3.5 Current semantic analysis](#contents-section-5)
+- [3.5 Implemented semantic analysis & runtime execution](#contents-section-5)
 - [3.6 Runtime boundary](#contents-section-6)
 <!-- generated-toc:end -->
 

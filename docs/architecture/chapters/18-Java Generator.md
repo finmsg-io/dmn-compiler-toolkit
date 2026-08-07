@@ -4,11 +4,20 @@
 ## Table of contents
 
 - [13.1 Purpose](#contents-section-1)
+- [Mode 2 --- Direct Bytecode Generation](#mode-2-----direct-bytecode-generation)
 - [Strategy A --- Generic Context](#contents-section-2)
 - [Strategy B --- Generated Types](#contents-section-3)
 - [Avoid Boxing](#contents-section-4)
 - [Avoid Reflection](#contents-section-5)
 - [Avoid Generic Dispatch](#contents-section-6)
+- [Golden Source Tests](#golden-source-tests)
+- [Compilation Tests](#compilation-tests)
+- [Behavioral Tests](#behavioral-tests)
+- [Performance Tests](#performance-tests)
+- [Method Inlining](#method-inlining)
+- [Escape Analysis](#escape-analysis)
+- [Branch Prediction](#branch-prediction)
+- [Vectorization](#vectorization)
 <!-- generated-toc:end -->
 
 

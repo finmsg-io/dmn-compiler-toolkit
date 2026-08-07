@@ -5,11 +5,6 @@
 
 - [Implemented architecture](#contents-section-1)
 - [Stage boundaries](#contents-section-2)
-  - [XML frontend](#contents-section-3)
-  - [Semantic model](#contents-section-4)
-  - [FEEL parser](#contents-section-5)
-  - [Semantic analysis](#contents-section-6)
-  - [Future stages](#contents-section-7)
 - [Core rules](#contents-section-8)
 <!-- generated-toc:end -->
 
