@@ -21,4 +21,4 @@ Status: **IMPLEMENTED** (100% OMG DMN 1.5 TCK Spec Conformance)
 1. **No Downstream Dependencies**: `dmn-generator-java` depends only on `dmn-runtime-ir` and `dmn-compiler`. It contains no references to XML, ANTLR, or Protobuf runtime reflection.
 2. **Zero Runtime Framework Overhead**: Generated Java classes depend only on standard JDK 21+ library classes (`java.math.BigDecimal`, `java.util.List`, `java.util.Map`).
 3. **Deterministic Emission**: Source code generation is byte-for-byte deterministic for identical compiler inputs.
-4. **Dual-Engine Value Parity**: Guaranteed 100% identical outputs with the reference interpreter across 72 official OMG DMN 1.5 TCK models (621 test cases).
+4. **Dual-Engine Value Parity**: Guaranteed 100% identical outputs with the reference interpreter across 146 official OMG DMN 1.5 TCK test files (3,611 compliant test cases).

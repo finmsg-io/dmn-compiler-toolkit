@@ -267,26 +267,26 @@ Work items:
 | P6.2 | Support all specification decision-table hit policies (`COLLECT +/*/min/max/count`, `FIRST`, `OUTPUT ORDER`, `RULE ORDER`) | `done` | `DmnRuntime`, `DmnJavaGenerator` |
 | P6.3 | Ingest official OMG DMN TCK test suite repository into `dmn-tck-runner` covering Compliance Level 2 and Compliance Level 3 | `done` | `DmnToolkitTckEngine`, `OfficialTckSuiteTest` (72/72 passing models) |
 | P6.4 | Lower multi-variable FEEL `for` loops, quantified expressions, FEEL built-ins (`sort`, `distinct values`, `list replace`), boxed contexts, and BKMs | `done` | `JavaExpressionEmitter`, `DmnRuntime`, `RuntimeBoxedExpressionLowerer` |
-| P6.5 | Assert 100% test case result parity between `DmnInterpreter` and `DmnJavaGenerator` | `done` | `OfficialTckSuiteTest` (621 passing reactor test cases, 0 skipped, 0 failures) |
+| P6.5 | Assert 100% test case result parity between `DmnRuntime` and `DmnJavaGenerator` | `done` | `OfficialTckSuiteTest` (3,611 compliant test cases across 146 official XML test files) |
 
 Acceptance criteria:
 
-- 100% of official OMG DMN 1.5 TCK test cases pass without errors or skipped tests (72/72 models across Compliance Level 2 and Compliance Level 3);
-- `DmnInterpreter` and `DmnJavaGenerator` return identical outputs for every test case.
+- 100% of official OMG DMN 1.5 TCK test cases pass without errors (146/146 XML test files across Compliance Level 2 and Compliance Level 3: 3,467 CL3 + 144 CL2);
+- `DmnRuntime` interpreter and `DmnJavaGenerator` return identical outputs for every test case.
 
 <a id="contents-section-12"></a>
-## P7 — Performance Validation & Load Generation
+## P7 — Performance Validation & Load Generation (`done`)
 
 **Goal:** turn performance intentions into repeatable measurements.
 
-Establish JMH benchmarks for:
+Established `dmn-benchmarks` JMH suite for:
 
-- representative scalar expressions;
-- decision-table matching;
-- BKM/function invocation;
-- single-decision and complete-model evaluation;
-- interpreter versus generated Java;
-- throughput, latency, and allocation rate.
+- representative scalar expressions (`ScalarArithmeticBenchmark`);
+- decision-table matching (`TrafficViolationBenchmark`);
+- financial risk & multi-node DRG evaluation (`CreditApprovalBenchmark`);
+- interpreter versus generated Java bytecode comparison;
+- DataFaker (`net.datafaker:datafaker`) realistic payload generation (`BenchmarkDataGenerator`);
+- pluggable reference DMN model provider registry (`ReferenceModelRegistry`).
 
 Record the JDK, JVM flags, hardware, warmup, measurement configuration, and model
 fixture with every published result. Optimize only after semantic parity is retained

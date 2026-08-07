@@ -25,6 +25,7 @@
         <module>dmn-compiler</module>
         <module>dmn-generator-java</module>
         <module>dmn-tck-runner</module>
+        <module>dmn-benchmarks</module>
     </modules>
 
     <properties>
@@ -36,8 +37,9 @@
         <vtdxml.version>2.13.4</vtdxml.version>
         <junit.version>5.13.4</junit.version>
         <slf4j.version>2.0.17</slf4j.version>
-        <junit.version>5.13.4</junit.version>
         <assertj.version>3.27.6</assertj.version>
+        <jmh.version>1.37</jmh.version>
+        <datafaker.version>1.9.0</datafaker.version>
         <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
         <protobuf.maven.plugin.version>0.6.1</protobuf.maven.plugin.version>
     </properties>
@@ -56,6 +58,24 @@
                 <version>${vtdxml.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>org.openjdk.jmh</groupId>
+                <artifactId>jmh-core</artifactId>
+                <version>${jmh.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.openjdk.jmh</groupId>
+                <artifactId>jmh-generator-annprocess</artifactId>
+                <version>${jmh.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>net.datafaker</groupId>
+                <artifactId>datafaker</artifactId>
+                <version>${datafaker.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>org.slf4j</groupId>

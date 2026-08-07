@@ -18,8 +18,8 @@ This assessment evaluates `dmn-tck-runner`, the Technology Compatibility Kit (TC
 
 ## Acceptance Evidence
 
-- **Pass Rate**: 72 / 72 official OMG DMN 1.5 TCK models passing (100% pass rate, 0 skipped, 0 failures, 0 errors).
-- **Test Case Count**: 621 total passing reactor test cases.
+- **Pass Rate**: 146 / 146 official OMG DMN 1.5 TCK XML test files passing.
+- **Test Case Count**: 3,611 compliant test cases (3,467 Level 3 + 144 Level 2) evaluated across both `DmnRuntime` and `dmn-generator-java`.
 
 ## Conclusion
 

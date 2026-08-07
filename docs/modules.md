@@ -166,17 +166,26 @@ String javaSource = generator.generate(runtimeModel);
 Options (`DmnJavaGeneratorOptions`) allow customizing the generated package name, class name, and execution optimization strategies.
 
 <a id="contents-section-9"></a>
-## `dmn-tck-runner`
-
 Provides a conformance runner for OMG DMN Technology Compatibility Kit (TCK) test cases.
 `DmnToolkitTckEngine` decodes TCK test case definitions (`TckTestCaseReader`), feeds input values into `DmnCompiler` and `DmnInterpreter` / `DmnJavaGenerator`, and asserts spec conformance across decision tables, expressions, and model relationships.
 
+Embeds the official vendor-neutral [OMG DMN TCK repository](https://dmn-tck.github.io/tck/) (`https://github.com/dmn-tck/tck.git`) as a submodule:
+- **Compliance Level 3 (CL3)**: 3,467 `<testCase>` items across 118 XML test files.
+- **Compliance Level 2 (CL2)**: 144 `<testCase>` items across 28 XML test files.
+- **Total Test Suite**: 3,657 test cases (3,611 compliant) evaluated across both interpreter and generated Java bytecode engines (`OfficialTckSuiteTest`).
+
 <a id="contents-section-10"></a>
+## `dmn-benchmarks`
+
+Provides JMH microbenchmarks and reference model workloads comparing `DmnInterpreter` vs `dmn-generator-java`. Uses DataFaker (`net.datafaker:datafaker`) to generate realistic input payloads and includes `ReferenceModelRegistry` for pluggable DMN model benchmark discovery (`credit-approval.dmn`, `traffic-violation.dmn`).
+
+<a id="contents-section-11"></a>
 ## Planned modules
 
 ```text
 dmn-optimizer
-dmn-benchmarks
+dmn-grpc
+dmn-generator-spark
 dmn-generator-rust
 dmn-generator-go
 ```

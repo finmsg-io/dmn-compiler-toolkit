@@ -1,4 +1,4 @@
-﻿# DMN Compiler Toolkit
+# DMN Compiler Toolkit
 
 High-performance compiler infrastructure for Decision Model and Notation (DMN).
 
@@ -80,9 +80,11 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-runtime-ir` | Immutable Runtime IR with structural, constant, and value-reference lowering |
 | `dmn-runtime` | Deterministic interpreter for executable Runtime IR |
 | `dmn-compiler` | Compiler orchestration and resolver-independent model-source contracts |
-| `dmn-tck-runner` | TCK test-case decoding and compiler-to-interpreter conformance adapter |
+| `dmn-generator-java` | High-performance Java source code generator directly from Runtime IR |
+| `dmn-tck-runner` | OMG DMN TCK test-case runner & dual-engine spec conformance adapter |
+| `dmn-benchmarks` | JMH microbenchmarks & DataFaker reference model workloads |
 
-Planned modules include further optimization and Java code generation.
+Planned modules include further optimization and native code generation backends.
 
 <a id="contents-section-4"></a>
 ## Requirements
