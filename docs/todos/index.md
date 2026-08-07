@@ -22,5 +22,7 @@ This directory contains the current work list per active Maven module. These doc
 | `dmn-generator-java` | [Java code generator](../modules.md#contents-section-8) — Zero-Reflection AOT Java (`done`) |
 | `dmn-tck-runner` | [TCK runner](../modules.md#contents-section-9) — 100% OMG DMN 1.5 TCK Certified (`done`) |
 | `dmn-benchmarks` | [JMH benchmarks](../modules.md#contents-section-10) — DataFaker Workloads (`done`) |
+| `dmn-optimizer` | [Optimizer pass](dmn-optimizer.md) — Constant Folding & Rule Pruning (`done`) |
+| `dmn-grpc` | [gRPC adapter](dmn-grpc.md) — Transport-Neutral Pure gRPC Java (`done`) |
 
 An item is marked `done` when completed and verified with test evidence; Git history records completed work.
