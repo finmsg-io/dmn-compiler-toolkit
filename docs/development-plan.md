@@ -125,8 +125,8 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P8 | Static Optimizer Pass | `done` | P5, P7 | Constant folding, algebraic simplification, and rule pruning passes (`dmn-optimizer`) |
 | P9 | Production Data Quality DMN Corpus | `done` | P2, P5 | Real-world Data Quality DMN model corpus (`dq-field-validation`, `dq-cross-field-consistency`, `dq-scoring`) |
 | P10 | Generic gRPC generation in Java | `done` | P4, P5 | Transport-neutral `evaluation.proto` and ultra-lean pure `grpc-java` service adapters (`dmn-grpc`) |
-| P11 | Pure Spark / Databricks SQL Generator | `ready` | P5, P8 | Lowering FEEL and decision tables to pure native Spark / Databricks SQL expressions (zero UDFs, delegating tuning to engine) |
-| P12 | Typed Protobuf and gRPC generation | `proposed` | P10, P11 | Eligible DMN types produce deterministic typed service contracts |
+| P11 | Pure Spark / Databricks SQL Generator | `done` | P5, P8 | Lowering FEEL and decision tables to pure native Spark / Databricks SQL CTE queries (`dmn-generator-sparksql`) |
+| P12 | Typed Protobuf and gRPC generation | `done` | P10, P11 | Strongly-typed Protobuf schemas and gRPC contracts from DMN `ItemDefinition` structures (`TypedProtoSchemaGenerator`) |
 | P13 | Additional Language Generators (Rust, Go, C++) | `proposed` | P5, P10 | Native zero-allocation binaries in Rust, Go handlers, and C++ decision engines |
 
 <a id="contents-section-6"></a>
@@ -342,16 +342,16 @@ Acceptance criteria:
 <a id="contents-section-15"></a>
 ## P11 — Pure Spark / Databricks SQL Code Generation (Zero UDF)
 
-**Goal:** generate pure, native Spark / Databricks SQL expressions (`org.apache.spark.sql.Column`, `CASE WHEN`, built-in SQL functions) (`dmn-generator-spark`) from DMN decision models without UDF overhead, delegating all query optimization, Whole-Stage Codegen, and execution tuning entirely to Spark's and Databricks' built-in engines (Catalyst, Tungsten, Photon).
+**Goal:** generate pure, native Spark / Databricks SQL expressions (`CASE WHEN`, built-in SQL functions, CTE query files `<decision-name>.sql`) (`dmn-generator-sparksql`) from DMN decision models without UDF overhead, delegating all query optimization, Whole-Stage Codegen, and execution tuning entirely to Spark's and Databricks' built-in engines (Catalyst, Tungsten, Photon).
 
 Work items:
 
 | ID | Work item | State | Evidence / Target |
 | --- | --- | --- | --- |
-| P11.1 | Lower FEEL expressions and decision tables into pure Spark / Databricks SQL `CASE WHEN` and `Column` expressions | `ready` | `SparkExpressionEmitter` |
-| P11.2 | Generate Spark SQL `StructType` schemas from DMN `ItemDefinition` structures | `ready` | `SparkSchemaGenerator` |
-| P11.3 | Generate pure Spark / Databricks SQL `SELECT` / `expr()` queries delegating execution tuning to Spark/Databricks | `ready` | `DmnSparkSqlGenerator` |
-| P11.4 | Validate Spark / Databricks execution parity against `DmnInterpreter` | `ready` | `SparkDmnIntegrationTest` |
+| P11.1 | Lower FEEL expressions and decision tables into pure Spark / Databricks SQL `CASE WHEN` and `Column` expressions | `done` | `SparkSqlExpressionEmitter` |
+| P11.2 | Generate Spark SQL `StructType` schemas from DMN `ItemDefinition` structures | `done` | `SparkSqlSchemaGenerator` |
+| P11.3 | Generate pure Spark / Databricks SQL CTE queries (`<decision-name>.sql`) and `DmnSparkSqlRunner` Java wrapper | `done` | `DmnSparkSqlGenerator` |
+| P11.4 | Validate Spark / Databricks execution on Spark session | `done` | `SparkSqlDmnIntegrationTest` |
 
 Acceptance criteria:
 

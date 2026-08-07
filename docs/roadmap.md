@@ -73,13 +73,13 @@
 - [x] 100% OMG DMN 1.5 TCK compliance (Compliance Level 2 & Compliance Level 3) for `DmnInterpreter` and `dmn-generator-java`
 - [x] JMH performance benchmark suite (`dmn-benchmarks`) with DataFaker payloads & reference model registry
 - [x] Generic gRPC service adapter generator in Java (`dmn-grpc`) backed by compiled Java decisions
-- [ ] Pure Spark / Databricks SQL expression generator (`dmn-generator-spark`, zero UDFs, delegating query tuning to engine)
+- [x] Pure Spark / Databricks SQL expression generator (`dmn-generator-sparksql`, zero UDFs, CTE queries, delegating query tuning to engine)
 - [x] Production Data Quality DMN decision check corpus (field hygiene, cross-field validation, scoring)
 - [x] Constant folding and expression simplification pass (`dmn-optimizer`)
 
 <a id="contents-section-4"></a>
 ## Later stages
 
-- [ ] Strongly typed Protobuf and gRPC contract generation from DMN `ItemDefinition` schemas
+- [x] Strongly typed Protobuf and gRPC contract generation from DMN `ItemDefinition` schemas (`DmnTypedGrpcGenerator`)
 - [ ] Native multi-language code generation (Rust zero-allocation binaries, Go handlers, C++ engines)
 - [ ] Standalone compiler CLI binary and Language Server Protocol (LSP) integration

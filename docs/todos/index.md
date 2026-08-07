@@ -24,5 +24,6 @@ This directory contains the current work list per active Maven module. These doc
 | `dmn-benchmarks` | [JMH benchmarks](../modules.md#contents-section-10) — DataFaker Workloads (`done`) |
 | `dmn-optimizer` | [Optimizer pass](dmn-optimizer.md) — Constant Folding & Rule Pruning (`done`) |
 | `dmn-grpc` | [gRPC adapter](dmn-grpc.md) — Transport-Neutral Pure gRPC Java (`done`) |
+| `dmn-generator-sparksql` | [Spark SQL generator](dmn-generator-sparksql.md) — Pure Spark / Databricks SQL CTE Generator (`done`) |
 
 An item is marked `done` when completed and verified with test evidence; Git history records completed work.

@@ -28,6 +28,7 @@
         <module>dmn-benchmarks</module>
         <module>dmn-optimizer</module>
         <module>dmn-grpc</module>
+        <module>dmn-generator-sparksql</module>
     </modules>
 
     <properties>
@@ -36,6 +37,7 @@
         <antlr4.version>4.13.2</antlr4.version>
         <protobuf.version>4.31.1</protobuf.version>
         <grpc.version>1.76.0</grpc.version>
+        <spark.version>3.5.5</spark.version>
         <vtdxml.version>2.13.4</vtdxml.version>
         <junit.version>5.13.4</junit.version>
         <slf4j.version>2.0.17</slf4j.version>
@@ -48,6 +50,12 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-sql_2.13</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java</artifactId>
