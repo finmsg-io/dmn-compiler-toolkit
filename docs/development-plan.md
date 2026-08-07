@@ -15,15 +15,16 @@
 - [P5 — Java code generation](#contents-section-10)
 - [P6 — 100% OMG DMN 1.5 TCK Compliance (CL2 & CL3)](#contents-section-11)
 - [P7 — Performance Validation & Load Generation (done)](#contents-section-12)
-- [P8 — Production Data Quality DMN Corpus](#contents-section-13)
-- [P9 — Generic gRPC generation in Java](#contents-section-14)
-- [P11 — Pure Spark / Databricks SQL Code Generation (Zero UDF)](#contents-section-15)
-- [P11 — Typed Protobuf and gRPC generation](#contents-section-16)
-- [P12 — Additional Language Generators (Rust, Golang, C++)](#contents-section-17)
-- [Cross-cutting rules](#contents-section-14)
-- [Decisions required](#contents-section-15)
-- [Change log](#contents-section-16)
-- [How to maintain this document](#contents-section-17)
+- [P8 — Static Optimizer Pass](#contents-section-13)
+- [P9 — Production Data Quality DMN Corpus](#contents-section-14)
+- [P10 — Generic gRPC generation in Java](#contents-section-15)
+- [P11 — Pure Spark / Databricks SQL Code Generation (Zero UDF)](#contents-section-16)
+- [P12 — Typed Protobuf and gRPC generation](#contents-section-17)
+- [P13 — Additional Language Generators (Rust, Golang, C++)](#contents-section-18)
+- [Cross-cutting rules](#contents-section-19)
+- [Decisions required](#contents-section-20)
+- [Change log](#contents-section-21)
+- [How to maintain this document](#contents-section-22)
 <!-- generated-toc:end -->
 
 This is the living delivery plan for the DMN Compiler Toolkit. It translates the
@@ -300,7 +301,12 @@ fixture with every published result. Optimize only after semantic parity is reta
 and a benchmark demonstrates a meaningful improvement.
 
 <a id="contents-section-13"></a>
-## P8 — Production Data Quality DMN Corpus
+## P8 — Static Optimizer Pass (`done`)
+
+**Goal:** constant folding, algebraic simplification, and rule pruning passes (`dmn-optimizer`).
+
+<a id="contents-section-14"></a>
+## P9 — Production Data Quality DMN Corpus
 
 **Goal:** build a production-grade DMN decision model corpus specifically designed for automated Data Quality checks and validation reporting.
 
@@ -308,18 +314,18 @@ Work items:
 
 | ID | Work item | State | Evidence / Target |
 | --- | --- | --- | --- |
-| P8.1 | Field hygiene & format validation DMN (`dq-field-validation.dmn`: regex, IBAN, SSN, ISO dates, null checks) | `ready` | `dq-field-validation.dmn` |
-| P8.2 | Cross-field consistency DMN (`dq-cross-field-consistency.dmn`: date sequence, invoice sum matching) | `ready` | `dq-cross-field-consistency.dmn` |
-| P8.3 | Data Quality scoring & anomaly detection DMN (`dq-scoring.dmn`: DQI index, violation reports) | `ready` | `dq-scoring.dmn` |
-| P8.4 | Multi-file Data Quality repository integration test asserting structured violation reports | `ready` | `DataQualityCorpusTest` |
+| P9.1 | Field hygiene & format validation DMN (`dq-field-validation.dmn`: regex, IBAN, SSN, ISO dates, null checks) | `ready` | `dq-field-validation.dmn` |
+| P9.2 | Cross-field consistency DMN (`dq-cross-field-consistency.dmn`: date sequence, invoice sum matching) | `ready` | `dq-cross-field-consistency.dmn` |
+| P9.3 | Data Quality scoring & anomaly detection DMN (`dq-scoring.dmn`: DQI index, violation reports) | `ready` | `dq-scoring.dmn` |
+| P9.4 | Multi-file Data Quality repository integration test asserting structured violation reports | `ready` | `DataQualityCorpusTest` |
 
 Acceptance criteria:
 
 - valid and invalid data inputs produce deterministic structured `QualityViolation` result records;
 - models execute identically on interpreter and generated Java.
 
-<a id="contents-section-14"></a>
-## P9 — Generic gRPC generation in Java
+<a id="contents-section-15"></a>
+## P10 — Generic gRPC generation in Java
 
 **Goal:** generate a transport-neutral dynamic evaluation contract (`evaluation.proto`) and a Java gRPC service adapter (`dmn-grpc`) backed by generated high-performance Java decisions.
 
@@ -339,7 +345,7 @@ Acceptance criteria:
 - generated service tests run in-process against the multi-file corpus;
 - business logic is delegated directly to generated zero-reflection Java decisions without XML/FEEL parsing.
 
-<a id="contents-section-15"></a>
+<a id="contents-section-16"></a>
 ## P11 — Pure Spark / Databricks SQL Code Generation (Zero UDF)
 
 **Goal:** generate pure, native Spark / Databricks SQL expressions (`CASE WHEN`, built-in SQL functions, CTE query files `<decision-name>.sql`) (`dmn-generator-sparksql`) from DMN decision models without UDF overhead, delegating all query optimization, Whole-Stage Codegen, and execution tuning entirely to Spark's and Databricks' built-in engines (Catalyst, Tungsten, Photon).
@@ -360,17 +366,17 @@ Acceptance criteria:
 - distributed execution scales across Spark/Databricks partitions without per-row object creation or UDF serialization boundaries;
 - output values match `DmnInterpreter` and generated Java decisions for the shared corpus.
 
-<a id="contents-section-16"></a>
-## P11 — Typed Protobuf and gRPC generation
-
-**Goal:** generate strongly typed Protobuf schemas and gRPC contracts from DMN `ItemDefinition` structures.
-
 <a id="contents-section-17"></a>
-## P12 — Additional Language Generators (Rust, Golang, C++)
+## P12 — Typed Protobuf and gRPC generation
+
+**Goal:** generate strongly typed Protobuf schemas and gRPC contracts from DMN `ItemDefinition` structures (`TypedProtoSchemaGenerator`, `DmnTypedGrpcGenerator`).
+
+<a id="contents-section-18"></a>
+## P13 — Additional Language Generators (Rust, Golang, C++)
 
 **Goal:** leverage the unified Generator SPI and Protobuf IR to build cross-language decision generators (Rust zero-allocation binaries, Golang decision handlers, C++ low-latency decision engines).
 
-<a id="contents-section-14"></a>
+<a id="contents-section-19"></a>
 ## Cross-cutting rules
 
 These constraints apply to every milestone:
@@ -388,7 +394,7 @@ These constraints apply to every milestone:
 6. **Compatibility is explicit.** Public API, Runtime IR serialization, and generated
    contract compatibility are distinct policies and must be documented separately.
 
-<a id="contents-section-15"></a>
+<a id="contents-section-20"></a>
 ## Decisions required
 
 | ID | Decision | Needed by | State | Resolution |
@@ -402,7 +408,7 @@ These constraints apply to every milestone:
 Material architectural decisions should graduate to an ADR. This table tracks only
 when a decision is needed and where its final resolution can be found.
 
-<a id="contents-section-16"></a>
+<a id="contents-section-21"></a>
 ## Change log
 
 Record meaningful plan changes, not routine status transitions already visible in
@@ -412,7 +418,7 @@ the milestone tables.
 | --- | --- | --- | --- |
 | 2026-08-02 | Created the living plan and prioritized multi-file compilation before code generation | Real DMN repositories provide the shared correctness target for interpreter, Java, and gRPC work | Current module assessments and test baseline |
 
-<a id="contents-section-17"></a>
+<a id="contents-section-22"></a>
 ## How to maintain this document
 
 When work starts:
