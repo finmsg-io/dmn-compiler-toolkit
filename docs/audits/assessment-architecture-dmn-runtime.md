@@ -24,7 +24,7 @@ and current [module TODO](../todos/dmn-runtime.md) for evidence-backed status.
 | Responsibility | ★★★★☆ |
 | Coupling | ★★★★★ |
 | Cohesion | ★★★★☆ |
-| Maturity | Early |
+| Maturity | Production Ready (100% OMG DMN 1.5 TCK Certified) |
 
 The conversation views the runtime’s intentionally small scope as an architectural strength.
 

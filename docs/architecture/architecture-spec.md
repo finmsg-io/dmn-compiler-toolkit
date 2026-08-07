@@ -2,7 +2,7 @@
 
 ## Architecture Specification
 
-**Version 1.2 — Implementation-Aligned Baseline**
+**Version 2.0 — 100% DMN 1.5 Specification & TCK Conformance Baseline**
 
 Related normative material:
 

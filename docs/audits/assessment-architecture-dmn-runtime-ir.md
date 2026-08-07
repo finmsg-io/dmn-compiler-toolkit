@@ -24,7 +24,7 @@ and current [module TODO](../todos/dmn-runtime-ir.md) for evidence-backed status
 | Responsibility | ★★★★★ |
 | Coupling | ★★★★★ |
 | Cohesion | ★★★★★ |
-| Maturity | Very good |
+| Maturity | Production Ready (100% OMG DMN 1.5 TCK Certified) |
 
 The conversation calls Runtime IR the project’s most innovative architectural element because it
 creates an optimization and backend boundary instead of executing directly from the semantic model.
