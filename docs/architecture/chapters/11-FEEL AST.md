@@ -1,4 +1,4 @@
-# Chapter 8 — FEEL AST [IMPLEMENTATION-ALIGNED]
+# Chapter 11 — FEEL AST [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents

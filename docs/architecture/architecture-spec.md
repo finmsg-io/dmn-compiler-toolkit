@@ -28,18 +28,18 @@ Status labels:
 
 | ID | Requirement | Primary detail |
 | --- | --- | --- |
-| AR-001 | Models accepted by semantic analysis must have explicitly defined observable behavior or be rejected before execution. | [Compiler passes](./chapters/10-Compiler%20Passes.md), [testing](./chapters/15-Testing%20Strategy.md) |
+| AR-001 | Models accepted by semantic analysis must have explicitly defined observable behavior or be rejected before execution. | [Compiler passes](./chapters/16-Compiler%20Passes.md), [testing](./chapters/20-Testing%20Strategy.md) |
 | AR-002 | Identical sources, options, and supported toolchain versions must produce deterministic ordering, diagnostics, Runtime IR, and generated artifacts. | [ADR-0011](adr/adr-0011-deterministic-compilation.md) |
-| AR-003 | Runtime execution and generated backends must not depend on DMN XML, ANTLR, or semantic protobuf traversal. | [ADR-0008](adr/adr-0008-runtime-without-xml-knowledge.md), [Runtime IR](./chapters/09-Runtime%20IR.md) |
+| AR-003 | Runtime execution and generated backends must not depend on DMN XML, ANTLR, or semantic protobuf traversal. | [ADR-0008](adr/adr-0008-runtime-without-xml-knowledge.md), [Runtime IR](./chapters/12-Runtime%20IR.md) |
 | AR-004 | Compiler stages must treat their inputs as immutable and return explicit result contracts. | [ADR-0005](adr/adr-0005-immutable-intermediate-representations.md) |
-| AR-005 | Diagnostics must carry stable phase, severity, code, source/model identity, path, and location where available. | [ADR-0012](adr/adr-0012-diagnostics-as-first-class-objects.md), [failure model](./chapters/25-Failure%20Model%20and%20Resilience.md) |
-| AR-006 | Root models and transitive imports must compile through resolver-independent, deterministic, confined source-loading policies. | [System context](./chapters/22-System%20Context%20and%20External%20Interfaces.md), [security](./chapters/24-Security%20and%20Trust%20Boundaries.md) |
-| AR-007 | The interpreter and generated backends must share Runtime IR semantics and pass the same observable-behavior corpus. | [Runtime IR](./chapters/09-Runtime%20IR.md), [testing](./chapters/15-Testing%20Strategy.md) |
-| AR-008 | XML, FEEL, model graphs, host values, and evaluation must have configurable deterministic resource limits. | [Security](./chapters/24-Security%20and%20Trust%20Boundaries.md), [failure model](./chapters/25-Failure%20Model%20and%20Resilience.md) |
-| AR-009 | Public callers must address models, inputs, and decisions by stable external identities rather than compiler-assigned slots. | [Public API](./chapters/17-Public%20API.md) |
-| AR-010 | Public APIs, semantic protobuf, Runtime IR persistence, generated Java, diagnostics, and generated Protobuf contracts must have separate explicit compatibility policies. | [Data lifecycle and compatibility](./chapters/26-Data%20Lifecycle%20Caching%20and%20Compatibility.md), [ADR-0025](adr/adr-0025-runtime-ir-persistence-and-compatibility-boundary.md) |
-| AR-011 | Performance claims and optimizations must be supported by reproducible benchmarks without weakening semantic parity. | [Performance](./chapters/16-Performance.md) |
-| AR-012 | Production module dependencies must remain acyclic and point toward lower-level contracts; compiler orchestration stays above the stages it coordinates. | [Maven modules](./chapters/05-Maven%20Modules.md), [ADR-0014](adr/adr-0014-maven-multi-module-architecture.md) |
+| AR-005 | Diagnostics must carry stable phase, severity, code, source/model identity, path, and location where available. | [ADR-0012](adr/adr-0012-diagnostics-as-first-class-objects.md), [failure model](./chapters/24-Failure%20Model%20and%20Resilience.md) |
+| AR-006 | Root models and transitive imports must compile through resolver-independent, deterministic, confined source-loading policies. | [System context](./chapters/04-System%20Context%20and%20External%20Interfaces.md), [security](./chapters/23-Security%20and%20Trust%20Boundaries.md) |
+| AR-007 | The interpreter and generated backends must share Runtime IR semantics and pass the same observable-behavior corpus. | [Runtime IR](./chapters/12-Runtime%20IR.md), [testing](./chapters/20-Testing%20Strategy.md) |
+| AR-008 | XML, FEEL, model graphs, host values, and evaluation must have configurable deterministic resource limits. | [Security](./chapters/23-Security%20and%20Trust%20Boundaries.md), [failure model](./chapters/24-Failure%20Model%20and%20Resilience.md) |
+| AR-009 | Public callers must address models, inputs, and decisions by stable external identities rather than compiler-assigned slots. | [Public API](./chapters/09-Public%20API.md) |
+| AR-010 | Public APIs, semantic protobuf, Runtime IR persistence, generated Java, diagnostics, and generated Protobuf contracts must have separate explicit compatibility policies. | [Data lifecycle and compatibility](./chapters/25-Data%20Lifecycle%20Caching%20and%20Compatibility.md), [ADR-0025](adr/adr-0025-runtime-ir-persistence-and-compatibility-boundary.md) |
+| AR-011 | Performance claims and optimizations must be supported by reproducible benchmarks without weakening semantic parity. | [Performance](./chapters/21-Performance.md) |
+| AR-012 | Production module dependencies must remain acyclic and point toward lower-level contracts; compiler orchestration stays above the stages it coordinates. | [Maven modules](./chapters/07-Maven%20Modules.md), [ADR-0014](adr/adr-0014-maven-multi-module-architecture.md) |
 
 Current modules:
 
@@ -78,35 +78,49 @@ The semantic-analysis stage implements reference and structured-property resolut
 
 Core section: [Most important requirements](#most-important-requirements)
 
+### Part I: Vision, Context & Architectural Principles
 1. [Vision](./chapters/01-Vision.md)
 2. [Architecture Principles](./chapters/02-Architecture%20Principles.md)
-3. [Overall Architecture](./chapters/03-Overall%20Architecture.md)
-4. [Logical Component Architecture](./chapters/04-Logical%20Component%20Architecture.md)
-5. [Maven Modules](./chapters/05-Maven%20Modules.md)
-6. [Package Layout](./chapters/06-Package%20Layout.md)
-7. [Semantic Model](./chapters/07-Semantic%20Model.md)
-8. [FEEL AST](./chapters/08-FEEL%20AST.md)
-9. [Runtime IR](./chapters/09-Runtime%20IR.md)
-10. [Compiler Passes](./chapters/10-Compiler%20Passes.md)
-11. [XML Frontend](./chapters/11-XML%20Frontend.md)
-12. [FEEL Parser](./chapters/12-FEEL%20Parser.md)
-13. [Java Generator](./chapters/13-Java%20Generator.md)
-14. [Future Generators](./chapters/14-Future%20Generators.md)
-15. [Testing Strategy](./chapters/15-Testing%20Strategy.md)
-16. [Performance](./chapters/16-Performance.md)
-17. [Public API](./chapters/17-Public%20API.md)
-18. [Roadmap](./chapters/18-Roadmap.md)
-19. [Internal Compiler Architecture](./chapters/19-Internal%20Compiler%20Architecture.md)
-20. [Reference Material](./chapters/20-Appendices.md)
-21. [Stakeholders and Quality Attributes](./chapters/21-Stakeholders%20and%20Quality%20Attributes.md)
-22. [System Context and External Interfaces](./chapters/22-System%20Context%20and%20External%20Interfaces.md)
-23. [Deployment and Operational Architecture](./chapters/23-Deployment%20and%20Operational%20Architecture.md)
-24. [Security and Trust Boundaries](./chapters/24-Security%20and%20Trust%20Boundaries.md)
-25. [Failure Model and Resilience](./chapters/25-Failure%20Model%20and%20Resilience.md)
-26. [Data Lifecycle, Caching, and Compatibility](./chapters/26-Data%20Lifecycle%20Caching%20and%20Compatibility.md)
-27. [Observability and Supportability](./chapters/27-Observability%20and%20Supportability.md)
-28. [Build, Release, and Supply Chain](./chapters/28-Build%20Release%20and%20Supply%20Chain.md)
-29. [Architecture Traceability and Conformance](./chapters/29-Architecture%20Traceability%20and%20Conformance.md)
-30. [Architecture Risks and Technical Debt](./chapters/30-Architecture%20Risks%20and%20Technical%20Debt.md)
+3. [Stakeholders and Quality Attributes](./chapters/03-Stakeholders%20and%20Quality%20Attributes.md)
+4. [System Context and External Interfaces](./chapters/04-System%20Context%20and%20External%20Interfaces.md)
+
+### Part II: Overall Architecture & Public Contracts
+5. [Overall Architecture](./chapters/05-Overall%20Architecture.md)
+6. [Logical Component Architecture](./chapters/06-Logical%20Component%20Architecture.md)
+7. [Maven Modules](./chapters/07-Maven%20Modules.md)
+8. [Package Layout](./chapters/08-Package%20Layout.md)
+9. [Public API](./chapters/09-Public%20API.md)
+
+### Part III: Core Data Structures & Intermediate Representations
+10. [Semantic Model](./chapters/10-Semantic%20Model.md)
+11. [FEEL AST](./chapters/11-FEEL%20AST.md)
+12. [Runtime IR](./chapters/12-Runtime%20IR.md)
+
+### Part IV: Compiler Pipeline & Execution Engines
+13. [XML Frontend](./chapters/13-XML%20Frontend.md)
+14. [FEEL Parser](./chapters/14-FEEL%20Parser.md)
+15. [Semantic Analysis](./chapters/15-Semantic%20Analysis.md)
+16. [Compiler Passes](./chapters/16-Compiler%20Passes.md)
+17. [Internal Compiler Architecture](./chapters/17-Internal%20Compiler%20Architecture.md)
+18. [Java Generator](./chapters/18-Java%20Generator.md)
+19. [Future Generators](./chapters/19-Future%20Generators.md)
+
+### Part V: Operational, Quality & Cross-Cutting Architecture
+20. [Testing Strategy](./chapters/20-Testing%20Strategy.md)
+21. [Performance](./chapters/21-Performance.md)
+22. [Deployment and Operational Architecture](./chapters/22-Deployment%20and%20Operational%20Architecture.md)
+23. [Security and Trust Boundaries](./chapters/23-Security%20and%20Trust%20Boundaries.md)
+24. [Failure Model and Resilience](./chapters/24-Failure%20Model%20and%20Resilience.md)
+25. [Data Lifecycle, Caching, and Compatibility](./chapters/25-Data%20Lifecycle%20Caching%20and%20Compatibility.md)
+26. [Observability and Supportability](./chapters/26-Observability%20and%20Supportability.md)
+27. [Build, Release, and Supply Chain](./chapters/27-Build%20Release%20and%20Supply%20Chain.md)
+
+### Part VI: Governance, Risks & Evolution
+28. [Architecture Traceability and Conformance](./chapters/28-Architecture%20Traceability%20and%20Conformance.md)
+29. [Architecture Risks and Technical Debt](./chapters/29-Architecture%20Risks%20and%20Technical%20Debt.md)
+30. [Roadmap](./chapters/30-Roadmap.md)
+
+### Part VII: Appendices
+31. [Reference Material & Appendices](./chapters/31-Appendices.md)
 
 Reference: [Glossary](../glossary.md)

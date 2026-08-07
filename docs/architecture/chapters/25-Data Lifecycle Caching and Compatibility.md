@@ -1,4 +1,4 @@
-# Chapter 26 — Data Lifecycle, Caching, and Compatibility [FUTURE — UNREVIEWED]
+# Chapter 25 — Data Lifecycle, Caching, and Compatibility [FUTURE — UNREVIEWED]
 
 <!-- generated-toc:start -->
 ## Table of contents

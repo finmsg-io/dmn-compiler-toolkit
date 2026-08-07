@@ -1,4 +1,4 @@
-# Chapter 9 — Runtime IR [IMPLEMENTATION-ALIGNED]
+# Chapter 12 — Runtime IR [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents

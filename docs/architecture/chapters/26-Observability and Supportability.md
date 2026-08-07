@@ -1,4 +1,4 @@
-# Chapter 27 — Observability and Supportability [FUTURE — UNREVIEWED]
+# Chapter 26 — Observability and Supportability [FUTURE — UNREVIEWED]
 
 <!-- generated-toc:start -->
 ## Table of contents

@@ -1,4 +1,4 @@
-# Chapter 28 — Build, Release, and Supply Chain [FUTURE — UNREVIEWED]
+# Chapter 27 — Build, Release, and Supply Chain [FUTURE — UNREVIEWED]
 
 <!-- generated-toc:start -->
 ## Table of contents

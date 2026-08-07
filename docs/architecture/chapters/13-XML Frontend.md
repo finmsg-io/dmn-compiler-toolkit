@@ -1,4 +1,4 @@
-# Chapter 11 — XML Frontend [IMPLEMENTATION-ALIGNED]
+# Chapter 13 — XML Frontend [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents

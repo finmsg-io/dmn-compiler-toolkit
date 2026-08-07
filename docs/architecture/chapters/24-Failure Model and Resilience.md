@@ -1,4 +1,4 @@
-# Chapter 25 — Failure Model and Resilience [FUTURE — UNREVIEWED]
+# Chapter 24 — Failure Model and Resilience [FUTURE — UNREVIEWED]
 
 <!-- generated-toc:start -->
 ## Table of contents

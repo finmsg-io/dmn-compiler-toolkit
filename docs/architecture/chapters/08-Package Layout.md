@@ -1,4 +1,4 @@
-# Chapter 6 — Package Layout [IMPLEMENTATION-ALIGNED]
+# Chapter 8 — Package Layout [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents

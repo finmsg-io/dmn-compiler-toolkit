@@ -4,7 +4,7 @@ Status: exploring
 Created: 2026-08-02  
 Owner: compiler, runtime, platform, and language-backend teams  
 Related milestones: P3 — Runtime semantic baseline; P4 — Stable compiled-model API; P5 — Java code generation; P6 — Performance validation  
-Architecture trigger: [Runtime IR serialization](../architecture/chapters/09-Runtime%20IR.md#915-runtime-ir-serialization)
+Architecture trigger: [Runtime IR serialization](../architecture/chapters/12-Runtime%20IR.md#915-runtime-ir-serialization)
 
 ## Idea summary
 

@@ -1,4 +1,4 @@
-# Chapter 24 — Security and Trust Boundaries [FUTURE — UNREVIEWED]
+# Chapter 23 — Security and Trust Boundaries [FUTURE — UNREVIEWED]
 
 <!-- generated-toc:start -->
 ## Table of contents

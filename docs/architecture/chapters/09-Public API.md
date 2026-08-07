@@ -1,4 +1,4 @@
-# Chapter 17 — Public API [FUTURE]
+# Chapter 9 — Public API [FUTURE]
 
 <!-- generated-toc:start -->
 ## Table of contents

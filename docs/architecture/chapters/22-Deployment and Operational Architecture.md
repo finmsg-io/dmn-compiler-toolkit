@@ -1,4 +1,4 @@
-# Chapter 23 — Deployment and Operational Architecture [FUTURE — UNREVIEWED]
+# Chapter 22 — Deployment and Operational Architecture [FUTURE — UNREVIEWED]
 
 <!-- generated-toc:start -->
 ## Table of contents

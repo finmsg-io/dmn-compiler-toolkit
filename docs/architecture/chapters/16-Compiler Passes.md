@@ -1,4 +1,4 @@
-# Chapter 10 — Compiler Passes [IMPLEMENTATION-ALIGNED]
+# Chapter 16 — Compiler Passes [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents

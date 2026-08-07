@@ -1,4 +1,4 @@
-# Chapter 5 — Maven Modules [IMPLEMENTATION-ALIGNED]
+# Chapter 7 — Maven Modules [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents

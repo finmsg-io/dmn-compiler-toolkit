@@ -33,7 +33,7 @@ The module aligns particularly well with:
 - a separate future Runtime IR rather than reusing the semantic model at runtime.
 
 The schema organization also closely matches the structure prescribed in
-[Chapter 7](../architecture/chapters/07-Semantic%20Model.md).
+[Chapter 10](../architecture/chapters/10-Semantic%20Model.md).
 
 <a id="contents-section-2"></a>
 ## Worthwhile improvements

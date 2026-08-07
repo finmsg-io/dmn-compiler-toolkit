@@ -1,4 +1,4 @@
-# Chapter 21 — Stakeholders and Quality Attributes [FUTURE — UNREVIEWED]
+# Chapter 3 — Stakeholders and Quality Attributes [FUTURE — UNREVIEWED]
 
 <!-- generated-toc:start -->
 ## Table of contents

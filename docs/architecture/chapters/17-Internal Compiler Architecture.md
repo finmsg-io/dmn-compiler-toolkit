@@ -1,4 +1,4 @@
-# Chapter 19 — Internal Compiler Architecture [FUTURE]
+# Chapter 17 — Internal Compiler Architecture [FUTURE]
 
 <!-- generated-toc:start -->
 ## Table of contents

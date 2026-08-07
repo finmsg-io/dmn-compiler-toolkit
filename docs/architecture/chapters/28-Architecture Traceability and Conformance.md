@@ -1,4 +1,4 @@
-# Chapter 29 — Architecture Traceability and Conformance [FUTURE — UNREVIEWED]
+# Chapter 28 — Architecture Traceability and Conformance [FUTURE — UNREVIEWED]
 
 <!-- generated-toc:start -->
 ## Table of contents

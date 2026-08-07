@@ -1,4 +1,4 @@
-# Chapter 15 — Testing Strategy [NORMATIVE]
+# Chapter 20 — Testing Strategy [NORMATIVE]
 
 <!-- generated-toc:start -->
 ## Table of contents

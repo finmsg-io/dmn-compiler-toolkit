@@ -30,7 +30,7 @@
 
 Accepted design decisions are indexed in the
 [ADR guide](architecture/adr/generall-adr.md); they are not duplicated here. Module dependency
-rules are defined by [Chapter 5](architecture/chapters/05-Maven%20Modules.md) and contributor
+rules are defined by [Chapter 7](architecture/chapters/07-Maven%20Modules.md) and contributor
 conventions by the [style guide](dev/style.md).
 
 <a id="contents-section-1"></a>

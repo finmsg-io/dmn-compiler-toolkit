@@ -1,4 +1,4 @@
-# Chapter 7 — Semantic Model [IMPLEMENTATION-ALIGNED]
+# Chapter 10 — Semantic Model [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents

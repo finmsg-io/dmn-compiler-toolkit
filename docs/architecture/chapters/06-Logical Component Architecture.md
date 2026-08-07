@@ -1,4 +1,4 @@
-# Chapter 4 — Logical Component Architecture [NORMATIVE]
+# Chapter 6 — Logical Component Architecture [NORMATIVE]
 
 <!-- generated-toc:start -->
 ## Table of contents

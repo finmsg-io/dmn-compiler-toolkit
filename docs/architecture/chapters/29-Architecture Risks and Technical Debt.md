@@ -1,4 +1,4 @@
-# Chapter 30 — Architecture Risks and Technical Debt [FUTURE — UNREVIEWED]
+# Chapter 29 — Architecture Risks and Technical Debt [FUTURE — UNREVIEWED]
 
 <!-- generated-toc:start -->
 ## Table of contents
