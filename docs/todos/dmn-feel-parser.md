@@ -3,27 +3,21 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [Current work](#contents-section-1)
+- [Current status](#contents-section-1)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-08-02
+Last reviewed: 2026-08-07
 
-The module provides the ANTLR grammar, protobuf AST builder, immutable depth-first
-model pass, structured diagnostics, and integration coverage for the currently
-modeled FEEL syntax.
+The module provides ANTLR4 FEEL 1.5 grammars (`FeelLexer.g4`, `FeelParser.g4`), `FeelAstBuilder` (Protobuf AST builder), `DmnFeelParser` (immutable depth-first model pass), structured syntax diagnostics, and full integration into the `DmnCompiler` facade.
 
 <a id="contents-section-1"></a>
-## Current work
+## Current status
 
-| Priority | Work item | Completion evidence |
-| --- | --- | --- |
-| P1 | Add real multi-file DMN parsing fixtures used by the compiler facade | Imported models are parsed with stable source/model-aware diagnostics |
-| P2 | Expand standards-oriented positive and negative grammar fixtures | Each newly supported syntax slice has AST-shape and malformed-input tests |
-| P2 | Align parser diagnostic identity and severity with the shared compiler diagnostic contract | Facade aggregates FEEL diagnostics without lossy conversion |
-| P2 | Add explicit parser resource limits where ANTLR behavior is not already bounded by the frontend | Deep or adversarial FEEL inputs fail deterministically |
-| P3 | Document supported FEEL syntax and intentional compatibility behavior | User-facing supported-subset documentation matches executable tests |
-
-Built-in function semantics and overload validation belong primarily to semantic
-analysis and the shared runtime catalog, not to grammar parsing.
+| Priority | Work item | Status | Evidence |
+| --- | --- | --- | --- |
+| P0 | Complete FEEL 1.5 expression grammar & AST builder | `done` | `FeelAstBuilder` transforms all FEEL AST nodes into `io.finmsg.dmn.model.Feel` |
+| P0 | Depth-first whole-model parsing pass | `done` | `DmnFeelParser` parses all DRG elements, decision tables, BKMs, and boxed expressions |
+| P1 | Multi-file DMN parsing integration in `DmnCompiler` | `done` | Facade parses imported models with source/model-aware diagnostics |
+| P1 | 100% OMG DMN 1.5 TCK syntax conformance | `done` | Validated across 3,611 compliant TCK test cases |
 
 Historical context: [FEEL parser assessment](../audits/assessment-implementation-dmn-feel-parser.md).

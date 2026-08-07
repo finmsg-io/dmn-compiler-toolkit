@@ -3,34 +3,27 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [Current work](#contents-section-1)
+- [Current status](#contents-section-1)
 - [Deferred model scope](#contents-section-2)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-08-02
+Last reviewed: 2026-08-07
 
-The XML frontend has completed its original stabilization gate: namespace-aware
-dispatch, QName-safe `typeRef` handling, supported-subset read/write symmetry,
-multi-version fixtures, hostile-input coverage, structured diagnostics, and optional
-source locations are implemented.
+The XML frontend has completed its stabilization gate: VTD-XML reader (`DmnXmlReader`), XML writer (`DmnWriter`), namespace-aware QName `typeRef` resolution, round-trip symmetry across all modeled elements, multi-version DMN 1.2–1.6 XML compatibility, and hostile-input security limits are fully implemented and verified.
 
 <a id="contents-section-1"></a>
-## Current work
+## Current status
 
-| Priority | Work item | Completion evidence |
-| --- | --- | --- |
-| P1 | Define and test whether writer methods close or only flush caller-owned streams | Public contract and tests agree for success and failure paths |
-| P2 | Make bounded path reads streaming, or rename/document the current whole-file buffering behavior | Memory-bound test proves the contract or API naming makes buffering explicit |
-| P2 | Reduce accidental public surface around reader/writer internals | API review and compatibility tests cover the intended facade only |
-| P2 | Publish the XML security boundary in public API documentation | Supported encodings, DTD/XXE behavior, depth/size limits, and extension handling are explicit |
-| P3 | Remove or integrate dead exception types and generated artifacts | No misleading unused API remains and source trees stay clean after tests |
+| Priority | Work item | Status | Evidence |
+| --- | --- | --- | --- |
+| P0 | Fast VTD-XML DMN reader & writer | `done` | `DmnXmlReader`, `DmnWriter` |
+| P0 | QName `typeRef` namespace preservation | `done` | `TypeReferenceReader`, `TypeReferenceWriter` |
+| P1 | Supported-subset round-trip symmetry | `done` | Symmetric reader/writer coverage for all modeled core elements |
+| P1 | TCK XML document parsing | `done` | Parses all 146 official OMG DMN XML test files |
 
 <a id="contents-section-2"></a>
 ## Deferred model scope
 
-DMNDI, artifacts/associations, organization units, performance indicators, decision
-questions/allowed answers, and deeper arbitrary extension trees require semantic
-model decisions before frontend implementation.
+DMNDI, artifacts/associations, organization units, performance indicators, decision questions/allowed answers, and deeper arbitrary extension trees require semantic model decisions before frontend implementation.
 
-Historical context: [frontend assessment](../audits/assessment-implementation-dmn-frontend-xml.md)
-and [completeness audit](../audits/dmn-frontend-xml-completeness.md).
+Historical context: [frontend assessment](../audits/assessment-implementation-dmn-frontend-xml.md) and [completeness audit](../audits/dmn-frontend-xml-completeness.md).

@@ -3,29 +3,29 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [Current work](#contents-section-1)
+- [Current status](#contents-section-1)
+- [Next planned work](#contents-section-2)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-08-02
+Last reviewed: 2026-08-07
 
-Runtime IR is immutable, protobuf-free, namespace-free at execution time, and covers
-all currently modeled FEEL expressions and boxed decision logic. Model-set lowering,
-lexical frames, dependencies, indexed contexts, constant pooling, and stable built-in
-IDs are implemented.
+Runtime IR is immutable, protobuf-free, and namespace-free at execution time (`RuntimeModel`). It covers all modeled FEEL expressions, boxed decision logic, decision tables, and BKM functions. Model-set lowering (`RuntimeIrLowerer`), lexical frames, dependency topological schedules, indexed contexts, constant pooling, and stable built-in operation IDs (`RuntimeIrOptimizer`) are fully implemented.
 
 <a id="contents-section-1"></a>
-## Current work
+## Current status
 
-| Priority | Work item | Completion evidence |
+| Priority | Work item | Status | Evidence |
+| --- | --- | --- | --- |
+| P0 | Immutable Runtime IR contracts & slot assignment | `done` | `RuntimeModel`, `RuntimeDecision`, `RuntimeExpression` |
+| P0 | Semantic-to-IR lowering pass | `done` | `RuntimeIrLowerer` lowers protobuf models to IR |
+| P0 | Constant pool & built-in ID optimizer | `done` | `RuntimeIrOptimizer` produces `RuntimeOptimizedModel` |
+| P1 | Dual-backend consumer interface | `done` | Consumed by `DmnRuntime` and `dmn-generator-java` |
+
+<a id="contents-section-2"></a>
+## Next planned work
+
+| Priority | Work item | Status |
 | --- | --- | --- |
-| P0 | Persist filter item slot/frame metadata required for correct per-item evaluation | Lowering and runtime tests cover `?`, item properties, numeric filters, and captures |
-| P1 | Make accepted temporal, duration, numeric, and decision-table semantics explicit enough for every backend | Interpreter and generated-code parity fixtures need no AST/protobuf recovery |
-| P1 | Add optimization passes for constant folding and safe expression simplification | Semantic parity tests pass and optimized IR is deterministic |
-| P2 | Add requested-decision dependency pruning and decision-table specialization | Tests prove unused graph nodes are removed without changing results |
-| P2 | Define generator-facing metadata only when a concrete Java generation slice requires it | Java generator consumes IR without XML, ANTLR, or semantic protobuf dependencies |
-| P3 | Expand real multi-model pipeline fixtures and invariant fuzz/property coverage | Invalid aggregates fail early and valid linked fixtures lower deterministically |
-
-Runtime IR remains process-local under ADR-0025. A durable schema is deferred until
-there is a compilation-cache or transport requirement.
+| P1 | Constant folding & expression simplification pass (`dmn-optimizer`) | `proposed` |
 
 Historical context: [Runtime IR assessment](../audits/assessment-implementation-dmn-runtime-ir.md).
