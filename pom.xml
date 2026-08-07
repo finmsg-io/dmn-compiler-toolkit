@@ -27,6 +27,7 @@
         <module>dmn-tck-runner</module>
         <module>dmn-benchmarks</module>
         <module>dmn-optimizer</module>
+        <module>dmn-grpc</module>
     </modules>
 
     <properties>

@@ -60,7 +60,7 @@ only when its acceptance evidence is present.
 <a id="contents-section-3"></a>
 ## Current baseline
 
-As of the last review, the repository contains eleven active Maven modules:
+As of the last review, the repository contains twelve active Maven modules:
 
 - `dmn-protobuf` — canonical semantic model, replaceable FEEL text/parsed nodes, and FEEL AST;
 - `dmn-frontend-xml` — namespace-aware DMN XML reader and writer for the modeled subset;
@@ -72,14 +72,14 @@ As of the last review, the repository contains eleven active Maven modules:
 - `dmn-generator-java` — high-performance Java source code generator (`DmnJavaGenerator`);
 - `dmn-tck-runner` — OMG DMN TCK test runner (`DmnToolkitTckEngine`) and conformance suite adapter;
 - `dmn-benchmarks` — JMH microbenchmarks and DataFaker reference model workloads;
-- `dmn-optimizer` — static constant folding, algebraic simplification, and rule pruning passes.
+- `dmn-optimizer` — static constant folding, algebraic simplification, and rule pruning passes;
+- `dmn-grpc` — ultra-lean gRPC service adapter generator and Proto value converters.
 
-The entire test reactor passes cleanly across all 11 modules and 3,611 compliant OMG DMN 1.5 TCK test cases.
+The entire test reactor passes cleanly across all 12 modules and 3,611 compliant OMG DMN 1.5 TCK test cases.
 
 The main remaining objectives are:
 
-- generic gRPC adapters in Java (`dmn-grpc`);
-- pure Spark / Databricks SQL Catalyst expression generator (`dmn-generator-spark`, zero UDF overhead);
+- pure Spark / Databricks SQL Catalyst expression generator (`dmn-generator-spark`, zero UDFs, delegating query tuning to engine);
 - native code generation backends (Rust, Go).
 
 <a id="contents-section-4"></a>
@@ -120,8 +120,8 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P7 | Performance Validation & Load Generation | `done` | P5, P6 | JMH microbenchmarks (`dmn-benchmarks`) establish throughput and latency baselines |
 | P8 | Static Optimizer Pass | `done` | P5, P7 | Constant folding, algebraic simplification, and rule pruning passes (`dmn-optimizer`) |
 | P9 | Production Data Quality DMN Corpus | `done` | P2, P5 | Real-world Data Quality DMN model corpus (`dq-field-validation`, `dq-cross-field-consistency`, `dq-scoring`) |
-| P10 | Generic gRPC generation in Java | `ready` | P4, P5 | Transport-neutral `evaluation.proto` and Java gRPC service adapters backed by generated Java decisions |
-| P11 | Pure Spark / Databricks SQL Generator | `proposed` | P5, P8 | Lowering FEEL and decision tables to pure native Spark / Databricks SQL expressions (zero UDFs, delegating tuning to engine) |
+| P10 | Generic gRPC generation in Java | `done` | P4, P5 | Transport-neutral `evaluation.proto` and ultra-lean pure `grpc-java` service adapters (`dmn-grpc`) |
+| P11 | Pure Spark / Databricks SQL Generator | `ready` | P5, P8 | Lowering FEEL and decision tables to pure native Spark / Databricks SQL expressions (zero UDFs, delegating tuning to engine) |
 | P12 | Typed Protobuf and gRPC generation | `proposed` | P10, P11 | Eligible DMN types produce deterministic typed service contracts |
 | P13 | Additional Language Generators (Rust, Go, C++) | `proposed` | P5, P10 | Native zero-allocation binaries in Rust, Go handlers, and C++ decision engines |
 
@@ -323,10 +323,10 @@ Work items:
 
 | ID | Work item | State | Evidence / Target |
 | --- | --- | --- | --- |
-| P9.1 | Transport-neutral `evaluation.proto` contract and gRPC service generator | `ready` | `DmnGrpcGenerator`, `evaluation.proto` |
-| P9.2 | Bidirectional `Value` protobuf $\leftrightarrow$ slot array converter | `ready` | `GrpcValueConverterTest` |
-| P9.3 | Generate in-process Java gRPC service stubs delegating to `DmnJavaGenerator` | `ready` | `DmnGrpcServiceTest` |
-| P9.4 | Concurrent gRPC multi-threaded load test suite | `ready` | `DmnGrpcLoadBenchmark` |
+| P10.1 | Transport-neutral `evaluation.proto` contract and gRPC service generator | `done` | `DmnGrpcGenerator`, `evaluation.proto` |
+| P10.2 | Bidirectional `Value` protobuf $\leftrightarrow$ Java converter | `done` | `DmnGrpcValueConverter` |
+| P10.3 | Generate pure `grpc-java` service stubs delegating to `DmnJavaGenerator` | `done` | `DmnGrpcServiceTest` |
+| P10.4 | In-process Netty-free gRPC server integration test suite | `done` | `DmnGrpcServiceTest` |
 
 Acceptance criteria:
 

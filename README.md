@@ -84,6 +84,7 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-tck-runner` | OMG DMN TCK test-case runner & dual-engine spec conformance adapter |
 | `dmn-benchmarks` | JMH microbenchmarks & DataFaker reference model workloads |
 | `dmn-optimizer` | Constant folding, algebraic simplification, and rule pruning passes |
+| `dmn-grpc` | Ultra-lean gRPC service adapter generator & Proto value converters |
 
 Planned modules include further optimization and native code generation backends.
 

@@ -27,6 +27,7 @@ actions belong in the [module TODOs](../todos/index.md) or the
 | [Benchmarks assessment](assessment-implementation-dmn-benchmarks.md) | JMH microbenchmarks & DataFaker reference workloads |
 | [Optimizer assessment](assessment-implementation-dmn-optimizer.md) | Constant folding & expression simplification pass |
 | [Data Quality Corpus assessment](assessment-implementation-data-quality-corpus.md) | Production Data Quality DMN decision models & validation |
+| [gRPC assessment](assessment-implementation-dmn-grpc.md) | Transport-neutral gRPC service contract & Java stubs |
 | [Module architecture assessment](assessment-module-architecture.md) | Responsibilities, dependencies, and cross-module boundaries |
 | [Protobuf architecture assessment](assessment-architecture-dmn-protobuf.md) | Serialized module architecture opinion |
 | [XML frontend architecture assessment](assessment-architecture-dmn-frontend-xml.md) | Serialized module architecture opinion |
@@ -40,6 +41,7 @@ actions belong in the [module TODOs](../todos/index.md) or the
 | [Benchmarks architecture assessment](assessment-architecture-dmn-benchmarks.md) | JMH Microbenchmarks boundary assessment |
 | [Optimizer architecture assessment](assessment-architecture-dmn-optimizer.md) | Optimizer pass boundary assessment |
 | [Data Quality Corpus architecture assessment](assessment-architecture-data-quality-corpus.md) | Data Quality Corpus boundary assessment |
+| [gRPC architecture assessment](assessment-architecture-dmn-grpc.md) | gRPC service adapter boundary assessment |
 
 Audit statements may become stale as implementation advances. Each audit retains
 its assessment date; consult current TODOs and executable tests before acting on it.

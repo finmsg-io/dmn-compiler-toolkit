@@ -207,10 +207,17 @@ Assessments: [implementation](audits/assessment-implementation-dmn-optimizer.md)
 [architecture](audits/assessment-architecture-dmn-optimizer.md)
 
 <a id="contents-section-12"></a>
+## `dmn-grpc`
+
+Provides transport-neutral gRPC service contract definitions (`evaluation.proto`), Java gRPC service adapter generators (`DmnGrpcGenerator`), and bidirectional Proto-to-Java value converters (`DmnGrpcValueConverter`) backed by compiled Java decision engines (`dmn-generator-java`). Built using pure `grpc-java` without framework overhead.
+
+Assessments: [implementation](audits/assessment-implementation-dmn-grpc.md) ·
+[architecture](audits/assessment-architecture-dmn-grpc.md)
+
+<a id="contents-section-13"></a>
 ## Planned modules
 
 ```text
-dmn-grpc
 dmn-generator-spark
 dmn-generator-rust
 dmn-generator-go

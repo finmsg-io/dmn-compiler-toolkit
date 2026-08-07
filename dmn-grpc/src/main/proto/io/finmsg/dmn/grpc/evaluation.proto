@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package io.finmsg.dmn.grpc;
+
+option java_multiple_files = true;
+option java_package = "io.finmsg.dmn.grpc";
+option java_outer_classname = "EvaluationProto";
+
+// Dynamic polymorphic value representation for DMN evaluation inputs and outputs.
+message Value {
+  oneof value_kind {
+    bool null_value = 1;
+    bool boolean_value = 2;
+    string number_value = 3;
+    string string_value = 4;
+    string date_value = 5;
+    string time_value = 6;
+    string date_time_value = 7;
+    string duration_value = 8;
+    ListValue list_value = 9;
+    ContextValue context_value = 10;
+  }
+}
+
+message ListValue {
+  repeated Value elements = 1;
+}
+
+message ContextValue {
+  map<string, Value> entries = 1;
+}
+
+message DmnEvaluationRequest {
+  string model_namespace = 1;
+  string model_name = 2;
+  map<string, Value> inputs = 3;
+}
+
+message DmnEvaluationResponse {
+  string model_namespace = 1;
+  string model_name = 2;
+  map<string, Value> outputs = 3;
+  repeated EvaluationError errors = 4;
+}
+
+message EvaluationError {
+  string code = 1;
+  string message = 2;
+}
+
+service DmnEvaluationService {
+  rpc Evaluate (DmnEvaluationRequest) returns (DmnEvaluationResponse);
+}
