@@ -22,6 +22,8 @@ actions belong in the [module TODOs](../todos/index.md) or the
 | [Runtime IR assessment](assessment-implementation-dmn-runtime-ir.md) | Lowering contract and optimization boundary |
 | [Runtime assessment](assessment-implementation-dmn-runtime.md) | Interpreter correctness and readiness |
 | [Compiler assessment](assessment-implementation-dmn-compiler.md) | Source resolution and compiler-facade readiness |
+| [Java Generator assessment](assessment-implementation-dmn-generator-java.md) | AOT Java code generation & spec conformance |
+| [TCK Runner assessment](assessment-implementation-dmn-tck-runner.md) | OMG DMN 1.5 TCK conformance & dual-engine value parity |
 | [Module architecture assessment](assessment-module-architecture.md) | Responsibilities, dependencies, and cross-module boundaries |
 | [Protobuf architecture assessment](assessment-architecture-dmn-protobuf.md) | Serialized module architecture opinion |
 | [XML frontend architecture assessment](assessment-architecture-dmn-frontend-xml.md) | Serialized module architecture opinion |
@@ -30,6 +32,8 @@ actions belong in the [module TODOs](../todos/index.md) or the
 | [Runtime IR architecture assessment](assessment-architecture-dmn-runtime-ir.md) | Serialized module architecture opinion |
 | [Runtime architecture assessment](assessment-architecture-dmn-runtime.md) | Serialized module architecture opinion |
 | [Compiler architecture assessment](assessment-architecture-dmn-compiler.md) | Serialized module architecture opinion |
+| [Java Generator architecture assessment](assessment-architecture-dmn-generator-java.md) | AOT Java Generator boundary assessment |
+| [TCK Runner architecture assessment](assessment-architecture-dmn-tck-runner.md) | TCK Runner boundary assessment |
 
 Audit statements may become stale as implementation advances. Each audit retains
 its assessment date; consult current TODOs and executable tests before acting on it.

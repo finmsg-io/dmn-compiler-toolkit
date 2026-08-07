@@ -1,4 +1,4 @@
-# Chapter 13 — Java Generator [FUTURE]
+# Chapter 13 — Java Generator [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents

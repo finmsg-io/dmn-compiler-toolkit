@@ -11,7 +11,7 @@ The DMN Compiler Toolkit is a performance-oriented compiler infrastructure for D
 
 It parses DMN XML once, creates an immutable protobuf semantic model, parses FEEL into protobuf AST nodes, performs semantic analysis, and lowers the validated model into an execution-oriented Runtime IR.
 
-Start with the [architecture overview](architecture.md), consult the normative
+Start with the [architecture overview](architecture.md), explore our [toolkit assets and competitive differentiators](architecture/toolkit-assets-and-differentiators.md), consult the normative
 [architecture specification](architecture/architecture-spec.md) for the intended system, the
 [ADR index](architecture/adr/generall-adr.md) for design rationale, and the
 [glossary](glossary.md) for shared terminology.

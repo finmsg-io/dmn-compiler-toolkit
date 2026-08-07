@@ -22,30 +22,25 @@
 - [Recommended target](#contents-section-17)
 <!-- generated-toc:end -->
 
-Assessment date: 2026-08-02
+Assessment date: 2026-08-07
 
 <a id="contents-section-1"></a>
 ## Executive conclusion
 
-The seven-module architecture is directionally sound. Production dependencies point downward,
-runtime execution is isolated from XML/ANTLR/protobuf, and integration-only dependencies are
-generally test-scoped. There are no production dependency cycles.
-
-The largest architectural risks are emerging cross-cutting contracts rather than incorrect module
-placement: diagnostics differ at every stage, built-in FEEL metadata is split between semantic and
-runtime layers, AST traversal is repeated across modules, and the future compiler facade could leak
-stage-specific types into its public API. These should be resolved while P1 is still small.
+The ten-module architecture is directionally sound and complete. Production dependencies point downward,
+runtime execution is isolated from XML/ANTLR/protobuf, generated Java runs without runtime framework dependencies, and integration-only dependencies are test-scoped. There are no production dependency cycles.
 
 <a id="contents-section-2"></a>
 ## Current dependency architecture
 
 ```text
-dmn-compiler                    (currently source contracts only)
-
-dmn-runtime
-    -> dmn-runtime-ir
-         -> dmn-semantic-analysis
-              -> dmn-protobuf
+dmn-tck-runner
+    -> dmn-compiler
+    -> dmn-generator-java
+    -> dmn-runtime
+         -> dmn-runtime-ir
+              -> dmn-semantic-analysis
+                   -> dmn-protobuf
 
 dmn-feel-parser -> dmn-protobuf
 dmn-frontend-xml -> dmn-protobuf

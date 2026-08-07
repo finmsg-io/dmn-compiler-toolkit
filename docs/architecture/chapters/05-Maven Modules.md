@@ -28,7 +28,9 @@ dmn-compiler-toolkit
 ├── dmn-semantic-analysis
 ├── dmn-runtime-ir
 ├── dmn-runtime
-└── dmn-compiler
+├── dmn-compiler
+├── dmn-generator-java
+└── dmn-tck-runner
 ```
 
 All modules use:
