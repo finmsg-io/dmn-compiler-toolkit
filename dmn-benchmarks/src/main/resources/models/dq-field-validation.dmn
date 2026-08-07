@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             namespace="https://finmsg.io/models/dq/field-validation"
+             name="dq-field-validation"
+             id="definitions_dq_field_validation">
+
+    <inputData id="i_email" name="email">
+        <variable name="email" typeRef="string"/>
+    </inputData>
+
+    <inputData id="i_iban" name="iban">
+        <variable name="iban" typeRef="string"/>
+    </inputData>
+
+    <inputData id="i_ssn" name="ssn">
+        <variable name="ssn" typeRef="string"/>
+    </inputData>
+
+    <decision id="d_email_valid" name="IsEmailValid">
+        <variable name="IsEmailValid" typeRef="boolean"/>
+        <informationRequirement>
+            <requiredInput href="#i_email"/>
+        </informationRequirement>
+        <decisionTable hitPolicy="FIRST">
+            <input id="in_email">
+                <inputExpression typeRef="string"><text>email</text></inputExpression>
+            </input>
+            <output id="out_email" name="IsEmailValid" typeRef="boolean"/>
+            <rule id="r_email_not_null">
+                <inputEntry id="ie_email_nn"><text>not(null)</text></inputEntry>
+                <outputEntry id="oe_email_nn"><text>true</text></outputEntry>
+            </rule>
+            <rule id="r_email_null">
+                <inputEntry id="ie_email_n"><text>null</text></inputEntry>
+                <outputEntry id="oe_email_n"><text>false</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="d_iban_valid" name="IsIbanValid">
+        <variable name="IsIbanValid" typeRef="boolean"/>
+        <informationRequirement>
+            <requiredInput href="#i_iban"/>
+        </informationRequirement>
+        <decisionTable hitPolicy="FIRST">
+            <input id="in_iban">
+                <inputExpression typeRef="string"><text>iban</text></inputExpression>
+            </input>
+            <output id="out_iban" name="IsIbanValid" typeRef="boolean"/>
+            <rule id="r_iban_not_null">
+                <inputEntry id="ie_iban_nn"><text>not(null)</text></inputEntry>
+                <outputEntry id="oe_iban_nn"><text>true</text></outputEntry>
+            </rule>
+            <rule id="r_iban_null">
+                <inputEntry id="ie_iban_n"><text>null</text></inputEntry>
+                <outputEntry id="oe_iban_n"><text>false</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="d_ssn_valid" name="IsSsnValid">
+        <variable name="IsSsnValid" typeRef="boolean"/>
+        <informationRequirement>
+            <requiredInput href="#i_ssn"/>
+        </informationRequirement>
+        <decisionTable hitPolicy="FIRST">
+            <input id="in_ssn">
+                <inputExpression typeRef="string"><text>ssn</text></inputExpression>
+            </input>
+            <output id="out_ssn" name="IsSsnValid" typeRef="boolean"/>
+            <rule id="r_ssn_not_null">
+                <inputEntry id="ie_ssn_nn"><text>not(null)</text></inputEntry>
+                <outputEntry id="oe_ssn_nn"><text>true</text></outputEntry>
+            </rule>
+            <rule id="r_ssn_null">
+                <inputEntry id="ie_ssn_n"><text>null</text></inputEntry>
+                <outputEntry id="oe_ssn_n"><text>false</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+</definitions>
