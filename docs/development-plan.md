@@ -37,8 +37,8 @@ promise. Update it whenever implementation evidence or priorities materially cha
 | Last reviewed | 2026-08-07 |
 | Current phase | P9 — Data Quality DMN Corpus (`dq-field-validation`, `dq-cross-field-consistency`, `dq-scoring`) `done` |
 | Overall state | compiler facade, model resolver, runtime baseline, Java generator, 100% OMG DMN 1.5 TCK conformance, JMH benchmarks, dmn-optimizer, and Data Quality DMN Corpus established |
-| Primary objective | generic gRPC adapters (P10) and Spark SQL generation (P11) |
-| Next major objective | generic gRPC adapters (P10) and Spark SQL generation (P11) |
+| Primary objective | generic gRPC adapters (P10) and pure Spark / Databricks SQL generator (P11) |
+| Next major objective | generic gRPC adapters (P10) and pure Spark / Databricks SQL generator (P11) |
 
 <a id="contents-section-2"></a>
 ## Status vocabulary
@@ -79,7 +79,7 @@ The entire test reactor passes cleanly across all 11 modules and 3,611 compliant
 The main remaining objectives are:
 
 - generic gRPC adapters in Java (`dmn-grpc`);
-- Spark SQL Catalyst expression & DataFrame UDF generator (`dmn-generator-spark`);
+- pure Spark / Databricks SQL Catalyst expression generator (`dmn-generator-spark`, zero UDF overhead);
 - native code generation backends (Rust, Go).
 
 <a id="contents-section-4"></a>
@@ -121,7 +121,7 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P8 | Static Optimizer Pass | `done` | P5, P7 | Constant folding, algebraic simplification, and rule pruning passes (`dmn-optimizer`) |
 | P9 | Production Data Quality DMN Corpus | `done` | P2, P5 | Real-world Data Quality DMN model corpus (`dq-field-validation`, `dq-cross-field-consistency`, `dq-scoring`) |
 | P10 | Generic gRPC generation in Java | `ready` | P4, P5 | Transport-neutral `evaluation.proto` and Java gRPC service adapters backed by generated Java decisions |
-| P11 | Spark SQL Catalyst & DataFrame UDF generator | `proposed` | P5, P8 | Lowering FEEL and decision tables to Spark SQL Catalyst expressions |
+| P11 | Pure Spark / Databricks SQL Generator | `proposed` | P5, P8 | Lowering FEEL and decision tables to pure native Spark / Databricks SQL Catalyst Column expressions (zero UDF overhead) |
 | P12 | Typed Protobuf and gRPC generation | `proposed` | P10, P11 | Eligible DMN types produce deterministic typed service contracts |
 | P13 | Additional Language Generators (Rust, Go, C++) | `proposed` | P5, P10 | Native zero-allocation binaries in Rust, Go handlers, and C++ decision engines |
 
@@ -336,23 +336,24 @@ Acceptance criteria:
 - business logic is delegated directly to generated zero-reflection Java decisions without XML/FEEL parsing.
 
 <a id="contents-section-15"></a>
-## P10 — Spark SQL Code Generation
+## P11 — Pure Spark / Databricks SQL Code Generation (Zero UDF)
 
-**Goal:** generate native Spark SQL Catalyst expressions and DataFrame UDFs (`dmn-generator-spark`) from DMN decision models for big-data batch and streaming analytics.
+**Goal:** generate pure native Spark / Databricks SQL Catalyst expressions (`org.apache.spark.sql.Column`, `CASE/WHEN`, native SQL expressions) (`dmn-generator-spark`) from DMN decision models for high-performance big-data batch and streaming analytics without UDF overhead.
 
 Work items:
 
 | ID | Work item | State | Evidence / Target |
 | --- | --- | --- | --- |
-| P10.1 | Lower FEEL expressions and decision tables into Spark SQL Catalyst `Column` expressions | `ready` | `SparkExpressionEmitter` |
-| P10.2 | Generate Spark SQL `StructType` schemas from DMN `ItemDefinition` structures | `ready` | `SparkSchemaGenerator` |
-| P10.3 | Generate Spark DataFrame UDF wrappers with zero per-row XML parsing | `ready` | `DmnSparkUdfGenerator` |
-| P10.4 | Validate Spark LocalCluster execution parity against `DmnInterpreter` | `ready` | `SparkDmnIntegrationTest` |
+| P11.1 | Lower FEEL expressions and decision tables into pure Spark / Databricks SQL Catalyst `Column` expressions (`CASE/WHEN`) | `ready` | `SparkExpressionEmitter` |
+| P11.2 | Generate Spark SQL `StructType` schemas from DMN `ItemDefinition` structures | `ready` | `SparkSchemaGenerator` |
+| P11.3 | Generate pure Spark / Databricks SQL `SELECT` / `expr()` statements enabling Catalyst Whole-Stage Java Codegen | `ready` | `DmnSparkSqlGenerator` |
+| P11.4 | Validate Spark / Databricks LocalCluster execution parity against `DmnInterpreter` | `ready` | `SparkDmnIntegrationTest` |
 
 Acceptance criteria:
 
-- generated Catalyst expressions compile into Spark physical query plans without runtime reflection;
-- distributed execution scales across Spark partitions without per-row object creation;
+- generated pure Spark / Databricks SQL expressions compile into Spark physical query plans without Scala/Python/Java UDF wrapper overhead;
+- enables Spark Catalyst Optimizer and Tungsten Execution Engine to perform Whole-Stage Java Codegen across entire decision graphs;
+- distributed execution scales across Spark/Databricks partitions without per-row object creation or UDF serialization boundaries;
 - output values match `DmnInterpreter` and generated Java decisions for the shared corpus.
 
 <a id="contents-section-16"></a>
