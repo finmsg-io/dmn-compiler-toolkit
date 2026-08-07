@@ -42,6 +42,13 @@ dmn-tck-runner
               -> dmn-semantic-analysis
                    -> dmn-protobuf
 
+dmn-benchmarks
+    -> dmn-compiler
+    -> dmn-generator-java
+    -> dmn-runtime
+    -> net.datafaker:datafaker
+    -> org.openjdk.jmh:jmh-core
+
 dmn-feel-parser -> dmn-protobuf
 dmn-frontend-xml -> dmn-protobuf
 ```

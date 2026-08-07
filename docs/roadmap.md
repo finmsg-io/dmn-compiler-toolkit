@@ -56,6 +56,7 @@
 - [x] Resolver-independent model loader boundary for imports (`DmnModelResolver`)
 - [x] High-performance Java source code generator (`dmn-generator-java`)
 - [x] DMN Technology Compatibility Kit (TCK) runner (`dmn-tck-runner`)
+- [x] JMH performance microbenchmarks & DataFaker payload generators (`dmn-benchmarks`)
 
 <a id="contents-section-2"></a>
 ## XML frontend completion gate

@@ -12,7 +12,8 @@
 - [dmn-compiler](#contents-section-7)
 - [dmn-generator-java](#contents-section-8)
 - [dmn-tck-runner](#contents-section-9)
-- [Planned modules](#contents-section-10)
+- [dmn-benchmarks](#contents-section-10)
+- [Planned modules](#contents-section-11)
 <!-- generated-toc:end -->
 
 
@@ -165,14 +166,22 @@ String javaSource = generator.generate(runtimeModel);
 
 Options (`DmnJavaGeneratorOptions`) allow customizing the generated package name, class name, and execution optimization strategies.
 
+Assessments: [implementation](audits/assessment-implementation-dmn-generator-java.md) ·
+[architecture](audits/assessment-architecture-dmn-generator-java.md)
+
 <a id="contents-section-9"></a>
+## `dmn-tck-runner`
+
 Provides a conformance runner for OMG DMN Technology Compatibility Kit (TCK) test cases.
-`DmnToolkitTckEngine` decodes TCK test case definitions (`TckTestCaseReader`), feeds input values into `DmnCompiler` and `DmnInterpreter` / `DmnJavaGenerator`, and asserts spec conformance across decision tables, expressions, and model relationships.
+`DmnToolkitTckEngine` decodes TCK test case definitions (`TckTestCaseReader`), feeds input values into `DmnCompiler` and `DmnRuntime` / `DmnJavaGenerator`, and asserts spec conformance across decision tables, expressions, and model relationships.
 
 Embeds the official vendor-neutral [OMG DMN TCK repository](https://dmn-tck.github.io/tck/) (`https://github.com/dmn-tck/tck.git`) as a submodule:
 - **Compliance Level 3 (CL3)**: 3,467 `<testCase>` items across 118 XML test files.
 - **Compliance Level 2 (CL2)**: 144 `<testCase>` items across 28 XML test files.
 - **Total Test Suite**: 3,657 test cases (3,611 compliant) evaluated across both interpreter and generated Java bytecode engines (`OfficialTckSuiteTest`).
+
+Assessments: [implementation](audits/assessment-implementation-dmn-tck-runner.md) ·
+[architecture](audits/assessment-architecture-dmn-tck-runner.md)
 
 <a id="contents-section-10"></a>
 ## `dmn-benchmarks`
@@ -184,6 +193,9 @@ Provides JMH microbenchmarks and reference model workloads comparing `DmnRuntime
 - **Traffic Violation Decision Table**: `dmn-generator-java` achieves **6.16M ops/sec** (173 ns/op) vs `DmnRuntime` interpreter **736k ops/sec** (1.25 µs/op) — **~7.2x speedup**.
 - **Credit Approval DRG Graph**: `dmn-generator-java` achieves **1.14M ops/sec** (471 ns/op) vs `DmnRuntime` interpreter **199k ops/sec** (2.12 µs/op) — **~4.5x speedup**.
 - **Scalar Arithmetic**: `dmn-generator-java` achieves **12.0M ops/sec** (124.5 ns/op) vs `DmnRuntime` interpreter **3.88M ops/sec** (258 ns/op) — **~2.1x speedup**.
+
+Assessments: [implementation](audits/assessment-implementation-dmn-benchmarks.md) ·
+[architecture](audits/assessment-architecture-dmn-benchmarks.md)
 
 <a id="contents-section-11"></a>
 ## Planned modules

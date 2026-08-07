@@ -13,7 +13,7 @@
 - [Completion gate](#contents-section-8)
 <!-- generated-toc:end -->
 
-Status: audited 2026-08-01 against the current protobuf model and the reader/writer test suite.
+Status: audited 2026-08-07 against the current protobuf model and the reader/writer test suite.
 
 <a id="contents-section-1"></a>
 ## Conclusion
@@ -94,6 +94,6 @@ These are extensions to the semantic model, not reader/writer glue-code defects.
 <a id="contents-section-8"></a>
 ## Completion gate
 
-The current frontend subset is complete: the conformance matrix and complete six-module reactor
+The current frontend subset is complete: the conformance matrix and complete ten-module reactor
 pass. Full DMN-spec completeness additionally requires an
 explicit decision about each model-extension item above.
