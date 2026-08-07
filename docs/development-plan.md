@@ -35,10 +35,10 @@ promise. Update it whenever implementation evidence or priorities materially cha
 | Field | Value |
 | --- | --- |
 | Last reviewed | 2026-08-07 |
-| Current phase | P8 — Constant folding & expression simplification pass (`dmn-optimizer`) `done` |
-| Overall state | compiler facade, model resolver, runtime baseline, Java generator, 100% OMG DMN 1.5 TCK conformance, JMH benchmarks, and dmn-optimizer established |
-| Primary objective | Data Quality DMN corpus (P9), generic gRPC adapters (P10), and Spark SQL generation (P11) |
-| Next major objective | Data Quality DMN corpus (P9), generic gRPC adapters (P10), and Spark SQL generation (P11) |
+| Current phase | P9 — Data Quality DMN Corpus (`dq-field-validation`, `dq-cross-field-consistency`, `dq-scoring`) `done` |
+| Overall state | compiler facade, model resolver, runtime baseline, Java generator, 100% OMG DMN 1.5 TCK conformance, JMH benchmarks, dmn-optimizer, and Data Quality DMN Corpus established |
+| Primary objective | generic gRPC adapters (P10) and Spark SQL generation (P11) |
+| Next major objective | generic gRPC adapters (P10) and Spark SQL generation (P11) |
 
 <a id="contents-section-2"></a>
 ## Status vocabulary
@@ -60,7 +60,7 @@ only when its acceptance evidence is present.
 <a id="contents-section-3"></a>
 ## Current baseline
 
-As of the last review, the repository contains nine active Maven modules:
+As of the last review, the repository contains eleven active Maven modules:
 
 - `dmn-protobuf` — canonical semantic model, replaceable FEEL text/parsed nodes, and FEEL AST;
 - `dmn-frontend-xml` — namespace-aware DMN XML reader and writer for the modeled subset;
@@ -70,15 +70,17 @@ As of the last review, the repository contains nine active Maven modules:
 - `dmn-runtime` — deterministic process-local Runtime IR interpreter;
 - `dmn-compiler` — public facade (`DmnCompiler`), model resolver (`DmnModelResolver`), and transitive loader;
 - `dmn-generator-java` — high-performance Java source code generator (`DmnJavaGenerator`);
-- `dmn-tck-runner` — OMG DMN TCK test runner (`DmnToolkitTckEngine`) and conformance suite adapter.
+- `dmn-tck-runner` — OMG DMN TCK test runner (`DmnToolkitTckEngine`) and conformance suite adapter;
+- `dmn-benchmarks` — JMH microbenchmarks and DataFaker reference model workloads;
+- `dmn-optimizer` — static constant folding, algebraic simplification, and rule pruning passes.
 
-The entire test reactor passes 243 unit and integration tests across 34 test classes (and over 30 protobuf model tests).
+The entire test reactor passes cleanly across all 11 modules and 3,611 compliant OMG DMN 1.5 TCK test cases.
 
-The main remaining gaps are:
+The main remaining objectives are:
 
-- no JMH benchmark suite validating throughput and latency baselines (P6);
-- constant folding and dead decision elimination optimization passes (`dmn-optimizer`);
-- generic gRPC adapters and typed multi-language code generation (Rust, Go).
+- generic gRPC adapters in Java (`dmn-grpc`);
+- Spark SQL Catalyst expression & DataFrame UDF generator (`dmn-generator-spark`);
+- native code generation backends (Rust, Go).
 
 <a id="contents-section-4"></a>
 ## Target delivery architecture
@@ -88,7 +90,7 @@ Root DMN + model resolver
           |
           v
 Compiler facade
-  XML -> FEEL -> semantic model set -> Runtime IR -> optimizer
+  XML -> FEEL -> semantic model set -> Runtime IR -> dmn-optimizer
           |
           +-------------------+
           |                   |
@@ -115,12 +117,13 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P4 | Stable compiled-model API | `done` | P1, P3 | Callers use model/input/decision names without internal slot knowledge |
 | P5 | Java code generation | `done` | P3, P4 | Generated Java matches the interpreter on the shared corpus |
 | P6 | 100% OMG DMN 1.5 TCK Compliance | `done` | P3, P5 | 100% pass rate on official OMG DMN 1.5 TCK suite for both Interpreter and `dmn-generator-java` |
-| P7 | Performance Validation & Load Generation | `ready` | P5, P6 | JMH & multi-threaded load testing establish throughput and $P_{99}$ latency baselines |
-| P8 | Production Data Quality DMN Corpus | `ready` | P2, P5 | Real-world Data Quality DMN model corpus (field hygiene, regex format, cross-field validation, scoring) |
-| P9 | Generic gRPC generation in Java | `ready` | P4, P5 | Transport-neutral `evaluation.proto` and Java gRPC service adapters backed by generated Java decisions |
-| P10 | Spark SQL Code Generation | `ready` | P5 | Native Spark SQL Catalyst expressions and DataFrame UDFs generated from DMN models |
-| P11 | Typed Protobuf and gRPC generation | `proposed` | P9, P10 | Eligible DMN types produce deterministic typed service contracts |
-| P12 | Additional Language Generators (Rust, Go, C++) | `proposed` | P5, P10 | Native zero-allocation binaries in Rust, Go handlers, and C++ decision engines |
+| P7 | Performance Validation & Load Generation | `done` | P5, P6 | JMH microbenchmarks (`dmn-benchmarks`) establish throughput and latency baselines |
+| P8 | Static Optimizer Pass | `done` | P5, P7 | Constant folding, algebraic simplification, and rule pruning passes (`dmn-optimizer`) |
+| P9 | Production Data Quality DMN Corpus | `done` | P2, P5 | Real-world Data Quality DMN model corpus (`dq-field-validation`, `dq-cross-field-consistency`, `dq-scoring`) |
+| P10 | Generic gRPC generation in Java | `ready` | P4, P5 | Transport-neutral `evaluation.proto` and Java gRPC service adapters backed by generated Java decisions |
+| P11 | Spark SQL Catalyst & DataFrame UDF generator | `proposed` | P5, P8 | Lowering FEEL and decision tables to Spark SQL Catalyst expressions |
+| P12 | Typed Protobuf and gRPC generation | `proposed` | P10, P11 | Eligible DMN types produce deterministic typed service contracts |
+| P13 | Additional Language Generators (Rust, Go, C++) | `proposed` | P5, P10 | Native zero-allocation binaries in Rust, Go handlers, and C++ decision engines |
 
 <a id="contents-section-6"></a>
 ## P1 — Compiler facade and model resolution

@@ -187,7 +187,7 @@ Assessments: [implementation](audits/assessment-implementation-dmn-tck-runner.md
 <a id="contents-section-10"></a>
 ## `dmn-benchmarks`
 
-Provides JMH microbenchmarks and reference model workloads comparing `DmnRuntime` vs `dmn-generator-java`. Uses DataFaker (`net.datafaker:datafaker`) to generate realistic input payloads and includes `ReferenceModelRegistry` for pluggable DMN model benchmark discovery (`credit-approval.dmn`, `traffic-violation.dmn`).
+Provides JMH microbenchmarks and reference model workloads comparing `DmnRuntime` vs `dmn-generator-java`. Uses DataFaker (`net.datafaker:datafaker`) to generate realistic input payloads and includes `ReferenceModelRegistry` for pluggable DMN model discovery (`credit-approval.dmn`, `traffic-violation.dmn`, `dq-field-validation.dmn`, `dq-cross-field-consistency.dmn`, `dq-scoring.dmn`).
 
 ### Published Performance Results (JDK 25 LTS)
 

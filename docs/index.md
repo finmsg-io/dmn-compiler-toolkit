@@ -53,6 +53,9 @@ Semantic-analysis result and diagnostics (DmnSemanticAnalyzer)
    ▼
 Immutable Runtime IR (RuntimeIrLowerer)
    │
+   ▼
+Static Optimizer Pass (dmn-optimizer)
+   │
    ├────────────────────────┬────────────────────────┐
    ▼                        ▼                        ▼
 Process-local Interpreter   Java Generator           JMH Benchmarks
