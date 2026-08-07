@@ -15,7 +15,8 @@
 - [dmn-benchmarks](#contents-section-10)
 - [dmn-optimizer](#contents-section-11)
 - [dmn-grpc](#contents-section-12)
-- [Planned modules](#contents-section-13)
+- [dmn-generator-sparksql](#contents-section-13)
+- [Planned modules](#contents-section-14)
 <!-- generated-toc:end -->
 
 
@@ -216,10 +217,17 @@ Assessments: [implementation](audits/assessment-implementation-dmn-grpc.md) ·
 [architecture](audits/assessment-architecture-dmn-grpc.md)
 
 <a id="contents-section-13"></a>
+## `dmn-generator-sparksql`
+
+Provides pure native Spark / Databricks SQL query generation directly from Runtime IR models without UDF overhead. `DmnSparkSqlGenerator` lowers FEEL expressions and decision tables into standard Common Table Expression (CTE) query files (`<decision-name>.sql`) and native Spark `StructType` input schemas (`SparkSqlSchemaGenerator`), delegating query optimization and execution tuning entirely to Spark's Catalyst engine and Databricks Photon. Includes an optional zero-dependency Java runner (`DmnSparkSqlRunner`) for direct integration with `SparkSession` and `Dataset<Row>`.
+
+Assessments: [implementation](audits/assessment-implementation-dmn-generator-sparksql.md) ·
+[architecture](audits/assessment-architecture-dmn-generator-sparksql.md)
+
+<a id="contents-section-14"></a>
 ## Planned modules
 
 ```text
-dmn-generator-spark
 dmn-generator-rust
 dmn-generator-go
 ```

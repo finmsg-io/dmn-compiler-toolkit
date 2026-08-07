@@ -100,6 +100,13 @@ nav:
           - Runtime IR Assessment: audits/assessment-implementation-dmn-runtime-ir.md
           - Runtime Assessment: audits/assessment-implementation-dmn-runtime.md
           - Compiler Assessment: audits/assessment-implementation-dmn-compiler.md
+          - Java Generator Assessment: audits/assessment-implementation-dmn-generator-java.md
+          - TCK Runner Assessment: audits/assessment-implementation-dmn-tck-runner.md
+          - Benchmarks Assessment: audits/assessment-implementation-dmn-benchmarks.md
+          - Optimizer Assessment: audits/assessment-implementation-dmn-optimizer.md
+          - Data Quality Corpus Assessment: audits/assessment-implementation-data-quality-corpus.md
+          - gRPC Assessment: audits/assessment-implementation-dmn-grpc.md
+          - SparkSQL Assessment: audits/assessment-implementation-dmn-generator-sparksql.md
           - Module Architecture Assessment: audits/assessment-module-architecture.md
           - Architecture by Module:
               - Protobuf: audits/assessment-architecture-dmn-protobuf.md
@@ -109,6 +116,13 @@ nav:
               - Runtime IR: audits/assessment-architecture-dmn-runtime-ir.md
               - Runtime: audits/assessment-architecture-dmn-runtime.md
               - Compiler: audits/assessment-architecture-dmn-compiler.md
+              - Java Generator: audits/assessment-architecture-dmn-generator-java.md
+              - TCK Runner: audits/assessment-architecture-dmn-tck-runner.md
+              - Benchmarks: audits/assessment-architecture-dmn-benchmarks.md
+              - Optimizer: audits/assessment-architecture-dmn-optimizer.md
+              - Data Quality Corpus: audits/assessment-architecture-data-quality-corpus.md
+              - gRPC: audits/assessment-architecture-dmn-grpc.md
+              - SparkSQL Generator: audits/assessment-architecture-dmn-generator-sparksql.md
       - Style Guide: dev/style.md
       - Evidence-Backed Spec-Driven Development: dev/evidence-backed-spec-driven-development.md
       - Development Slices:
