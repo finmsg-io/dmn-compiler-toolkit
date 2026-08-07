@@ -24,7 +24,12 @@ public final class FeelReader {
               builder.setText(cursor.text().trim());
             }
           }
-          case "extensionElements" -> { }
+          case "expression", "literalExpression", "context", "functionDefinition", "extensionElements", "documentation" -> {
+            FeelText inner = readText(cursor);
+            if (!inner.getText().isBlank() && builder.getText().isBlank()) {
+              builder.setText(inner.getText());
+            }
+          }
           default -> UnsupportedContent.rejectDmnChild(cursor, "FEEL expression");
         }
       } while (cursor.nextSibling());

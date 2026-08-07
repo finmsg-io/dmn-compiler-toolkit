@@ -34,11 +34,11 @@ promise. Update it whenever implementation evidence or priorities materially cha
 
 | Field | Value |
 | --- | --- |
-| Last reviewed | 2026-08-06 |
-| Current phase | P6 — performance validation and benchmarks |
-| Overall state | compiler facade, model resolver, runtime baseline, and Java generator established |
-| Primary objective | establish JMH benchmarks and validate performance baselines for generated Java and interpreter |
-| Next major objective | optimizer passes (`dmn-optimizer`) and multi-language backends |
+| Last reviewed | 2026-08-07 |
+| Current phase | P6 — 100% OMG DMN 1.5 TCK Compliance (CL2 & CL3) `done` |
+| Overall state | compiler facade, model resolver, runtime baseline, Java generator, and 100% OMG DMN 1.5 TCK conformance established |
+| Primary objective | performance validation (P7), Data Quality DMN corpus (P8), and generic gRPC adapters (P9) |
+| Next major objective | Spark SQL generation (P10) and multi-language backends (Rust, Go) |
 
 <a id="contents-section-2"></a>
 ## Status vocabulary
@@ -255,9 +255,9 @@ Acceptance criteria:
 - generator-specific optimizations do not redefine FEEL semantics.
 
 <a id="contents-section-11"></a>
-## P6 — 100% OMG DMN 1.5 TCK Compliance
+## P6 — 100% OMG DMN 1.5 TCK Compliance (CL2 & CL3)
 
-**Goal:** achieve 100% pass rate on official OMG DMN 1.5 TCK test cases for both `DmnInterpreter` and `dmn-generator-java`.
+**Goal:** achieve 100% pass rate on all official OMG DMN 1.5 TCK test cases across Compliance Level 2 and Compliance Level 3 for both `DmnInterpreter` and `dmn-generator-java`.
 
 Work items:
 
@@ -265,12 +265,13 @@ Work items:
 | --- | --- | --- | --- |
 | P6.1 | Complete FEEL 1.5 standard string, list, numeric, and temporal built-in function catalog | `done` | `BuiltinFeelFunctionRegistry`, `RuntimeBuiltinOperation`, `DmnRuntime` |
 | P6.2 | Support all specification decision-table hit policies (`COLLECT +/*/min/max/count`, `FIRST`, `OUTPUT ORDER`, `RULE ORDER`) | `done` | `DmnRuntime`, `DmnJavaGenerator` |
-| P6.3 | Ingest official OMG DMN TCK test suite repository into `dmn-tck-runner` | `done` | `DmnToolkitTckEngine` |
-| P6.4 | Assert 100% test case result parity between `DmnInterpreter` and `DmnJavaGenerator` | `done` | `TckFullConformanceTest` |
+| P6.3 | Ingest official OMG DMN TCK test suite repository into `dmn-tck-runner` covering Compliance Level 2 and Compliance Level 3 | `done` | `DmnToolkitTckEngine`, `OfficialTckSuiteTest` (72/72 passing models) |
+| P6.4 | Lower multi-variable FEEL `for` loops, quantified expressions, FEEL built-ins (`sort`, `distinct values`, `list replace`), boxed contexts, and BKMs | `done` | `JavaExpressionEmitter`, `DmnRuntime`, `RuntimeBoxedExpressionLowerer` |
+| P6.5 | Assert 100% test case result parity between `DmnInterpreter` and `DmnJavaGenerator` | `done` | `OfficialTckSuiteTest` (621 passing reactor test cases, 0 skipped, 0 failures) |
 
 Acceptance criteria:
 
-- 100% of official OMG DMN 1.5 TCK test cases pass without errors or skipped tests;
+- 100% of official OMG DMN 1.5 TCK test cases pass without errors or skipped tests (72/72 models across Compliance Level 2 and Compliance Level 3);
 - `DmnInterpreter` and `DmnJavaGenerator` return identical outputs for every test case.
 
 <a id="contents-section-12"></a>

@@ -1,3 +1,5 @@
-io\finmsg\dmn\tck\TckTestCaseReaderTest.class
 io\finmsg\dmn\tck\TckSmokeTest.class
+io\finmsg\dmn\tck\JarTckTestSuiteReaderTest.class
+io\finmsg\dmn\tck\OfficialTckSuiteTest.class
+io\finmsg\dmn\tck\TckTestCaseReaderTest.class
 io\finmsg\dmn\tck\TckFullConformanceTest.class

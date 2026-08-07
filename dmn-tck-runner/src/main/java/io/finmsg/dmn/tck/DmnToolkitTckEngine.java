@@ -19,7 +19,22 @@ public final class DmnToolkitTckEngine {
   public TckExecutionResult execute(Path modelPath, TckTestCase testCase) throws IOException {
     DmnSource source = new DmnSource(
         new DmnSourceId(modelPath.toAbsolutePath().normalize().toUri()), Files.readAllBytes(modelPath));
-    DmnCompilationResult compilation = new DmnCompiler().compile(source);
+    return execute(source, testCase);
+  }
+
+  public TckExecutionResult execute(DmnSource source, TckTestCase testCase) {
+    return execute(java.util.List.of(source), testCase);
+  }
+
+  public TckExecutionResult execute(java.util.List<DmnSource> sources, TckTestCase testCase) {
+    if (sources.isEmpty()) {
+      throw new IllegalArgumentException("No DMN sources provided");
+    }
+    DmnSource root = sources.get(0);
+    io.finmsg.dmn.compiler.DmnModelResolver resolver = sources.size() > 1
+        ? new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(sources.subList(1, sources.size()))
+        : new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(java.util.List.of());
+    DmnCompilationResult compilation = new DmnCompiler().compile(root, resolver);
     if (!compilation.isSuccess()) {
       throw new TckExecutionException("Compilation failed for TCK case " + testCase.id() + ": "
           + compilation.diagnostics());
@@ -27,8 +42,14 @@ public final class DmnToolkitTckEngine {
 
     RuntimeNames names = runtimeNames(compilation);
     Map<Integer, Object> inputs = new LinkedHashMap<>();
-    testCase.inputs().forEach((name, value) -> inputs.put(
-        required(names.inputSlots(), name, "input", testCase.id()), value.runtimeValue()));
+    compilation.optimizedRuntimeModel().orElseThrow().model().inputs()
+        .forEach(input -> inputs.put(input.valueSlot(), null));
+    testCase.inputs().forEach((name, value) -> {
+      Integer slot = names.inputSlots().get(name);
+      if (slot != null) {
+        inputs.put(slot, value.runtimeValue());
+      }
+    });
     DmnEvaluationResult evaluation = new DmnRuntime().evaluate(
         compilation.optimizedRuntimeModel().orElseThrow().model(), inputs);
 

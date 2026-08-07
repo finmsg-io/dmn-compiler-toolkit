@@ -17,10 +17,9 @@ public final class FunctionDefinitionReader {
     //
 
     if (cursor.hasAttribute("kind")) {
-      if (cursor.hasAttribute("kind")) {
-        builder.setKind(toFunctionKind(
-                cursor.requiredAttribute("kind")));
-      }
+      builder.setKind(toFunctionKind(cursor.requiredAttribute("kind")));
+    } else {
+      builder.setKind(FunctionKind.FUNCTION_KIND_FEEL);
     }
 
     if (cursor.firstChild()) {
@@ -29,6 +28,11 @@ public final class FunctionDefinitionReader {
           case "formalParameter" ->
               builder.addFormalParameters(informationItemReader.read(cursor));
           case "literalExpression" -> builder.setLogic(feelReader.read(cursor));
+          case "functionDefinition" -> {
+            FunctionDefinition inner = read(cursor);
+            builder.addAllFormalParameters(inner.getFormalParametersList());
+            if (inner.hasLogic()) builder.setLogic(inner.getLogic());
+          }
           case "documentation", "extensionElements" -> { }
           default -> UnsupportedContent.rejectDmnChild(cursor, "functionDefinition");
         }

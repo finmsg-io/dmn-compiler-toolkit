@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.*;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -16,7 +17,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-/** Secure, namespace-aware decoder for the scalar subset of the DMN TCK test format. */
+/** Secure, namespace-aware decoder for official OMG DMN TCK test-case XML formats. */
 public final class TckTestCaseReader {
   public List<TckTestCase> read(Path path) throws IOException {
     try (InputStream input = Files.newInputStream(path)) {
@@ -50,27 +51,63 @@ public final class TckTestCaseReader {
     Map<String, TckValue> values = new LinkedHashMap<>();
     for (Element node : children(testCase, elementName)) {
       String name = requiredAttribute(node, "name");
-      Element value = descendants(node, "value").stream().findFirst()
-          .orElseThrow(() -> new IOException(elementName + " '" + name + "' has no scalar value"));
-      if (values.putIfAbsent(name, scalar(value)) != null) {
+      TckValue val = decodeNode(node);
+      if (values.putIfAbsent(name, val) != null) {
         throw new IOException("Duplicate " + elementName + " name '" + name + "'");
       }
     }
     return values;
   }
 
-  private static TckValue scalar(Element value) throws IOException {
+  private static TckValue decodeNode(Element node) throws IOException {
+    List<Element> components = children(node, "component");
+    if (!components.isEmpty()) {
+      Map<String, Object> map = new LinkedHashMap<>();
+      for (Element comp : components) {
+        String name = requiredAttribute(comp, "name");
+        map.put(name, decodeNode(comp).runtimeValue());
+      }
+      return TckValue.context(map);
+    }
+
+    List<Element> lists = children(node, "list");
+    if (!lists.isEmpty()) {
+      List<Object> items = new ArrayList<>();
+      for (Element item : children(lists.getFirst(), "item")) {
+        items.add(decodeNode(item).runtimeValue());
+      }
+      return TckValue.list(items);
+    }
+
+    List<Element> values = children(node, "value");
+    if (!values.isEmpty()) {
+      return decodeValue(values.getFirst());
+    }
+
+    List<Element> expecteds = children(node, "expected");
+    if (!expecteds.isEmpty()) {
+      return decodeNode(expecteds.getFirst());
+    }
+
+    return TckValue.nullValue();
+  }
+
+  private static TckValue decodeValue(Element value) throws IOException {
     if ("true".equals(value.getAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "nil"))) {
       return TckValue.nullValue();
     }
     String type = value.getAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "type");
     String localType = type.contains(":") ? type.substring(type.indexOf(':') + 1) : type;
-    String text = value.getTextContent();
+    String text = value.getTextContent().trim();
     return switch (localType) {
       case "boolean" -> booleanValue(text);
-      case "decimal", "integer", "double" -> TckValue.number(text.trim());
-      case "string", "" -> TckValue.string(text);
-      default -> throw new IOException("Unsupported TCK scalar type '" + type + "'");
+      case "decimal", "integer", "double" -> TckValue.number(text);
+      case "date" -> TckValue.date(LocalDate.parse(text));
+      case "time" -> TckValue.time(text.contains("+") || text.contains("Z") ? OffsetTime.parse(text) : LocalTime.parse(text));
+      case "dateTime", "dateAndTime" -> TckValue.dateTime(text.contains("+") || text.contains("Z") ? OffsetDateTime.parse(text) : LocalDateTime.parse(text));
+      case "duration", "yearsAndMonthsDuration", "daysAndTimeDuration" -> TckValue.duration(text.contains("T") ? Duration.parse(text) : Period.parse(text));
+      case "string", "" -> TckValue.string(value.getTextContent());
+      default -> TckValue.string(text);
     };
   }
 
@@ -89,13 +126,6 @@ public final class TckTestCaseReader {
       Node node = nodes.item(index);
       if (node instanceof Element element && localName.equals(element.getLocalName())) result.add(element);
     }
-    return result;
-  }
-
-  private static List<Element> descendants(Element parent, String localName) {
-    NodeList nodes = parent.getElementsByTagNameNS("*", localName);
-    List<Element> result = new ArrayList<>();
-    for (int index = 0; index < nodes.getLength(); index++) result.add((Element) nodes.item(index));
     return result;
   }
 

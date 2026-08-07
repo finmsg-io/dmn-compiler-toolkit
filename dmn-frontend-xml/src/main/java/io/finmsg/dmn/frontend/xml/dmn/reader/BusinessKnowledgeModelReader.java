@@ -25,18 +25,8 @@ public final class BusinessKnowledgeModelReader {
 
           case "variable" -> builder.setVariable(variableReader.read(cursor));
 
-          case "encapsulatedLogic" -> {
-            if (cursor.firstChild()) {
-              do {
-                if ("functionDefinition".equals(cursor.documentLocalName())) {
-                  builder.setFunction(functionDefinitionReader.read(cursor));
-                  break;
-                }
-                UnsupportedContent.rejectDmnChild(cursor, "encapsulatedLogic");
-              } while (cursor.nextSibling());
-              cursor.parent();
-            }
-          }
+          case "encapsulatedLogic" ->
+              builder.setFunction(functionDefinitionReader.read(cursor));
 
           case "knowledgeRequirement" ->
               builder.addKnowledgeRequirements(knowledgeRequirementReader.read(cursor));

@@ -157,6 +157,7 @@ public final class FeelTypeAnalyzer {
       TypeReference result = switch (operator) {
         case BINARY_OPERATOR_ADD -> {
           if (is(left, NUMBER) && is(right, NUMBER)) yield NUMBER;
+          if (is(left, STRING) || is(right, STRING)) yield STRING;
           if (isTemporal(left) && isDuration(right)) yield left;
           if (isDuration(left) && isTemporal(right)) yield right;
           if (isDuration(left) && isDuration(right)) yield durationResult(left, right);
@@ -715,7 +716,24 @@ public final class FeelTypeAnalyzer {
           return type;
         }
       }
-      return environment.symbols().get(name);
+      TypeReference envType = environment.symbols().get(name);
+      if (envType != null) {
+        return envType;
+      }
+      String normalized = name.replace(" ", "");
+      for (Map<String, TypeReference> scope : scopes) {
+        for (Map.Entry<String, TypeReference> entry : scope.entrySet()) {
+          if (entry.getKey().replace(" ", "").equalsIgnoreCase(normalized)) {
+            return entry.getValue();
+          }
+        }
+      }
+      for (Map.Entry<String, TypeReference> entry : environment.symbols().entrySet()) {
+        if (entry.getKey().replace(" ", "").equalsIgnoreCase(normalized)) {
+          return entry.getValue();
+        }
+      }
+      return null;
     }
 
     private void pushScope() {

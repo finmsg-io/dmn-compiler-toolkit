@@ -1,0 +1,3 @@
+[submodule "dmn-tck-runner/src/test/resources/tck-official"]
+	path = dmn-tck-runner/src/test/resources/tck-official
+	url = https://github.com/dmn-tck/tck.git

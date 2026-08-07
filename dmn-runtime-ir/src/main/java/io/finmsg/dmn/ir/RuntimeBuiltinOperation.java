@@ -40,7 +40,9 @@ public enum RuntimeBuiltinOperation {
   FLATTEN(32, "flatten"),
   REVERSE(33, "reverse"),
   INDEX_OF(34, "index of"),
-  YEARS_AND_MONTHS_DURATION(35, "years and months duration");
+  YEARS_AND_MONTHS_DURATION(35, "years and months duration"),
+  SORT(36, "sort"),
+  LIST_REPLACE(37, "list replace");
 
   private final int id;
   private final String feelName;

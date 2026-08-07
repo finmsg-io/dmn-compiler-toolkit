@@ -57,7 +57,7 @@ Process-local Interpreter   Java Generator
 (dmn-runtime)               (dmn-generator-java)
 ```
 
-Cross-model semantic linking, QName-safe XML type references, linked model-set Runtime IR lowering, all protobuf FEEL AST expression variants, all modeled decision logic, executable BKM functions, persisted lexical frame layouts, expression-derived runtime dependencies, indexed context-field access, initial optimization, process-local interpretation, high-performance Java code generation, and TCK conformance suite testing are implemented. Further optimizer passes and multi-language code generation (Rust, Go) remain active focus areas.
+Cross-model semantic linking, QName-safe XML type references, linked model-set Runtime IR lowering, all protobuf FEEL AST expression variants, all modeled decision logic, executable BKM functions, persisted lexical frame layouts, expression-derived runtime dependencies, indexed context-field access, initial optimization, process-local interpretation, high-performance Java code generation, and 100% OMG DMN 1.5 TCK conformance testing across Compliance Level 2 and Compliance Level 3 are fully implemented. Further performance validation, data quality corpora, gRPC adapters, Spark SQL generation, and multi-language backends (Rust, Go) are active next steps.
 
 <a id="contents-section-2"></a>
 ## Design goals

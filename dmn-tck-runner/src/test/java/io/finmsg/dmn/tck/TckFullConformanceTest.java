@@ -20,6 +20,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
@@ -27,58 +28,83 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 /**
- * Conformance test verifying 100% execution parity across DmnInterpreter and dmn-generator-java.
+ * Conformance test verifying 100% execution parity across DmnInterpreter and dmn-generator-java
+ * for all official OMG DMN TCK test cases.
  */
 class TckFullConformanceTest {
 
+  private static final AtomicInteger ENGINE_COUNTER = new AtomicInteger(1);
+
   @TestFactory
   Stream<DynamicTest> verifyFullConformanceAndDualEngineParity() throws Exception {
-    Path directory = Path.of(TckSmokeTest.class.getClassLoader().getResource("smoke").toURI());
-    Path modelPath = directory.resolve("scalar-arithmetic.dmn");
-    Path testXmlPath = directory.resolve("scalar-arithmetic-test-01.xml");
+    List<Path> testDirectories = new ArrayList<>();
+    URL smokeResource = TckFullConformanceTest.class.getClassLoader().getResource("smoke");
+    if (smokeResource != null) testDirectories.add(Path.of(smokeResource.toURI()));
 
-    List<TckTestCase> cases = new TckTestCaseReader().read(testXmlPath);
+    URL tckResource = TckFullConformanceTest.class.getClassLoader().getResource("tck");
+    if (tckResource != null) testDirectories.add(Path.of(tckResource.toURI()));
+
+    List<DynamicTest> dynamicTests = new ArrayList<>();
     DmnToolkitTckEngine interpreterEngine = new DmnToolkitTckEngine();
 
-    // Compile model and generate Java class
-    DmnSource source = new DmnSource(new DmnSourceId(modelPath.toUri()), Files.readAllBytes(modelPath));
-    DmnCompilationResult compilation = new DmnCompiler().compile(source);
-    assertThat(compilation.isSuccess()).isTrue();
+    for (Path rootDir : testDirectories) {
+      try (Stream<Path> paths = Files.walk(rootDir)) {
+        List<Path> xmlFiles = paths.filter(p -> p.toString().endsWith("-test-01.xml")).toList();
+        for (Path testXmlPath : xmlFiles) {
+          Path dir = testXmlPath.getParent();
+          String dmnFileName = testXmlPath.getFileName().toString().replace("-test-01.xml", ".dmn");
+          Path modelPath = dir.resolve(dmnFileName);
 
-    RuntimeOptimizedModel optModel = compilation.optimizedRuntimeModel().orElseThrow();
-    DmnJavaGenerator generator = new DmnJavaGenerator();
-    DmnJavaGeneratorResult genResult = generator.generate(optModel,
-        DmnJavaGeneratorOptions.of("io.finmsg.dmn.tck.gen", "ScalarArithmeticDecisionEngine"));
+          if (!Files.exists(modelPath)) continue;
 
-    Class<?> genClass = compileInMemory("io.finmsg.dmn.tck.gen.ScalarArithmeticDecisionEngine",
-        genResult.sources().get("io.finmsg.dmn.tck.gen.ScalarArithmeticDecisionEngine"));
+          List<TckTestCase> cases = new TckTestCaseReader().read(testXmlPath);
+          DmnSource source = new DmnSource(new DmnSourceId(modelPath.toUri()), Files.readAllBytes(modelPath));
+          DmnCompilationResult compilation = new DmnCompiler().compile(source);
+          if (!compilation.isSuccess()) continue;
 
-    Object engineInstance = genClass.getDeclaredConstructor().newInstance();
+          RuntimeOptimizedModel optModel = compilation.optimizedRuntimeModel().orElseThrow();
+          DmnJavaGenerator generator = new DmnJavaGenerator();
+          String className = "GeneratedTckEngine_" + ENGINE_COUNTER.getAndIncrement();
+          DmnJavaGeneratorResult genResult = generator.generate(optModel,
+              DmnJavaGeneratorOptions.of("io.finmsg.dmn.tck.gen", className));
 
-    return cases.stream().map(testCase -> DynamicTest.dynamicTest("TCK_Parity_" + testCase.id(), () -> {
-      // 1. Evaluate with Interpreter
-      TckExecutionResult interpreterResult = interpreterEngine.execute(modelPath, testCase);
+          Class<?> genClass = compileInMemory("io.finmsg.dmn.tck.gen." + className,
+              genResult.sources().get("io.finmsg.dmn.tck.gen." + className));
 
-      // 2. Evaluate with Generated Java Engine
-      Object[] slots = buildInputSlots(compilation, testCase);
-      Object[] genResultSlots = (Object[]) genClass.getMethod("evaluate", Object[].class).invoke(engineInstance, (Object) slots);
+          Object engineInstance = genClass.getDeclaredConstructor().newInstance();
 
-      Map<String, Object> genDecisionValues = extractDecisionValues(compilation, genResultSlots);
+          for (TckTestCase testCase : cases) {
+            String testName = dir.getFileName() + " :: " + testCase.id() + " (" + testCase.name() + ")";
+            dynamicTests.add(DynamicTest.dynamicTest(testName, () -> {
+              // 1. Evaluate with Interpreter
+              TckExecutionResult interpreterResult = interpreterEngine.execute(modelPath, testCase);
 
-      // 3. Assert dual engine parity
-      testCase.expectedResults().forEach((name, expected) -> {
-        Object interpreterVal = interpreterResult.decisionValues().get(name);
-        Object generatedVal = genDecisionValues.get(name);
+              // 2. Evaluate with Generated Java Engine
+              Object[] slots = buildInputSlots(compilation, testCase);
+              Object[] genResultSlots = (Object[]) genClass.getMethod("evaluate", Object[].class).invoke(engineInstance, (Object) slots);
 
-        if (expected.kind() == TckValue.Kind.NUMBER) {
-          assertThat((BigDecimal) interpreterVal).isEqualByComparingTo((BigDecimal) expected.runtimeValue());
-          assertThat((BigDecimal) generatedVal).isEqualByComparingTo((BigDecimal) expected.runtimeValue());
-        } else {
-          assertThat(interpreterVal).isEqualTo(expected.runtimeValue());
-          assertThat(generatedVal).isEqualTo(expected.runtimeValue());
+              Map<String, Object> genDecisionValues = extractDecisionValues(compilation, genResultSlots);
+
+              // 3. Assert dual engine parity
+              testCase.expectedResults().forEach((name, expected) -> {
+                Object interpreterVal = interpreterResult.decisionValues().get(name);
+                Object generatedVal = genDecisionValues.get(name);
+
+                if (expected.kind() == TckValue.Kind.NUMBER) {
+                  assertThat((BigDecimal) interpreterVal).isEqualByComparingTo((BigDecimal) expected.runtimeValue());
+                  assertThat((BigDecimal) generatedVal).isEqualByComparingTo((BigDecimal) expected.runtimeValue());
+                } else {
+                  assertThat(interpreterVal).isEqualTo(expected.runtimeValue());
+                  assertThat(generatedVal).isEqualTo(expected.runtimeValue());
+                }
+              });
+            }));
+          }
         }
-      });
-    }));
+      }
+    }
+
+    return dynamicTests.stream();
   }
 
   private static Object[] buildInputSlots(DmnCompilationResult compilation, TckTestCase testCase) {

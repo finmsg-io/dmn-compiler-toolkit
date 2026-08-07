@@ -105,7 +105,22 @@ public final class DmnJavaGenerator {
         }
       }
       sb.append(") {\n");
-      String outExpr = !rule.outputEntries().isEmpty() ? JavaExpressionEmitter.emit(rule.outputEntries().get(0)) : "null";
+      String outExpr;
+      if (rule.outputEntries().isEmpty()) {
+        outExpr = "null";
+      } else if (table.outputs().size() > 1) {
+        StringBuilder ctxSb = new StringBuilder("createContext(new Object[][]{");
+        for (int o = 0; o < table.outputs().size(); o++) {
+          if (o > 0) ctxSb.append(", ");
+          String name = table.outputs().get(o).name().orElse("output" + (o + 1));
+          String valCode = o < rule.outputEntries().size() ? JavaExpressionEmitter.emit(rule.outputEntries().get(o)) : "null";
+          ctxSb.append("{\"").append(name).append("\", ").append(valCode).append("}");
+        }
+        ctxSb.append("})");
+        outExpr = ctxSb.toString();
+      } else {
+        outExpr = JavaExpressionEmitter.emit(rule.outputEntries().get(0));
+      }
       if (isMultiMatch) {
         sb.append("      matches.add(").append(outExpr).append(");\n");
       } else {
@@ -150,7 +165,13 @@ public final class DmnJavaGenerator {
         case GREATER_EQUAL -> "compare(" + inputVar + ", " + JavaExpressionEmitter.emit(comparison.endpoint()) + ") >= 0";
       };
       case RuntimeRangeUnaryTest range -> "true";
-      case RuntimeExpressionUnaryTest expr -> JavaExpressionEmitter.emit(expr.expression());
+      case RuntimeExpressionUnaryTest expr -> {
+        String emitted = JavaExpressionEmitter.emit(expr.expression());
+        if (emitted.startsWith("equal(") || emitted.startsWith("compare(") || emitted.startsWith("isTrue(") || emitted.startsWith("in(")) {
+          yield emitted;
+        }
+        yield "equal(" + inputVar + ", " + emitted + ")";
+      }
     };
   }
 
@@ -168,6 +189,7 @@ public final class DmnJavaGenerator {
         return null;
       }
       private static Object add(Object a, Object b) {
+        if (a instanceof String || b instanceof String) return String.valueOf(a) + b;
         BigDecimal da = toBigDecimal(a), db = toBigDecimal(b);
         return (da == null || db == null) ? null : da.add(db);
       }
@@ -182,6 +204,10 @@ public final class DmnJavaGenerator {
       private static Object divide(Object a, Object b) {
         BigDecimal da = toBigDecimal(a), db = toBigDecimal(b);
         return (da == null || db == null || db.signum() == 0) ? null : da.divide(db, java.math.MathContext.DECIMAL128);
+      }
+      private static Object negate(Object a) {
+        BigDecimal da = toBigDecimal(a);
+        return da == null ? null : da.negate();
       }
       private static Boolean not(Object a) {
         return a instanceof Boolean b ? !b : null;
@@ -202,10 +228,11 @@ public final class DmnJavaGenerator {
         if (a instanceof Number && b instanceof Number) return toBigDecimal(a).compareTo(toBigDecimal(b)) == 0;
         return Objects.equals(a, b);
       }
+      @SuppressWarnings("unchecked")
       private static int compare(Object a, Object b) {
         if (a == null || b == null) return 0;
         if (a instanceof Number && b instanceof Number) return toBigDecimal(a).compareTo(toBigDecimal(b));
-        if (a instanceof Comparable c && b instanceof Comparable) return c.compareTo(b);
+        if (a instanceof Comparable c && b instanceof Comparable) return ((Comparable<Object>) c).compareTo(b);
         return 0;
       }
       private static Object getPath(Object source, String property) {
@@ -242,6 +269,88 @@ public final class DmnJavaGenerator {
           return max;
         }
         return List.copyOf(matches);
+      }
+      private static boolean quantify(boolean isEvery, Object listObj, java.util.function.Function<Object, Object> predicate) {
+        if (!(listObj instanceof List<?> list)) return isEvery;
+        for (Object item : list) {
+          Boolean match = Boolean.TRUE.equals(predicate.apply(item));
+          if (!isEvery && match) return true;
+          if (isEvery && !match) return false;
+        }
+        return isEvery;
+      }
+      private static Object filter(Object listObj, java.util.function.Function<Object, Object> predicate) {
+        if (!(listObj instanceof List<?> list)) return null;
+        List<Object> result = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+          Object item = list.get(i);
+          Object res = predicate.apply(item);
+          if (res instanceof Number n) {
+            int pos = n.intValue();
+            int idx = pos > 0 ? pos - 1 : list.size() + pos;
+            return (idx >= 0 && idx < list.size()) ? list.get(idx) : null;
+          }
+          if (Boolean.TRUE.equals(res)) result.add(item);
+        }
+        return result;
+      }
+      private static Object forLoop(Object listObj, java.util.function.Function<Object, Object> mapper) {
+        if (!(listObj instanceof List<?> list)) return List.of();
+        List<Object> result = new ArrayList<>();
+        for (Object item : list) {
+          Object res = mapper.apply(item);
+          if (res instanceof List<?> inner) {
+            result.addAll(inner);
+          } else {
+            result.add(res);
+          }
+        }
+        return result;
+      }
+      private static Object builtin(String name, List<Object> args) {
+        if ("contains".equals(name) && args.size() == 2) {
+          return args.get(0) != null && args.get(1) != null && String.valueOf(args.get(0)).contains(String.valueOf(args.get(1)));
+        }
+        if ("string length".equals(name) && args.size() == 1) {
+          return args.get(0) == null ? null : BigDecimal.valueOf(String.valueOf(args.get(0)).length());
+        }
+        if ("sort".equals(name) && !args.isEmpty() && args.get(0) instanceof List<?> list) {
+          List<Object> copy = new ArrayList<>((List<Object>) list);
+          if (args.size() > 1 && args.get(1) instanceof java.util.function.BiFunction<?, ?, ?> fn) {
+            copy.sort((a, b) -> {
+              Object res = ((java.util.function.BiFunction<Object, Object, Object>) fn).apply(a, b);
+              return Boolean.TRUE.equals(res) ? -1 : (Boolean.FALSE.equals(res) ? 1 : 0);
+            });
+          } else {
+            copy.sort((a, b) -> compare(a, b));
+          }
+          return List.copyOf(copy);
+        }
+        if ("distinct values".equals(name) && !args.isEmpty() && args.get(0) instanceof List<?> list) {
+          List<Object> result = new ArrayList<>();
+          for (Object item : list) {
+            if (result.stream().noneMatch(existing -> equal(existing, item))) result.add(item);
+          }
+          return List.copyOf(result);
+        }
+        if ("list replace".equals(name) && args.size() >= 3 && args.get(0) instanceof List<?> list) {
+          List<Object> copy = new ArrayList<>((List<Object>) list);
+          Object second = args.get(1);
+          Object newItem = args.get(2);
+          if (second instanceof Number n) {
+            int pos = n.intValue();
+            int idx = pos > 0 ? pos - 1 : copy.size() + pos;
+            if (idx >= 0 && idx < copy.size()) copy.set(idx, newItem);
+          } else if (second instanceof java.util.function.Function<?, ?> fn) {
+            for (int i = 0; i < copy.size(); i++) {
+              if (Boolean.TRUE.equals(((java.util.function.Function<Object, Object>) fn).apply(copy.get(i)))) {
+                copy.set(i, newItem);
+              }
+            }
+          }
+          return List.copyOf(copy);
+        }
+        return null;
       }
     """);
   }

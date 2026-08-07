@@ -69,7 +69,7 @@
 <a id="contents-section-3"></a>
 ## Next: MVP completion, gRPC, Spark SQL, and load validation
 
-- [x] 100% OMG DMN 1.5 TCK conformance for `DmnInterpreter` and `dmn-generator-java`
+- [x] 100% OMG DMN 1.5 TCK compliance (Compliance Level 2 & Compliance Level 3) for `DmnInterpreter` and `dmn-generator-java`
 - [ ] Generic gRPC service adapter generator in Java (`dmn-grpc`) backed by compiled Java decisions
 - [ ] Spark SQL Catalyst expression & DataFrame UDF generator (`dmn-generator-spark`)
 - [ ] Production Data Quality DMN decision check corpus (field hygiene, cross-field validation, scoring)

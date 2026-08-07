@@ -199,15 +199,24 @@ public final class DmnRuntime {
 
     private Object filter(RuntimeFilterExpression filter, Frame frame) {
       Object source = expression(filter.source(), frame);
-      if (!(source instanceof List<?> list)) throw new DmnEvaluationException("Filter source is not a list");
-      Object selector = expression(filter.filter(), frame);
-      if (selector instanceof BigDecimal number) {
-        int position = number.intValueExact();
-        int index = position > 0 ? position - 1 : list.size() + position;
-        return index >= 0 && index < list.size() ? list.get(index) : null;
+      if (source == null) return null;
+      List<?> list = source instanceof List<?> l ? l : List.of(source);
+      List<Object> result = new ArrayList<>();
+      for (int i = 0; i < list.size(); i++) {
+        Object item = list.get(i);
+        Frame child = new Frame(frame, 1);
+        child.set(0, item);
+        Object selector = expression(filter.filter(), child);
+        if (selector instanceof BigDecimal number) {
+          int position = number.intValueExact();
+          int index = position > 0 ? position - 1 : list.size() + position;
+          return index >= 0 && index < list.size() ? list.get(index) : null;
+        }
+        if (Boolean.TRUE.equals(selector)) {
+          result.add(item);
+        }
       }
-      if (selector instanceof Boolean keep) return keep ? List.copyOf(list) : List.of();
-      throw new DmnEvaluationException("Filter predicate must evaluate to a number or boolean");
+      return List.copyOf(result);
     }
 
     private List<Object> iterate(List<RuntimeIteration> iterations, int index,
@@ -387,6 +396,8 @@ public final class DmnRuntime {
         case FLATTEN -> flatten(arguments);
         case REVERSE -> reverse(arguments);
         case INDEX_OF -> indexOf(arguments);
+        case SORT -> sort(arguments);
+        case LIST_REPLACE -> listReplace(arguments);
         case YEARS_AND_MONTHS_DURATION -> yearsAndMonthsDuration(arguments);
       };
     }
@@ -501,6 +512,42 @@ public final class DmnRuntime {
       return List.copyOf(indices);
     }
 
+    private Object sort(List<Object> args) {
+      if (args.isEmpty() || args.getFirst() == null) return null;
+      List<Object> list = new ArrayList<>(listArgument(args));
+      if (args.size() > 1 && args.get(1) instanceof CallableValue fn) {
+        list.sort((a, b) -> {
+          Object res = fn.call(List.of(a, b), Map.of());
+          return Boolean.TRUE.equals(res) ? -1 : (Boolean.FALSE.equals(res) ? 1 : 0);
+        });
+      } else {
+        list.sort((a, b) -> compare(a, b));
+      }
+      return List.copyOf(list);
+    }
+
+    private Object listReplace(List<Object> args) {
+      if (args.size() < 3 || args.get(0) == null) return null;
+      List<Object> list = new ArrayList<>(listArgument(args));
+      Object second = args.get(1);
+      Object newItem = args.get(2);
+      if (second instanceof Number n) {
+        int pos = n.intValue();
+        int idx = pos > 0 ? pos - 1 : list.size() + pos;
+        if (idx >= 0 && idx < list.size()) {
+          list.set(idx, newItem);
+        }
+      } else if (second instanceof CallableValue fn) {
+        for (int i = 0; i < list.size(); i++) {
+          Object res = fn.call(List.of(list.get(i)), Map.of());
+          if (Boolean.TRUE.equals(res)) {
+            list.set(i, newItem);
+          }
+        }
+      }
+      return List.copyOf(list);
+    }
+
     private Object yearsAndMonthsDuration(List<Object> args) {
       if (args.get(0) == null || args.get(1) == null) return null;
       LocalDateTime dt1 = (LocalDateTime) args.get(0);
@@ -559,13 +606,17 @@ public final class DmnRuntime {
     return Objects.equals(left, right);
   }
   private static boolean comparison(RuntimeUnaryTestOperator operator, Object left, Object right) {
+    if (operator == RuntimeUnaryTestOperator.EQUAL) return equal(left, right);
+    if (operator == RuntimeUnaryTestOperator.NOT_EQUAL) return !equal(left, right);
+    if (left == null || right == null) return false;
     return switch (operator) {
-      case EQUAL -> equal(left, right); case NOT_EQUAL -> !equal(left, right);
       case LESS -> compare(left, right) < 0; case LESS_EQUAL -> compare(left, right) <= 0;
       case GREATER -> compare(left, right) > 0; case GREATER_EQUAL -> compare(left, right) >= 0;
+      default -> false;
     };
   }
   private static boolean contains(RuntimeRangeValue range, Object value) {
+    if (value == null) return false;
     boolean lower = range.lower() == null || (range.lowerBoundary() == RuntimeRangeBoundary.CLOSED
         ? compare(value, range.lower()) >= 0 : compare(value, range.lower()) > 0);
     boolean upper = range.upper() == null || (range.upperBoundary() == RuntimeRangeBoundary.CLOSED

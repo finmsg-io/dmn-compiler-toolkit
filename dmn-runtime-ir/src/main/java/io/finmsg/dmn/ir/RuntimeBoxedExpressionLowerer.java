@@ -47,16 +47,16 @@ final class RuntimeBoxedExpressionLowerer {
         for (int index = 0; index < boxed.getContext().getEntriesCount(); index++) {
           ContextEntryParsed entry = boxed.getContext().getEntries(index);
           String entryPath = path + "/context/entry[" + index + "]";
-          if (!entry.hasVariable() || !entry.hasExpression()) {
+          if (!entry.hasExpression()) {
             throw new RuntimeIrLoweringException("Incomplete boxed context entry at " + entryPath);
           }
           RuntimeExpression expression = lowerParsedExpression(entry.getExpression(),
               entryPath + "/expression", bindings, slots, itemTypes,
               contextSlots, nextLocalSlot);
-          String name = entry.getVariable().getNode().getName();
-          if (name.isBlank()) {
+          if (!entry.hasVariable() || entry.getVariable().getNode().getName().isBlank()) {
             entries.add(new RuntimeContextEntry("", -1, expression));
           } else {
+            String name = entry.getVariable().getNode().getName();
             int localSlot = nextLocalSlot[0]++;
             contextSlots.put(path + "/context/entry[" + index + "]",
                 new LocalSlotAddress(0, localSlot));

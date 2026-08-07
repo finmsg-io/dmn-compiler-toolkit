@@ -108,6 +108,11 @@ class DmnJavaGeneratorTest {
     boolean success = task.call();
     fileManager.close();
 
+    if (!success) {
+      System.err.println("=== FAILED GENERATED SOURCE CODE ===");
+      System.err.println(sourceCode);
+      System.err.println("====================================");
+    }
     assertThat(success).withFailMessage("Generated Java compilation failed: %s", diagnostics.getDiagnostics()).isTrue();
 
     URLClassLoader classLoader = new URLClassLoader(new URL[]{tempDir.toUri().toURL()}, getClass().getClassLoader());
