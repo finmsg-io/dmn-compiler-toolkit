@@ -369,7 +369,22 @@ Acceptance criteria:
 <a id="contents-section-17"></a>
 ## P12 — Typed Protobuf and gRPC generation
 
-**Goal:** generate strongly typed Protobuf schemas and gRPC contracts from DMN `ItemDefinition` structures (`TypedProtoSchemaGenerator`, `DmnTypedGrpcGenerator`).
+**Goal:** generate strongly typed Protobuf schemas (`.proto`) and gRPC contracts directly from DMN `ItemDefinition` structures, input declarations, and decision output types (`TypedProtoSchemaGenerator`, `DmnTypedGrpcGenerator`).
+
+Work items:
+
+| ID | Work item | State | Evidence / Target |
+| --- | --- | --- | --- |
+| P12.1 | Convert DMN `ItemDefinition` context types and primitive scalars to Protobuf `message` definitions | `done` | `TypedProtoSchemaGenerator` |
+| P12.2 | Generate strongly-typed `Request` and `Response` Protobuf messages for each root decision | `done` | `TypedProtoSchemaGenerator` |
+| P12.3 | Generate typed `service <ModelName>DecisionService` gRPC definitions with `rpc Evaluate<DecisionName>` methods | `done` | `DmnTypedGrpcGenerator` |
+| P12.4 | Unit & integration tests asserting generated `.proto` syntax and schema correctness | `done` | `TypedProtoSchemaGeneratorTest` |
+
+Acceptance criteria:
+
+- converts scalar and nested context types into valid `proto3` `message` structures with canonical field tagging;
+- generates typed `service` definitions with individual `rpc` methods for each decision;
+- generated `.proto` text compiles cleanly under Protobuf compiler tools (`protoc`).
 
 <a id="contents-section-18"></a>
 ## P13 — Additional Language Generators (Rust, Golang, C++)

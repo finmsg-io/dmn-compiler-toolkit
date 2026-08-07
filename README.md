@@ -83,7 +83,8 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-tck-runner` | OMG DMN TCK test-case runner & dual-engine spec conformance adapter |
 | `dmn-benchmarks` | JMH microbenchmarks & DataFaker reference model workloads |
 | `dmn-optimizer` | Constant folding, algebraic simplification, and rule pruning passes |
-| `dmn-grpc` | Ultra-lean gRPC service adapter generator & Proto value converters |
+| `dmn-grpc` | Generic and strongly-typed Protobuf schema & gRPC service adapter generator |
+| `dmn-generator-sparksql` | Pure Spark / Databricks SQL CTE query generator (`<decision-name>.sql`) without UDF overhead |
 
 Planned modules include further optimization and native code generation backends.
 
