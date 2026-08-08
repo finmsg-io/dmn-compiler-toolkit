@@ -20,13 +20,14 @@
 - [P10 — Generic gRPC generation in Java](#contents-section-15)
 - [P11 — Pure Spark / Databricks SQL Code Generation (Zero UDF)](#contents-section-16)
 - [P12 — Typed Protobuf and gRPC generation](#contents-section-17)
-- [P15 — Governance, CI Lockdown & Release Hardening](#contents-section-18)
-- [P13 — Additional Language Generators (Rust, Golang, C++)](#contents-section-19)
-- [Cross-cutting rules](#contents-section-20)
-- [Decisions required](#contents-section-21)
-- [Change log](#contents-section-22)
-- [How to maintain this document](#contents-section-23)
-- [Versioning and Compatibility Policy](#contents-section-24)
+- [P13 — Multi-File DMN Models & Java Streaming API](#contents-section-18)
+- [P14 — Governance, CI Lockdown & Release Hardening](#contents-section-19)
+- [P15 — Additional Language Generators (Rust, Golang, C++)](#contents-section-20)
+- [Cross-cutting rules](#contents-section-21)
+- [Decisions required](#contents-section-22)
+- [Change log](#contents-section-23)
+- [How to maintain this document](#contents-section-24)
+- [Versioning and Compatibility Policy](#contents-section-25)
 <!-- generated-toc:end -->
 
 This is the living delivery plan for the DMN Compiler Toolkit. It translates the
@@ -42,10 +43,10 @@ promise. Update it whenever implementation evidence or priorities materially cha
 | Field | Value |
 | --- | --- |
 | Last reviewed | 2026-08-08 |
-| Current phase | P15 — Governance, CI Lockdown & Release Hardening (`in progress`) |
+| Current phase | P14 — Governance, CI Lockdown & Release Hardening (`in progress`) |
 | Overall state | Compiler facade, model resolver, runtime IR, Java generator, 100% OMG DMN 1.5/1.6 TCK engine, JMH benchmarks, optimizer, Data Quality Corpus, gRPC generator, Spark SQL CTE generator, and multi-file streaming models established |
 | Primary objective | Lock down CI publishing, fix TCK silent-skip gate, add license, reconcile docs, and publish backend parity matrix |
-| Next major objective | Native language generators (Rust, Golang, C++) |
+| Next major objective | P15 — Additional Language Generators (Rust, Golang, C++) |
 
 <a id="contents-section-2"></a>
 ## Status vocabulary
@@ -136,9 +137,9 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P10 | Generic gRPC generation in Java | `done` | P4, P5 | Transport-neutral `evaluation.proto` and ultra-lean pure `grpc-java` service adapters (`dmn-grpc`) |
 | P11 | Pure Spark / Databricks SQL Generator | `done` | P5, P8 | Lowering FEEL and decision tables to pure native Spark / Databricks SQL CTE queries (`dmn-generator-sparksql`) |
 | P12 | Typed Protobuf and gRPC generation | `done` | P10, P11 | Strongly-typed Protobuf schemas and gRPC contracts from DMN `ItemDefinition` structures (`TypedProtoSchemaGenerator`) |
-| P14 | Multi-File DMN Models & Java Streaming API | `done` | P1, P2 | Multi-file DMN sample suites & streaming ingestion API (`dmn-models`) |
-| P15 | Governance, CI Lockdown & Release Hardening | `in progress` | P6, P10 | Tag-gated CI publishing, fail-fast TCK gate, doc reconciliation, open-source license, and backend parity matrix |
-| P13 | Additional Language Generators (Rust, Go, C++) | `proposed` | P5, P10 | Native zero-allocation binaries in Rust, Go handlers, and C++ decision engines |
+| P13 | Multi-File DMN Models & Java Streaming API | `done` | P1, P2 | Multi-file DMN sample suites & streaming ingestion API (`dmn-models`) |
+| P14 | Governance, CI Lockdown & Release Hardening | `in progress` | P6, P10 | Tag-gated CI publishing, fail-fast TCK gate, doc reconciliation, open-source license, and backend parity matrix |
+| P15 | Additional Language Generators (Rust, Go, C++) | `proposed` | P5, P10 | Native zero-allocation binaries in Rust, Go handlers, and C++ decision engines |
 
 <a id="contents-section-6"></a>
 ## P1 — Compiler facade and model resolution
@@ -397,7 +398,30 @@ Acceptance criteria:
 - generated `.proto` text compiles cleanly under Protobuf compiler tools (`protoc`).
 
 <a id="contents-section-18"></a>
-## P15 — Governance, CI Lockdown & Release Hardening
+## P13 — Multi-File DMN Models & Java Streaming API
+
+**Goal:** provide multi-file DMN sample suites (`loan-approval`, `order-fulfillment`, `discount-calculation`) and a zero-disk-unpacking Java streaming ingestion API (`DmnStreamBundle`, `DmnStreamResolver`).
+
+Work items:
+
+| ID | Work item | State | Evidence / Target |
+| --- | --- | --- | --- |
+| P13.1 | Multi-file DMN directory suites in `src/main/resources/models/` | `done` | `loan-approval`, `order-fulfillment`, `discount-calculation` |
+| P13.2 | In-memory ZIP/JAR streaming (`fromZip`) without disk unpacking | `done` | `DmnStreamBundle.fromZip` |
+| P13.3 | Directory tree (`fromDirectory`) & classpath (`fromClasspath`) streaming | `done` | `DmnStreamBundle.fromDirectory`, `fromClasspath` |
+| P13.4 | Stream Map (`fromStreams`) & DMN source collection streaming | `done` | `DmnStreamBundle.fromStreams`, `fromSources` |
+| P13.5 | Automatic DRG root entry-point detection (`findRootSource`) | `done` | `DmnStreamBundle.findRootSource` |
+| P13.6 | Policy-boundary `DmnModelResolver` implementation | `done` | `DmnStreamResolver` |
+| P13.7 | Multi-file streaming test suite | `done` | `DmnStreamBundleTest` |
+
+Acceptance criteria:
+
+- loads multi-file DMN archives directly from ZIP, JAR, Directory, or Stream Map without requiring disk unpacking;
+- automatically identifies root DMN decision entry-points across linked models;
+- integrates cleanly with `DmnCompiler` and `DmnModelResolver`.
+
+<a id="contents-section-19"></a>
+## P14 — Governance, CI Lockdown & Release Hardening
 
 **Goal:** address repository audit findings (ChatGPT & Gemini 3.6 Flash assessments), lock down CI publishing, enforce build quality gates, establish release policies, and formalize backend parity.
 
@@ -405,30 +429,30 @@ Work items:
 
 | ID | Work item | State | Evidence / Target |
 | --- | --- | --- | --- |
-| P15.1 | Fail-fast TCK suite execution guard (`OfficialTckSuiteTest` fails hard if missing) | `done` | `OfficialTckSuiteTest.java` |
-| P15.2 | Lock down CI release deployment (`v*.*.*` tag-gated) and add concurrency cancellation | `done` | `.github/workflows/ci.yml` |
-| P15.3 | Single-source documentation reconciliation (14 active modules across all docs) | `done` | `README.md`, `development-plan.md` |
-| P15.4 | Apache License 2.0 open-source adoption governance | `done` | `LICENSE` |
-| P15.5 | Formalize backend capability and semantic parity matrix | `done` | `docs/architecture/backend-parity-matrix.md` |
-| P15.6 | Root POM build quality gates (Maven ≥ 3.9, JDK 25 LTS, JaCoCo, Spotless `-Pformat`, OWASP `-Psecurity-scan`) | `done` | `pom.xml` |
-| P15.7 | Upgrade Spark engine dependency to 4.2.0 and resolve transitive convergence | `done` | `pom.xml` `spark.version=4.2.0` |
-| P15.8 | Create root `CHANGELOG.md`, `docs/tck-conformance.md`, and Versioning Policy | `done` | `CHANGELOG.md`, `docs/tck-conformance.md` |
-| P15.9 | Release profile source and Javadoc packaging (`maven-source-plugin`, `maven-javadoc-plugin`) | `proposed` | `pom.xml` release profile |
-| P15.10 | Automated JMH performance regression threshold assertions in CI | `proposed` | `.github/workflows/ci.yml` |
-| P15.11 | Automated FEEL parser fuzzing and XML hostile identifier resilience tests | `proposed` | `dmn-feel-parser` test suite |
+| P14.1 | Fail-fast TCK suite execution guard (`OfficialTckSuiteTest` fails hard if missing) | `done` | `OfficialTckSuiteTest.java` |
+| P14.2 | Lock down CI release deployment (`v*.*.*` tag-gated) and add concurrency cancellation | `done` | `.github/workflows/ci.yml` |
+| P14.3 | Single-source documentation reconciliation (14 active modules across all docs) | `done` | `README.md`, `development-plan.md` |
+| P14.4 | Apache License 2.0 open-source adoption governance | `done` | `LICENSE` |
+| P14.5 | Formalize backend capability and semantic parity matrix | `done` | `docs/architecture/backend-parity-matrix.md` |
+| P14.6 | Root POM build quality gates (Maven ≥ 3.9, JDK 25 LTS, JaCoCo, Spotless `-Pformat`, OWASP `-Psecurity-scan`) | `done` | `pom.xml` |
+| P14.7 | Upgrade Spark engine dependency to 4.2.0 and resolve transitive convergence | `done` | `pom.xml` `spark.version=4.2.0` |
+| P14.8 | Create root `CHANGELOG.md`, `docs/tck-conformance.md`, and Versioning Policy | `done` | `CHANGELOG.md`, `docs/tck-conformance.md` |
+| P14.9 | Release profile source and Javadoc packaging (`maven-source-plugin`, `maven-javadoc-plugin`) | `proposed` | `pom.xml` release profile |
+| P14.10 | Automated JMH performance regression threshold assertions in CI | `proposed` | `.github/workflows/ci.yml` |
+| P14.11 | Automated FEEL parser fuzzing and XML hostile identifier resilience tests | `proposed` | `dmn-feel-parser` test suite |
 
 ### Open Points for 1.0.0 Release Candidate
 
-1. **`-sources.jar` and `-javadoc.jar` release artifacts (P15.9):** Configure `maven-source-plugin` and `maven-javadoc-plugin` in the release deployment profile in root `pom.xml` so published GitHub Packages releases contain full source code and Javadoc artifacts.
-2. **Automated JMH benchmark performance regression thresholds (P15.10):** Establish automated latency/throughput assertion bounds in CI using `dmn-benchmarks` to flag evaluation performance regressions.
-3. **Parser fuzzing & hostile inputs (P15.11):** Build automated fuzz testing for `dmn-feel-parser` AST generation and XML hostile-identifier stress tests in `dmn-frontend-xml`.
+1. **`-sources.jar` and `-javadoc.jar` release artifacts (P14.9):** Configure `maven-source-plugin` and `maven-javadoc-plugin` in the release deployment profile in root `pom.xml` so published GitHub Packages releases contain full source code and Javadoc artifacts.
+2. **Automated JMH benchmark performance regression thresholds (P14.10):** Establish automated latency/throughput assertion bounds in CI using `dmn-benchmarks` to flag evaluation performance regressions.
+3. **Parser fuzzing & hostile inputs (P14.11):** Build automated fuzz testing for `dmn-feel-parser` AST generation and XML hostile-identifier stress tests in `dmn-frontend-xml`.
 
-<a id="contents-section-19"></a>
-## P13 — Additional Language Generators (Rust, Golang, C++)
+<a id="contents-section-20"></a>
+## P15 — Additional Language Generators (Rust, Golang, C++)
 
 **Goal:** leverage the unified Generator SPI and Protobuf IR to build cross-language decision generators (Rust zero-allocation binaries, Golang decision handlers, C++ low-latency decision engines).
 
-<a id="contents-section-20"></a>
+<a id="contents-section-21"></a>
 ## Cross-cutting rules
 
 These constraints apply to every milestone:
@@ -446,7 +470,7 @@ These constraints apply to every milestone:
 6. **Compatibility is explicit.** Public API, Runtime IR serialization, and generated
    contract compatibility are distinct policies and must be documented separately.
 
-<a id="contents-section-21"></a>
+<a id="contents-section-22"></a>
 ## Decisions required
 
 | ID | Decision | Needed by | State | Resolution |
@@ -460,7 +484,7 @@ These constraints apply to every milestone:
 Material architectural decisions should graduate to an ADR. This table tracks only
 when a decision is needed and where its final resolution can be found.
 
-<a id="contents-section-22"></a>
+<a id="contents-section-23"></a>
 ## Change log
 
 Record meaningful plan changes, not routine status transitions already visible in
@@ -470,7 +494,7 @@ the milestone tables.
 | --- | --- | --- | --- |
 | 2026-08-02 | Created the living plan and prioritized multi-file compilation before code generation | Real DMN repositories provide the shared correctness target for interpreter, Java, and gRPC work | Current module assessments and test baseline |
 
-<a id="contents-section-23"></a>
+<a id="contents-section-24"></a>
 ## How to maintain this document
 
 When work starts:
@@ -495,7 +519,7 @@ the ultimate source of truth.
 
 ---
 
-<a id="contents-section-24"></a>
+<a id="contents-section-25"></a>
 ## Versioning and Compatibility Policy
 
 Last reviewed: 2026-08-08
