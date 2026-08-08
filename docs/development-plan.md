@@ -303,8 +303,8 @@ Work items:
 | ID | Work item | State | Evidence / Target |
 | --- | --- | --- | --- |
 | P7.1 | Baseline scalar & decision-table JMH benchmarks (`ScalarArithmeticBenchmark`, `TrafficViolationBenchmark`, `CreditApprovalBenchmark`) | `done` | `dmn-benchmarks` |
-| P7.2 | Complex model performance benchmarks (`originations`, `ranked-loan-products`) | `ready` | `dmn-benchmarks` |
-| P7.3 | Phase-isolated compiler benchmarks (XML/FEEL Parsing, Semantic Analysis, IR Lowering, Static Optimization) | `ready` | `dmn-benchmarks` |
+| P7.2 | Complex model performance benchmarks (`originations`, `ranked-loan-products`) | `in progress` | `OriginationsBenchmark`, `dmn-benchmarks` |
+| P7.3 | Phase-isolated compiler benchmarks (XML/FEEL Parsing, Semantic Analysis, IR Lowering, Static Optimization) | `in progress` | `CompilerPhaseBenchmark`, `dmn-benchmarks` |
 | P7.4 | High-cardinality data-driven load generator for realistic stress testing (`net.datafaker`) | `ready` | `BenchmarkDataGenerator` |
 
 Acceptance criteria:

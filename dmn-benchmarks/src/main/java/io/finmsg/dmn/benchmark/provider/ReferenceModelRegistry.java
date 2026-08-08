@@ -10,6 +10,7 @@ import io.finmsg.dmn.generator.java.DmnJavaGeneratorOptions;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorResult;
 import io.finmsg.dmn.ir.RuntimeOptimizedModel;
 import io.finmsg.dmn.model.DrgElement;
+import io.finmsg.dmn.models.stream.DmnStreamBundle;
 
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
@@ -48,8 +49,17 @@ public final class ReferenceModelRegistry {
 				new DmnSource(new DmnSourceId(java.net.URI.create("urn:resource:" + modelName)), bytes));
 	}
 
+	public static CompiledModelHolder loadBundleFromClasspath(String resourcePath, String modelName) throws Exception {
+		DmnStreamBundle bundle = DmnStreamBundle.fromClasspath(resourcePath);
+		DmnCompilationResult compilation = bundle.compile(new DmnCompiler());
+		return compile(modelName, compilation);
+	}
+
 	public static CompiledModelHolder compile(String modelName, DmnSource source) throws Exception {
-		DmnCompilationResult compilation = new DmnCompiler().compile(source);
+		return compile(modelName, new DmnCompiler().compile(source));
+	}
+
+	private static CompiledModelHolder compile(String modelName, DmnCompilationResult compilation) throws Exception {
 		if (!compilation.isSuccess()) {
 			throw ancientCompilationError(modelName, compilation);
 		}

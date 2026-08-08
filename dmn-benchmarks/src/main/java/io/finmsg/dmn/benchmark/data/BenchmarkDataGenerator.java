@@ -49,4 +49,38 @@ public final class BenchmarkDataGenerator {
 		}
 		return payloads;
 	}
+
+	public List<Map<String, Object>> generateOriginationPayloads(int count) {
+		List<Map<String, Object>> payloads = new ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			BigDecimal income = BigDecimal.valueOf(faker.number().numberBetween(2500, 15000));
+			BigDecimal repayments = BigDecimal.valueOf(faker.number().numberBetween(0, 3500));
+			BigDecimal expenses = BigDecimal.valueOf(faker.number().numberBetween(1000, 6000));
+			Map<String, Object> inputs = new LinkedHashMap<>();
+			inputs.put("Age", BigDecimal.valueOf(faker.number().numberBetween(18, 76)));
+			inputs.put("EmploymentYears", BigDecimal.valueOf(faker.number().numberBetween(0, 35)));
+			inputs.put("MonthlyIncome", income);
+			inputs.put("MonthlyRepayments", repayments);
+			inputs.put("MonthlyExpenses", expenses);
+			inputs.put("CreditScore", BigDecimal.valueOf(faker.number().numberBetween(300, 900)));
+			inputs.put("RequestedAmount", BigDecimal.valueOf(faker.number().numberBetween(5000, 100000)));
+			inputs.put("TermMonths", BigDecimal.valueOf(faker.options().option(12, 24, 36, 48, 60)));
+			payloads.add(inputs);
+		}
+		return payloads;
+	}
+
+	public List<Map<String, Object>> generateLoanProductPayloads(int count) {
+		List<Map<String, Object>> payloads = new ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			Map<String, Object> inputs = new LinkedHashMap<>();
+			inputs.put("CreditScore", BigDecimal.valueOf(faker.number().numberBetween(500, 900)));
+			inputs.put("AnnualIncome", BigDecimal.valueOf(faker.number().numberBetween(30000, 250000)));
+			inputs.put("ExistingDebt", BigDecimal.valueOf(faker.number().numberBetween(0, 100000)));
+			inputs.put("RequestedAmount", BigDecimal.valueOf(faker.number().numberBetween(5000, 150000)));
+			inputs.put("PreferredTerm", BigDecimal.valueOf(faker.options().option(12, 24, 36, 48, 60)));
+			payloads.add(inputs);
+		}
+		return payloads;
+	}
 }

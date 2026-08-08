@@ -21,6 +21,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.JarURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -133,12 +134,9 @@ public record DmnStreamBundle(Map<String, DmnSource> sources) {
 			if ("file".equalsIgnoreCase(uri.getScheme())) {
 				return fromDirectory(Path.of(uri));
 			} else if ("jar".equalsIgnoreCase(uri.getScheme())) {
-				String[] parts = uri.toString().split("!");
-				URL jarUrl = new URI(parts[0]).toURL();
-				String entryPrefix = parts.length > 1 ? parts[1] : "";
-				if (entryPrefix.startsWith("/")) {
-					entryPrefix = entryPrefix.substring(1);
-				}
+				JarURLConnection connection = (JarURLConnection) url.openConnection();
+				URL jarUrl = connection.getJarFileURL();
+				String entryPrefix = Objects.requireNonNullElse(connection.getEntryName(), "");
 				try (InputStream in = jarUrl.openStream()) {
 					DmnStreamBundle fullZip = fromZip(in);
 					String finalPrefix = entryPrefix;

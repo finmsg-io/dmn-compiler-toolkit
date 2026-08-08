@@ -20,6 +20,9 @@ Benchmark environment: OpenJDK 25.0.2 LTS (Zulu25.32+21-CA) on 64-Bit Server VM.
 1. **Credit Approval (`credit-approval.dmn`)**: Financial decision graph measuring multi-node DRG evaluation, BKMs, debt-to-income arithmetic, and risk decision tables.
 2. **Traffic Violation (`traffic-violation.dmn`)**: Canonical OMG DMN reference model evaluating multi-hit decision tables.
 3. **Scalar Arithmetic**: High-frequency scalar FEEL expression benchmark.
+4. **Originations**: Multi-stage eligibility, affordability, risk-band, and routing benchmark with deterministic DataFaker workloads.
+5. **Ranked Loan Products**: Multi-stage customer segmentation, capacity, term, and product recommendation benchmark.
+6. **Compiler Phases**: Isolated XML parsing, semantic analysis, Runtime IR lowering, Runtime IR optimization, and full-pipeline compilation.
 
 ## DataFaker Integration
 

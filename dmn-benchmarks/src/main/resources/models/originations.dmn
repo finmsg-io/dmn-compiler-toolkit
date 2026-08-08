@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="originations" name="Originations" namespace="urn:finmsg:benchmark:originations">
+  <inputData id="age" name="Age"><variable id="age-v" name="Age" typeRef="number"/></inputData>
+  <inputData id="years" name="EmploymentYears"><variable id="years-v" name="EmploymentYears" typeRef="number"/></inputData>
+  <inputData id="income" name="MonthlyIncome"><variable id="income-v" name="MonthlyIncome" typeRef="number"/></inputData>
+  <inputData id="repayments" name="MonthlyRepayments"><variable id="repayments-v" name="MonthlyRepayments" typeRef="number"/></inputData>
+  <inputData id="expenses" name="MonthlyExpenses"><variable id="expenses-v" name="MonthlyExpenses" typeRef="number"/></inputData>
+  <inputData id="score" name="CreditScore"><variable id="score-v" name="CreditScore" typeRef="number"/></inputData>
+  <inputData id="amount" name="RequestedAmount"><variable id="amount-v" name="RequestedAmount" typeRef="number"/></inputData>
+  <inputData id="term" name="TermMonths"><variable id="term-v" name="TermMonths" typeRef="number"/></inputData>
+
+  <decision id="disposable" name="DisposableIncome">
+    <variable id="disposable-v" name="DisposableIncome" typeRef="number"/>
+    <informationRequirement><requiredInput href="#income"/></informationRequirement>
+    <informationRequirement><requiredInput href="#repayments"/></informationRequirement>
+    <informationRequirement><requiredInput href="#expenses"/></informationRequirement>
+    <literalExpression><text>MonthlyIncome - MonthlyRepayments - MonthlyExpenses</text></literalExpression>
+  </decision>
+  <decision id="installment" name="MonthlyInstallment">
+    <variable id="installment-v" name="MonthlyInstallment" typeRef="number"/>
+    <informationRequirement><requiredInput href="#amount"/></informationRequirement>
+    <informationRequirement><requiredInput href="#term"/></informationRequirement>
+    <literalExpression><text>RequestedAmount / TermMonths</text></literalExpression>
+  </decision>
+  <decision id="affordability" name="Affordability">
+    <variable id="affordability-v" name="Affordability" typeRef="string"/>
+    <informationRequirement><requiredDecision href="#disposable"/></informationRequirement>
+    <informationRequirement><requiredDecision href="#installment"/></informationRequirement>
+    <decisionTable id="affordability-table" hitPolicy="FIRST">
+      <input><inputExpression typeRef="number"><text>DisposableIncome</text></inputExpression></input>
+      <input><inputExpression typeRef="number"><text>MonthlyInstallment</text></inputExpression></input>
+      <output typeRef="string"/>
+      <rule><inputEntry><text>&lt;= 0</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"DECLINE"</text></outputEntry></rule>
+      <rule><inputEntry><text>&gt; 2500</text></inputEntry><inputEntry><text>&lt;= 1500</text></inputEntry><outputEntry><text>"AFFORDABLE"</text></outputEntry></rule>
+      <rule><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"REFER"</text></outputEntry></rule>
+    </decisionTable>
+  </decision>
+  <decision id="risk" name="RiskBand">
+    <variable id="risk-v" name="RiskBand" typeRef="string"/>
+    <informationRequirement><requiredInput href="#score"/></informationRequirement>
+    <informationRequirement><requiredInput href="#years"/></informationRequirement>
+    <decisionTable id="risk-table" hitPolicy="FIRST">
+      <input><inputExpression typeRef="number"><text>CreditScore</text></inputExpression></input>
+      <input><inputExpression typeRef="number"><text>EmploymentYears</text></inputExpression></input>
+      <output typeRef="string"/>
+      <rule><inputEntry><text>&gt;= 750</text></inputEntry><inputEntry><text>&gt;= 2</text></inputEntry><outputEntry><text>"LOW"</text></outputEntry></rule>
+      <rule><inputEntry><text>&gt;= 650</text></inputEntry><inputEntry><text>&gt;= 1</text></inputEntry><outputEntry><text>"MEDIUM"</text></outputEntry></rule>
+      <rule><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"HIGH"</text></outputEntry></rule>
+    </decisionTable>
+  </decision>
+  <decision id="eligibility" name="Eligibility">
+    <variable id="eligibility-v" name="Eligibility" typeRef="string"/>
+    <informationRequirement><requiredInput href="#age"/></informationRequirement>
+    <informationRequirement><requiredInput href="#term"/></informationRequirement>
+    <decisionTable id="eligibility-table" hitPolicy="FIRST">
+      <input><inputExpression typeRef="number"><text>Age</text></inputExpression></input>
+      <input><inputExpression typeRef="number"><text>TermMonths</text></inputExpression></input>
+      <output typeRef="string"/>
+      <rule><inputEntry><text>&gt; 70</text></inputEntry><inputEntry><text>&gt; 36</text></inputEntry><outputEntry><text>"INELIGIBLE"</text></outputEntry></rule>
+      <rule><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"ELIGIBLE"</text></outputEntry></rule>
+    </decisionTable>
+  </decision>
+  <decision id="routing" name="Routing">
+    <variable id="routing-v" name="Routing" typeRef="string"/>
+    <informationRequirement><requiredDecision href="#eligibility"/></informationRequirement>
+    <informationRequirement><requiredDecision href="#risk"/></informationRequirement>
+    <informationRequirement><requiredDecision href="#affordability"/></informationRequirement>
+    <decisionTable id="routing-table" hitPolicy="FIRST">
+      <input><inputExpression typeRef="string"><text>Eligibility</text></inputExpression></input>
+      <input><inputExpression typeRef="string"><text>RiskBand</text></inputExpression></input>
+      <input><inputExpression typeRef="string"><text>Affordability</text></inputExpression></input>
+      <output typeRef="string"/>
+      <rule><inputEntry><text>"INELIGIBLE"</text></inputEntry><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"DECLINE"</text></outputEntry></rule>
+      <rule><inputEntry><text>-</text></inputEntry><inputEntry><text>"HIGH"</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"DECLINE"</text></outputEntry></rule>
+      <rule><inputEntry><text>"ELIGIBLE"</text></inputEntry><inputEntry><text>"LOW"</text></inputEntry><inputEntry><text>"AFFORDABLE"</text></inputEntry><outputEntry><text>"ACCEPT"</text></outputEntry></rule>
+      <rule><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"REFER"</text></outputEntry></rule>
+    </decisionTable>
+  </decision>
+</definitions>
