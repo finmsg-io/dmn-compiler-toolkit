@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="main-loan-model"
+             name="Main Loan Approval Model"
+             namespace="urn:main-loan">
+  <import id="imp-credit" name="Credit" namespace="urn:credit-score" locationURI="credit-score.dmn" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+  <import id="imp-risk" name="Risk" namespace="urn:applicant-risk" locationURI="applicant-risk.dmn" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+  <decision id="loanApprovalDecision" name="LoanApprovalStatus">
+    <variable id="loanApprovalVar" name="LoanApprovalStatus" typeRef="string"/>
+    <literalExpression id="loanApprovalExpr">
+      <text>"APPROVED"</text>
+    </literalExpression>
+  </decision>
+</definitions>

@@ -29,6 +29,7 @@
         <module>dmn-optimizer</module>
         <module>dmn-grpc</module>
         <module>dmn-generator-sparksql</module>
+        <module>dmn-models</module>
     </modules>
 
     <properties>

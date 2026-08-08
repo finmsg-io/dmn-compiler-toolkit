@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="tier-rules-model"
+             name="Tier Rules Model"
+             namespace="urn:tier-rules">
+  <decision id="discountTierDecision" name="DetermineDiscountTier">
+    <variable id="discountTierVar" name="DetermineDiscountTier" typeRef="string"/>
+    <literalExpression id="discountTierExpr">
+      <text>"GOLD"</text>
+    </literalExpression>
+  </decision>
+</definitions>
