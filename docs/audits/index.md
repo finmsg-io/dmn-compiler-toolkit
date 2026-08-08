@@ -14,6 +14,7 @@ actions belong in the [module TODOs](../todos/index.md) or the
 
 | Audit | Scope |
 | --- | --- |
+| [Gemini 3.6 Flash project assessment (2026-08-08)](assessment-gemini-3.6-flash-project-progress-2026-08-08.md) | AI-generated repository-wide progress, architecture, implementation, and gap review |
 | [ChatGPT project assessment (2026-08-08)](assessment-chatgpt-project-progress-2026-08-08.md) | AI-generated repository-wide progress, architecture, implementation, and gap review |
 | [Protobuf assessment](assessment-implementation-dmn-protobuf.md) | Semantic protobuf contracts |
 | [XML frontend assessment](assessment-implementation-dmn-frontend-xml.md) | Production-readiness findings |
