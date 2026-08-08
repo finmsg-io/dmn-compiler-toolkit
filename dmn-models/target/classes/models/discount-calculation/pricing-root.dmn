@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="pricing-root-model"
+             name="Pricing Root Model"
+             namespace="urn:pricing-root">
+  <import id="imp-tier" name="Tier" namespace="urn:tier-rules" locationURI="tier-rules.dmn" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+  <decision id="finalDiscountDecision" name="FinalDiscountRate">
+    <variable id="finalDiscountVar" name="FinalDiscountRate" typeRef="number"/>
+    <literalExpression id="finalDiscountExpr">
+      <text>0.20</text>
+    </literalExpression>
+  </decision>
+</definitions>

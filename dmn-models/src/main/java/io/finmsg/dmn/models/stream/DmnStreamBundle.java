@@ -24,6 +24,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -217,17 +218,30 @@ public record DmnStreamBundle(Map<String, DmnSource> sources) {
     }
 
     DmnXmlReader xmlReader = new DmnXmlReader();
-    Set<String> importedLocations = new HashSet<>();
+    Map<String, String> sourceNamespaces = new HashMap<>();
+    Set<String> importedKeys = new HashSet<>();
 
     sources.forEach((loc, src) -> {
       try {
         DmnReadResult result = xmlReader.readResult(src.content(), DmnReadOptions.defaults().withSystemId(loc));
         if (result.model().isPresent()) {
           Definitions defs = result.model().get();
+          if (defs.getNamespace() != null && !defs.getNamespace().isBlank()) {
+            sourceNamespaces.put(loc, defs.getNamespace());
+          }
           for (Import imp : defs.getImportsList()) {
-            String impLoc = normalizeLocation(imp.getLocationUri());
-            importedLocations.add(impLoc);
-            importedLocations.add(basename(impLoc));
+            if (imp.getLocationUri() != null && !imp.getLocationUri().isBlank()) {
+              String normImp = normalizeLocation(imp.getLocationUri());
+              importedKeys.add(normImp);
+              importedKeys.add(basename(normImp));
+            }
+            if (imp.getNamespace() != null && !imp.getNamespace().isBlank()) {
+              importedKeys.add(imp.getNamespace());
+            }
+            if (imp.getName() != null && !imp.getName().isBlank()) {
+              importedKeys.add(imp.getName());
+              importedKeys.add(basename(imp.getName()));
+            }
           }
         }
       } catch (Exception ignored) {
@@ -235,7 +249,13 @@ public record DmnStreamBundle(Map<String, DmnSource> sources) {
     });
 
     List<DmnSource> rootCandidates = sources.entrySet().stream()
-        .filter(e -> !importedLocations.contains(e.getKey()) && !importedLocations.contains(basename(e.getKey())))
+        .filter(e -> {
+          String loc = e.getKey();
+          String ns = sourceNamespaces.get(loc);
+          return !importedKeys.contains(loc)
+              && !importedKeys.contains(basename(loc))
+              && (ns == null || !importedKeys.contains(ns));
+        })
         .map(Map.Entry::getValue)
         .toList();
 

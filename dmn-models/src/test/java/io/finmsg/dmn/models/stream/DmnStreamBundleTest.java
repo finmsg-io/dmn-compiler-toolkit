@@ -81,6 +81,36 @@ class DmnStreamBundleTest {
   }
 
   @Test
+  void streamsOriginationsMultiFileDmnFromClasspath() {
+    DmnStreamBundle bundle = DmnStreamBundle.fromClasspath("models/originations");
+
+    assertThat(bundle.sources()).hasSize(2);
+    assertThat(bundle.sources().keySet()).containsExactlyInAnyOrder(
+        "Chapter 12 Example.dmn", "Financial.dmn");
+
+    DmnSource root = bundle.findRootSource().orElseThrow();
+    assertThat(root.id().toString()).contains("Chapter");
+
+    assertThat(bundle.findSource("Chapter 12 Example.dmn")).isPresent();
+    assertThat(bundle.findSource("Financial.dmn")).isPresent();
+  }
+
+  @Test
+  void streamsRankedLoanProductsMultiFileDmnFromClasspath() {
+    DmnStreamBundle bundle = DmnStreamBundle.fromClasspath("models/ranked-loan-products");
+
+    assertThat(bundle.sources()).hasSize(2);
+    assertThat(bundle.sources().keySet()).containsExactlyInAnyOrder(
+        "Loan info.dmn", "Recommended Loan Products.dmn");
+
+    DmnSource root = bundle.findRootSource().orElseThrow();
+    assertThat(root.id().toString()).contains("Recommended");
+
+    assertThat(bundle.findSource("Recommended Loan Products.dmn")).isPresent();
+    assertThat(bundle.findSource("Loan info.dmn")).isPresent();
+  }
+
+  @Test
   void streamsFromZipArchiveWithoutUnpackingToDisk() throws IOException {
     byte[] zipBytes = createTestZipArchive();
 

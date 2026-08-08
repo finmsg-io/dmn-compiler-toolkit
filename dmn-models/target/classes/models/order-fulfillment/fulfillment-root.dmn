@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="fulfillment-root-model"
+             name="Fulfillment Root Model"
+             namespace="urn:fulfillment-root">
+  <import id="imp-inv" name="Inventory" namespace="urn:inventory-check" locationURI="inventory-check.dmn" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+  <import id="imp-ship" name="Shipping" namespace="urn:shipping-calculator" locationURI="shipping-calculator.dmn" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+  <decision id="fulfillmentDecision" name="CanFulfillOrder">
+    <variable id="fulfillmentVar" name="CanFulfillOrder" typeRef="boolean"/>
+    <literalExpression id="fulfillmentExpr">
+      <text>true</text>
+    </literalExpression>
+  </decision>
+</definitions>
