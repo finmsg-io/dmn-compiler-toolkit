@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 id="root-model"
+                 name="Root Model"
+                 namespace="urn:p2-01:root">
+    <dmn:import namespace="urn:p2-01:base" locationURI="base.dmn" name="Base" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+    <dmn:decision id="root-dec" name="rootDecision">
+        <dmn:variable id="var-root-dec" name="rootDecision" typeRef="number"/>
+        <dmn:informationRequirement id="req-base">
+            <dmn:requiredDecision href="urn:p2-01:base#base-dec"/>
+        </dmn:informationRequirement>
+        <dmn:literalExpression id="expr-root-dec">
+            <dmn:text>baseDecision + 5</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+</dmn:definitions>

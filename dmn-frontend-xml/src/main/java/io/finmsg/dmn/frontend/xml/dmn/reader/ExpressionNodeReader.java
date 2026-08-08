@@ -31,6 +31,8 @@ public final class ExpressionNodeReader {
       case "context", "relation", "list", "functionDefinition" ->
           builder.setBoxed(readers.boxedExpressionReader().readText(cursor));
 
+      case "invocation", "decisionTable" -> { }
+
       default ->
           throw new UnsupportedDmnXmlException(
               "Unsupported expression <" + cursor.localName() + "> at " + cursor.path());

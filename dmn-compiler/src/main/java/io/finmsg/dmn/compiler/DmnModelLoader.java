@@ -73,9 +73,6 @@ public final class DmnModelLoader {
           Import imported = definitions.getImports(index);
           DmnImportRequest request = new DmnImportRequest(
               source.id(), imported.getLocationUri(), imported.getNamespace(), imported.getName());
-          if (request.resolvedLocation().isEmpty()) {
-            continue;
-          }
           if (depth >= options.maxImportDepth()) {
             throw new DmnModelLoadException(
                 "DMN model graph exceeds maxImportDepth=" + options.maxImportDepth()
@@ -189,7 +186,10 @@ public final class DmnModelLoader {
     }
 
     private DmnSource cachedTarget(DmnImportRequest request) {
-      DmnSourceId requestedId = request.resolvedLocation().orElseThrow();
+      if (request.resolvedLocation().isEmpty()) {
+        return null;
+      }
+      DmnSourceId requestedId = request.resolvedLocation().get();
       DmnSourceId actualId = aliases.getOrDefault(requestedId, requestedId);
       LoadedDmnModel cached = models.get(actualId);
       return cached == null ? null : cached.source();

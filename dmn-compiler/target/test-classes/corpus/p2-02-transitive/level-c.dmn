@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 id="model-c"
+                 name="Level C"
+                 namespace="urn:p2-02:c">
+    <dmn:decision id="dec-c" name="valC">
+        <dmn:variable id="var-c" name="valC" typeRef="number"/>
+        <dmn:literalExpression id="expr-c">
+            <dmn:text>100</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+</dmn:definitions>

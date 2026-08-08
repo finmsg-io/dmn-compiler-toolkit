@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 id="model-types"
+                 name="Shared Types"
+                 namespace="urn:p2-05:types">
+    <dmn:itemDefinition id="item-person" name="tPerson">
+        <dmn:itemComponent id="comp-name" name="name">
+            <dmn:typeRef>string</dmn:typeRef>
+        </dmn:itemComponent>
+        <dmn:itemComponent id="comp-score" name="score">
+            <dmn:typeRef>number</dmn:typeRef>
+        </dmn:itemComponent>
+    </dmn:itemDefinition>
+</dmn:definitions>

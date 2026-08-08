@@ -34,7 +34,7 @@ public final class BusinessKnowledgeModelReader {
           case "authorityRequirement" ->
               builder.addAuthorityRequirements(authorityRequirementReader.read(cursor));
 
-          case "documentation", "extensionElements" -> { }
+          case "documentation", "description", "extensionElements" -> { }
 
           default -> UnsupportedContent.rejectDmnChild(cursor, "businessKnowledgeModel");
         }

@@ -7,6 +7,7 @@ import io.finmsg.dmn.model.ElementReference;
 public final class DecisionServiceReader {
 
   private final NodeReader nodeReader = new NodeReader();
+  private final VariableReader variableReader = new VariableReader();
 
   public DecisionService read(XmlCursor cursor) {
 
@@ -19,6 +20,8 @@ public final class DecisionServiceReader {
       do {
 
         switch (cursor.documentLocalName()) {
+          case "variable" -> builder.setVariable(variableReader.read(cursor));
+
           case "outputDecision" ->
               builder.addOutputDecisions(reference(cursor));
 
@@ -30,7 +33,7 @@ public final class DecisionServiceReader {
 
           case "inputData" -> builder.addInputData(reference(cursor));
 
-          case "documentation", "extensionElements" -> { }
+          case "documentation", "description", "extensionElements" -> { }
 
           default -> UnsupportedContent.rejectDmnChild(cursor, "decisionService");
         }

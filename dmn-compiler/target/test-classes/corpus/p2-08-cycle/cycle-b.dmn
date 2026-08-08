@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 id="cycle-model-b"
+                 name="Cycle B"
+                 namespace="urn:p2-08:b">
+    <dmn:import namespace="urn:p2-08:a" locationURI="cycle-a.dmn" name="CycleA" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+    <dmn:decision id="dec-cycle-b" name="cycleB">
+        <dmn:variable id="var-cycle-b" name="cycleB" typeRef="number"/>
+        <dmn:literalExpression id="expr-cycle-b">
+            <dmn:text>2</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+</dmn:definitions>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 id="model-left"
+                 name="Left"
+                 namespace="urn:p2-03:left">
+    <dmn:import namespace="urn:p2-03:bottom" locationURI="bottom.dmn" name="Bottom" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+    <dmn:decision id="dec-left" name="leftVal">
+        <dmn:variable id="var-left" name="leftVal" typeRef="number"/>
+        <dmn:informationRequirement id="req-bottom-left">
+            <dmn:requiredDecision href="urn:p2-03:bottom#dec-bottom"/>
+        </dmn:informationRequirement>
+        <dmn:literalExpression id="expr-left">
+            <dmn:text>baseVal * 2</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+</dmn:definitions>

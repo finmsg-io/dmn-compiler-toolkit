@@ -20,7 +20,7 @@ public final class ContextEntryTextReader {
       do {
         switch (cursor.documentLocalName()) {
           case "variable" -> builder.setVariable(informationItemReader.read(cursor));
-          case "literalExpression", "context", "relation", "list", "functionDefinition" ->
+          case "literalExpression", "decisionTable", "invocation", "context", "relation", "list", "functionDefinition" ->
               builder.setExpression(readers.expressionNodeReader().readText(cursor));
           case "extensionElements" -> { }
           default -> UnsupportedContent.rejectDmnChild(cursor, "contextEntry");

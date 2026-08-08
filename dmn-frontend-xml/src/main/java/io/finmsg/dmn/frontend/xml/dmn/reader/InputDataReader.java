@@ -21,7 +21,7 @@ public final class InputDataReader {
         switch (cursor.documentLocalName()) {
           case "variable" -> builder.setVariable(variableReader.read(cursor));
 
-          case "documentation", "extensionElements" -> { }
+          case "documentation", "description", "extensionElements" -> { }
 
           default -> UnsupportedContent.rejectDmnChild(cursor, "inputData");
         }

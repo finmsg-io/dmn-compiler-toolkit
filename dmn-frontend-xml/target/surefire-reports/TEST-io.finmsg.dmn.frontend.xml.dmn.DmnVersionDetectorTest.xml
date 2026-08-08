@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="io.finmsg.dmn.frontend.xml.dmn.DmnVersionDetectorTest" time="5.107" tests="1" errors="0" skipped="0" failures="0">
+  <properties>
+    <property name="java.specification.version" value="25"/>
+    <property name="sun.cpu.isalist" value="amd64"/>
+    <property name="sun.jnu.encoding" value="Cp1252"/>
+    <property name="java.class.path" value="C:\00-finmsg.io\dmn-compiler-toolkit\dmn-frontend-xml\target\test-classes;C:\00-finmsg.io\dmn-compiler-toolkit\dmn-frontend-xml\target\classes;C:\00-finmsg.io\dmn-compiler-toolkit\dmn-protobuf\target\classes;C:\Users\lik\.m2\repository\com\google\protobuf\protobuf-java\4.31.1\protobuf-java-4.31.1.jar;C:\Users\lik\.m2\repository\com\ximpleware\vtd-xml\2.13.4\vtd-xml-2.13.4.jar;C:\Users\lik\.m2\repository\org\slf4j\slf4j-api\2.0.17\slf4j-api-2.0.17.jar;C:\Users\lik\.m2\repository\org\junit\jupiter\junit-jupiter\5.13.4\junit-jupiter-5.13.4.jar;C:\Users\lik\.m2\repository\org\junit\jupiter\junit-jupiter-api\5.13.4\junit-jupiter-api-5.13.4.jar;C:\Users\lik\.m2\repository\org\opentest4j\opentest4j\1.3.0\opentest4j-1.3.0.jar;C:\Users\lik\.m2\repository\org\junit\platform\junit-platform-commons\1.13.4\junit-platform-commons-1.13.4.jar;C:\Users\lik\.m2\repository\org\apiguardian\apiguardian-api\1.1.2\apiguardian-api-1.1.2.jar;C:\Users\lik\.m2\repository\org\junit\jupiter\junit-jupiter-params\5.13.4\junit-jupiter-params-5.13.4.jar;C:\Users\lik\.m2\repository\org\junit\jupiter\junit-jupiter-engine\5.13.4\junit-jupiter-engine-5.13.4.jar;C:\Users\lik\.m2\repository\org\junit\platform\junit-platform-engine\1.13.4\junit-platform-engine-1.13.4.jar;C:\Users\lik\.m2\repository\org\assertj\assertj-core\3.27.6\assertj-core-3.27.6.jar;C:\Users\lik\.m2\repository\net\bytebuddy\byte-buddy\1.17.7\byte-buddy-1.17.7.jar;"/>
+    <property name="java.vm.vendor" value="Azul Systems, Inc."/>
+    <property name="sun.arch.data.model" value="64"/>
+    <property name="user.variant" value=""/>
+    <property name="java.vendor.url" value="http://www.azul.com/"/>
+    <property name="user.timezone" value="Europe/Zurich"/>
+    <property name="user.country.format" value="CH"/>
+    <property name="os.name" value="Windows 11"/>
+    <property name="java.vm.specification.version" value="25"/>
+    <property name="sun.java.launcher" value="SUN_STANDARD"/>
+    <property name="user.country" value="US"/>
+    <property name="sun.boot.library.path" value="C:\10-tools\zulu25.32.21-ca-jdk25.0.2-win_x64\bin"/>
+    <property name="sun.java.command" value="C:\Users\lik\AppData\Local\Temp\surefire15563746162399772362\surefirebooter-20260808121003024_3.jar C:\Users\lik\AppData\Local\Temp\surefire15563746162399772362 2026-08-08T12-10-02_521-jvmRun1 surefire-20260808121003024_1tmp surefire_0-20260808121003024_2tmp"/>
+    <property name="jdk.debug" value="release"/>
+    <property name="surefire.test.class.path" value="C:\00-finmsg.io\dmn-compiler-toolkit\dmn-frontend-xml\target\test-classes;C:\00-finmsg.io\dmn-compiler-toolkit\dmn-frontend-xml\target\classes;C:\00-finmsg.io\dmn-compiler-toolkit\dmn-protobuf\target\classes;C:\Users\lik\.m2\repository\com\google\protobuf\protobuf-java\4.31.1\protobuf-java-4.31.1.jar;C:\Users\lik\.m2\repository\com\ximpleware\vtd-xml\2.13.4\vtd-xml-2.13.4.jar;C:\Users\lik\.m2\repository\org\slf4j\slf4j-api\2.0.17\slf4j-api-2.0.17.jar;C:\Users\lik\.m2\repository\org\junit\jupiter\junit-jupiter\5.13.4\junit-jupiter-5.13.4.jar;C:\Users\lik\.m2\repository\org\junit\jupiter\junit-jupiter-api\5.13.4\junit-jupiter-api-5.13.4.jar;C:\Users\lik\.m2\repository\org\opentest4j\opentest4j\1.3.0\opentest4j-1.3.0.jar;C:\Users\lik\.m2\repository\org\junit\platform\junit-platform-commons\1.13.4\junit-platform-commons-1.13.4.jar;C:\Users\lik\.m2\repository\org\apiguardian\apiguardian-api\1.1.2\apiguardian-api-1.1.2.jar;C:\Users\lik\.m2\repository\org\junit\jupiter\junit-jupiter-params\5.13.4\junit-jupiter-params-5.13.4.jar;C:\Users\lik\.m2\repository\org\junit\jupiter\junit-jupiter-engine\5.13.4\junit-jupiter-engine-5.13.4.jar;C:\Users\lik\.m2\repository\org\junit\platform\junit-platform-engine\1.13.4\junit-platform-engine-1.13.4.jar;C:\Users\lik\.m2\repository\org\assertj\assertj-core\3.27.6\assertj-core-3.27.6.jar;C:\Users\lik\.m2\repository\net\bytebuddy\byte-buddy\1.17.7\byte-buddy-1.17.7.jar;"/>
+    <property name="sun.cpu.endian" value="little"/>
+    <property name="user.home" value="C:\Users\lik"/>
+    <property name="user.language" value="en"/>
+    <property name="java.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.version.date" value="2026-01-20"/>
+    <property name="java.home" value="C:\10-tools\zulu25.32.21-ca-jdk25.0.2-win_x64"/>
+    <property name="file.separator" value="\"/>
+    <property name="basedir" value="C:\00-finmsg.io\dmn-compiler-toolkit\dmn-frontend-xml"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
+    <property name="line.separator" value="&#10;"/>
+    <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.specification.name" value="Java Platform API Specification"/>
+    <property name="surefire.real.class.path" value="C:\Users\lik\AppData\Local\Temp\surefire15563746162399772362\surefirebooter-20260808121003024_3.jar"/>
+    <property name="user.script" value=""/>
+    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
+    <property name="java.runtime.version" value="25.0.2+10-LTS"/>
+    <property name="user.name" value="lik"/>
+    <property name="stdout.encoding" value="Cp1252"/>
+    <property name="path.separator" value=";"/>
+    <property name="os.version" value="10.0"/>
+    <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
+    <property name="file.encoding" value="UTF-8"/>
+    <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
+    <property name="java.vendor.version" value="Zulu25.32+21-CA"/>
+    <property name="localRepository" value="C:\Users\lik\.m2\repository"/>
+    <property name="java.vendor.url.bug" value="http://www.azul.com/support/"/>
+    <property name="java.io.tmpdir" value="C:\Users\lik\AppData\Local\Temp\"/>
+    <property name="java.version" value="25.0.2"/>
+    <property name="user.dir" value="C:\00-finmsg.io\dmn-compiler-toolkit\dmn-frontend-xml"/>
+    <property name="os.arch" value="amd64"/>
+    <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
+    <property name="sun.os.patch.level" value=""/>
+    <property name="native.encoding" value="Cp1252"/>
+    <property name="java.library.path" value="C:\10-tools\zulu25.32.21-ca-jdk25.0.2-win_x64\bin;C:\WINDOWS\Sun\Java\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\Program Files\PowerShell\7;C:/Users/lik/.gemini/antigravity/bin;C:\Users\lik\AppData\Roaming\Antigravity\bin;C:\Program Files\Zulu\zulu-25\bin\;C:\Program Files (x86)\Zulu\zulu-17\bin\;C:\Program Files\Eclipse Adoptium\jre-18.0.1.10-hotspot\bin;C:\Program Files\Eclipse Foundation\jdk-8.0.302.8-hotspot\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\ProgramData\chocolatey\bin;C:\10-tools\Microsoft VS Code\bin;C:\10-tools\zulu11.43.55-ca-jdk11.0.9.1-win_x64\bin;C:\Program Files\dotnet\;C:\Program Files\Microsoft SQL Server\130\Tools\Binn\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\Erlang OTP\bin;C:\Program Files (x86)\Elixir\bin;C:\Users\lik\.mix\escripts;C:\Program Files\Go\bin;C:\Program Files\Docker\Docker\resources\bin;C:\Program Files\Git\cmd;C:\Program Files\Calibre2\;C:\Users\lik\AppData\Local\nvm;C:\10-tools\nvm4w\nodejs;C:\Program Files\PowerShell\7\;C:\Program Files\TortoiseGit\bin;C:\Users\lik\AppData\Local\Programs\Python\Python311\Scripts\;C:\Users\lik\AppData\Local\Programs\Python\Python311\;C:\Users\lik\.cargo\bin;C:\Users\lik\.jbang\bin;C:\Users\lik\AppData\Local\Microsoft\WindowsApps;C:\Users\lik\AppData\Local\JetBrains\PyCharm Community Edition 2020.3.3\bin;C:\Users\lik\.dotnet\tools;C:\Users\lik\AppData\Local\nvs\;C:\Program Files (x86)\Nmap;C:\Program Files\RedHat\Podman;C:\Users\lik\go\bin;C:\dapr;C:\Users\lik\.dapr\bin;C:\Users\lik\AppData\Roaming\npm;C:\Program Files\JetBrains\RustRover 2026.1.1\bin;C:\Users\lik\AppData\Local\Pandoc\;C:\Users\lik\AppData\Local\Programs\MiKTeX\miktex\bin\x64\;C:\Users\lik\AppData\Local\Programs\Ollama;C:\Users\lik\AppData\Local\Microsoft\WindowsApps;C:\Users\lik\AppData\Local\nvm;C:\10-tools\nvm4w\nodejs;C:\Users\lik\AppData\Local\Programs\Antigravity IDE\bin;."/>
+    <property name="java.vm.info" value="mixed mode, sharing"/>
+    <property name="stderr.encoding" value="Cp1252"/>
+    <property name="java.vendor" value="Azul Systems, Inc."/>
+    <property name="java.vm.version" value="25.0.2+10-LTS"/>
+    <property name="stdin.encoding" value="Cp1252"/>
+    <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
+    <property name="java.class.version" value="69.0"/>
+  </properties>
+  <testcase name="detect" classname="io.finmsg.dmn.frontend.xml.dmn.DmnVersionDetectorTest" time="4.973">
+    <system-out><![CDATA[--- definitions of TrafficViolation.dmn-------------
+node {
+  id: "_1C792953-80DB-4B32-99EB-25FBE32BAF9E"
+  name: "Traffic Violation"
+  extension_elements {
+  }
+}
+namespace: "https://github.com/kiegroup/drools/kie-dmn/_A4BCA8B8-CF08-433F-93B2-A2598F19ECFF"
+expression_language: "https://www.omg.org/spec/DMN/20230324/FEEL/"
+type_language: "https://www.omg.org/spec/DMN/20230324/FEEL/"
+namespaces {
+  uri: "https://github.com/kiegroup/drools/kie-dmn/_A4BCA8B8-CF08-433F-93B2-A2598F19ECFF"
+}
+namespaces {
+  prefix: "di"
+  uri: "http://www.omg.org/spec/DMN/20180521/DI/"
+}
+namespaces {
+  prefix: "kie"
+  uri: "http://www.drools.org/kie/dmn/1.2"
+}
+namespaces {
+  prefix: "dmndi"
+  uri: "https://www.omg.org/spec/DMN/20230324/DMNDI/"
+}
+namespaces {
+  prefix: "dc"
+  uri: "http://www.omg.org/spec/DMN/20180521/DC/"
+}
+item_definitions {
+  node {
+    id: "_63824D3F-9173-446D-A940-6A7F0FA056BB"
+    name: "tDriver"
+  }
+  components {
+    node {
+      id: "_9DAB5DAA-3B44-4F6D-87F2-95125FB2FEE4"
+      name: "Name"
+    }
+    type {
+      builtin: BUILTIN_TYPE_STRING
+    }
+  }
+  components {
+    node {
+      id: "_856BA8FA-EF7B-4DF9-A1EE-E28263CE9955"
+      name: "Age"
+    }
+    type {
+      builtin: BUILTIN_TYPE_NUMBER
+    }
+  }
+  components {
+    node {
+      id: "_FDC2CE03-D465-47C2-A311-98944E8CC23F"
+      name: "State"
+    }
+    type {
+      builtin: BUILTIN_TYPE_STRING
+    }
+  }
+  components {
+    node {
+      id: "_D6FD34C4-00DC-4C79-B1BF-BBCF6FC9B6D7"
+      name: "City"
+    }
+    type {
+      builtin: BUILTIN_TYPE_STRING
+    }
+  }
+  components {
+    node {
+      id: "_7110FE7E-1A38-4C39-B0EB-AEEF06BA37F4"
+      name: "Points"
+    }
+    type {
+      builtin: BUILTIN_TYPE_NUMBER
+    }
+  }
+}
+item_definitions {
+  node {
+    id: "_40731093-0642-4588-9183-1660FC55053B"
+    name: "tViolation"
+  }
+  components {
+    node {
+      id: "_39E88D9F-AE53-47AD-B3DE-8AB38D4F50B3"
+      name: "Code"
+    }
+    type {
+      builtin: BUILTIN_TYPE_STRING
+    }
+  }
+  components {
+    node {
+      id: "_1648EA0A-2463-4B54-A12A-D743A3E3EE7B"
+      name: "Date"
+    }
+    type {
+      builtin: BUILTIN_TYPE_DATE
+    }
+  }
+  components {
+    node {
+      id: "_9F129EAA-4E71-4D99-B6D0-84EEC3AC43CC"
+      name: "Type"
+    }
+    type {
+      builtin: BUILTIN_TYPE_STRING
+    }
+    constraint {
+      text {
+        text: "\"speed\", \"parking\", \"driving under the influence\""
+      }
+    }
+  }
+  components {
+    node {
+      id: "_DDD10D6E-BD38-4C79-9E2F-8155E3A4B438"
+      name: "SpeedLimit"
+    }
+    type {
+      builtin: BUILTIN_TYPE_NUMBER
+    }
+  }
+  components {
+    node {
+      id: "_229F80E4-2892-494C-B70D-683ABF2345F6"
+      name: "ActualSpeed"
+    }
+    type {
+      builtin: BUILTIN_TYPE_NUMBER
+    }
+  }
+}
+item_definitions {
+  node {
+    id: "_2D4F30EE-21A6-4A78-A524-A5C238D433AE"
+    name: "tFine"
+  }
+  components {
+    node {
+      id: "_B9F70BC7-1995-4F51-B949-1AB65538B405"
+      name: "Amount"
+    }
+    type {
+      builtin: BUILTIN_TYPE_NUMBER
+    }
+  }
+  components {
+    node {
+      id: "_F49085D6-8F08-4463-9A1A-EF6B57635DBD"
+      name: "Points"
+    }
+    type {
+      builtin: BUILTIN_TYPE_NUMBER
+    }
+  }
+}
+drg_elements {
+  input_data {
+    node {
+      id: "_1929CBD5-40E0-442D-B909-49CEDE0101DC"
+      name: "Violation"
+    }
+    variable {
+      node {
+        id: "_C16CF9B1-5FAB-48A0-95E0-5FCD661E0406"
+        name: "Violation"
+      }
+      type {
+        named {
+          name: "tViolation"
+        }
+      }
+    }
+  }
+}
+drg_elements {
+  decision {
+    node {
+      id: "_4055D956-1C47-479C-B3F4-BAEB61F1C929"
+      name: "Fine"
+    }
+    variable {
+      node {
+        id: "_8C1EAC83-F251-4D94-8A9E-B03ACF6849CD"
+        name: "Fine"
+      }
+      type {
+        named {
+          name: "tFine"
+        }
+      }
+    }
+    logic {
+      decision_table {
+        node {
+          id: "_C8F7F579-E06C-4A2F-8485-65FAFAC3FE6A"
+        }
+        hit_policy {
+          policy: HIT_POLICY_UNIQUE
+        }
+        preferred_orientation: ORIENTATION_RULE_AS_ROW
+        inputs {
+          node {
+            id: "_B53A6F0D-F72C-41EF-96B3-F31269AC0FED"
+          }
+          input_expression {
+            text {
+              text: "Violation.Type"
+            }
+          }
+          type {
+            builtin: BUILTIN_TYPE_STRING
+          }
+        }
+        inputs {
+          node {
+            id: "_D5319F80-1C59-4736-AF2D-D29DE6B7E76D"
+          }
+          input_expression {
+            text {
+              text: "Violation.ActualSpeed - Violation.SpeedLimit"
+            }
+          }
+          type {
+            builtin: BUILTIN_TYPE_NUMBER
+          }
+        }
+        outputs {
+          node {
+            id: "_9012031F-9C01-44E5-8CD2-E6704D594504"
+            name: "Amount"
+          }
+          type {
+            builtin: BUILTIN_TYPE_NUMBER
+          }
+        }
+        outputs {
+          node {
+            id: "_7CAC8240-E1A5-4FEB-A0D4-B8613F0DE54B"
+            name: "Points"
+          }
+          type {
+            builtin: BUILTIN_TYPE_NUMBER
+          }
+        }
+        rules {
+          node {
+            id: "_424A80AE-916F-4451-9B6B-71557F7EC65A"
+          }
+          input_entries {
+            text {
+              text: "\"speed\""
+            }
+          }
+          input_entries {
+            text {
+              text: "[10..30)"
+            }
+          }
+          output_entries {
+            text {
+              text: "500"
+            }
+          }
+          output_entries {
+            text {
+              text: "3"
+            }
+          }
+        }
+        rules {
+          node {
+            id: "_B1ECE6A9-6B82-4A85-A7CA-5F96CDB0DCB6"
+          }
+          rule_index: 1
+          input_entries {
+            text {
+              text: "\"speed\""
+            }
+          }
+          input_entries {
+            text {
+              text: ">= 30"
+            }
+          }
+          output_entries {
+            text {
+              text: "1000"
+            }
+          }
+          output_entries {
+            text {
+              text: "7"
+            }
+          }
+        }
+        rules {
+          node {
+            id: "_8FC7068C-A3FD-44D9-AC2B-69C160A12E5D"
+          }
+          rule_index: 2
+          input_entries {
+            text {
+              text: "\"parking\""
+            }
+          }
+          input_entries {
+            text {
+              text: "-"
+            }
+          }
+          output_entries {
+            text {
+              text: "100"
+            }
+          }
+          output_entries {
+            text {
+              text: "1"
+            }
+          }
+        }
+        rules {
+          node {
+            id: "_A742DF2B-DC91-4166-9773-6EF86A45A625"
+          }
+          rule_index: 3
+          input_entries {
+            text {
+              text: "\"driving under the influence\""
+            }
+          }
+          input_entries {
+            text {
+              text: "-"
+            }
+          }
+          output_entries {
+            text {
+              text: "1000"
+            }
+          }
+          output_entries {
+            text {
+              text: "5"
+            }
+          }
+        }
+      }
+    }
+    information_requirements {
+      input {
+        href: "#_1929CBD5-40E0-442D-B909-49CEDE0101DC"
+      }
+    }
+  }
+}
+drg_elements {
+  input_data {
+    node {
+      id: "_1F9350D7-146D-46F1-85D8-15B5B68AF22A"
+      name: "Driver"
+    }
+    variable {
+      node {
+        id: "_A80F16DF-0DB4-43A2-B041-32900B1A3F3D"
+        name: "Driver"
+      }
+      type {
+        named {
+          name: "tDriver"
+        }
+      }
+    }
+  }
+}
+drg_elements {
+  decision {
+    node {
+      id: "_8A408366-D8E9-4626-ABF3-5F69AA01F880"
+      name: "Should the driver be suspended?"
+    }
+    variable {
+      node {
+        id: "_40387B66-5D00-48C8-BB90-E83EE3332C72"
+        name: "Should the driver be suspended?"
+      }
+      type {
+        builtin: BUILTIN_TYPE_STRING
+      }
+    }
+    logic {
+      boxed_expression {
+        text {
+          context {
+            entries {
+              variable {
+                node {
+                  id: "_09385E8D-68E0-4DFD-AAD8-141C15C96B71"
+                  name: "TotalPoints"
+                }
+                type {
+                  builtin: BUILTIN_TYPE_NUMBER
+                }
+              }
+              expression {
+                feel {
+                  text: "Driver.Points + Fine.Points"
+                }
+              }
+            }
+            entries {
+              expression {
+                feel {
+                  text: "if TotalPoints >= 20 then \"Yes\" else \"No\""
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    information_requirements {
+      input {
+        href: "#_1F9350D7-146D-46F1-85D8-15B5B68AF22A"
+      }
+    }
+    information_requirements {
+      decision {
+        href: "#_4055D956-1C47-479C-B3F4-BAEB61F1C929"
+      }
+    }
+  }
+}
+
+]]></system-out>
+  </testcase>
+</testsuite>

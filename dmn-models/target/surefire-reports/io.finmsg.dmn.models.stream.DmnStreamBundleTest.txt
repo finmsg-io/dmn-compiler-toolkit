@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: io.finmsg.dmn.models.stream.DmnStreamBundleTest
 -------------------------------------------------------------------------------
-Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.272 s -- in io.finmsg.dmn.models.stream.DmnStreamBundleTest
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.313 s -- in io.finmsg.dmn.models.stream.DmnStreamBundleTest

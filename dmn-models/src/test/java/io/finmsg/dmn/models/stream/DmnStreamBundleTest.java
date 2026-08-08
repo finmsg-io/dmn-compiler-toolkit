@@ -91,8 +91,9 @@ class DmnStreamBundleTest {
     DmnSource root = bundle.findRootSource().orElseThrow();
     assertThat(root.id().toString()).contains("Chapter");
 
-    assertThat(bundle.findSource("Chapter 12 Example.dmn")).isPresent();
-    assertThat(bundle.findSource("Financial.dmn")).isPresent();
+    DmnCompilationResult result = bundle.compile(compiler);
+    assertThat(result.loadedModels().models()).hasSize(2);
+    assertThat(result.semanticResult().models()).hasSize(2);
   }
 
   @Test
@@ -106,8 +107,9 @@ class DmnStreamBundleTest {
     DmnSource root = bundle.findRootSource().orElseThrow();
     assertThat(root.id().toString()).contains("Recommended");
 
-    assertThat(bundle.findSource("Recommended Loan Products.dmn")).isPresent();
-    assertThat(bundle.findSource("Loan info.dmn")).isPresent();
+    DmnCompilationResult result = bundle.compile(compiler);
+    assertThat(result.loadedModels().models()).hasSize(2);
+    assertThat(result.semanticResult().models()).hasSize(2);
   }
 
   @Test

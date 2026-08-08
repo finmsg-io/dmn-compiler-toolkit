@@ -72,7 +72,7 @@ public final class DecisionReader {
           //
           // Extension point
           //
-          case "documentation", "extensionElements" -> {
+          case "documentation", "description", "extensionElements" -> {
             // ignored for now
           }
 

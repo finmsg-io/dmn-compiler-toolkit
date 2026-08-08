@@ -24,6 +24,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -206,6 +207,29 @@ public record DmnStreamBundle(Map<String, DmnSource> sources) {
         .filter(e -> e.getKey().equalsIgnoreCase(norm) || basename(e.getKey()).equalsIgnoreCase(targetBase))
         .map(Map.Entry::getValue)
         .toList();
+  }
+
+  public List<DmnSource> findSourcesByNamespace(String namespace) {
+    if (namespace == null || namespace.isBlank()) {
+      return List.of();
+    }
+    DmnXmlReader xmlReader = new DmnXmlReader();
+    List<DmnSource> matches = new ArrayList<>();
+    sources.forEach((loc, src) -> {
+      try {
+        DmnReadResult result = xmlReader.readResult(src.content(), DmnReadOptions.defaults().withSystemId(loc));
+        if (result.model().isPresent() && namespace.equals(result.model().get().getNamespace())) {
+          matches.add(src);
+        } else {
+          Matcher defMatcher = DEFINITIONS_NS_PATTERN.matcher(new String(src.content(), StandardCharsets.UTF_8));
+          if (defMatcher.find() && namespace.equals(defMatcher.group(1))) {
+            matches.add(src);
+          }
+        }
+      } catch (Exception ignored) {
+      }
+    });
+    return matches;
   }
 
   /**

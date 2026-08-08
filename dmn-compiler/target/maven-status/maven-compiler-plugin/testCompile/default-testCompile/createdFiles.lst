@@ -1,0 +1,14 @@
+io\finmsg\dmn\compiler\ClasspathDmnModelResolverTest$1.class
+io\finmsg\dmn\compiler\ClasspathDmnModelResolverTest.class
+io\finmsg\dmn\compiler\ClasspathDmnModelResolverTest$TrackingClassLoader$1.class
+io\finmsg\dmn\compiler\ClasspathDmnModelResolverTest$TrackingClassLoader.class
+io\finmsg\dmn\compiler\FilesystemDmnModelResolverTest.class
+io\finmsg\dmn\compiler\ClasspathDmnModelResolverTest$1$1.class
+io\finmsg\dmn\compiler\DmnCompilerTest.class
+io\finmsg\dmn\compiler\DmnModelResolverTest.class
+io\finmsg\dmn\compiler\DmnModelLoaderTest.class
+io\finmsg\dmn\compiler\DmnCompilerDiagnosticTest.class
+io\finmsg\dmn\compiler\DmnCompiledModelTest.class
+io\finmsg\dmn\compiler\DmnMultiFileCorpusTest.class
+io\finmsg\dmn\compiler\DmnModelLoaderTest$CountingResolver.class
+io\finmsg\dmn\compiler\DmnModelSetSemanticAnalyzerTest.class

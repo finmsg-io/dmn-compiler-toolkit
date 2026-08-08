@@ -63,7 +63,7 @@ public final class DefinitionsBodyReader {
                     .setDecisionService(decisionServiceReader.read(cursor))
                     .build());
 
-        case "documentation", "extensionElements" -> { }
+        case "documentation", "description", "extensionElements", "textAnnotation", "association", "performanceIndicator", "organizationUnit", "businessContextElement", "elementCollection", "group", "DMNDI", "style" -> { }
 
         default -> UnsupportedContent.rejectDmnChild(cursor, "definitions");
       }
