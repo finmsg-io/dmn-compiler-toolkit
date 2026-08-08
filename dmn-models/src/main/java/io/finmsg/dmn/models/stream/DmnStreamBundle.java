@@ -21,6 +21,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -32,6 +33,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -243,8 +246,11 @@ public record DmnStreamBundle(Map<String, DmnSource> sources) {
               importedKeys.add(basename(imp.getName()));
             }
           }
+        } else {
+          extractNamespaceAndImportsFallback(src.content(), sourceNamespaces, importedKeys, loc);
         }
       } catch (Exception ignored) {
+        extractNamespaceAndImportsFallback(src.content(), sourceNamespaces, importedKeys, loc);
       }
     });
 
@@ -311,6 +317,41 @@ public record DmnStreamBundle(Map<String, DmnSource> sources) {
       s = s.substring(2);
     }
     return s;
+  }
+
+  private static final Pattern DEFINITIONS_NS_PATTERN = Pattern.compile("<[^>]*definitions[^>]*namespace=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
+  private static final Pattern IMPORT_PATTERN = Pattern.compile("<[^>]*import[^>]*>", Pattern.CASE_INSENSITIVE);
+  private static final Pattern NS_ATTR_PATTERN = Pattern.compile("namespace=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
+  private static final Pattern LOC_ATTR_PATTERN = Pattern.compile("locationURI=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
+  private static final Pattern NAME_ATTR_PATTERN = Pattern.compile("name=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
+
+  private static void extractNamespaceAndImportsFallback(
+      byte[] xmlBytes, Map<String, String> sourceNamespaces, Set<String> importedKeys, String loc) {
+    String xml = new String(xmlBytes, StandardCharsets.UTF_8);
+    Matcher defMatcher = DEFINITIONS_NS_PATTERN.matcher(xml);
+    if (defMatcher.find()) {
+      sourceNamespaces.put(loc, defMatcher.group(1));
+    }
+    Matcher impMatcher = IMPORT_PATTERN.matcher(xml);
+    while (impMatcher.find()) {
+      String impBlock = impMatcher.group();
+      Matcher nsMatcher = NS_ATTR_PATTERN.matcher(impBlock);
+      if (nsMatcher.find()) {
+        importedKeys.add(nsMatcher.group(1));
+      }
+      Matcher locMatcher = LOC_ATTR_PATTERN.matcher(impBlock);
+      if (locMatcher.find()) {
+        String normImp = normalizeLocation(locMatcher.group(1));
+        importedKeys.add(normImp);
+        importedKeys.add(basename(normImp));
+      }
+      Matcher nameMatcher = NAME_ATTR_PATTERN.matcher(impBlock);
+      if (nameMatcher.find()) {
+        String name = nameMatcher.group(1);
+        importedKeys.add(name);
+        importedKeys.add(basename(name));
+      }
+    }
   }
 
   private static String basename(String location) {
