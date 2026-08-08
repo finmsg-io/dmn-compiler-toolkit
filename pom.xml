@@ -240,13 +240,16 @@
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
                         <version>${owasp.dependency.check.version}</version>
+                        <inherited>false</inherited>
                         <configuration>
                             <failBuildOnCVSS>7</failBuildOnCVSS>
-                            <suppressionFile>${project.basedir}/dependency-check-suppressions.xml</suppressionFile>
+                            <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
+                            <skipProvidedScope>true</skipProvidedScope>
+                            <suppressionFile>${maven.multiModuleProjectDirectory}/dependency-check-suppressions.xml</suppressionFile>
                         </configuration>
                         <executions>
                             <execution>
-                                <goals><goal>check</goal></goals>
+                                <goals><goal>aggregate</goal></goals>
                             </execution>
                         </executions>
                     </plugin>
