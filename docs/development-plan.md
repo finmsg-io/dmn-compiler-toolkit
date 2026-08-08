@@ -463,3 +463,58 @@ During each planning review, compare this document with
 [`docs/roadmap.md`](roadmap.md), current [module TODOs](todos/index.md), dated
 [audits](audits/index.md), and the actual test suite. The code and executable tests remain
 the ultimate source of truth.
+
+---
+
+## Versioning and Compatibility Policy
+
+Last reviewed: 2026-08-08
+
+### Semantic versioning
+
+The project follows [Semantic Versioning 2.0.0](https://semver.org/):
+
+- **PATCH** — backwards-compatible bug fixes with no API changes
+- **MINOR** — backwards-compatible new capabilities; all existing public API preserved
+- **MAJOR** — breaking changes to public API; migration guide required
+
+### Public Java API stability
+
+A method, class, or interface is part of the public API when:
+- it is `public` or `protected`, **and**
+- it resides in a package **not** named `*.internal.*`
+
+All public API additions are tagged with `@since <version>` Javadoc.
+Removal requires a major version increment and a deprecation cycle spanning at least one minor release.
+
+### Protobuf schema compatibility contract
+
+The `.proto` schemas in `dmn-protobuf` act as the compiler's stable
+semantic contract between modules:
+
+- **Allowed without a major version bump:** adding new optional fields, adding new enum values at the end
+- **Requires a major version bump:** removing or renumbering fields, changing field types
+
+Serialized protobuf fixtures in `dmn-tck-runner` serve as golden-file regression guards.
+
+### Supported JDK matrix
+
+| JDK | Status |
+| --- | --- |
+| JDK 25 LTS | ✅ Required minimum; tested in CI |
+| JDK 26+ | Not yet validated; tracked in P13 |
+
+The minimum JDK requirement is enforced by `maven-enforcer-plugin` in the root POM.
+
+### Build toolchain
+
+| Tool | Required minimum | Enforced by |
+| --- | --- | --- |
+| Apache Maven | 3.9 | `maven-enforcer-plugin` |
+| JDK | 25 LTS | `maven-enforcer-plugin` |
+
+### GitHub Packages artifact retention
+
+- **SNAPSHOT** artifacts: retained for the lifetime of the feature branch; not guaranteed stable
+- **Release** artifacts (tagged `v*.*.*`): retained indefinitely; immutable once published
+- **Supported versions:** the two most recent minor releases receive bug fixes; older releases are community-supported only
