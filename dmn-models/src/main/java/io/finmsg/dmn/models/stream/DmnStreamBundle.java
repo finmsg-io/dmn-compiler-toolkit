@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -274,7 +275,11 @@ public record DmnStreamBundle(Map<String, DmnSource> sources) {
     if (norm.contains(":/")) {
       return DmnSourceId.of(norm);
     }
-    return DmnSourceId.of("memory:///" + norm);
+    try {
+      return new DmnSourceId(new URI("memory", null, "/" + norm, null));
+    } catch (URISyntaxException e) {
+      throw new IllegalArgumentException("Invalid DMN source location: " + location, e);
+    }
   }
 
   private static String normalizeLocation(String location) {
