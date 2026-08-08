@@ -26,6 +26,7 @@
 - [Decisions required](#contents-section-21)
 - [Change log](#contents-section-22)
 - [How to maintain this document](#contents-section-23)
+- [Versioning and Compatibility Policy](#contents-section-24)
 <!-- generated-toc:end -->
 
 This is the living delivery plan for the DMN Compiler Toolkit. It translates the
@@ -445,7 +446,7 @@ These constraints apply to every milestone:
 6. **Compatibility is explicit.** Public API, Runtime IR serialization, and generated
    contract compatibility are distinct policies and must be documented separately.
 
-<a id="contents-section-20"></a>
+<a id="contents-section-21"></a>
 ## Decisions required
 
 | ID | Decision | Needed by | State | Resolution |
@@ -459,7 +460,7 @@ These constraints apply to every milestone:
 Material architectural decisions should graduate to an ADR. This table tracks only
 when a decision is needed and where its final resolution can be found.
 
-<a id="contents-section-21"></a>
+<a id="contents-section-22"></a>
 ## Change log
 
 Record meaningful plan changes, not routine status transitions already visible in
@@ -469,7 +470,7 @@ the milestone tables.
 | --- | --- | --- | --- |
 | 2026-08-02 | Created the living plan and prioritized multi-file compilation before code generation | Real DMN repositories provide the shared correctness target for interpreter, Java, and gRPC work | Current module assessments and test baseline |
 
-<a id="contents-section-22"></a>
+<a id="contents-section-23"></a>
 ## How to maintain this document
 
 When work starts:
@@ -494,6 +495,7 @@ the ultimate source of truth.
 
 ---
 
+<a id="contents-section-24"></a>
 ## Versioning and Compatibility Policy
 
 Last reviewed: 2026-08-08
