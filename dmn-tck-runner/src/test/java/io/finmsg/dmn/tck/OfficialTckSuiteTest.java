@@ -38,7 +38,9 @@ class OfficialTckSuiteTest {
   Stream<DynamicTest> verifyFullOfficialOmgTckConformance() throws Exception {
     URL officialResource = OfficialTckSuiteTest.class.getClassLoader().getResource("tck-official/TestCases");
     if (officialResource == null) {
-      return Stream.of(DynamicTest.dynamicTest("Skipped: tck-official submodule not checked out", () -> {}));
+      throw new IllegalStateException("Official OMG DMN TCK test suite is missing! "
+          + "Resource 'tck-official/TestCases' could not be loaded. "
+          + "Ensure the git submodule is checked out using: git submodule update --init --recursive");
     }
 
     Path testCasesDir = Path.of(officialResource.toURI());
@@ -47,6 +49,9 @@ class OfficialTckSuiteTest {
 
     try (Stream<Path> paths = Files.walk(testCasesDir)) {
       List<Path> xmlTestFiles = paths.filter(p -> p.toString().endsWith(".xml") && !p.toString().endsWith(".xsd")).toList();
+      if (xmlTestFiles.isEmpty()) {
+        throw new IllegalStateException("No official OMG DMN TCK XML test files were found under " + testCasesDir);
+      }
 
       for (Path xmlPath : xmlTestFiles) {
         Path dir = xmlPath.getParent();

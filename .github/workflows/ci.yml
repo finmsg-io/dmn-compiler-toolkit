@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - "**"
+    tags:
+      - "v*.*.*"
   pull_request:
     branches:
       - main
@@ -30,37 +32,24 @@ jobs:
           server-username: GITHUB_ACTOR
           server-password: GITHUB_TOKEN
 
-      # Pull request: build and test only
-      - name: Verify pull request
-        if: github.event_name == 'pull_request'
+      # Pull requests and main pushes: verify build and run tests
+      - name: Verify build and test
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
         run: mvn --batch-mode verify
 
-      # Feature branch push: publish branch-specific SNAPSHOT
-      - name: Set feature SNAPSHOT version
-        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+      # Tagged release push (e.g. v1.0.0): deploy release version to GitHub Packages
+      - name: Extract tag version and set release version
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
-          BRANCH="${GITHUB_REF_NAME//\//-}"
+          TAG_NAME="${GITHUB_REF_NAME#v}"
+          echo "Releasing version: ${TAG_NAME}"
           mvn --batch-mode versions:set \
-            -DnewVersion="1.0.0-${BRANCH}-SNAPSHOT" \
+            -DnewVersion="${TAG_NAME}" \
             -DgenerateBackupPoms=false
 
-      - name: Publish feature SNAPSHOT
-        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
-        run: mvn --batch-mode deploy
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Merge into main: convert 1.0.0-SNAPSHOT to 1.0.0 and publish
-      - name: Set release version
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          mvn --batch-mode versions:set \
-            -DremoveSnapshot \
-            -DgenerateBackupPoms=false
-
-      - name: Publish release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Publish tag release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         run: mvn --batch-mode deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

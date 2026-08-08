@@ -9,7 +9,7 @@
 <!-- generated-toc:end -->
 
 The normative, detailed design is maintained in the
-[architecture specification](architecture/architecture-spec.md). This page is the
+[architecture specification](architecture/architecture-spec.md) and [backend parity matrix](architecture/backend-parity-matrix.md). This page is the
 short implementation-oriented overview. Accepted decisions and their rationale are indexed in
 the [ADR guide](architecture/adr/generall-adr.md), and project terminology is defined by the
 [glossary](glossary.md).

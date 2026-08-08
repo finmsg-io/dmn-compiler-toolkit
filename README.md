@@ -25,14 +25,16 @@ The project compiles DMN models into an internal semantic representation that ca
 - [Project](#contents-section-14)
 <!-- generated-toc:end -->
 
-The project is under active development.
+The project is a feature-rich DMN 1.5/1.6 compiler platform.
 
-Current focus:
+Current status & focus:
 
-- compiler facade and import model-resolution glue
-- Runtime IR expression and decision-table lowering
-- Runtime IR interpretation with dependency scheduling, lexical frames, FEEL values, and decision tables
-- compiler facade and model-resolution glue
+- 14 reactor modules fully implemented and verified
+- OMG DMN 1.5/1.6 TCK conformance suite engine with dual-engine parity (Interpreter & Java AOT)
+- Static optimization passes (`dmn-optimizer`) and pure Spark / Databricks SQL CTE generator (`dmn-generator-sparksql`)
+- Dynamic and strongly typed gRPC service stubs generator (`dmn-grpc`)
+- Multi-file DMN sample suites and streaming ingestion API (`dmn-models`)
+- Near-term focus: Governance quality gates, backend parity formalization, and native binary generators (Rust/Go/C++)
 
 <a id="contents-section-2"></a>
 ## Architecture
@@ -232,21 +234,20 @@ mkdocs build
 ```
 
 <a id="contents-section-12"></a>
-## Roadmap
-
-- Add the compiler facade and import model resolver
-- Lower FEEL expressions and decision tables into Runtime IR instructions
-- Add optimizer passes
-- Generate optimized Java code
-- Add performance benchmarks
-- Add additional code-generation backends
+- [x] Add compiler facade and import model resolver (`dmn-compiler`)
+- [x] Lower FEEL expressions and decision tables into Runtime IR instructions (`dmn-runtime-ir`)
+- [x] Implement static optimizer passes (`dmn-optimizer`)
+- [x] Generate optimized Java code (`dmn-generator-java`)
+- [x] Add performance benchmarks & DataFaker realistic workloads (`dmn-benchmarks`)
+- [x] Generate pure Spark / Databricks SQL CTE queries (`dmn-generator-sparksql`)
+- [x] Generate dynamic and strongly-typed gRPC services (`dmn-grpc`)
+- [x] Add multi-file DMN sample suites and Java streaming ingestion API (`dmn-models`)
+- [ ] Add native language code-generation backends (Rust, Go, C++)
 
 <a id="contents-section-13"></a>
 ## License
 
-A license has not yet been selected.
-
-Before publishing the project for external use, add a `LICENSE` file and update this section.
+This project is licensed under the [Apache License 2.0](LICENSE).
 
 <a id="contents-section-14"></a>
 ## Project

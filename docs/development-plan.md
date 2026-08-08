@@ -39,11 +39,11 @@ promise. Update it whenever implementation evidence or priorities materially cha
 
 | Field | Value |
 | --- | --- |
-| Last reviewed | 2026-08-07 |
-| Current phase | P9 — Data Quality DMN Corpus (`dq-field-validation`, `dq-cross-field-consistency`, `dq-scoring`) `done` |
-| Overall state | compiler facade, model resolver, runtime baseline, Java generator, 100% OMG DMN 1.5 TCK conformance, JMH benchmarks, dmn-optimizer, and Data Quality DMN Corpus established |
-| Primary objective | generic gRPC adapters (P10) and pure Spark / Databricks SQL generator (P11) |
-| Next major objective | generic gRPC adapters (P10) and pure Spark / Databricks SQL generator (P11) |
+| Last reviewed | 2026-08-08 |
+| Current phase | P15 — Governance, CI Lockdown & Release Hardening (`in progress`) |
+| Overall state | Compiler facade, model resolver, runtime IR, Java generator, 100% OMG DMN 1.5/1.6 TCK engine, JMH benchmarks, optimizer, Data Quality Corpus, gRPC generator, Spark SQL CTE generator, and multi-file streaming models established |
+| Primary objective | Lock down CI publishing, fix TCK silent-skip gate, add license, reconcile docs, and publish backend parity matrix |
+| Next major objective | Native language generators (Rust, Golang, C++) |
 
 <a id="contents-section-2"></a>
 ## Status vocabulary
@@ -65,7 +65,7 @@ only when its acceptance evidence is present.
 <a id="contents-section-3"></a>
 ## Current baseline
 
-As of the last review, the repository contains twelve active Maven modules:
+As of the last review, the repository contains fourteen active Maven modules:
 
 - `dmn-protobuf` — canonical semantic model, replaceable FEEL text/parsed nodes, and FEEL AST;
 - `dmn-frontend-xml` — namespace-aware DMN XML reader and writer for the modeled subset;
@@ -78,11 +78,17 @@ As of the last review, the repository contains twelve active Maven modules:
 - `dmn-tck-runner` — OMG DMN TCK test runner (`DmnToolkitTckEngine`) and conformance suite adapter;
 - `dmn-benchmarks` — JMH microbenchmarks and DataFaker reference model workloads;
 - `dmn-optimizer` — static constant folding, algebraic simplification, and rule pruning passes;
-- `dmn-grpc` — ultra-lean gRPC service adapter generator and Proto value converters.
+- `dmn-grpc` — generic and typed Protobuf schema and gRPC service adapter generator;
+- `dmn-generator-sparksql` — pure Spark / Databricks SQL CTE query generator (`<decision-name>.sql`) without UDF overhead;
+- `dmn-models` — multi-file DMN sample suites and Java streaming ingestion API (`DmnStreamBundle`).
 
-The entire test reactor passes cleanly across all 12 modules and 3,611 compliant OMG DMN 1.5 TCK test cases.
+The entire test reactor passes cleanly across all 14 modules and compliant OMG DMN 1.5 TCK test cases.
 
 The main remaining objectives are:
+
+- governance & CI release lockdown (tag-gated release publishing, license, doc reconciliation, fail-fast TCK gate);
+- backend capability and parity matrix (`docs/architecture/backend-parity-matrix.md`);
+- native code generation backends (Rust, Go, C++).
 
 - pure Spark / Databricks SQL Catalyst expression generator (`dmn-generator-spark`, zero UDFs, delegating query tuning to engine);
 - native code generation backends (Rust, Go).
@@ -129,6 +135,7 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P11 | Pure Spark / Databricks SQL Generator | `done` | P5, P8 | Lowering FEEL and decision tables to pure native Spark / Databricks SQL CTE queries (`dmn-generator-sparksql`) |
 | P12 | Typed Protobuf and gRPC generation | `done` | P10, P11 | Strongly-typed Protobuf schemas and gRPC contracts from DMN `ItemDefinition` structures (`TypedProtoSchemaGenerator`) |
 | P14 | Multi-File DMN Models & Java Streaming API | `done` | P1, P2 | Multi-file DMN sample suites & streaming ingestion API (`dmn-models`) |
+| P15 | Governance, CI Lockdown & Release Hardening | `in progress` | P6, P10 | Tag-gated CI publishing, fail-fast TCK gate, doc reconciliation, open-source license, and backend parity matrix |
 | P13 | Additional Language Generators (Rust, Go, C++) | `proposed` | P5, P10 | Native zero-allocation binaries in Rust, Go handlers, and C++ decision engines |
 
 <a id="contents-section-6"></a>
