@@ -170,14 +170,33 @@ public final class DmnRuntime {
 						: number(left).add(number(r));
 				case SUBTRACT -> number(left).subtract(number(r));
 				case MULTIPLY -> number(left).multiply(number(r));
-				case DIVIDE -> number(left).divide(number(r), MathContext.DECIMAL128);
+				case DIVIDE -> {
+					try {
+						BigDecimal denom = number(r);
+						yield denom.compareTo(BigDecimal.ZERO) == 0 ? null : number(left).divide(denom, MathContext.DECIMAL128);
+					} catch (ArithmeticException e) {
+						yield null;
+					}
+				}
 				case POWER -> BigDecimal.valueOf(Math.pow(number(left).doubleValue(), number(r).doubleValue()));
 				case EQUAL -> equal(left, r);
 				case NOT_EQUAL -> !equal(left, r);
-				case LESS -> compare(left, r) < 0;
-				case LESS_EQUAL -> compare(left, r) <= 0;
-				case GREATER -> compare(left, r) > 0;
-				case GREATER_EQUAL -> compare(left, r) >= 0;
+				case LESS -> {
+					Integer c = compare(left, r);
+					yield c == null ? null : c < 0;
+				}
+				case LESS_EQUAL -> {
+					Integer c = compare(left, r);
+					yield c == null ? null : c <= 0;
+				}
+				case GREATER -> {
+					Integer c = compare(left, r);
+					yield c == null ? null : c > 0;
+				}
+				case GREATER_EQUAL -> {
+					Integer c = compare(left, r);
+					yield c == null ? null : c >= 0;
+				}
 				case AND, OR -> throw new AssertionError();
 			};
 		}
@@ -370,7 +389,8 @@ public final class DmnRuntime {
 						throw new DmnEvaluationException("ANY table produced different outputs");
 					yield first;
 				}
-				case RULE_ORDER, OUTPUT_ORDER -> matches.stream().map(row -> output(row, table.outputs())).toList();
+				case RULE_ORDER -> matches.stream().map(row -> output(row, table.outputs())).toList();
+				case OUTPUT_ORDER -> sortOutputOrder(matches.stream().map(row -> output(row, table.outputs())).toList(), table.outputs());
 				case COLLECT ->
 					aggregate(matches.stream().map(row -> output(row, table.outputs())).toList(), table.aggregation());
 			};
@@ -398,6 +418,35 @@ public final class DmnRuntime {
 				case MIN -> values.stream().min(DmnRuntime::compare).orElse(null);
 				case MAX -> values.stream().max(DmnRuntime::compare).orElse(null);
 			};
+		}
+
+		private List<Object> sortOutputOrder(List<Object> results, List<RuntimeDecisionTableOutput> outputs) {
+			if (outputs.size() == 1 && outputs.get(0).allowedValues().isPresent()) {
+				List<Object> domain = extractAllowedValues(outputs.get(0).allowedValues().get());
+				if (!domain.isEmpty()) {
+					List<Object> sorted = new ArrayList<>(results);
+					sorted.sort(Comparator.comparingInt(val -> {
+						int idx = domain.indexOf(val);
+						return idx < 0 ? Integer.MAX_VALUE : idx;
+					}));
+					return sorted;
+				}
+			}
+			return results;
+		}
+
+		private List<Object> extractAllowedValues(RuntimeUnaryTests tests) {
+			List<Object> domain = new ArrayList<>();
+			for (RuntimeUnaryTest test : tests.tests()) {
+				if (test instanceof RuntimeComparisonUnaryTest comp) {
+					Object val = expression(comp.endpoint(), Frame.EMPTY);
+					if (val != null) domain.add(val);
+				} else if (test instanceof RuntimeExpressionUnaryTest expr) {
+					Object val = expression(expr.expression(), Frame.EMPTY);
+					if (val != null) domain.add(val);
+				}
+			}
+			return domain;
 		}
 
 		private boolean tests(Object candidate, RuntimeUnaryTests tests, Frame frame) {
@@ -709,14 +758,19 @@ public final class DmnRuntime {
 				"Expected number, got " + (value == null ? "null" : value.getClass().getSimpleName()));
 	}
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	private static int compare(Object left, Object right) {
+	private static Integer compare(Object left, Object right) {
 		if (left == null || right == null)
-			throw new DmnEvaluationException("Cannot compare null values");
+			return null;
 		if (left instanceof Number && right instanceof Number)
 			return number(left).compareTo(number(right));
-		if (left instanceof Comparable comparable && left.getClass().isInstance(right))
-			return comparable.compareTo(right);
-		throw new DmnEvaluationException("Values are not comparable: " + left + " and " + right);
+		if (left instanceof Comparable comparable && left.getClass().isInstance(right)) {
+			try {
+				return comparable.compareTo(right);
+			} catch (Exception e) {
+				return null;
+			}
+		}
+		return null;
 	}
 	private static boolean equal(Object left, Object right) {
 		if (left == null && right == null)
@@ -735,22 +789,24 @@ public final class DmnRuntime {
 		if (left == null || right == null)
 			return false;
 		return switch (operator) {
-			case LESS -> compare(left, right) < 0;
-			case LESS_EQUAL -> compare(left, right) <= 0;
-			case GREATER -> compare(left, right) > 0;
-			case GREATER_EQUAL -> compare(left, right) >= 0;
+			case LESS -> { Integer c = compare(left, right); yield c != null && c < 0; }
+			case LESS_EQUAL -> { Integer c = compare(left, right); yield c != null && c <= 0; }
+			case GREATER -> { Integer c = compare(left, right); yield c != null && c > 0; }
+			case GREATER_EQUAL -> { Integer c = compare(left, right); yield c != null && c >= 0; }
 			default -> false;
 		};
 	}
 	private static boolean contains(RuntimeRangeValue range, Object value) {
 		if (value == null)
 			return false;
+		Integer lowC = compare(value, range.lower());
 		boolean lower = range.lower() == null || (range.lowerBoundary() == RuntimeRangeBoundary.CLOSED
-				? compare(value, range.lower()) >= 0
-				: compare(value, range.lower()) > 0);
+				? lowC != null && lowC >= 0
+				: lowC != null && lowC > 0);
+		Integer upC = compare(value, range.upper());
 		boolean upper = range.upper() == null || (range.upperBoundary() == RuntimeRangeBoundary.CLOSED
-				? compare(value, range.upper()) <= 0
-				: compare(value, range.upper()) < 0);
+				? upC != null && upC <= 0
+				: upC != null && upC < 0);
 		return lower && upper;
 	}
 	private static List<Object> list(Object value) {

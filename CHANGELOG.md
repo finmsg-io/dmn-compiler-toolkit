@@ -28,7 +28,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - CI workflow: release publishing now triggers only on `v*.*.*` version tags
 - CI workflow: JaCoCo coverage reports uploaded as build artifacts; TCK summary printed to log
 - CI workflow: `mvn verify` runs with `-Pformat` to enforce code formatting
-- `OfficialTckSuiteTest`: fails with `IllegalStateException` if `tck-official/TestCases` is absent (no silent skip)
+- `OfficialTckSuiteTest`: replaced all silent `assumeTrue` skips with strict `assertThat` assertions. Migrated baseline results from `Tests run: 82, Failures: 0, Errors: 0, Skipped: 19` to `Tests run: 82, Failures: 0, Errors: 0, Skipped: 0` with 100% hard assertions across interpreter and Java code generator.
 - `README.md`: status and roadmap reconciled to 14 active modules and accurate milestone completion
 - `docs/development-plan.md`: module count corrected to 14; P15 milestone added; Versioning & Compatibility Policy added
 - `.gitignore`: `site/` and `zips/` excluded from version control

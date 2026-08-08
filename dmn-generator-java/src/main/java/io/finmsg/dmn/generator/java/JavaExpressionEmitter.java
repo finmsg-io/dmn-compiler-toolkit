@@ -25,6 +25,7 @@ public final class JavaExpressionEmitter {
 			case RuntimeContextExpression ctx -> emitContext(ctx);
 			case RuntimeListExpression list -> emitList(list);
 			case RuntimeFunctionCall fn -> emitFunctionCall(fn);
+			case RuntimeInvocationExpression inv -> emitInvocation(inv);
 			case RuntimeFilterExpression filter -> emitFilter(filter);
 			case RuntimeQuantifiedExpression quant -> emitQuantified(quant);
 			case RuntimeForExpression forExpr -> emitFor(forExpr);
@@ -66,7 +67,7 @@ public final class JavaExpressionEmitter {
 			case GREATER_EQUAL -> "compare(" + left + ", " + right + ") >= 0";
 			case AND -> "and(" + left + ", " + right + ")";
 			case OR -> "or(" + left + ", " + right + ")";
-			case POWER -> "null";
+			case POWER -> "power(" + left + ", " + right + ")";
 		};
 	}
 
@@ -106,6 +107,23 @@ public final class JavaExpressionEmitter {
 		}
 		sb.append("))");
 		return sb.toString();
+	}
+
+	private static String emitInvocation(RuntimeInvocationExpression inv) {
+		if (inv.function().isPresent()) {
+			StringBuilder sb = new StringBuilder("builtin(\"").append(escapeString(inv.function().get())).append("\", List.of(");
+			for (int i = 0; i < inv.positionalArguments().size(); i++) {
+				if (i > 0)
+					sb.append(", ");
+				sb.append(emit(inv.positionalArguments().get(i)));
+			}
+			sb.append("))");
+			return sb.toString();
+		}
+		if (inv.target().isPresent()) {
+			return emit(inv.target().get());
+		}
+		return "null";
 	}
 
 	private static String emitFilter(RuntimeFilterExpression filter) {

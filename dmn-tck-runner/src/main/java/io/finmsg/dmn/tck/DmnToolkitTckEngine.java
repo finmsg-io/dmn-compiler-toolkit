@@ -95,6 +95,14 @@ public final class DmnToolkitTckEngine {
 		return slot;
 	}
 
-	private record RuntimeNames(Map<String, Integer> inputSlots, Map<String, Integer> decisionSlots) {
+	public static Map<String, Integer> getRuntimeInputSlots(DmnCompilationResult compilation) {
+		return runtimeNames(compilation).inputSlots();
+	}
+
+	public static Map<String, Integer> getRuntimeDecisionSlots(DmnCompilationResult compilation) {
+		return runtimeNames(compilation).decisionSlots();
+	}
+
+	public record RuntimeNames(Map<String, Integer> inputSlots, Map<String, Integer> decisionSlots) {
 	}
 }

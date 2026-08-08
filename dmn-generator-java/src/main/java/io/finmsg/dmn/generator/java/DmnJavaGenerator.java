@@ -140,6 +140,8 @@ public final class DmnJavaGenerator {
 		if (isMultiMatch) {
 			if (table.aggregation().isPresent()) {
 				sb.append("    return aggregate(matches, \"").append(table.aggregation().get().name()).append("\");\n");
+			} else if (table.hitPolicy() == RuntimeHitPolicy.OUTPUT_ORDER) {
+				sb.append("    return sortOutputOrder(matches, ").append(emitAllowedValuesList(table)).append(");\n");
 			} else {
 				sb.append("    return List.copyOf(matches);\n");
 			}
@@ -148,8 +150,26 @@ public final class DmnJavaGenerator {
 		}
 	}
 
+	private static String emitAllowedValuesList(RuntimeDecisionTable table) {
+		if (table.outputs().size() == 1 && table.outputs().get(0).allowedValues().isPresent()) {
+			RuntimeUnaryTests tests = table.outputs().get(0).allowedValues().get();
+			List<String> entries = new ArrayList<>();
+			for (RuntimeUnaryTest test : tests.tests()) {
+				if (test instanceof RuntimeComparisonUnaryTest comp) {
+					entries.add(JavaExpressionEmitter.emit(comp.endpoint()));
+				} else if (test instanceof RuntimeExpressionUnaryTest expr) {
+					entries.add(JavaExpressionEmitter.emit(expr.expression()));
+				}
+			}
+			if (!entries.isEmpty()) {
+				return "List.of(" + String.join(", ", entries) + ")";
+			}
+		}
+		return "List.of()";
+	}
+
 	private static String emitUnaryTests(String inputVar, RuntimeUnaryTests tests) {
-		if (tests == null || tests.tests().isEmpty()) {
+		if (tests == null || tests.wildcard() || tests.tests().isEmpty()) {
 			return "true";
 		}
 		StringBuilder sb = new StringBuilder("(");
@@ -160,6 +180,9 @@ public final class DmnJavaGenerator {
 			sb.append(emitUnaryTest(inputVar, test));
 		}
 		sb.append(")");
+		if (tests.negated()) {
+			return "(!" + sb + ")";
+		}
 		return sb.toString();
 	}
 
@@ -176,7 +199,7 @@ public final class DmnJavaGenerator {
 				case GREATER_EQUAL ->
 					"compare(" + inputVar + ", " + JavaExpressionEmitter.emit(comparison.endpoint()) + ") >= 0";
 			};
-			case RuntimeRangeUnaryTest range -> "true";
+			case RuntimeRangeUnaryTest rangeTest -> emitRangeUnaryTest(inputVar, rangeTest);
 			case RuntimeExpressionUnaryTest expr -> {
 				String emitted = JavaExpressionEmitter.emit(expr.expression());
 				if (emitted.startsWith("equal(") || emitted.startsWith("compare(") || emitted.startsWith("isTrue(")
@@ -186,6 +209,24 @@ public final class DmnJavaGenerator {
 				yield "equal(" + inputVar + ", " + emitted + ")";
 			}
 		};
+	}
+
+	private static String emitRangeUnaryTest(String inputVar, RuntimeRangeUnaryTest rangeTest) {
+		RuntimeRangeExpression range = rangeTest.range();
+		StringBuilder sb = new StringBuilder("(");
+		sb.append(inputVar).append(" != null");
+		if (range.lower().isPresent()) {
+			String lowerExpr = JavaExpressionEmitter.emit(range.lower().get());
+			String op = range.lowerBoundary() == RuntimeRangeBoundary.CLOSED ? " >= 0" : " > 0";
+			sb.append(" && compare(").append(inputVar).append(", ").append(lowerExpr).append(")").append(op);
+		}
+		if (range.upper().isPresent()) {
+			String upperExpr = JavaExpressionEmitter.emit(range.upper().get());
+			String op = range.upperBoundary() == RuntimeRangeBoundary.CLOSED ? " <= 0" : " < 0";
+			sb.append(" && compare(").append(inputVar).append(", ").append(upperExpr).append(")").append(op);
+		}
+		sb.append(")");
+		return sb.toString();
 	}
 
 	private static void generateHelperMethods(StringBuilder sb) {
@@ -219,6 +260,10 @@ public final class DmnJavaGenerator {
 						    BigDecimal da = toBigDecimal(a), db = toBigDecimal(b);
 						    return (da == null || db == null || db.signum() == 0) ? null : da.divide(db, java.math.MathContext.DECIMAL128);
 						  }
+						  private static Object power(Object a, Object b) {
+						    BigDecimal da = toBigDecimal(a), db = toBigDecimal(b);
+						    return (da == null || db == null) ? null : BigDecimal.valueOf(Math.pow(da.doubleValue(), db.doubleValue()));
+						  }
 						  private static Object negate(Object a) {
 						    BigDecimal da = toBigDecimal(a);
 						    return da == null ? null : da.negate();
@@ -240,17 +285,58 @@ public final class DmnJavaGenerator {
 						    if (a == null && b == null) return true;
 						    if (a == null || b == null) return false;
 						    if (a instanceof Number && b instanceof Number) return toBigDecimal(a).compareTo(toBigDecimal(b)) == 0;
+						    if (a instanceof List<?> la && b instanceof List<?> lb) {
+						      if (la.size() != lb.size()) return false;
+						      for (int i = 0; i < la.size(); i++) {
+						        if (!equal(la.get(i), lb.get(i))) return false;
+						      }
+						      return true;
+						    }
 						    return Objects.equals(a, b);
+						  }
+						  private static Comparable toComparable(Object val) {
+						    if (val == null) return null;
+						    if (val instanceof Comparable c) {
+						      if (val instanceof String s && s.length() == 10 && s.charAt(4) == '-' && s.charAt(7) == '-') {
+						        try { return java.time.LocalDate.parse(s); } catch (Exception ignored) {}
+						      }
+						      return c;
+						    }
+						    return null;
 						  }
 						  @SuppressWarnings("unchecked")
 						  private static int compare(Object a, Object b) {
 						    if (a == null || b == null) return 0;
 						    if (a instanceof Number && b instanceof Number) return toBigDecimal(a).compareTo(toBigDecimal(b));
-						    if (a instanceof Comparable c && b instanceof Comparable) return ((Comparable<Object>) c).compareTo(b);
+						    Comparable ca = toComparable(a);
+						    Comparable cb = toComparable(b);
+						    if (ca != null && cb != null) {
+						      try {
+						        return ((Comparable<Object>) ca).compareTo(cb);
+						      } catch (Exception e) {
+						        try {
+						          return -((Comparable<Object>) cb).compareTo(ca);
+						        } catch (Exception ignored) {}
+						      }
+						    }
 						    return 0;
+						  }
+						  private static List<Object> sortOutputOrder(List<Object> matches, List<Object> domain) {
+						    if (domain == null || domain.isEmpty() || matches == null) return matches;
+						    List<Object> copy = new ArrayList<>(matches);
+						    copy.sort(java.util.Comparator.comparingInt(val -> {
+						      int idx = domain.indexOf(val);
+						      return idx < 0 ? Integer.MAX_VALUE : idx;
+						    }));
+						    return List.copyOf(copy);
 						  }
 						  private static Object getPath(Object source, String property) {
 						    if (source instanceof Map<?, ?> map) return map.get(property);
+						    if (source instanceof List<?> list) {
+						      List<Object> res = new ArrayList<>();
+						      for (Object item : list) res.add(getPath(item, property));
+						      return res;
+						    }
 						    return null;
 						  }
 						  private static Map<String, Object> createContext(Object[][] entries) {
@@ -322,6 +408,19 @@ public final class DmnJavaGenerator {
 						    return result;
 						  }
 						  private static Object builtin(String name, List<Object> args) {
+						    if ("date".equals(name) && !args.isEmpty()) {
+						      Object a = args.get(0);
+						      if (a instanceof java.time.LocalDate d) return d;
+						      if (a instanceof String s) { try { return java.time.LocalDate.parse(s); } catch (Exception e) { return null; } }
+						    }
+						    if (("date and time".equals(name) || "dateTime".equals(name)) && !args.isEmpty()) {
+						      Object a = args.get(0);
+						      if (a instanceof java.time.LocalDateTime dt) return dt;
+						      if (a instanceof java.time.ZonedDateTime zdt) return zdt;
+						      if (a instanceof String s) {
+						        try { return s.contains("+") || s.contains("Z") ? java.time.ZonedDateTime.parse(s) : java.time.LocalDateTime.parse(s); } catch (Exception e) { return null; }
+						      }
+						    }
 						    if ("contains".equals(name) && args.size() == 2) {
 						      return args.get(0) != null && args.get(1) != null && String.valueOf(args.get(0)).contains(String.valueOf(args.get(1)));
 						    }

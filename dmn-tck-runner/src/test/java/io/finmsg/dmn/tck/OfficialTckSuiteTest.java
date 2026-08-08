@@ -122,9 +122,7 @@ class OfficialTckSuiteTest {
 						try {
 							interpreterResult = interpreterEngine.execute(finalSources, testCase);
 						} catch (Exception e) {
-							org.junit.jupiter.api.Assumptions.assumeTrue(false,
-									"Interpreter evaluation skipped: " + e.getMessage());
-							return;
+							throw new AssertionError("Interpreter evaluation failed for " + testName + ": " + e.getMessage(), e);
 						}
 
 						Object[] genResultSlots;
@@ -133,9 +131,7 @@ class OfficialTckSuiteTest {
 							genResultSlots = (Object[]) genClass.getMethod("evaluate", Object[].class)
 									.invoke(engineInstance, (Object) slots);
 						} catch (Exception e) {
-							org.junit.jupiter.api.Assumptions.assumeTrue(false,
-									"Generated code evaluation skipped: " + e.getMessage());
-							return;
+							throw new AssertionError("Generated code evaluation failed for " + testName + ": " + e.getMessage(), e);
 						}
 
 						Map<String, Object> genDecisionValues = extractDecisionValues(compilation, genResultSlots);
@@ -151,12 +147,23 @@ class OfficialTckSuiteTest {
 							Object normInterp = normalize(interpreterVal);
 							Object normGen = normalize(generatedVal);
 
-							org.junit.jupiter.api.Assumptions.assumeTrue(normInterp != null && normGen != null,
-									"Evaluation returned null for " + name);
-							org.junit.jupiter.api.Assumptions.assumeTrue(
-									Objects.equals(normInterp, normExp) && Objects.equals(normGen, normExp),
-									"Evaluation mismatch for " + name + " (expected: " + normExp + ", got: "
-											+ normInterp + ")");
+							if (normExp != null) {
+								assertThat(normInterp)
+										.withFailMessage("Interpreter evaluated to null for decision '%s' in test '%s' (expected: %s)", name, testName, normExp)
+										.isNotNull();
+								assertThat(normGen)
+										.withFailMessage("Generated code evaluated to null for decision '%s' in test '%s' (expected: %s)", name, testName, normExp)
+										.isNotNull();
+							}
+
+
+
+							assertThat(normInterp)
+									.withFailMessage("Interpreter mismatch for decision '%s' in test '%s': expected <%s> but got <%s>", name, testName, normExp, normInterp)
+									.isEqualTo(normExp);
+							assertThat(normGen)
+									.withFailMessage("Generated code mismatch for decision '%s' in test '%s': expected <%s> but got <%s>", name, testName, normExp, normGen)
+									.isEqualTo(normExp);
 						}
 					}));
 				}
@@ -173,22 +180,11 @@ class OfficialTckSuiteTest {
 	private static Object[] buildInputSlots(DmnCompilationResult compilation, TckTestCase testCase) {
 		int slotCount = compilation.optimizedRuntimeModel().orElseThrow().model().valueSlotCount();
 		Object[] slots = new Object[slotCount];
-		Map<String, Integer> inputSlots = new LinkedHashMap<>();
-
-		int slot = 0;
-		for (DmnSemanticModel model : compilation.semanticResult().models()) {
-			for (DrgElement element : model.model().getDrgElementsList()) {
-				if (element.hasInputData()) {
-					inputSlots.put(element.getInputData().getNode().getName(), slot++);
-				} else if (element.hasDecision() || element.hasBusinessKnowledgeModel()) {
-					slot++;
-				}
-			}
-		}
+		Map<String, Integer> inputSlots = DmnToolkitTckEngine.getRuntimeInputSlots(compilation);
 
 		testCase.inputs().forEach((name, val) -> {
 			Integer inputSlot = inputSlots.get(name);
-			if (inputSlot != null) {
+			if (inputSlot != null && inputSlot < slots.length) {
 				slots[inputSlot] = val.runtimeValue();
 			}
 		});
@@ -197,18 +193,12 @@ class OfficialTckSuiteTest {
 
 	private static Map<String, Object> extractDecisionValues(DmnCompilationResult compilation, Object[] slots) {
 		Map<String, Object> decisions = new LinkedHashMap<>();
-		int slot = 0;
-		for (DmnSemanticModel model : compilation.semanticResult().models()) {
-			for (DrgElement element : model.model().getDrgElementsList()) {
-				if (element.hasInputData()) {
-					slot++;
-				} else if (element.hasDecision()) {
-					decisions.put(element.getDecision().getNode().getName(), slots[slot++]);
-				} else if (element.hasBusinessKnowledgeModel()) {
-					slot++;
-				}
+		Map<String, Integer> decisionSlots = DmnToolkitTckEngine.getRuntimeDecisionSlots(compilation);
+		decisionSlots.forEach((name, slot) -> {
+			if (slot != null && slot < slots.length) {
+				decisions.put(name, slots[slot]);
 			}
-		}
+		});
 		return decisions;
 	}
 
