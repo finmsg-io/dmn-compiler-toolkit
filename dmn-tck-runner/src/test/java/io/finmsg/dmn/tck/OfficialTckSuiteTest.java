@@ -4,14 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.finmsg.dmn.compiler.DmnCompilationResult;
 import io.finmsg.dmn.compiler.DmnCompiler;
-import io.finmsg.dmn.compiler.DmnSemanticModel;
 import io.finmsg.dmn.compiler.DmnSource;
 import io.finmsg.dmn.compiler.DmnSourceId;
 import io.finmsg.dmn.generator.java.DmnJavaGenerator;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorOptions;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorResult;
 import io.finmsg.dmn.ir.*;
-import io.finmsg.dmn.model.DrgElement;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -122,7 +120,8 @@ class OfficialTckSuiteTest {
 						try {
 							interpreterResult = interpreterEngine.execute(finalSources, testCase);
 						} catch (Exception e) {
-							throw new AssertionError("Interpreter evaluation failed for " + testName + ": " + e.getMessage(), e);
+							throw new AssertionError(
+									"Interpreter evaluation failed for " + testName + ": " + e.getMessage(), e);
 						}
 
 						Object[] genResultSlots;
@@ -131,7 +130,8 @@ class OfficialTckSuiteTest {
 							genResultSlots = (Object[]) genClass.getMethod("evaluate", Object[].class)
 									.invoke(engineInstance, (Object) slots);
 						} catch (Exception e) {
-							throw new AssertionError("Generated code evaluation failed for " + testName + ": " + e.getMessage(), e);
+							throw new AssertionError(
+									"Generated code evaluation failed for " + testName + ": " + e.getMessage(), e);
 						}
 
 						Map<String, Object> genDecisionValues = extractDecisionValues(compilation, genResultSlots);
@@ -148,22 +148,20 @@ class OfficialTckSuiteTest {
 							Object normGen = normalize(generatedVal);
 
 							if (normExp != null) {
-								assertThat(normInterp)
-										.withFailMessage("Interpreter evaluated to null for decision '%s' in test '%s' (expected: %s)", name, testName, normExp)
-										.isNotNull();
-								assertThat(normGen)
-										.withFailMessage("Generated code evaluated to null for decision '%s' in test '%s' (expected: %s)", name, testName, normExp)
-										.isNotNull();
+								assertThat(normInterp).withFailMessage(
+										"Interpreter evaluated to null for decision '%s' in test '%s' (expected: %s)",
+										name, testName, normExp).isNotNull();
+								assertThat(normGen).withFailMessage(
+										"Generated code evaluated to null for decision '%s' in test '%s' (expected: %s)",
+										name, testName, normExp).isNotNull();
 							}
 
-
-
-							assertThat(normInterp)
-									.withFailMessage("Interpreter mismatch for decision '%s' in test '%s': expected <%s> but got <%s>", name, testName, normExp, normInterp)
-									.isEqualTo(normExp);
-							assertThat(normGen)
-									.withFailMessage("Generated code mismatch for decision '%s' in test '%s': expected <%s> but got <%s>", name, testName, normExp, normGen)
-									.isEqualTo(normExp);
+							assertThat(normInterp).withFailMessage(
+									"Interpreter mismatch for decision '%s' in test '%s': expected <%s> but got <%s>",
+									name, testName, normExp, normInterp).isEqualTo(normExp);
+							assertThat(normGen).withFailMessage(
+									"Generated code mismatch for decision '%s' in test '%s': expected <%s> but got <%s>",
+									name, testName, normExp, normGen).isEqualTo(normExp);
 						}
 					}));
 				}

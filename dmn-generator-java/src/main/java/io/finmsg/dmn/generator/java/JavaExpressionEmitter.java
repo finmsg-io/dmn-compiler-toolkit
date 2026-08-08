@@ -111,7 +111,8 @@ public final class JavaExpressionEmitter {
 
 	private static String emitInvocation(RuntimeInvocationExpression inv) {
 		if (inv.function().isPresent()) {
-			StringBuilder sb = new StringBuilder("builtin(\"").append(escapeString(inv.function().get())).append("\", List.of(");
+			StringBuilder sb = new StringBuilder("builtin(\"").append(escapeString(inv.function().get()))
+					.append("\", List.of(");
 			for (int i = 0; i < inv.positionalArguments().size(); i++) {
 				if (i > 0)
 					sb.append(", ");

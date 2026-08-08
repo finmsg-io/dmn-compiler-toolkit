@@ -173,7 +173,9 @@ public final class DmnRuntime {
 				case DIVIDE -> {
 					try {
 						BigDecimal denom = number(r);
-						yield denom.compareTo(BigDecimal.ZERO) == 0 ? null : number(left).divide(denom, MathContext.DECIMAL128);
+						yield denom.compareTo(BigDecimal.ZERO) == 0
+								? null
+								: number(left).divide(denom, MathContext.DECIMAL128);
 					} catch (ArithmeticException e) {
 						yield null;
 					}
@@ -390,7 +392,8 @@ public final class DmnRuntime {
 					yield first;
 				}
 				case RULE_ORDER -> matches.stream().map(row -> output(row, table.outputs())).toList();
-				case OUTPUT_ORDER -> sortOutputOrder(matches.stream().map(row -> output(row, table.outputs())).toList(), table.outputs());
+				case OUTPUT_ORDER -> sortOutputOrder(matches.stream().map(row -> output(row, table.outputs())).toList(),
+						table.outputs());
 				case COLLECT ->
 					aggregate(matches.stream().map(row -> output(row, table.outputs())).toList(), table.aggregation());
 			};
@@ -440,10 +443,12 @@ public final class DmnRuntime {
 			for (RuntimeUnaryTest test : tests.tests()) {
 				if (test instanceof RuntimeComparisonUnaryTest comp) {
 					Object val = expression(comp.endpoint(), Frame.EMPTY);
-					if (val != null) domain.add(val);
+					if (val != null)
+						domain.add(val);
 				} else if (test instanceof RuntimeExpressionUnaryTest expr) {
 					Object val = expression(expr.expression(), Frame.EMPTY);
-					if (val != null) domain.add(val);
+					if (val != null)
+						domain.add(val);
 				}
 			}
 			return domain;
@@ -789,10 +794,22 @@ public final class DmnRuntime {
 		if (left == null || right == null)
 			return false;
 		return switch (operator) {
-			case LESS -> { Integer c = compare(left, right); yield c != null && c < 0; }
-			case LESS_EQUAL -> { Integer c = compare(left, right); yield c != null && c <= 0; }
-			case GREATER -> { Integer c = compare(left, right); yield c != null && c > 0; }
-			case GREATER_EQUAL -> { Integer c = compare(left, right); yield c != null && c >= 0; }
+			case LESS -> {
+				Integer c = compare(left, right);
+				yield c != null && c < 0;
+			}
+			case LESS_EQUAL -> {
+				Integer c = compare(left, right);
+				yield c != null && c <= 0;
+			}
+			case GREATER -> {
+				Integer c = compare(left, right);
+				yield c != null && c > 0;
+			}
+			case GREATER_EQUAL -> {
+				Integer c = compare(left, right);
+				yield c != null && c >= 0;
+			}
 			default -> false;
 		};
 	}
