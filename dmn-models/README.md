@@ -11,6 +11,8 @@ Houses pre-configured sample multi-file DMN model suites in separate directories
 - **`models/loan-approval/`**: `main-loan.dmn` importing `credit-score.dmn` and `applicant-risk.dmn`.
 - **`models/order-fulfillment/`**: `fulfillment-root.dmn` importing `inventory-check.dmn` and `shipping-calculator.dmn`.
 - **`models/discount-calculation/`**: `pricing-root.dmn` importing `tier-rules.dmn`.
+- **`models/originations/`**: `Chapter 12 Example.dmn` and `Financial.dmn`.
+- **`models/ranked-loan-products/`**: `Recommended Loan Products.dmn` and `Loan info.dmn`.
 
 ### 2. Multi-File Java Streaming API (`DmnStreamBundle`)
 - **ZIP/JAR Streaming**: Ingests multi-file DMN ZIP/JAR archives directly from `InputStream` or byte arrays without unpacking to disk.
@@ -67,3 +69,4 @@ DmnCompilationResult result = bundle.compile(compiler);
 
 ## Testing & Verification
 - Unit tested in `DmnStreamBundleTest` across ZIP, classpath, directory, and stream map ingestion sources.
+- Classpath streaming coverage includes all five model suites, including model filenames containing spaces in `originations` and `ranked-loan-products`.
