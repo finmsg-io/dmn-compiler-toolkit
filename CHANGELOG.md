@@ -13,7 +13,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - P15 Governance & CI lockdown milestone
 - Apache License 2.0
 - `maven-enforcer-plugin`: requires Maven ≥ 3.9 and JDK 25 LTS; fails on dependency convergence errors
-- `jacoco-maven-plugin`: per-module coverage collection and report on every `verify` run
+- `jacoco-maven-plugin` (0.8.14): per-module coverage collection and report on every `verify` run with JDK 25 bytecode analysis support (major version 69)
 - `spotless-maven-plugin`: enforces `palantir-java-format` across all 14 modules (via `-Pformat`)
 - OWASP `dependency-check-maven` CVE scanner (opt-in via `-Psecurity-scan`)
 - `docs/architecture/backend-parity-matrix.md`: formal capability and parity specification
