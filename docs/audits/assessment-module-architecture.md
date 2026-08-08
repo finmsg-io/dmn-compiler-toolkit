@@ -37,6 +37,11 @@ dmn-benchmarks
     -> net.datafaker:datafaker
     -> org.openjdk.jmh:jmh-core
 
+dmn-models
+    -> dmn-compiler
+    -> dmn-runtime
+    -> dmn-frontend-xml
+
 dmn-feel-parser -> dmn-protobuf
 dmn-frontend-xml -> dmn-protobuf
 ```

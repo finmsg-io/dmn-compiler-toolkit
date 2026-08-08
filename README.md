@@ -85,6 +85,7 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-optimizer` | Constant folding, algebraic simplification, and rule pruning passes |
 | `dmn-grpc` | Generic and strongly-typed Protobuf schema & gRPC service adapter generator |
 | `dmn-generator-sparksql` | Pure Spark / Databricks SQL CTE query generator (`<decision-name>.sql`) without UDF overhead |
+| `dmn-models` | Multi-file DMN sample suites and Java streaming ingestion API (`DmnStreamBundle`) |
 
 Planned modules include further optimization and native code generation backends.
 

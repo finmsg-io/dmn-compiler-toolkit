@@ -128,6 +128,7 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P10 | Generic gRPC generation in Java | `done` | P4, P5 | Transport-neutral `evaluation.proto` and ultra-lean pure `grpc-java` service adapters (`dmn-grpc`) |
 | P11 | Pure Spark / Databricks SQL Generator | `done` | P5, P8 | Lowering FEEL and decision tables to pure native Spark / Databricks SQL CTE queries (`dmn-generator-sparksql`) |
 | P12 | Typed Protobuf and gRPC generation | `done` | P10, P11 | Strongly-typed Protobuf schemas and gRPC contracts from DMN `ItemDefinition` structures (`TypedProtoSchemaGenerator`) |
+| P14 | Multi-File DMN Models & Java Streaming API | `done` | P1, P2 | Multi-file DMN sample suites & streaming ingestion API (`dmn-models`) |
 | P13 | Additional Language Generators (Rust, Go, C++) | `proposed` | P5, P10 | Native zero-allocation binaries in Rust, Go handlers, and C++ decision engines |
 
 <a id="contents-section-6"></a>

@@ -76,6 +76,7 @@
 - [x] Pure Spark / Databricks SQL expression generator (`dmn-generator-sparksql`, zero UDFs, CTE queries, delegating query tuning to engine)
 - [x] Production Data Quality DMN decision check corpus (field hygiene, cross-field validation, scoring)
 - [x] Constant folding and expression simplification pass (`dmn-optimizer`)
+- [x] Multi-file DMN sample model suites & Java streaming ingestion/resolution API (`dmn-models`, `DmnStreamBundle`)
 
 <a id="contents-section-4"></a>
 ## Later stages

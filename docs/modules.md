@@ -16,7 +16,8 @@
 - [dmn-optimizer](#contents-section-11)
 - [dmn-grpc](#contents-section-12)
 - [dmn-generator-sparksql](#contents-section-13)
-- [Planned modules](#contents-section-14)
+- [dmn-models](#contents-section-14)
+- [Planned modules](#contents-section-15)
 <!-- generated-toc:end -->
 
 
@@ -225,6 +226,14 @@ Assessments: [implementation](audits/assessment-implementation-dmn-generator-spa
 [architecture](audits/assessment-architecture-dmn-generator-sparksql.md)
 
 <a id="contents-section-14"></a>
+## `dmn-models`
+
+Provides structured multi-file DMN model directory suites (`loan-approval`, `order-fulfillment`, `discount-calculation`) and an in-memory Java streaming ingestion/resolution API (`DmnStreamBundle`, `DmnStreamResolver`) for streaming multi-file DMN models from ZIP archives, directory trees, classpath resources, and input stream maps without disk unpacking.
+
+Assessments: [implementation](audits/assessment-implementation-dmn-models.md) ·
+[architecture](audits/assessment-architecture-dmn-models.md)
+
+<a id="contents-section-15"></a>
 ## Planned modules
 
 ```text

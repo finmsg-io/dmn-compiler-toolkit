@@ -29,6 +29,7 @@ actions belong in the [module TODOs](../todos/index.md) or the
 | [Data Quality Corpus assessment](assessment-implementation-data-quality-corpus.md) | Production Data Quality DMN decision models & validation |
 | [gRPC assessment](assessment-implementation-dmn-grpc.md) | Transport-neutral gRPC service contract & Java stubs |
 | [SparkSQL Generator assessment](assessment-implementation-dmn-generator-sparksql.md) | Pure Spark / Databricks SQL CTE Generator |
+| [Models & Streaming assessment](assessment-implementation-dmn-models.md) | Multi-file DMN sample suites & Java streaming ingestion API |
 | [Module architecture assessment](assessment-module-architecture.md) | Responsibilities, dependencies, and cross-module boundaries |
 | [Protobuf architecture assessment](assessment-architecture-dmn-protobuf.md) | Serialized module architecture opinion |
 | [XML frontend architecture assessment](assessment-architecture-dmn-frontend-xml.md) | Serialized module architecture opinion |
@@ -44,6 +45,7 @@ actions belong in the [module TODOs](../todos/index.md) or the
 | [Data Quality Corpus architecture assessment](assessment-architecture-data-quality-corpus.md) | Data Quality Corpus boundary assessment |
 | [gRPC architecture assessment](assessment-architecture-dmn-grpc.md) | gRPC service adapter boundary assessment |
 | [SparkSQL Generator architecture assessment](assessment-architecture-dmn-generator-sparksql.md) | SparkSQL CTE Generator boundary assessment |
+| [Models & Streaming architecture assessment](assessment-architecture-dmn-models.md) | Multi-file DMN streaming boundary assessment |
 
 Audit statements may become stale as implementation advances. Each audit retains
 its assessment date; consult current TODOs and executable tests before acting on it.
