@@ -214,9 +214,8 @@
                         <artifactId>spotless-maven-plugin</artifactId>
                         <configuration>
                             <java>
-                                <palantirJavaFormat>
-                                    <version>${palantir.java.format.version}</version>
-                                </palantirJavaFormat>
+                                <removeUnusedImports/>
+                                <eclipse/>
                             </java>
                         </configuration>
                         <executions>
