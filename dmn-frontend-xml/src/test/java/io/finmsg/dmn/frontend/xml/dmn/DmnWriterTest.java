@@ -593,6 +593,23 @@ class DmnWriterTest {
     assertThat(readBack).isEqualTo(definitions);
   }
 
+  @Test
+  void preservesDmn16NamespaceDeclarationsRoundTrip() {
+    Definitions definitions =
+        Definitions.newBuilder()
+            .setNode(Node.getDefaultInstance())
+            .setNamespace("https://example.com/model")
+            .setModelNamespaceUri(DmnNamespaces.DMN_1_6)
+            .build();
+
+    byte[] xml = new DmnWriter().write(definitions);
+    Definitions readBack = new DmnXmlReader().read(xml);
+
+    assertThat(new String(xml, StandardCharsets.UTF_8))
+        .contains("xmlns=\"" + DmnNamespaces.DMN_1_6 + "\"");
+    assertThat(readBack).isEqualTo(definitions);
+  }
+
   private static ElementReference reference(String href) {
     return ElementReference.newBuilder().setHref(href).build();
   }
