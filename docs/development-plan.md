@@ -14,7 +14,7 @@
 - [P4 — Stable compiled-model API](#contents-section-9)
 - [P5 — Java code generation](#contents-section-10)
 - [P6 — 100% OMG DMN 1.5 TCK Compliance (CL2 & CL3)](#contents-section-11)
-- [P7 — Performance Validation & Load Generation (done)](#contents-section-12)
+- [P7 — Performance Validation & Load Generation](#contents-section-12)
 - [P8 — Static Optimizer Pass](#contents-section-13)
 - [P9 — Production Data Quality DMN Corpus](#contents-section-14)
 - [P10 — Generic gRPC generation in Java](#contents-section-15)
@@ -46,7 +46,7 @@ promise. Update it whenever implementation evidence or priorities materially cha
 | Current phase | P14 — Governance, CI Lockdown & Release Hardening (`in progress`) |
 | Overall state | Compiler facade, model resolver, runtime IR, Java generator, 100% OMG DMN 1.5/1.6 TCK engine, JMH benchmarks, optimizer, Data Quality Corpus, gRPC generator, Spark SQL CTE generator, and multi-file streaming models established |
 | Primary objective | Lock down CI publishing, fix TCK silent-skip gate, add license, reconcile docs, and publish backend parity matrix |
-| Next major objective | P15 — Additional Language Generators (Rust, Golang, C++) |
+| Next major objective | Complex DMN Models (`originations`, `ranked-loan-products`), JMH Performance Suite (Parsing, Optimization, Compilation, Execution), and Data-driven Load Generation |
 
 <a id="contents-section-2"></a>
 ## Status vocabulary
@@ -131,7 +131,7 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P4 | Stable compiled-model API | `done` | P1, P3 | Callers use model/input/decision names without internal slot knowledge |
 | P5 | Java code generation | `done` | P3, P4 | Generated Java matches the interpreter on the shared corpus |
 | P6 | 100% OMG DMN 1.5 TCK Compliance | `done` | P3, P5 | 100% pass rate on official OMG DMN 1.5 TCK suite for both Interpreter and `dmn-generator-java` |
-| P7 | Performance Validation & Load Generation | `done` | P5, P6 | JMH microbenchmarks (`dmn-benchmarks`) establish throughput and latency baselines |
+| P7 | Performance Validation & Load Generation | `in progress` | P5, P6 | JMH microbenchmarks (`dmn-benchmarks`), phase isolation, complex models (`originations`, `ranked-loan-products`), and DataFaker load generation |
 | P8 | Static Optimizer Pass | `done` | P5, P7 | Constant folding, algebraic simplification, and rule pruning passes (`dmn-optimizer`) |
 | P9 | Production Data Quality DMN Corpus | `done` | P2, P5 | Real-world Data Quality DMN model corpus (`dq-field-validation`, `dq-cross-field-consistency`, `dq-scoring`) |
 | P10 | Generic gRPC generation in Java | `done` | P4, P5 | Transport-neutral `evaluation.proto` and ultra-lean pure `grpc-java` service adapters (`dmn-grpc`) |
@@ -294,22 +294,23 @@ Acceptance criteria:
 - `DmnRuntime` interpreter and `DmnJavaGenerator` return identical outputs for every test case.
 
 <a id="contents-section-12"></a>
-## P7 — Performance Validation & Load Generation (`done`)
+## P7 — Performance Validation & Load Generation
 
-**Goal:** turn performance intentions into repeatable measurements.
+**Goal:** turn performance intentions into repeatable measurements across simple and complex DMN models (`originations`, `ranked-loan-products`).
 
-Established `dmn-benchmarks` JMH suite for:
+Work items:
 
-- representative scalar expressions (`ScalarArithmeticBenchmark`);
-- decision-table matching (`TrafficViolationBenchmark`);
-- financial risk & multi-node DRG evaluation (`CreditApprovalBenchmark`);
-- interpreter versus generated Java bytecode comparison;
-- DataFaker (`net.datafaker:datafaker`) realistic payload generation (`BenchmarkDataGenerator`);
-- pluggable reference DMN model provider registry (`ReferenceModelRegistry`).
+| ID | Work item | State | Evidence / Target |
+| --- | --- | --- | --- |
+| P7.1 | Baseline scalar & decision-table JMH benchmarks (`ScalarArithmeticBenchmark`, `TrafficViolationBenchmark`, `CreditApprovalBenchmark`) | `done` | `dmn-benchmarks` |
+| P7.2 | Complex model performance benchmarks (`originations`, `ranked-loan-products`) | `ready` | `dmn-benchmarks` |
+| P7.3 | Phase-isolated compiler benchmarks (XML/FEEL Parsing, Semantic Analysis, IR Lowering, Static Optimization) | `ready` | `dmn-benchmarks` |
+| P7.4 | High-cardinality data-driven load generator for realistic stress testing (`net.datafaker`) | `ready` | `BenchmarkDataGenerator` |
 
-Record the JDK, JVM flags, hardware, warmup, measurement configuration, and model
-fixture with every published result. Optimize only after semantic parity is retained
-and a benchmark demonstrates a meaningful improvement.
+Acceptance criteria:
+- measures compilation, parsing, optimization, and execution performance on complex multi-decision models;
+- verifies zero-regression throughput and latency across interpreter and generated Java AOT backends;
+- provides data-driven load generation for stress and scalability testing.
 
 <a id="contents-section-13"></a>
 ## P8 — Static Optimizer Pass (`done`)

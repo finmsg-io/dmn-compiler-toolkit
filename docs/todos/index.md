@@ -21,7 +21,7 @@ This directory contains the current work list per active Maven module. These doc
 | `dmn-runtime` | [Runtime interpreter](dmn-runtime.md) — Deterministic Interpreter (`done`) |
 | `dmn-generator-java` | [Java code generator](../modules.md#contents-section-8) — Zero-Reflection AOT Java (`done`) |
 | `dmn-tck-runner` | [TCK runner](../modules.md#contents-section-9) — 100% OMG DMN 1.5 TCK Certified (`done`) |
-| `dmn-benchmarks` | [JMH benchmarks](../modules.md#contents-section-10) — DataFaker Workloads (`done`) |
+| `dmn-benchmarks` | [JMH benchmarks](dmn-benchmarks.md) — DataFaker Workloads & Phase Isolation Benchmarks (`in progress`) |
 | `dmn-optimizer` | [Optimizer pass](dmn-optimizer.md) — Constant Folding & Rule Pruning (`done`) |
 | `dmn-grpc` | [gRPC adapter](dmn-grpc.md) — Transport-Neutral Pure gRPC Java (`done`) |
 | `dmn-generator-sparksql` | [Spark SQL generator](dmn-generator-sparksql.md) — Pure Spark / Databricks SQL CTE Generator (`done`) |
