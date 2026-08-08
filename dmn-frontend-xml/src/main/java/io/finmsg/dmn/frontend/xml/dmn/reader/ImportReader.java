@@ -5,30 +5,29 @@ import io.finmsg.dmn.model.Import;
 
 public final class ImportReader {
 
-  private final NodeReader nodeReader = new NodeReader();
+	private final NodeReader nodeReader = new NodeReader();
 
-  public Import read(XmlCursor cursor) {
+	public Import read(XmlCursor cursor) {
 
-    Import.Builder builder = Import.newBuilder();
-    builder.setNode(nodeReader.read(cursor).toBuilder().clearName().build());
+		Import.Builder builder = Import.newBuilder();
+		builder.setNode(nodeReader.read(cursor).toBuilder().clearName().build());
 
-    if (cursor.hasAttribute("namespace")) {
-      builder.setNamespace(cursor.requiredAttribute("namespace"));
-    }
+		if (cursor.hasAttribute("namespace")) {
+			builder.setNamespace(cursor.requiredAttribute("namespace"));
+		}
 
-    if (cursor.hasAttribute("locationURI")) {
-      builder.setLocationUri(cursor.requiredAttribute("locationURI"));
-    }
+		if (cursor.hasAttribute("locationURI")) {
+			builder.setLocationUri(cursor.requiredAttribute("locationURI"));
+		}
 
-    if (cursor.hasAttribute("importType")) {
-      builder.setImportType(cursor.requiredAttribute("importType"));
-    }
+		if (cursor.hasAttribute("importType")) {
+			builder.setImportType(cursor.requiredAttribute("importType"));
+		}
 
-    if (cursor.hasAttribute("name")) {
-      builder.setName(cursor.requiredAttribute("name"));
-    }
-    UnsupportedContent.validateChildren(
-        cursor, "import", "documentation", "extensionElements");
-    return builder.build();
-  }
+		if (cursor.hasAttribute("name")) {
+			builder.setName(cursor.requiredAttribute("name"));
+		}
+		UnsupportedContent.validateChildren(cursor, "import", "documentation", "extensionElements");
+		return builder.build();
+	}
 }

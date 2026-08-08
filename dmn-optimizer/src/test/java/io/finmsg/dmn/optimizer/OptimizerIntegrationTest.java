@@ -19,46 +19,44 @@ import org.junit.jupiter.api.Test;
 
 class OptimizerIntegrationTest {
 
-  @Test
-  @DisplayName("Full integration: DMN compiler -> DmnOptimizer -> DmnRuntime & DmnJavaGenerator execution")
-  void testFullOptimizerIntegrationPipeline() throws Exception {
-    String xml = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
-                     namespace="https://finmsg.io/test/opt"
-                     name="OptimizerTest">
-            <decision id="d1" name="FoldedResult">
-                <variable name="FoldedResult" typeRef="number"/>
-                <literalExpression>
-                    <text>10 * 5 + (100 - 50)</text>
-                </literalExpression>
-            </decision>
-        </definitions>
-        """;
+	@Test
+	@DisplayName("Full integration: DMN compiler -> DmnOptimizer -> DmnRuntime & DmnJavaGenerator execution")
+	void testFullOptimizerIntegrationPipeline() throws Exception {
+		String xml = """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+				             namespace="https://finmsg.io/test/opt"
+				             name="OptimizerTest">
+				    <decision id="d1" name="FoldedResult">
+				        <variable name="FoldedResult" typeRef="number"/>
+				        <literalExpression>
+				            <text>10 * 5 + (100 - 50)</text>
+				        </literalExpression>
+				    </decision>
+				</definitions>
+				""";
 
-    DmnSource source = new DmnSource(
-        new DmnSourceId(URI.create("urn:opt-test")),
-        xml.getBytes(StandardCharsets.UTF_8)
-    );
+		DmnSource source = new DmnSource(new DmnSourceId(URI.create("urn:opt-test")),
+				xml.getBytes(StandardCharsets.UTF_8));
 
-    DmnCompilationResult result = new DmnCompiler().compile(source);
-    assertThat(result.isSuccess()).isTrue();
+		DmnCompilationResult result = new DmnCompiler().compile(source);
+		assertThat(result.isSuccess()).isTrue();
 
-    RuntimeModel rawModel = result.optimizedRuntimeModel().orElseThrow().model();
-    RuntimeModel optimizedModel = new DmnOptimizer().optimize(rawModel);
+		RuntimeModel rawModel = result.optimizedRuntimeModel().orElseThrow().model();
+		RuntimeModel optimizedModel = new DmnOptimizer().optimize(rawModel);
 
-    // Evaluate on DmnRuntime interpreter
-    DmnEvaluationResult evalResult = new DmnRuntime().evaluate(optimizedModel, Map.of());
-    RuntimeDecision decision = optimizedModel.decisions().get(0);
-    Object val = evalResult.value(decision.resultSlot());
+		// Evaluate on DmnRuntime interpreter
+		DmnEvaluationResult evalResult = new DmnRuntime().evaluate(optimizedModel, Map.of());
+		RuntimeDecision decision = optimizedModel.decisions().get(0);
+		Object val = evalResult.value(decision.resultSlot());
 
-    assertThat(val).isNotNull();
-    assertThat(Double.parseDouble(val.toString())).isEqualTo(100.0);
+		assertThat(val).isNotNull();
+		assertThat(Double.parseDouble(val.toString())).isEqualTo(100.0);
 
-    // Verify DmnJavaGenerator can generate clean Java from optimized model
-    var optModel = new io.finmsg.dmn.ir.RuntimeIrOptimizer().optimize(optimizedModel);
-    DmnJavaGenerator generator = new DmnJavaGenerator();
-    var genResult = generator.generate(optModel);
-    assertThat(genResult.mainSource()).contains("class");
-  }
+		// Verify DmnJavaGenerator can generate clean Java from optimized model
+		var optModel = new io.finmsg.dmn.ir.RuntimeIrOptimizer().optimize(optimizedModel);
+		DmnJavaGenerator generator = new DmnJavaGenerator();
+		var genResult = generator.generate(optModel);
+		assertThat(genResult.mainSource()).contains("class");
+	}
 }

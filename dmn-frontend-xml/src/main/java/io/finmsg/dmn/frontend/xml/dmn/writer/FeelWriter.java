@@ -6,14 +6,14 @@ import io.finmsg.dmn.model.Feel;
 
 final class FeelWriter {
 
-  void writeLiteralExpression(XmlEmitter xml, Feel value) {
-    if (!value.hasText()) {
-      throw new XmlWriteException("Parsed FEEL cannot be written without preserved source text.");
-    }
-    xml.startElement("literalExpression");
-    xml.startElement("text");
-    xml.text(value.getText().getText());
-    xml.endElement();
-    xml.endElement();
-  }
+	void writeLiteralExpression(XmlEmitter xml, Feel value) {
+		if (!value.hasText()) {
+			throw new XmlWriteException("Parsed FEEL cannot be written without preserved source text.");
+		}
+		xml.startElement("literalExpression");
+		xml.startElement("text");
+		xml.text(value.getText().getText());
+		xml.endElement();
+		xml.endElement();
+	}
 }

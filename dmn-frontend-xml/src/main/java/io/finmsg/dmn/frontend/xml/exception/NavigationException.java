@@ -1,3 +1,4 @@
 package io.finmsg.dmn.frontend.xml.exception;
 
-public class NavigationException {}
+public class NavigationException {
+}

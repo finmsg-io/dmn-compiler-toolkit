@@ -21,41 +21,38 @@ import java.util.concurrent.TimeUnit;
 @Fork(1)
 public class TrafficViolationBenchmark {
 
-  private CompiledModelHolder holder;
-  private RuntimeModel runtimeModel;
-  private DmnRuntime runtime;
-  private List<Map<Integer, Object>> interpreterPayloads;
-  private List<Object[]> slotPayloads;
-  private int index;
+	private CompiledModelHolder holder;
+	private RuntimeModel runtimeModel;
+	private DmnRuntime runtime;
+	private List<Map<Integer, Object>> interpreterPayloads;
+	private List<Object[]> slotPayloads;
+	private int index;
 
-  @Setup(Level.Trial)
-  public void setup() throws Exception {
-    holder = ReferenceModelRegistry.loadFromClasspath("models/traffic-violation.dmn");
-    runtimeModel = holder.compilationResult().optimizedRuntimeModel().orElseThrow().model();
-    runtime = new DmnRuntime();
+	@Setup(Level.Trial)
+	public void setup() throws Exception {
+		holder = ReferenceModelRegistry.loadFromClasspath("models/traffic-violation.dmn");
+		runtimeModel = holder.compilationResult().optimizedRuntimeModel().orElseThrow().model();
+		runtime = new DmnRuntime();
 
-    BenchmarkDataGenerator generator = new BenchmarkDataGenerator(101L);
-    List<Map<String, Object>> rawPayloads = generator.generateTrafficPayloads(1000);
-    interpreterPayloads = rawPayloads.stream()
-        .map(p -> ReferenceModelRegistry.buildInterpreterSlotMap(holder, p))
-        .toList();
-    slotPayloads = rawPayloads.stream()
-        .map(p -> ReferenceModelRegistry.buildInputSlots(holder, p))
-        .toList();
-    index = 0;
-  }
+		BenchmarkDataGenerator generator = new BenchmarkDataGenerator(101L);
+		List<Map<String, Object>> rawPayloads = generator.generateTrafficPayloads(1000);
+		interpreterPayloads = rawPayloads.stream().map(p -> ReferenceModelRegistry.buildInterpreterSlotMap(holder, p))
+				.toList();
+		slotPayloads = rawPayloads.stream().map(p -> ReferenceModelRegistry.buildInputSlots(holder, p)).toList();
+		index = 0;
+	}
 
-  @Benchmark
-  public DmnEvaluationResult interpreter_TrafficViolation() {
-    int idx = (index++) % interpreterPayloads.size();
-    Map<Integer, Object> inputs = interpreterPayloads.get(idx);
-    return runtime.evaluate(runtimeModel, inputs);
-  }
+	@Benchmark
+	public DmnEvaluationResult interpreter_TrafficViolation() {
+		int idx = (index++) % interpreterPayloads.size();
+		Map<Integer, Object> inputs = interpreterPayloads.get(idx);
+		return runtime.evaluate(runtimeModel, inputs);
+	}
 
-  @Benchmark
-  public Object generatedJava_TrafficViolation() throws Exception {
-    int idx = (index++) % slotPayloads.size();
-    Object[] slots = slotPayloads.get(idx);
-    return holder.evaluateMethod().invoke(holder.generatedEngineInstance(), (Object) slots);
-  }
+	@Benchmark
+	public Object generatedJava_TrafficViolation() throws Exception {
+		int idx = (index++) % slotPayloads.size();
+		Object[] slots = slotPayloads.get(idx);
+		return holder.evaluateMethod().invoke(holder.generatedEngineInstance(), (Object) slots);
+	}
 }

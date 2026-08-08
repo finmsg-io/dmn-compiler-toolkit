@@ -5,38 +5,38 @@ import io.finmsg.dmn.model.ItemComponent;
 
 public final class ItemComponentReader {
 
-  private final NodeReader nodeReader = new NodeReader();
-  private final TypeReferenceReader typeReferenceReader = new TypeReferenceReader();
-  private final TypeConstraintReader typeConstraintReader = new TypeConstraintReader();
+	private final NodeReader nodeReader = new NodeReader();
+	private final TypeReferenceReader typeReferenceReader = new TypeReferenceReader();
+	private final TypeConstraintReader typeConstraintReader = new TypeConstraintReader();
 
-  public ItemComponent read(XmlCursor cursor) {
+	public ItemComponent read(XmlCursor cursor) {
 
-    ItemComponent.Builder builder = ItemComponent.newBuilder();
+		ItemComponent.Builder builder = ItemComponent.newBuilder();
 
-    builder.setNode(nodeReader.read(cursor));
+		builder.setNode(nodeReader.read(cursor));
 
-    if (cursor.hasAttribute("isCollection")) {
-      builder.setIsCollection(cursor.attributeAsBoolean("isCollection"));
-    }
+		if (cursor.hasAttribute("isCollection")) {
+			builder.setIsCollection(cursor.attributeAsBoolean("isCollection"));
+		}
 
-    if (cursor.firstChild()) {
-      do {
-        switch (cursor.documentLocalName()) {
-          case "typeRef" -> builder.setType(typeReferenceReader.read(cursor.text(), cursor));
+		if (cursor.firstChild()) {
+			do {
+				switch (cursor.documentLocalName()) {
+					case "typeRef" -> builder.setType(typeReferenceReader.read(cursor.text(), cursor));
 
-          case "allowedValues", "typeConstraint" ->
-              builder.setConstraint(typeConstraintReader.read(cursor));
+					case "allowedValues", "typeConstraint" -> builder.setConstraint(typeConstraintReader.read(cursor));
 
-          case "itemComponent" -> builder.addComponents(this.read(cursor));
+					case "itemComponent" -> builder.addComponents(this.read(cursor));
 
-          case "documentation", "description", "extensionElements" -> { }
-          default -> UnsupportedContent.rejectDmnChild(cursor, "itemComponent");
-        }
-      } while (cursor.nextSibling());
+					case "documentation", "description", "extensionElements" -> {
+					}
+					default -> UnsupportedContent.rejectDmnChild(cursor, "itemComponent");
+				}
+			} while (cursor.nextSibling());
 
-      cursor.parent();
-    }
+			cursor.parent();
+		}
 
-    return builder.build();
-  }
+		return builder.build();
+	}
 }

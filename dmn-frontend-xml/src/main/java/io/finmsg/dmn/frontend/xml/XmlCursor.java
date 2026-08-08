@@ -11,144 +11,141 @@ import java.util.List;
  */
 public interface XmlCursor extends AutoCloseable {
 
-  // --------------------------------------------------------------------
-  // Element
-  // --------------------------------------------------------------------
+	// --------------------------------------------------------------------
+	// Element
+	// --------------------------------------------------------------------
 
-  /**
-   * Qualified element name.
-   * Example: dmn:decision
-   */
-  String elementName();
+	/**
+	 * Qualified element name. Example: dmn:decision
+	 */
+	String elementName();
 
-  /**
-   * Local element name.
-   * Example: decision
-   */
-  String localName();
+	/**
+	 * Local element name. Example: decision
+	 */
+	String localName();
 
-  /**
-   * Namespace prefix.
-   * Example: dmn
-   */
-  String prefix();
+	/**
+	 * Namespace prefix. Example: dmn
+	 */
+	String prefix();
 
-  /**
-   * Namespace URI.
-   */
-  String namespaceUri();
+	/**
+	 * Namespace URI.
+	 */
+	String namespaceUri();
 
-  /** Resolves a namespace prefix in the scope of the current element. */
-  Optional<String> namespaceUri(String prefix);
+	/** Resolves a namespace prefix in the scope of the current element. */
+	Optional<String> namespaceUri(String prefix);
 
-  /** Namespace URI of the document element. */
-  String documentNamespaceUri();
+	/** Namespace URI of the document element. */
+	String documentNamespaceUri();
 
-  /** Namespace declarations present on the document element, keyed by prefix. */
-  Map<String, String> documentNamespaceDeclarations();
+	/** Namespace declarations present on the document element, keyed by prefix. */
+	Map<String, String> documentNamespaceDeclarations();
 
-  /**
-   * Local name when the current element belongs to the document namespace;
-   * otherwise an empty string. Useful for namespace-safe dispatch.
-   */
-  default String documentLocalName() {
-    return documentNamespaceUri().equals(namespaceUri()) ? localName() : "";
-  }
+	/**
+	 * Local name when the current element belongs to the document namespace;
+	 * otherwise an empty string. Useful for namespace-safe dispatch.
+	 */
+	default String documentLocalName() {
+		return documentNamespaceUri().equals(namespaceUri()) ? localName() : "";
+	}
 
-  boolean isElement(String localName);
+	boolean isElement(String localName);
 
-  // --------------------------------------------------------------------
-  // Navigation
-  // --------------------------------------------------------------------
+	// --------------------------------------------------------------------
+	// Navigation
+	// --------------------------------------------------------------------
 
-  boolean toRoot();
+	boolean toRoot();
 
-  boolean parent();
+	boolean parent();
 
-  boolean firstChild();
+	boolean firstChild();
 
-  boolean firstChild(String localName);
+	boolean firstChild(String localName);
 
-  boolean nextSibling();
+	boolean nextSibling();
 
-  boolean nextSibling(String localName);
+	boolean nextSibling(String localName);
 
-  boolean hasChild(String localName);
+	boolean hasChild(String localName);
 
-//  // --------------------------------------------------------------------
-//  // Convenience
-//  // --------------------------------------------------------------------
-//
-//  default XmlCursor child(String localName) {
-//
-//    return firstChild(localName)
-//            ? this
-//            : null;
-//  }
-//
-//  default XmlCursor next(String localName) {
-//
-//    return nextSibling(localName)
-//            ? this
-//            : null;
-//  }
+	// // --------------------------------------------------------------------
+	// // Convenience
+	// // --------------------------------------------------------------------
+	//
+	// default XmlCursor child(String localName) {
+	//
+	// return firstChild(localName)
+	// ? this
+	// : null;
+	// }
+	//
+	// default XmlCursor next(String localName) {
+	//
+	// return nextSibling(localName)
+	// ? this
+	// : null;
+	// }
 
-  // --------------------------------------------------------------------
-  // Attributes
-  // --------------------------------------------------------------------
+	// --------------------------------------------------------------------
+	// Attributes
+	// --------------------------------------------------------------------
 
-  Optional<String> attribute(String name);
+	Optional<String> attribute(String name);
 
-  String requiredAttribute(String name);
+	String requiredAttribute(String name);
 
-  boolean hasAttribute(String name);
+	boolean hasAttribute(String name);
 
-  List<XmlAttribute> attributes();
+	List<XmlAttribute> attributes();
 
-  int attributeAsInt(String name);
+	int attributeAsInt(String name);
 
-  long attributeAsLong(String name);
+	long attributeAsLong(String name);
 
-  boolean attributeAsBoolean(String name);
+	boolean attributeAsBoolean(String name);
 
-  // --------------------------------------------------------------------
-  // Text
-  // --------------------------------------------------------------------
+	// --------------------------------------------------------------------
+	// Text
+	// --------------------------------------------------------------------
 
-  String text();
+	String text();
 
-  Optional<String> optionalText();
+	Optional<String> optionalText();
 
-  boolean hasText();
+	boolean hasText();
 
-  // --------------------------------------------------------------------
-  // Diagnostics
-  // --------------------------------------------------------------------
+	// --------------------------------------------------------------------
+	// Diagnostics
+	// --------------------------------------------------------------------
 
-  int depth();
+	int depth();
 
-  /** Maximum element depth present in the document. */
-  int maximumDepth();
+	/** Maximum element depth present in the document. */
+	int maximumDepth();
 
-  int line();
+	int line();
 
-  int column();
+	int column();
 
-  String path();
+	String path();
 
-  /** Byte offset of the current element, or {@code -1} when unavailable. */
-  int offset();
+	/** Byte offset of the current element, or {@code -1} when unavailable. */
+	int offset();
 
-  /** Source identifier supplied by the caller. */
-  String systemId();
+	/** Source identifier supplied by the caller. */
+	String systemId();
 
-  /** Whether model nodes should retain source locations. */
-  boolean captureSourceLocations();
+	/** Whether model nodes should retain source locations. */
+	boolean captureSourceLocations();
 
-  // --------------------------------------------------------------------
-  // Lifecycle
-  // --------------------------------------------------------------------
+	// --------------------------------------------------------------------
+	// Lifecycle
+	// --------------------------------------------------------------------
 
-  @Override
-  void close();
+	@Override
+	void close();
 }

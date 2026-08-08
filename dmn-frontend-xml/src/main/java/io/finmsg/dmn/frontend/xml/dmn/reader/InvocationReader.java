@@ -6,74 +6,75 @@ import io.finmsg.dmn.model.Invocation;
 
 public final class InvocationReader {
 
-  private final FeelReader feelReader = new FeelReader();
+	private final FeelReader feelReader = new FeelReader();
 
-  public Invocation read(XmlCursor cursor) {
+	public Invocation read(XmlCursor cursor) {
 
-    Invocation.Builder builder = Invocation.newBuilder();
+		Invocation.Builder builder = Invocation.newBuilder();
 
-    if (cursor.firstChild()) {
-      do {
-        switch (cursor.documentLocalName()) {
-          case "expression", "literalExpression" -> {
-            builder.setExpression(feelReader.read(cursor)).build();
-          }
+		if (cursor.firstChild()) {
+			do {
+				switch (cursor.documentLocalName()) {
+					case "expression", "literalExpression" -> {
+						builder.setExpression(feelReader.read(cursor)).build();
+					}
 
-          case "binding" -> {
-            builder.addBindings(readBinding(cursor));
-          }
+					case "binding" -> {
+						builder.addBindings(readBinding(cursor));
+					}
 
-          case "extensionElements" -> { }
-          default -> UnsupportedContent.rejectDmnChild(cursor, "invocation");
-        }
+					case "extensionElements" -> {
+					}
+					default -> UnsupportedContent.rejectDmnChild(cursor, "invocation");
+				}
 
-      } while (cursor.nextSibling());
-      cursor.parent();
-    }
-    return builder.build();
-  }
+			} while (cursor.nextSibling());
+			cursor.parent();
+		}
+		return builder.build();
+	}
 
-  private Binding readBinding(XmlCursor cursor) {
+	private Binding readBinding(XmlCursor cursor) {
 
-    Binding.Builder builder = Binding.newBuilder();
+		Binding.Builder builder = Binding.newBuilder();
 
-    if (cursor.firstChild()) {
+		if (cursor.firstChild()) {
 
-      do {
-        switch (cursor.documentLocalName()) {
-          case "parameter" -> builder.setParameter(readParameterName(cursor));
+			do {
+				switch (cursor.documentLocalName()) {
+					case "parameter" -> builder.setParameter(readParameterName(cursor));
 
-          case "expression", "literalExpression" -> {
-            builder.setExpression(feelReader.read(cursor)).build();
-          }
+					case "expression", "literalExpression" -> {
+						builder.setExpression(feelReader.read(cursor)).build();
+					}
 
-          default -> UnsupportedContent.rejectDmnChild(cursor, "invocation binding");
-        }
-      } while (cursor.nextSibling());
-      cursor.parent();
-    }
-    return builder.build();
-  }
+					default -> UnsupportedContent.rejectDmnChild(cursor, "invocation binding");
+				}
+			} while (cursor.nextSibling());
+			cursor.parent();
+		}
+		return builder.build();
+	}
 
-  private String readParameterName(XmlCursor cursor) {
+	private String readParameterName(XmlCursor cursor) {
 
-    if (cursor.hasAttribute("name")) {
-      return cursor.requiredAttribute("name");
-    }
+		if (cursor.hasAttribute("name")) {
+			return cursor.requiredAttribute("name");
+		}
 
-    if (!cursor.firstChild()) {
-      return "";
-    }
+		if (!cursor.firstChild()) {
+			return "";
+		}
 
-    String name = "";
-    do {
-      if ("name".equals(cursor.documentLocalName())) {
-        name = cursor.text();
-        break;
-      }
+		String name = "";
+		do {
+			if ("name".equals(cursor.documentLocalName())) {
+				name = cursor.text();
+				break;
+			}
 
-    } while (cursor.nextSibling());
-    cursor.parent();
-    return name;
-  }
+		} while (cursor.nextSibling());
+		cursor.parent();
+		return name;
+	}
 }

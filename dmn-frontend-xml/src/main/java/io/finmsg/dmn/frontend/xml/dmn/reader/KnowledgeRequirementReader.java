@@ -6,27 +6,26 @@ import io.finmsg.dmn.model.ElementReference;
 
 public final class KnowledgeRequirementReader {
 
-  public KnowledgeRequirement read(XmlCursor cursor) {
+	public KnowledgeRequirement read(XmlCursor cursor) {
 
-    KnowledgeRequirement.Builder builder = KnowledgeRequirement.newBuilder();
+		KnowledgeRequirement.Builder builder = KnowledgeRequirement.newBuilder();
 
-    if (cursor.firstChild()) {
+		if (cursor.firstChild()) {
 
-      do {
+			do {
 
-        switch (cursor.documentLocalName()) {
-          case "requiredKnowledge" ->
-              builder.setRequiredKnowledge(
-                  ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
+				switch (cursor.documentLocalName()) {
+					case "requiredKnowledge" -> builder.setRequiredKnowledge(
+							ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
 
-          default -> UnsupportedContent.rejectDmnChild(cursor, "knowledgeRequirement");
-        }
+					default -> UnsupportedContent.rejectDmnChild(cursor, "knowledgeRequirement");
+				}
 
-      } while (cursor.nextSibling());
+			} while (cursor.nextSibling());
 
-      cursor.parent();
-    }
+			cursor.parent();
+		}
 
-    return builder.build();
-  }
+		return builder.build();
+	}
 }

@@ -6,35 +6,32 @@ import io.finmsg.dmn.model.ElementReference;
 
 public final class AuthorityRequirementReader {
 
-  public AuthorityRequirement read(XmlCursor cursor) {
+	public AuthorityRequirement read(XmlCursor cursor) {
 
-    AuthorityRequirement.Builder builder = AuthorityRequirement.newBuilder();
+		AuthorityRequirement.Builder builder = AuthorityRequirement.newBuilder();
 
-    if (cursor.firstChild()) {
+		if (cursor.firstChild()) {
 
-      do {
+			do {
 
-        switch (cursor.documentLocalName()) {
-          case "requiredAuthority" ->
-              builder.setRequiredAuthority(
-                  ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
+				switch (cursor.documentLocalName()) {
+					case "requiredAuthority" -> builder.setRequiredAuthority(
+							ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
 
-          case "requiredDecision" ->
-              builder.setDecision(
-                  ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
+					case "requiredDecision" ->
+						builder.setDecision(ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
 
-          case "requiredInput" ->
-              builder.setInput(
-                  ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
+					case "requiredInput" ->
+						builder.setInput(ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")));
 
-          default -> UnsupportedContent.rejectDmnChild(cursor, "authorityRequirement");
-        }
+					default -> UnsupportedContent.rejectDmnChild(cursor, "authorityRequirement");
+				}
 
-      } while (cursor.nextSibling());
+			} while (cursor.nextSibling());
 
-      cursor.parent();
-    }
+			cursor.parent();
+		}
 
-    return builder.build();
-  }
+		return builder.build();
+	}
 }

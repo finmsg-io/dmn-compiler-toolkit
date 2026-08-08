@@ -10,29 +10,25 @@ import java.util.Optional;
 /** Result of reading DMN XML, including structured frontend diagnostics. */
 public record DmnReadResult(Definitions definitions, List<Diagnostic> diagnostics) {
 
-  public DmnReadResult {
-    diagnostics = List.copyOf(diagnostics);
-  }
+	public DmnReadResult {
+		diagnostics = List.copyOf(diagnostics);
+	}
 
-  public Optional<Definitions> model() {
-    return Optional.ofNullable(definitions);
-  }
+	public Optional<Definitions> model() {
+		return Optional.ofNullable(definitions);
+	}
 
-  public boolean hasErrors() {
-    return diagnostics.stream()
-        .anyMatch(
-            diagnostic ->
-                diagnostic.getSeverity() == DiagnosticSeverity.DIAGNOSTIC_SEVERITY_ERROR
-                    || diagnostic.getSeverity()
-                        == DiagnosticSeverity.DIAGNOSTIC_SEVERITY_FATAL);
-  }
+	public boolean hasErrors() {
+		return diagnostics.stream()
+				.anyMatch(diagnostic -> diagnostic.getSeverity() == DiagnosticSeverity.DIAGNOSTIC_SEVERITY_ERROR
+						|| diagnostic.getSeverity() == DiagnosticSeverity.DIAGNOSTIC_SEVERITY_FATAL);
+	}
 
-  public Definitions requireModel() {
-    if (definitions != null && !hasErrors()) {
-      return definitions;
-    }
-    String message = diagnostics.isEmpty() ? "DMN XML did not produce a model."
-        : diagnostics.get(0).getMessage();
-    throw new XmlReadException(message);
-  }
+	public Definitions requireModel() {
+		if (definitions != null && !hasErrors()) {
+			return definitions;
+		}
+		String message = diagnostics.isEmpty() ? "DMN XML did not produce a model." : diagnostics.get(0).getMessage();
+		throw new XmlReadException(message);
+	}
 }

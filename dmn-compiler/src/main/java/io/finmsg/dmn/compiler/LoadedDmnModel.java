@@ -6,12 +6,12 @@ import java.util.Objects;
 /** One immutable source and its parsed DMN definitions. */
 public record LoadedDmnModel(DmnSource source, Definitions model) {
 
-  public LoadedDmnModel {
-    Objects.requireNonNull(source, "source");
-    Objects.requireNonNull(model, "model");
-  }
+	public LoadedDmnModel {
+		Objects.requireNonNull(source, "source");
+		Objects.requireNonNull(model, "model");
+	}
 
-  public DmnSourceId id() {
-    return source.id();
-  }
+	public DmnSourceId id() {
+		return source.id();
+	}
 }

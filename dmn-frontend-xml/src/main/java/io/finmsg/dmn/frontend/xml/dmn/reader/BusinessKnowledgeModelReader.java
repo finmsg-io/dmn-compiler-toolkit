@@ -5,45 +5,43 @@ import io.finmsg.dmn.model.BusinessKnowledgeModel;
 
 public final class BusinessKnowledgeModelReader {
 
-  private final NodeReader nodeReader = new NodeReader();
-  private final VariableReader variableReader = new VariableReader();
-  private final KnowledgeRequirementReader knowledgeRequirementReader =
-      new KnowledgeRequirementReader();
-  private final AuthorityRequirementReader authorityRequirementReader =
-      new AuthorityRequirementReader();
-  private final FeelReader feelReader = new FeelReader();
-  private final FunctionDefinitionReader functionDefinitionReader = new FunctionDefinitionReader();
+	private final NodeReader nodeReader = new NodeReader();
+	private final VariableReader variableReader = new VariableReader();
+	private final KnowledgeRequirementReader knowledgeRequirementReader = new KnowledgeRequirementReader();
+	private final AuthorityRequirementReader authorityRequirementReader = new AuthorityRequirementReader();
+	private final FeelReader feelReader = new FeelReader();
+	private final FunctionDefinitionReader functionDefinitionReader = new FunctionDefinitionReader();
 
-  public BusinessKnowledgeModel read(XmlCursor cursor) {
+	public BusinessKnowledgeModel read(XmlCursor cursor) {
 
-    BusinessKnowledgeModel.Builder builder = BusinessKnowledgeModel.newBuilder();
-    builder.setNode(nodeReader.read(cursor));
+		BusinessKnowledgeModel.Builder builder = BusinessKnowledgeModel.newBuilder();
+		builder.setNode(nodeReader.read(cursor));
 
-    if (cursor.firstChild()) {
-      do {
-        switch (cursor.documentLocalName()) {
+		if (cursor.firstChild()) {
+			do {
+				switch (cursor.documentLocalName()) {
 
-          case "variable" -> builder.setVariable(variableReader.read(cursor));
+					case "variable" -> builder.setVariable(variableReader.read(cursor));
 
-          case "encapsulatedLogic" ->
-              builder.setFunction(functionDefinitionReader.read(cursor));
+					case "encapsulatedLogic" -> builder.setFunction(functionDefinitionReader.read(cursor));
 
-          case "knowledgeRequirement" ->
-              builder.addKnowledgeRequirements(knowledgeRequirementReader.read(cursor));
+					case "knowledgeRequirement" ->
+						builder.addKnowledgeRequirements(knowledgeRequirementReader.read(cursor));
 
-          case "authorityRequirement" ->
-              builder.addAuthorityRequirements(authorityRequirementReader.read(cursor));
+					case "authorityRequirement" ->
+						builder.addAuthorityRequirements(authorityRequirementReader.read(cursor));
 
-          case "documentation", "description", "extensionElements" -> { }
+					case "documentation", "description", "extensionElements" -> {
+					}
 
-          default -> UnsupportedContent.rejectDmnChild(cursor, "businessKnowledgeModel");
-        }
+					default -> UnsupportedContent.rejectDmnChild(cursor, "businessKnowledgeModel");
+				}
 
-      } while (cursor.nextSibling());
+			} while (cursor.nextSibling());
 
-      cursor.parent();
-    }
+			cursor.parent();
+		}
 
-    return builder.build();
-  }
+		return builder.build();
+	}
 }

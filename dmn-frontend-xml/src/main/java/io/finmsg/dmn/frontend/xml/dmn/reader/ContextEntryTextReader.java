@@ -5,30 +5,32 @@ import io.finmsg.dmn.model.ContextEntryText;
 
 public final class ContextEntryTextReader {
 
-  private final ReaderRegistry readers;
-  private final InformationItemReader informationItemReader = new InformationItemReader();
+	private final ReaderRegistry readers;
+	private final InformationItemReader informationItemReader = new InformationItemReader();
 
-  ContextEntryTextReader(ReaderRegistry readers) {
-    this.readers = readers;
-  }
+	ContextEntryTextReader(ReaderRegistry readers) {
+		this.readers = readers;
+	}
 
-  public ContextEntryText read(XmlCursor cursor) {
+	public ContextEntryText read(XmlCursor cursor) {
 
-    ContextEntryText.Builder builder = ContextEntryText.newBuilder();
+		ContextEntryText.Builder builder = ContextEntryText.newBuilder();
 
-    if (cursor.firstChild()) {
-      do {
-        switch (cursor.documentLocalName()) {
-          case "variable" -> builder.setVariable(informationItemReader.read(cursor));
-          case "literalExpression", "decisionTable", "invocation", "context", "relation", "list", "functionDefinition" ->
-              builder.setExpression(readers.expressionNodeReader().readText(cursor));
-          case "extensionElements" -> { }
-          default -> UnsupportedContent.rejectDmnChild(cursor, "contextEntry");
-        }
-      } while (cursor.nextSibling());
-      cursor.parent();
-    }
+		if (cursor.firstChild()) {
+			do {
+				switch (cursor.documentLocalName()) {
+					case "variable" -> builder.setVariable(informationItemReader.read(cursor));
+					case "literalExpression", "decisionTable", "invocation", "context", "relation", "list",
+							"functionDefinition" ->
+						builder.setExpression(readers.expressionNodeReader().readText(cursor));
+					case "extensionElements" -> {
+					}
+					default -> UnsupportedContent.rejectDmnChild(cursor, "contextEntry");
+				}
+			} while (cursor.nextSibling());
+			cursor.parent();
+		}
 
-    return builder.build();
-  }
+		return builder.build();
+	}
 }

@@ -5,38 +5,39 @@ import io.finmsg.dmn.model.InputClause;
 
 public final class InputClauseReader {
 
-  private final NodeReader nodeReader = new NodeReader();
-  private final FeelReader feelReader = new FeelReader();
-  private final TypeReferenceReader typeReferenceReader = new TypeReferenceReader();
+	private final NodeReader nodeReader = new NodeReader();
+	private final FeelReader feelReader = new FeelReader();
+	private final TypeReferenceReader typeReferenceReader = new TypeReferenceReader();
 
-  public InputClause read(XmlCursor cursor) {
+	public InputClause read(XmlCursor cursor) {
 
-    InputClause.Builder builder = InputClause.newBuilder();
+		InputClause.Builder builder = InputClause.newBuilder();
 
-    builder.setNode(nodeReader.read(cursor));
+		builder.setNode(nodeReader.read(cursor));
 
-    if (cursor.firstChild()) {
-      do {
-        switch (cursor.documentLocalName()) {
-          case "inputExpression" -> {
-            builder.setInputExpression(feelReader.read(cursor));
+		if (cursor.firstChild()) {
+			do {
+				switch (cursor.documentLocalName()) {
+					case "inputExpression" -> {
+						builder.setInputExpression(feelReader.read(cursor));
 
-            if (cursor.hasAttribute("typeRef")) {
-              builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef"), cursor));
-            }
-          }
+						if (cursor.hasAttribute("typeRef")) {
+							builder.setType(typeReferenceReader.read(cursor.requiredAttribute("typeRef"), cursor));
+						}
+					}
 
-          case "inputValues" -> builder.setInputValues(feelReader.read(cursor));
+					case "inputValues" -> builder.setInputValues(feelReader.read(cursor));
 
-          case "documentation", "extensionElements" -> { }
-          default -> UnsupportedContent.rejectDmnChild(cursor, "decision-table input");
-        }
+					case "documentation", "extensionElements" -> {
+					}
+					default -> UnsupportedContent.rejectDmnChild(cursor, "decision-table input");
+				}
 
-      } while (cursor.nextSibling());
+			} while (cursor.nextSibling());
 
-      cursor.parent();
-    }
+			cursor.parent();
+		}
 
-    return builder.build();
-  }
+		return builder.build();
+	}
 }

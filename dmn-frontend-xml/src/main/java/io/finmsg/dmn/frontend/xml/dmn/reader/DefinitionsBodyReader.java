@@ -7,67 +7,59 @@ import io.finmsg.dmn.model.DrgElement;
 
 public final class DefinitionsBodyReader {
 
-  private final DmnXmlContext context;
+	private final DmnXmlContext context;
 
-  private final ImportReader importReader = new ImportReader();
-  private final ItemDefinitionReader itemDefinitionReader = new ItemDefinitionReader();
-  private final DecisionReader decisionReader = new DecisionReader();
-  private final InputDataReader inputDataReader = new InputDataReader();
-  private final BusinessKnowledgeModelReader businessKnowledgeModelReader =
-      new BusinessKnowledgeModelReader();
-  private final KnowledgeSourceReader knowledgeSourceReader = new KnowledgeSourceReader();
-  private final DecisionServiceReader decisionServiceReader = new DecisionServiceReader();
+	private final ImportReader importReader = new ImportReader();
+	private final ItemDefinitionReader itemDefinitionReader = new ItemDefinitionReader();
+	private final DecisionReader decisionReader = new DecisionReader();
+	private final InputDataReader inputDataReader = new InputDataReader();
+	private final BusinessKnowledgeModelReader businessKnowledgeModelReader = new BusinessKnowledgeModelReader();
+	private final KnowledgeSourceReader knowledgeSourceReader = new KnowledgeSourceReader();
+	private final DecisionServiceReader decisionServiceReader = new DecisionServiceReader();
 
-  public DefinitionsBodyReader(DmnXmlContext context) {
-    this.context = context;
-  }
+	public DefinitionsBodyReader(DmnXmlContext context) {
+		this.context = context;
+	}
 
-  public void read(XmlCursor cursor, Definitions.Builder definitions) {
+	public void read(XmlCursor cursor, Definitions.Builder definitions) {
 
-    if (!cursor.firstChild()) {
-      return;
-    }
+		if (!cursor.firstChild()) {
+			return;
+		}
 
-    do {
-      if (!context.modelNamespace().equals(cursor.namespaceUri())) {
-        continue;
-      }
-      switch (cursor.localName()) {
-        case "import" -> definitions.addImports(importReader.read(cursor));
+		do {
+			if (!context.modelNamespace().equals(cursor.namespaceUri())) {
+				continue;
+			}
+			switch (cursor.localName()) {
+				case "import" -> definitions.addImports(importReader.read(cursor));
 
-        case "itemDefinition" -> definitions.addItemDefinitions(itemDefinitionReader.read(cursor));
+				case "itemDefinition" -> definitions.addItemDefinitions(itemDefinitionReader.read(cursor));
 
-        case "decision" ->
-            definitions.addDrgElements(
-                DrgElement.newBuilder().setDecision(decisionReader.read(cursor)).build());
+				case "decision" -> definitions
+						.addDrgElements(DrgElement.newBuilder().setDecision(decisionReader.read(cursor)).build());
 
-        case "inputData" ->
-            definitions.addDrgElements(
-                DrgElement.newBuilder().setInputData(inputDataReader.read(cursor)).build());
+				case "inputData" -> definitions
+						.addDrgElements(DrgElement.newBuilder().setInputData(inputDataReader.read(cursor)).build());
 
-        case "businessKnowledgeModel" ->
-            definitions.addDrgElements(
-                DrgElement.newBuilder()
-                    .setBusinessKnowledgeModel(businessKnowledgeModelReader.read(cursor))
-                    .build());
+				case "businessKnowledgeModel" -> definitions.addDrgElements(DrgElement.newBuilder()
+						.setBusinessKnowledgeModel(businessKnowledgeModelReader.read(cursor)).build());
 
-        case "knowledgeSource" ->
-            definitions.addDrgElements(
-                DrgElement.newBuilder()
-                    .setKnowledgeSource(knowledgeSourceReader.read(cursor))
-                    .build());
+				case "knowledgeSource" -> definitions.addDrgElements(
+						DrgElement.newBuilder().setKnowledgeSource(knowledgeSourceReader.read(cursor)).build());
 
-        case "decisionService" ->
-            definitions.addDrgElements(
-                DrgElement.newBuilder()
-                    .setDecisionService(decisionServiceReader.read(cursor))
-                    .build());
+				case "decisionService" -> definitions.addDrgElements(
+						DrgElement.newBuilder().setDecisionService(decisionServiceReader.read(cursor)).build());
 
-        case "documentation", "description", "extensionElements", "textAnnotation", "association", "performanceIndicator", "organizationUnit", "businessContextElement", "elementCollection", "group", "DMNDI", "style" -> { }
+				case "documentation", "description", "extensionElements", "textAnnotation", "association",
+						"performanceIndicator", "organizationUnit", "businessContextElement", "elementCollection",
+						"group", "DMNDI", "style" ->
+					{
+					}
 
-        default -> UnsupportedContent.rejectDmnChild(cursor, "definitions");
-      }
-    } while (cursor.nextSibling());
-    cursor.parent();
-  }
+				default -> UnsupportedContent.rejectDmnChild(cursor, "definitions");
+			}
+		} while (cursor.nextSibling());
+		cursor.parent();
+	}
 }

@@ -4,5 +4,5 @@ import io.finmsg.dmn.ir.RuntimeModel;
 
 /** Interface for single optimization passes operating over RuntimeModel IR. */
 public interface OptimizerPass {
-  RuntimeModel transform(RuntimeModel model);
+	RuntimeModel transform(RuntimeModel model);
 }

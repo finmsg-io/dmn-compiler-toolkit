@@ -30,145 +30,102 @@ import org.junit.jupiter.api.Test;
 
 class DmnFeelParserTest {
 
-  private final DmnFeelParser parser = new DmnFeelParser();
+	private final DmnFeelParser parser = new DmnFeelParser();
 
-  @Test
-  void parsesDecisionTableAndKeepsSemanticModelUnchanged() {
-    DecisionTable table =
-        DecisionTable.newBuilder()
-            .addInputs(
-                InputClause.newBuilder()
-                    .setInputExpression(feel("Applicant.age"))
-                    .setInputValues(feel("[0..17]")))
-            .addOutputs(
-                OutputClause.newBuilder()
-                    .setOutputValues(feel("\"minor\", \"adult\""))
-                    .setDefaultOutputEntry(expressionNode("\"unknown\"")))
-            .addRules(
-                DecisionRule.newBuilder()
-                    .addInputEntries(unaryTest("< 18"))
-                    .addOutputEntries(feel("\"minor\"")))
-            .build();
+	@Test
+	void parsesDecisionTableAndKeepsSemanticModelUnchanged() {
+		DecisionTable table = DecisionTable.newBuilder()
+				.addInputs(InputClause.newBuilder().setInputExpression(feel("Applicant.age"))
+						.setInputValues(feel("[0..17]")))
+				.addOutputs(OutputClause.newBuilder().setOutputValues(feel("\"minor\", \"adult\""))
+						.setDefaultOutputEntry(expressionNode("\"unknown\"")))
+				.addRules(DecisionRule.newBuilder().addInputEntries(unaryTest("< 18"))
+						.addOutputEntries(feel("\"minor\"")))
+				.build();
 
-    Definitions semanticModel =
-        Definitions.newBuilder()
-            .addItemDefinitions(
-                ItemDefinition.newBuilder()
-                    .setConstraint(
-                        TypeConstraint.newBuilder().setText(text("[0..120]"))))
-            .addDrgElements(
-                DrgElement.newBuilder()
-                    .setDecision(
-                        Decision.newBuilder()
-                            .setLogic(
-                                DecisionLogic.newBuilder().setDecisionTable(table))))
-            .build();
+		Definitions semanticModel = Definitions.newBuilder()
+				.addItemDefinitions(ItemDefinition.newBuilder()
+						.setConstraint(TypeConstraint.newBuilder().setText(text("[0..120]"))))
+				.addDrgElements(DrgElement.newBuilder().setDecision(
+						Decision.newBuilder().setLogic(DecisionLogic.newBuilder().setDecisionTable(table))))
+				.build();
 
-    Definitions parsedModel = parser.parse(semanticModel);
+		Definitions parsedModel = parser.parse(semanticModel);
 
-    assertThat(semanticModel.getItemDefinitions(0).getConstraint().hasText()).isTrue();
-    assertThat(semanticModel.getDrgElements(0).getDecision().getLogic()
-        .getDecisionTable().getInputs(0).getInputExpression().hasText()).isTrue();
+		assertThat(semanticModel.getItemDefinitions(0).getConstraint().hasText()).isTrue();
+		assertThat(semanticModel.getDrgElements(0).getDecision().getLogic().getDecisionTable().getInputs(0)
+				.getInputExpression().hasText()).isTrue();
 
-    assertThat(parsedModel).isNotSameAs(semanticModel);
-    assertThat(parsedModel.getItemDefinitions(0).getConstraint().hasParsed()).isTrue();
+		assertThat(parsedModel).isNotSameAs(semanticModel);
+		assertThat(parsedModel.getItemDefinitions(0).getConstraint().hasParsed()).isTrue();
 
-    DecisionTable parsedTable =
-        parsedModel.getDrgElements(0).getDecision().getLogic().getDecisionTable();
+		DecisionTable parsedTable = parsedModel.getDrgElements(0).getDecision().getLogic().getDecisionTable();
 
-    assertThat(parsedTable.getInputs(0).getInputExpression().hasParsed()).isTrue();
-    assertThat(parsedTable.getInputs(0).getInputValues().getParsed().getAst().hasUnaryTests())
-        .isTrue();
-    assertThat(parsedTable.getOutputs(0).getOutputValues().getParsed().getAst()
-        .getUnaryTests().getTestsCount()).isEqualTo(2);
-    assertThat(parsedTable.getOutputs(0).getDefaultOutputEntry().hasParsed()).isTrue();
-    assertThat(parsedTable.getRules(0).getInputEntries(0).hasParsed()).isTrue();
-    assertThat(parsedTable.getRules(0).getOutputEntries(0).hasParsed()).isTrue();
+		assertThat(parsedTable.getInputs(0).getInputExpression().hasParsed()).isTrue();
+		assertThat(parsedTable.getInputs(0).getInputValues().getParsed().getAst().hasUnaryTests()).isTrue();
+		assertThat(parsedTable.getOutputs(0).getOutputValues().getParsed().getAst().getUnaryTests().getTestsCount())
+				.isEqualTo(2);
+		assertThat(parsedTable.getOutputs(0).getDefaultOutputEntry().hasParsed()).isTrue();
+		assertThat(parsedTable.getRules(0).getInputEntries(0).hasParsed()).isTrue();
+		assertThat(parsedTable.getRules(0).getOutputEntries(0).hasParsed()).isTrue();
 
-    assertThat(parser.parse(parsedModel)).isEqualTo(parsedModel);
-  }
+		assertThat(parser.parse(parsedModel)).isEqualTo(parsedModel);
+	}
 
-  @Test
-  void parsesBoxedExpressionsInvocationsAndBkmLogic() {
-    BoxedExpression boxedExpression =
-        BoxedExpression.newBuilder()
-            .setText(
-                BoxedExpressionText.newBuilder()
-                    .setContext(
-                        ContextText.newBuilder()
-                            .addEntries(
-                                ContextEntryText.newBuilder()
-                                    .setExpression(expressionText("Applicant.age + 1")))))
-            .build();
+	@Test
+	void parsesBoxedExpressionsInvocationsAndBkmLogic() {
+		BoxedExpression boxedExpression = BoxedExpression.newBuilder()
+				.setText(BoxedExpressionText.newBuilder()
+						.setContext(ContextText.newBuilder().addEntries(
+								ContextEntryText.newBuilder().setExpression(expressionText("Applicant.age + 1")))))
+				.build();
 
-    Invocation invocation =
-        Invocation.newBuilder()
-            .setExpression(feel("Risk"))
-            .addBindings(
-                Binding.newBuilder()
-                    .setParameter("age")
-                    .setExpression(feel("Applicant.age")))
-            .build();
+		Invocation invocation = Invocation.newBuilder().setExpression(feel("Risk"))
+				.addBindings(Binding.newBuilder().setParameter("age").setExpression(feel("Applicant.age"))).build();
 
-    Definitions semanticModel =
-        Definitions.newBuilder()
-            .addDrgElements(
-                DrgElement.newBuilder()
-                    .setDecision(
-                        Decision.newBuilder()
-                            .setLogic(
-                                DecisionLogic.newBuilder()
-                                    .setBoxedExpression(boxedExpression))))
-            .addDrgElements(
-                DrgElement.newBuilder()
-                    .setDecision(
-                        Decision.newBuilder()
-                            .setLogic(
-                                DecisionLogic.newBuilder().setInvocation(invocation))))
-            .addDrgElements(
-                DrgElement.newBuilder()
-                    .setBusinessKnowledgeModel(
-                        BusinessKnowledgeModel.newBuilder()
-                            .setFunction(
-                                FunctionDefinition.newBuilder()
-                                    .setKind(FunctionKind.FUNCTION_KIND_FEEL)
-                                    .setLogic(feel("x + 1")))))
-            .build();
+		Definitions semanticModel = Definitions.newBuilder()
+				.addDrgElements(DrgElement.newBuilder().setDecision(
+						Decision.newBuilder().setLogic(DecisionLogic.newBuilder().setBoxedExpression(boxedExpression))))
+				.addDrgElements(DrgElement.newBuilder().setDecision(
+						Decision.newBuilder().setLogic(DecisionLogic.newBuilder().setInvocation(invocation))))
+				.addDrgElements(
+						DrgElement.newBuilder()
+								.setBusinessKnowledgeModel(BusinessKnowledgeModel.newBuilder()
+										.setFunction(FunctionDefinition.newBuilder()
+												.setKind(FunctionKind.FUNCTION_KIND_FEEL).setLogic(feel("x + 1")))))
+				.build();
 
-    Definitions parsedModel = parser.parse(semanticModel);
+		Definitions parsedModel = parser.parse(semanticModel);
 
-    assertThat(parsedModel.getDrgElements(0).getDecision().getLogic()
-        .getBoxedExpression().hasParsed()).isTrue();
-    assertThat(parsedModel.getDrgElements(0).getDecision().getLogic()
-        .getBoxedExpression().getParsed().getContext().getEntries(0)
-        .getExpression().hasFeel()).isTrue();
+		assertThat(parsedModel.getDrgElements(0).getDecision().getLogic().getBoxedExpression().hasParsed()).isTrue();
+		assertThat(parsedModel.getDrgElements(0).getDecision().getLogic().getBoxedExpression().getParsed().getContext()
+				.getEntries(0).getExpression().hasFeel()).isTrue();
 
-    Invocation parsedInvocation =
-        parsedModel.getDrgElements(1).getDecision().getLogic().getInvocation();
-    assertThat(parsedInvocation.getExpression().hasParsed()).isTrue();
-    assertThat(parsedInvocation.getBindings(0).getExpression().hasParsed()).isTrue();
+		Invocation parsedInvocation = parsedModel.getDrgElements(1).getDecision().getLogic().getInvocation();
+		assertThat(parsedInvocation.getExpression().hasParsed()).isTrue();
+		assertThat(parsedInvocation.getBindings(0).getExpression().hasParsed()).isTrue();
 
-    assertThat(parsedModel.getDrgElements(2).getBusinessKnowledgeModel()
-        .getFunction().getLogic().hasParsed()).isTrue();
-  }
+		assertThat(parsedModel.getDrgElements(2).getBusinessKnowledgeModel().getFunction().getLogic().hasParsed())
+				.isTrue();
+	}
 
-  private static Feel feel(String source) {
-    return Feel.newBuilder().setText(text(source)).build();
-  }
+	private static Feel feel(String source) {
+		return Feel.newBuilder().setText(text(source)).build();
+	}
 
-  private static FeelText text(String source) {
-    return FeelText.newBuilder().setText(source).build();
-  }
+	private static FeelText text(String source) {
+		return FeelText.newBuilder().setText(source).build();
+	}
 
-  private static UnaryTest unaryTest(String source) {
-    return UnaryTest.newBuilder().setText(text(source)).build();
-  }
+	private static UnaryTest unaryTest(String source) {
+		return UnaryTest.newBuilder().setText(text(source)).build();
+	}
 
-  private static ExpressionText expressionText(String source) {
-    return ExpressionText.newBuilder().setFeel(text(source)).build();
-  }
+	private static ExpressionText expressionText(String source) {
+		return ExpressionText.newBuilder().setFeel(text(source)).build();
+	}
 
-  private static ExpressionNode expressionNode(String source) {
-    return ExpressionNode.newBuilder().setText(expressionText(source)).build();
-  }
+	private static ExpressionNode expressionNode(String source) {
+		return ExpressionNode.newBuilder().setText(expressionText(source)).build();
+	}
 }

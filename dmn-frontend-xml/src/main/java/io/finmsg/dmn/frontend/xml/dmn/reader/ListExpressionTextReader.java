@@ -5,28 +5,29 @@ import io.finmsg.dmn.model.ListExpressionText;
 
 public final class ListExpressionTextReader {
 
-  private final ReaderRegistry readers;
+	private final ReaderRegistry readers;
 
-  ListExpressionTextReader(ReaderRegistry readers) {
-    this.readers = readers;
-  }
+	ListExpressionTextReader(ReaderRegistry readers) {
+		this.readers = readers;
+	}
 
-  public ListExpressionText read(XmlCursor cursor) {
+	public ListExpressionText read(XmlCursor cursor) {
 
-    ListExpressionText.Builder builder = ListExpressionText.newBuilder();
+		ListExpressionText.Builder builder = ListExpressionText.newBuilder();
 
-    if (cursor.firstChild()) {
-      do {
-        switch (cursor.documentLocalName()) {
-          case "literalExpression", "context", "relation", "list", "functionDefinition" ->
-              builder.addElements(readers.expressionNodeReader().readText(cursor));
-          case "extensionElements" -> { }
-          default -> UnsupportedContent.rejectDmnChild(cursor, "list");
-        }
-      } while (cursor.nextSibling());
-      cursor.parent();
-    }
+		if (cursor.firstChild()) {
+			do {
+				switch (cursor.documentLocalName()) {
+					case "literalExpression", "context", "relation", "list", "functionDefinition" ->
+						builder.addElements(readers.expressionNodeReader().readText(cursor));
+					case "extensionElements" -> {
+					}
+					default -> UnsupportedContent.rejectDmnChild(cursor, "list");
+				}
+			} while (cursor.nextSibling());
+			cursor.parent();
+		}
 
-    return builder.build();
-  }
+		return builder.build();
+	}
 }

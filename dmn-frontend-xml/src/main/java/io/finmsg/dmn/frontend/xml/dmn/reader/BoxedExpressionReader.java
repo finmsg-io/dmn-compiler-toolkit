@@ -7,33 +7,30 @@ import io.finmsg.dmn.frontend.xml.dmn.UnsupportedDmnXmlException;
 
 public final class BoxedExpressionReader {
 
-  private final ReaderRegistry readers;
+	private final ReaderRegistry readers;
 
-  BoxedExpressionReader(ReaderRegistry readers) {
-    this.readers = readers;
-  }
+	BoxedExpressionReader(ReaderRegistry readers) {
+		this.readers = readers;
+	}
 
-  public BoxedExpression read(XmlCursor cursor) {
-    return BoxedExpression.newBuilder()
-        .setText(readText(cursor))
-        .build();
-  }
+	public BoxedExpression read(XmlCursor cursor) {
+		return BoxedExpression.newBuilder().setText(readText(cursor)).build();
+	}
 
-  public BoxedExpressionText readText(XmlCursor cursor) {
+	public BoxedExpressionText readText(XmlCursor cursor) {
 
-    BoxedExpressionText.Builder builder = BoxedExpressionText.newBuilder();
+		BoxedExpressionText.Builder builder = BoxedExpressionText.newBuilder();
 
-    switch (cursor.documentLocalName()) {
-      case "context" -> builder.setContext(readers.contextTextReader().read(cursor));
-      case "relation" -> builder.setRelation(readers.relationTextReader().read(cursor));
-      case "list" -> builder.setList(readers.listExpressionTextReader().read(cursor));
-      case "functionDefinition" ->
-          builder.setFunctionDefinition(readers.functionDefinitionTextReader().read(cursor));
-      default ->
-          throw new UnsupportedDmnXmlException(
-              "Unsupported boxed expression <" + cursor.localName() + "> at " + cursor.path());
-    }
+		switch (cursor.documentLocalName()) {
+			case "context" -> builder.setContext(readers.contextTextReader().read(cursor));
+			case "relation" -> builder.setRelation(readers.relationTextReader().read(cursor));
+			case "list" -> builder.setList(readers.listExpressionTextReader().read(cursor));
+			case "functionDefinition" ->
+				builder.setFunctionDefinition(readers.functionDefinitionTextReader().read(cursor));
+			default -> throw new UnsupportedDmnXmlException(
+					"Unsupported boxed expression <" + cursor.localName() + "> at " + cursor.path());
+		}
 
-    return builder.build();
-  }
+		return builder.build();
+	}
 }

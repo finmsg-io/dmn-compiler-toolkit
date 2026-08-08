@@ -44,401 +44,311 @@ import org.junit.jupiter.api.Test;
 
 class DmnTypeAnalyzerTest {
 
-  private final FeelParserFacade parser = new FeelParserFacade();
-  private final DmnTypeAnalyzer analyzer = new DmnTypeAnalyzer();
+	private final FeelParserFacade parser = new FeelParserFacade();
+	private final DmnTypeAnalyzer analyzer = new DmnTypeAnalyzer();
 
-  @Test
-  void validatesDeclaredDecisionTypeAgainstLiteralExpression() {
-    Definitions model = Definitions.newBuilder()
-        .addDrgElements(decision("Valid", builtin(BuiltinType.BUILTIN_TYPE_NUMBER), "1"))
-        .addDrgElements(decision("Invalid", builtin(BuiltinType.BUILTIN_TYPE_NUMBER), "\"text\""))
-        .build();
+	@Test
+	void validatesDeclaredDecisionTypeAgainstLiteralExpression() {
+		Definitions model = Definitions.newBuilder()
+				.addDrgElements(decision("Valid", builtin(BuiltinType.BUILTIN_TYPE_NUMBER), "1"))
+				.addDrgElements(decision("Invalid", builtin(BuiltinType.BUILTIN_TYPE_NUMBER), "\"text\"")).build();
 
-    DmnSemanticAnalysisResult result = analyzer.analyze(model);
+		DmnSemanticAnalysisResult result = analyzer.analyze(model);
 
-    assertThat(result.diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly("DECISION_TYPE_MISMATCH");
-    assertThat(result.diagnostics().getFirst().path())
-        .isEqualTo("definitions/decision[Invalid]/variable");
-  }
+		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
+				.containsExactly("DECISION_TYPE_MISMATCH");
+		assertThat(result.diagnostics().getFirst().path()).isEqualTo("definitions/decision[Invalid]/variable");
+	}
 
-  @Test
-  void doesNotReportMismatchForUnspecifiedDecisionType() {
-    Definitions model = Definitions.newBuilder()
-        .addDrgElements(decision("Untyped", TypeReference.getDefaultInstance(), "1"))
-        .build();
+	@Test
+	void doesNotReportMismatchForUnspecifiedDecisionType() {
+		Definitions model = Definitions.newBuilder()
+				.addDrgElements(decision("Untyped", TypeReference.getDefaultInstance(), "1")).build();
 
-    assertThat(analyzer.analyze(model).diagnostics()).isEmpty();
-  }
+		assertThat(analyzer.analyze(model).diagnostics()).isEmpty();
+	}
 
-  @Test
-  void validatesDeclaredDecisionTypeAgainstDecisionTableOutput() {
-    DecisionTable table = DecisionTable.newBuilder()
-        .setHitPolicy(HitPolicySpec.newBuilder().setPolicy(HitPolicy.HIT_POLICY_UNIQUE))
-        .addOutputs(OutputClause.newBuilder()
-            .setNode(Node.newBuilder().setName("result"))
-            .setType(builtin(BuiltinType.BUILTIN_TYPE_STRING)))
-        .build();
-    Decision decision = Decision.newBuilder()
-        .setNode(Node.newBuilder().setName("Table"))
-        .setVariable(InformationItem.newBuilder()
-            .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
-        .setLogic(DecisionLogic.newBuilder().setDecisionTable(table))
-        .build();
-    Definitions model = Definitions.newBuilder()
-        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
-        .build();
+	@Test
+	void validatesDeclaredDecisionTypeAgainstDecisionTableOutput() {
+		DecisionTable table = DecisionTable.newBuilder()
+				.setHitPolicy(HitPolicySpec.newBuilder().setPolicy(HitPolicy.HIT_POLICY_UNIQUE))
+				.addOutputs(OutputClause.newBuilder().setNode(Node.newBuilder().setName("result"))
+						.setType(builtin(BuiltinType.BUILTIN_TYPE_STRING)))
+				.build();
+		Decision decision = Decision.newBuilder().setNode(Node.newBuilder().setName("Table"))
+				.setVariable(InformationItem.newBuilder().setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+				.setLogic(DecisionLogic.newBuilder().setDecisionTable(table)).build();
+		Definitions model = Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setDecision(decision))
+				.build();
 
-    assertThat(analyzer.analyze(model).diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly("DECISION_TYPE_MISMATCH");
-  }
+		assertThat(analyzer.analyze(model).diagnostics()).extracting(DmnSemanticDiagnostic::code)
+				.containsExactly("DECISION_TYPE_MISMATCH");
+	}
 
-  @Test
-  void validatesDecisionTableStructureAndHitPolicy() {
-    DecisionTable table = DecisionTable.newBuilder()
-        .setHitPolicy(HitPolicySpec.newBuilder()
-            .setPolicy(HitPolicy.HIT_POLICY_UNIQUE)
-            .setAggregation(Aggregation.AGGREGATION_SUM))
-        .addInputs(InputClause.getDefaultInstance())
-        .addOutputs(OutputClause.newBuilder().setNode(Node.newBuilder().setName("result")))
-        .addOutputs(OutputClause.newBuilder().setNode(Node.newBuilder().setName("result")))
-        .addRules(DecisionRule.newBuilder()
-            .addOutputEntries(parsedFeel("1")))
-        .build();
+	@Test
+	void validatesDecisionTableStructureAndHitPolicy() {
+		DecisionTable table = DecisionTable.newBuilder()
+				.setHitPolicy(HitPolicySpec.newBuilder().setPolicy(HitPolicy.HIT_POLICY_UNIQUE)
+						.setAggregation(Aggregation.AGGREGATION_SUM))
+				.addInputs(InputClause.getDefaultInstance())
+				.addOutputs(OutputClause.newBuilder().setNode(Node.newBuilder().setName("result")))
+				.addOutputs(OutputClause.newBuilder().setNode(Node.newBuilder().setName("result")))
+				.addRules(DecisionRule.newBuilder().addOutputEntries(parsedFeel("1"))).build();
 
-    DmnSemanticAnalysisResult result = analyzer.analyze(modelWithTable("Invalid table", table));
+		DmnSemanticAnalysisResult result = analyzer.analyze(modelWithTable("Invalid table", table));
 
-    assertThat(result.diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly(
-            "DUPLICATE_OUTPUT_NAME",
-            "INVALID_INPUT_ENTRY_COUNT",
-            "INVALID_OUTPUT_ENTRY_COUNT",
-            "INVALID_HIT_POLICY_AGGREGATION");
-  }
+		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code).containsExactly(
+				"DUPLICATE_OUTPUT_NAME", "INVALID_INPUT_ENTRY_COUNT", "INVALID_OUTPUT_ENTRY_COUNT",
+				"INVALID_HIT_POLICY_AGGREGATION");
+	}
 
-  @Test
-  void validatesRuleAllowedValueAndDefaultOutputTypes() {
-    TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
-    DecisionTable table = DecisionTable.newBuilder()
-        .setHitPolicy(HitPolicySpec.newBuilder().setPolicy(HitPolicy.HIT_POLICY_UNIQUE))
-        .addInputs(InputClause.newBuilder()
-            .setType(number)
-            .setInputExpression(parsedFeel("1"))
-            .setInputValues(parsedUnaryTests("\"invalid\"")))
-        .addOutputs(OutputClause.newBuilder()
-            .setNode(Node.newBuilder().setName("result"))
-            .setType(number)
-            .setOutputValues(parsedUnaryTests("\"invalid\""))
-            .setDefaultOutputEntry(parsedExpressionNode("\"invalid\"")))
-        .addRules(DecisionRule.newBuilder()
-            .addInputEntries(UnaryTest.newBuilder()
-                .setParsed(parser.parseUnaryTestsAst("\"invalid\"")))
-            .addOutputEntries(parsedFeel("\"invalid\"")))
-        .build();
+	@Test
+	void validatesRuleAllowedValueAndDefaultOutputTypes() {
+		TypeReference number = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
+		DecisionTable table = DecisionTable.newBuilder()
+				.setHitPolicy(HitPolicySpec.newBuilder().setPolicy(HitPolicy.HIT_POLICY_UNIQUE))
+				.addInputs(InputClause.newBuilder().setType(number).setInputExpression(parsedFeel("1"))
+						.setInputValues(parsedUnaryTests("\"invalid\"")))
+				.addOutputs(OutputClause.newBuilder().setNode(Node.newBuilder().setName("result")).setType(number)
+						.setOutputValues(parsedUnaryTests("\"invalid\""))
+						.setDefaultOutputEntry(parsedExpressionNode("\"invalid\"")))
+				.addRules(DecisionRule.newBuilder()
+						.addInputEntries(UnaryTest.newBuilder().setParsed(parser.parseUnaryTestsAst("\"invalid\"")))
+						.addOutputEntries(parsedFeel("\"invalid\"")))
+				.build();
 
-    DmnSemanticAnalysisResult result = analyzer.analyze(modelWithTable("Typed table", table));
+		DmnSemanticAnalysisResult result = analyzer.analyze(modelWithTable("Typed table", table));
 
-    assertThat(result.diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly(
-            "UNARY_TEST_TYPE_MISMATCH",
-            "RULE_OUTPUT_TYPE_MISMATCH",
-            "UNARY_TEST_TYPE_MISMATCH",
-            "UNARY_TEST_TYPE_MISMATCH",
-            "DEFAULT_OUTPUT_TYPE_MISMATCH");
-  }
+		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code).containsExactly(
+				"UNARY_TEST_TYPE_MISMATCH", "RULE_OUTPUT_TYPE_MISMATCH", "UNARY_TEST_TYPE_MISMATCH",
+				"UNARY_TEST_TYPE_MISMATCH", "DEFAULT_OUTPUT_TYPE_MISMATCH");
+	}
 
-  @Test
-  void validatesCollectAggregationOutputType() {
-    DecisionTable table = DecisionTable.newBuilder()
-        .setHitPolicy(HitPolicySpec.newBuilder()
-            .setPolicy(HitPolicy.HIT_POLICY_COLLECT)
-            .setAggregation(Aggregation.AGGREGATION_SUM))
-        .addOutputs(OutputClause.newBuilder()
-            .setNode(Node.newBuilder().setName("result"))
-            .setType(builtin(BuiltinType.BUILTIN_TYPE_STRING)))
-        .build();
+	@Test
+	void validatesCollectAggregationOutputType() {
+		DecisionTable table = DecisionTable.newBuilder()
+				.setHitPolicy(HitPolicySpec.newBuilder().setPolicy(HitPolicy.HIT_POLICY_COLLECT)
+						.setAggregation(Aggregation.AGGREGATION_SUM))
+				.addOutputs(OutputClause.newBuilder().setNode(Node.newBuilder().setName("result"))
+						.setType(builtin(BuiltinType.BUILTIN_TYPE_STRING)))
+				.build();
 
-    assertThat(analyzer.analyze(modelWithTable("Collect", table)).diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly("INVALID_COLLECT_AGGREGATION_TYPE");
-  }
+		assertThat(analyzer.analyze(modelWithTable("Collect", table)).diagnostics())
+				.extracting(DmnSemanticDiagnostic::code).containsExactly("INVALID_COLLECT_AGGREGATION_TYPE");
+	}
 
-  @Test
-  void requiresOrderedOutputValuesForPriorityHitPolicy() {
-    DecisionTable table = DecisionTable.newBuilder()
-        .setHitPolicy(HitPolicySpec.newBuilder().setPolicy(HitPolicy.HIT_POLICY_PRIORITY))
-        .addOutputs(OutputClause.newBuilder()
-            .setNode(Node.newBuilder().setName("result"))
-            .setType(builtin(BuiltinType.BUILTIN_TYPE_STRING)))
-        .build();
+	@Test
+	void requiresOrderedOutputValuesForPriorityHitPolicy() {
+		DecisionTable table = DecisionTable.newBuilder()
+				.setHitPolicy(HitPolicySpec.newBuilder().setPolicy(HitPolicy.HIT_POLICY_PRIORITY))
+				.addOutputs(OutputClause.newBuilder().setNode(Node.newBuilder().setName("result"))
+						.setType(builtin(BuiltinType.BUILTIN_TYPE_STRING)))
+				.build();
 
-    assertThat(analyzer.analyze(modelWithTable("Priority", table)).diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly("MISSING_OUTPUT_VALUES");
-  }
+		assertThat(analyzer.analyze(modelWithTable("Priority", table)).diagnostics())
+				.extracting(DmnSemanticDiagnostic::code).containsExactly("MISSING_OUTPUT_VALUES");
+	}
 
-  @Test
-  void validatesBkmReturnType() {
-    BusinessKnowledgeModel bkm = bkm("Calculator", builtin(BuiltinType.BUILTIN_TYPE_NUMBER),
-        "\"not a number\"");
+	@Test
+	void validatesBkmReturnType() {
+		BusinessKnowledgeModel bkm = bkm("Calculator", builtin(BuiltinType.BUILTIN_TYPE_NUMBER), "\"not a number\"");
 
-    assertThat(analyzer.analyze(Definitions.newBuilder()
-        .addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm))
-        .build()).diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly("BKM_RETURN_TYPE_MISMATCH");
-  }
+		assertThat(analyzer.analyze(
+				Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm)).build())
+				.diagnostics()).extracting(DmnSemanticDiagnostic::code).containsExactly("BKM_RETURN_TYPE_MISMATCH");
+	}
 
-  @Test
-  void validatesInvocationArgumentTypesAgainstBkmParameters() {
-    BusinessKnowledgeModel bkm = bkm("Calculator", builtin(BuiltinType.BUILTIN_TYPE_NUMBER),
-        "x + 1").toBuilder()
-        .setFunction(FunctionDefinition.newBuilder()
-            .addFormalParameters(InformationItem.newBuilder()
-                .setNode(Node.newBuilder().setName("x"))
-                .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
-            .setLogic(parsedFeel("x + 1")))
-        .build();
-    Invocation invocation = Invocation.newBuilder()
-        .setExpression(parsedFeel("Calculator"))
-        .addBindings(Binding.newBuilder()
-            .setParameter("x")
-            .setExpression(parsedFeel("\"wrong\"")))
-        .build();
-    Decision decision = Decision.newBuilder()
-        .setNode(Node.newBuilder().setName("Result"))
-        .setVariable(InformationItem.newBuilder()
-            .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
-        .addKnowledgeRequirements(KnowledgeRequirement.newBuilder()
-            .setRequiredKnowledge(ElementReference.newBuilder().setHref("#bkm-id")))
-        .setLogic(DecisionLogic.newBuilder().setInvocation(invocation))
-        .build();
+	@Test
+	void validatesInvocationArgumentTypesAgainstBkmParameters() {
+		BusinessKnowledgeModel bkm = bkm("Calculator", builtin(BuiltinType.BUILTIN_TYPE_NUMBER), "x + 1").toBuilder()
+				.setFunction(FunctionDefinition.newBuilder()
+						.addFormalParameters(InformationItem.newBuilder().setNode(Node.newBuilder().setName("x"))
+								.setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+						.setLogic(parsedFeel("x + 1")))
+				.build();
+		Invocation invocation = Invocation.newBuilder().setExpression(parsedFeel("Calculator"))
+				.addBindings(Binding.newBuilder().setParameter("x").setExpression(parsedFeel("\"wrong\""))).build();
+		Decision decision = Decision.newBuilder().setNode(Node.newBuilder().setName("Result"))
+				.setVariable(InformationItem.newBuilder().setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+				.addKnowledgeRequirements(KnowledgeRequirement.newBuilder()
+						.setRequiredKnowledge(ElementReference.newBuilder().setHref("#bkm-id")))
+				.setLogic(DecisionLogic.newBuilder().setInvocation(invocation)).build();
 
-    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
-        .addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm))
-        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
-        .build());
+		DmnSemanticAnalysisResult result = analyzer
+				.analyze(Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm))
+						.addDrgElements(DrgElement.newBuilder().setDecision(decision)).build());
 
-    assertThat(result.diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly("INVOCATION_ARGUMENT_TYPE_MISMATCH");
-  }
+		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
+				.containsExactly("INVOCATION_ARGUMENT_TYPE_MISMATCH");
+	}
 
-  @Test
-  void typesAndValidatesItemDefinitionConstraints() {
-    ItemDefinition item = ItemDefinition.newBuilder()
-        .setNode(Node.newBuilder().setName("Limits"))
-        .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))
-        .setIsCollection(true)
-        .setConstraint(parsedConstraint("< 10"))
-        .addComponents(ItemComponent.newBuilder()
-            .setNode(Node.newBuilder().setName("label"))
-            .setType(builtin(BuiltinType.BUILTIN_TYPE_STRING))
-            .setConstraint(parsedConstraint("1")))
-        .build();
+	@Test
+	void typesAndValidatesItemDefinitionConstraints() {
+		ItemDefinition item = ItemDefinition.newBuilder().setNode(Node.newBuilder().setName("Limits"))
+				.setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)).setIsCollection(true)
+				.setConstraint(parsedConstraint("< 10"))
+				.addComponents(ItemComponent.newBuilder().setNode(Node.newBuilder().setName("label"))
+						.setType(builtin(BuiltinType.BUILTIN_TYPE_STRING)).setConstraint(parsedConstraint("1")))
+				.build();
 
-    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
-        .addItemDefinitions(item)
-        .build());
+		DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder().addItemDefinitions(item).build());
 
-    assertThat(result.diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly("TYPE_CONSTRAINT_TYPE_MISMATCH");
-    assertThat(result.model().getItemDefinitions(0).getConstraint().getParsed()
-        .getTests().getTests(0).getComparison().getEndpoint().hasInferredType()).isTrue();
-  }
+		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
+				.containsExactly("TYPE_CONSTRAINT_TYPE_MISMATCH");
+		assertThat(result.model().getItemDefinitions(0).getConstraint().getParsed().getTests().getTests(0)
+				.getComparison().getEndpoint().hasInferredType()).isTrue();
+	}
 
-  @Test
-  void typesAndValidatesBoxedRelations() {
-    RelationParsed relation = RelationParsed.newBuilder()
-        .addColumns(RelationColumnParsed.newBuilder()
-            .setVariable(InformationItem.newBuilder()
-                .setNode(Node.newBuilder().setName("amount"))
-                .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))))
-        .addRows(RelationRowParsed.newBuilder()
-            .addExpressions(parsedExpression("\"wrong\""))
-            .addExpressions(parsedExpression("2")))
-        .build();
-    Decision decision = Decision.newBuilder()
-        .setNode(Node.newBuilder().setName("Relation"))
-        .setLogic(DecisionLogic.newBuilder().setBoxedExpression(
-            BoxedExpression.newBuilder().setParsed(
-                BoxedExpressionParsed.newBuilder().setRelation(relation))))
-        .build();
+	@Test
+	void typesAndValidatesBoxedRelations() {
+		RelationParsed relation = RelationParsed.newBuilder()
+				.addColumns(RelationColumnParsed.newBuilder()
+						.setVariable(InformationItem.newBuilder().setNode(Node.newBuilder().setName("amount"))
+								.setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))))
+				.addRows(RelationRowParsed.newBuilder().addExpressions(parsedExpression("\"wrong\""))
+						.addExpressions(parsedExpression("2")))
+				.build();
+		Decision decision = Decision.newBuilder().setNode(Node.newBuilder().setName("Relation"))
+				.setLogic(DecisionLogic.newBuilder().setBoxedExpression(BoxedExpression.newBuilder()
+						.setParsed(BoxedExpressionParsed.newBuilder().setRelation(relation))))
+				.build();
 
-    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
-        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
-        .build());
+		DmnSemanticAnalysisResult result = analyzer.analyze(
+				Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setDecision(decision)).build());
 
-    assertThat(result.diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly("RELATION_ROW_WIDTH_MISMATCH", "RELATION_CELL_TYPE_MISMATCH");
-    assertThat(result.model().getDrgElements(0).getDecision().getLogic().getBoxedExpression()
-        .getParsed().getRelation().getRows(0).getExpressions(1).getFeel().getAst()
-        .hasInferredType()).isTrue();
-  }
+		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
+				.containsExactly("RELATION_ROW_WIDTH_MISMATCH", "RELATION_CELL_TYPE_MISMATCH");
+		assertThat(result.model().getDrgElements(0).getDecision().getLogic().getBoxedExpression().getParsed()
+				.getRelation().getRows(0).getExpressions(1).getFeel().getAst().hasInferredType()).isTrue();
+	}
 
-  @Test
-  void infersRelationAsListOfRowContexts() {
-    RelationParsed relation = RelationParsed.newBuilder()
-        .addColumns(RelationColumnParsed.newBuilder()
-            .setVariable(InformationItem.newBuilder()
-                .setNode(Node.newBuilder().setName("amount"))
-                .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))))
-        .addRows(RelationRowParsed.newBuilder()
-            .addExpressions(parsedExpression("2")))
-        .build();
-    TypeReference declared = TypeReference.newBuilder()
-        .setList(ListTypeReference.newBuilder()
-            .setElementType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
-        .build();
-    Decision decision = Decision.newBuilder()
-        .setNode(Node.newBuilder().setName("Relation"))
-        .setVariable(InformationItem.newBuilder().setType(declared))
-        .setLogic(DecisionLogic.newBuilder().setBoxedExpression(
-            BoxedExpression.newBuilder().setParsed(
-                BoxedExpressionParsed.newBuilder().setRelation(relation))))
-        .build();
+	@Test
+	void infersRelationAsListOfRowContexts() {
+		RelationParsed relation = RelationParsed.newBuilder()
+				.addColumns(RelationColumnParsed.newBuilder()
+						.setVariable(InformationItem.newBuilder().setNode(Node.newBuilder().setName("amount"))
+								.setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))))
+				.addRows(RelationRowParsed.newBuilder().addExpressions(parsedExpression("2"))).build();
+		TypeReference declared = TypeReference.newBuilder()
+				.setList(ListTypeReference.newBuilder().setElementType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+				.build();
+		Decision decision = Decision.newBuilder().setNode(Node.newBuilder().setName("Relation"))
+				.setVariable(InformationItem.newBuilder().setType(declared))
+				.setLogic(DecisionLogic.newBuilder().setBoxedExpression(BoxedExpression.newBuilder()
+						.setParsed(BoxedExpressionParsed.newBuilder().setRelation(relation))))
+				.build();
 
-    assertThat(analyzer.analyze(Definitions.newBuilder()
-        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
-        .build()).diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly("DECISION_TYPE_MISMATCH");
-  }
+		assertThat(analyzer
+				.analyze(Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setDecision(decision)).build())
+				.diagnostics()).extracting(DmnSemanticDiagnostic::code).containsExactly("DECISION_TYPE_MISMATCH");
+	}
 
-  @Test
-  void infersUndeclaredRelationColumnTypesFromCells() {
-    RelationParsed relation = RelationParsed.newBuilder()
-        .addColumns(RelationColumnParsed.newBuilder()
-            .setVariable(InformationItem.newBuilder()
-                .setNode(Node.newBuilder().setName("amount"))))
-        .addRows(RelationRowParsed.newBuilder().addExpressions(parsedExpression("1")))
-        .addRows(RelationRowParsed.newBuilder().addExpressions(parsedExpression("2")))
-        .build();
-    DmnSemanticAnalysisResult result = analyzer.analyze(modelWithRelation(relation));
+	@Test
+	void infersUndeclaredRelationColumnTypesFromCells() {
+		RelationParsed relation = RelationParsed.newBuilder()
+				.addColumns(RelationColumnParsed.newBuilder()
+						.setVariable(InformationItem.newBuilder().setNode(Node.newBuilder().setName("amount"))))
+				.addRows(RelationRowParsed.newBuilder().addExpressions(parsedExpression("1")))
+				.addRows(RelationRowParsed.newBuilder().addExpressions(parsedExpression("2"))).build();
+		DmnSemanticAnalysisResult result = analyzer.analyze(modelWithRelation(relation));
 
-    assertThat(result.diagnostics()).isEmpty();
-    assertThat(result.model().getDrgElements(0).getDecision().getLogic().getBoxedExpression()
-        .getParsed().getRelation().getColumns(0).getVariable().getType().getBuiltin())
-        .isEqualTo(BuiltinType.BUILTIN_TYPE_NUMBER);
-  }
+		assertThat(result.diagnostics()).isEmpty();
+		assertThat(result.model().getDrgElements(0).getDecision().getLogic().getBoxedExpression().getParsed()
+				.getRelation().getColumns(0).getVariable().getType().getBuiltin())
+				.isEqualTo(BuiltinType.BUILTIN_TYPE_NUMBER);
+	}
 
-  @Test
-  void validatesRelationColumnNames() {
-    RelationParsed relation = RelationParsed.newBuilder()
-        .addColumns(RelationColumnParsed.getDefaultInstance())
-        .addColumns(RelationColumnParsed.newBuilder().setVariable(
-            InformationItem.newBuilder().setNode(Node.newBuilder().setName("value"))))
-        .addColumns(RelationColumnParsed.newBuilder().setVariable(
-            InformationItem.newBuilder().setNode(Node.newBuilder().setName("value"))))
-        .build();
+	@Test
+	void validatesRelationColumnNames() {
+		RelationParsed relation = RelationParsed.newBuilder().addColumns(RelationColumnParsed.getDefaultInstance())
+				.addColumns(RelationColumnParsed.newBuilder()
+						.setVariable(InformationItem.newBuilder().setNode(Node.newBuilder().setName("value"))))
+				.addColumns(RelationColumnParsed.newBuilder()
+						.setVariable(InformationItem.newBuilder().setNode(Node.newBuilder().setName("value"))))
+				.build();
 
-    assertThat(analyzer.analyze(modelWithRelation(relation)).diagnostics())
-        .extracting(DmnSemanticDiagnostic::code)
-        .containsExactly("MISSING_RELATION_COLUMN_NAME", "DUPLICATE_RELATION_COLUMN_NAME");
-  }
+		assertThat(analyzer.analyze(modelWithRelation(relation)).diagnostics()).extracting(DmnSemanticDiagnostic::code)
+				.containsExactly("MISSING_RELATION_COLUMN_NAME", "DUPLICATE_RELATION_COLUMN_NAME");
+	}
 
-  @Test
-  void typesDecisionTableReferencesFromIndexedOutputContracts() {
-    DecisionTable table = DecisionTable.newBuilder()
-        .setNode(Node.newBuilder().setId("table-id"))
-        .addOutputs(OutputClause.newBuilder()
-            .setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
-        .build();
-    Decision owner = Decision.newBuilder()
-        .setNode(Node.newBuilder().setName("Table owner"))
-        .setLogic(DecisionLogic.newBuilder().setDecisionTable(table))
-        .build();
-    Decision consumer = Decision.newBuilder()
-        .setNode(Node.newBuilder().setName("Consumer"))
-        .setLogic(DecisionLogic.newBuilder().setLiteralExpression(
-            Feel.newBuilder().setParsed(FeelParsed.newBuilder().setAst(
-                Expression.newBuilder().setDecisionTable(
-                    DecisionTableExpression.newBuilder().setDecisionTableId("table-id"))))))
-        .build();
+	@Test
+	void typesDecisionTableReferencesFromIndexedOutputContracts() {
+		DecisionTable table = DecisionTable.newBuilder().setNode(Node.newBuilder().setId("table-id"))
+				.addOutputs(OutputClause.newBuilder().setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER))).build();
+		Decision owner = Decision.newBuilder().setNode(Node.newBuilder().setName("Table owner"))
+				.setLogic(DecisionLogic.newBuilder().setDecisionTable(table)).build();
+		Decision consumer = Decision.newBuilder().setNode(Node.newBuilder().setName("Consumer"))
+				.setLogic(DecisionLogic.newBuilder()
+						.setLiteralExpression(Feel.newBuilder()
+								.setParsed(FeelParsed.newBuilder()
+										.setAst(Expression.newBuilder().setDecisionTable(
+												DecisionTableExpression.newBuilder().setDecisionTableId("table-id"))))))
+				.build();
 
-    DmnSemanticAnalysisResult result = analyzer.analyze(Definitions.newBuilder()
-        .addDrgElements(DrgElement.newBuilder().setDecision(owner))
-        .addDrgElements(DrgElement.newBuilder().setDecision(consumer))
-        .build());
+		DmnSemanticAnalysisResult result = analyzer
+				.analyze(Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setDecision(owner))
+						.addDrgElements(DrgElement.newBuilder().setDecision(consumer)).build());
 
-    assertThat(result.diagnostics()).isEmpty();
-    assertThat(result.model().getDrgElements(1).getDecision().getLogic()
-        .getLiteralExpression().getParsed().getAst().getInferredType())
-        .isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
-  }
+		assertThat(result.diagnostics()).isEmpty();
+		assertThat(result.model().getDrgElements(1).getDecision().getLogic().getLiteralExpression().getParsed().getAst()
+				.getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+	}
 
-  private DrgElement decision(String name, TypeReference declaredType, String expression) {
-    Decision decision = Decision.newBuilder()
-        .setNode(Node.newBuilder().setName(name))
-        .setVariable(InformationItem.newBuilder().setType(declaredType))
-        .setLogic(DecisionLogic.newBuilder().setLiteralExpression(
-            Feel.newBuilder().setParsed(parser.parseExpressionAst(expression))))
-        .build();
-    return DrgElement.newBuilder().setDecision(decision).build();
-  }
+	private DrgElement decision(String name, TypeReference declaredType, String expression) {
+		Decision decision = Decision.newBuilder().setNode(Node.newBuilder().setName(name))
+				.setVariable(InformationItem.newBuilder().setType(declaredType))
+				.setLogic(DecisionLogic.newBuilder()
+						.setLiteralExpression(Feel.newBuilder().setParsed(parser.parseExpressionAst(expression))))
+				.build();
+		return DrgElement.newBuilder().setDecision(decision).build();
+	}
 
-  private Definitions modelWithTable(String name, DecisionTable table) {
-    Decision decision = Decision.newBuilder()
-        .setNode(Node.newBuilder().setName(name))
-        .setVariable(InformationItem.newBuilder()
-            .setType(TypeReference.getDefaultInstance()))
-        .setLogic(DecisionLogic.newBuilder().setDecisionTable(table))
-        .build();
-    return Definitions.newBuilder()
-        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
-        .build();
-  }
+	private Definitions modelWithTable(String name, DecisionTable table) {
+		Decision decision = Decision.newBuilder().setNode(Node.newBuilder().setName(name))
+				.setVariable(InformationItem.newBuilder().setType(TypeReference.getDefaultInstance()))
+				.setLogic(DecisionLogic.newBuilder().setDecisionTable(table)).build();
+		return Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setDecision(decision)).build();
+	}
 
-  private Definitions modelWithRelation(RelationParsed relation) {
-    Decision decision = Decision.newBuilder()
-        .setNode(Node.newBuilder().setName("Relation"))
-        .setLogic(DecisionLogic.newBuilder().setBoxedExpression(
-            BoxedExpression.newBuilder().setParsed(
-                BoxedExpressionParsed.newBuilder().setRelation(relation))))
-        .build();
-    return Definitions.newBuilder()
-        .addDrgElements(DrgElement.newBuilder().setDecision(decision))
-        .build();
-  }
+	private Definitions modelWithRelation(RelationParsed relation) {
+		Decision decision = Decision.newBuilder().setNode(Node.newBuilder().setName("Relation"))
+				.setLogic(DecisionLogic.newBuilder().setBoxedExpression(BoxedExpression.newBuilder()
+						.setParsed(BoxedExpressionParsed.newBuilder().setRelation(relation))))
+				.build();
+		return Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setDecision(decision)).build();
+	}
 
-  private Feel parsedFeel(String source) {
-    return Feel.newBuilder().setParsed(parser.parseExpressionAst(source)).build();
-  }
+	private Feel parsedFeel(String source) {
+		return Feel.newBuilder().setParsed(parser.parseExpressionAst(source)).build();
+	}
 
-  private Feel parsedUnaryTests(String source) {
-    return Feel.newBuilder().setParsed(FeelParsed.newBuilder().setAst(
-        Expression.newBuilder().setUnaryTests(parser.parseUnaryTestsAst(source).getTests())))
-        .build();
-  }
+	private Feel parsedUnaryTests(String source) {
+		return Feel.newBuilder()
+				.setParsed(FeelParsed.newBuilder()
+						.setAst(Expression.newBuilder().setUnaryTests(parser.parseUnaryTestsAst(source).getTests())))
+				.build();
+	}
 
-  private ExpressionNode parsedExpressionNode(String source) {
-    return ExpressionNode.newBuilder().setParsed(ExpressionParsed.newBuilder()
-        .setFeel(parser.parseExpressionAst(source))).build();
-  }
+	private ExpressionNode parsedExpressionNode(String source) {
+		return ExpressionNode.newBuilder()
+				.setParsed(ExpressionParsed.newBuilder().setFeel(parser.parseExpressionAst(source))).build();
+	}
 
-  private ExpressionParsed parsedExpression(String source) {
-    return ExpressionParsed.newBuilder().setFeel(parser.parseExpressionAst(source)).build();
-  }
+	private ExpressionParsed parsedExpression(String source) {
+		return ExpressionParsed.newBuilder().setFeel(parser.parseExpressionAst(source)).build();
+	}
 
-  private BusinessKnowledgeModel bkm(String name, TypeReference returnType, String expression) {
-    return BusinessKnowledgeModel.newBuilder()
-        .setNode(Node.newBuilder().setId("bkm-id").setName(name))
-        .setVariable(InformationItem.newBuilder().setType(returnType))
-        .setFunction(FunctionDefinition.newBuilder().setLogic(parsedFeel(expression)))
-        .build();
-  }
+	private BusinessKnowledgeModel bkm(String name, TypeReference returnType, String expression) {
+		return BusinessKnowledgeModel.newBuilder().setNode(Node.newBuilder().setId("bkm-id").setName(name))
+				.setVariable(InformationItem.newBuilder().setType(returnType))
+				.setFunction(FunctionDefinition.newBuilder().setLogic(parsedFeel(expression))).build();
+	}
 
-  private TypeConstraint parsedConstraint(String source) {
-    return TypeConstraint.newBuilder().setParsed(parser.parseUnaryTestsAst(source)).build();
-  }
+	private TypeConstraint parsedConstraint(String source) {
+		return TypeConstraint.newBuilder().setParsed(parser.parseUnaryTestsAst(source)).build();
+	}
 
-  private static TypeReference builtin(BuiltinType type) {
-    return TypeReference.newBuilder().setBuiltin(type).build();
-  }
+	private static TypeReference builtin(BuiltinType type) {
+		return TypeReference.newBuilder().setBuiltin(type).build();
+	}
 }

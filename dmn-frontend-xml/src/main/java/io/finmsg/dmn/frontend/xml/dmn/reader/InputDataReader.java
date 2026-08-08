@@ -5,32 +5,33 @@ import io.finmsg.dmn.model.InputData;
 
 public final class InputDataReader {
 
-  private final NodeReader nodeReader = new NodeReader();
-  private final VariableReader variableReader = new VariableReader();
+	private final NodeReader nodeReader = new NodeReader();
+	private final VariableReader variableReader = new VariableReader();
 
-  public InputData read(XmlCursor cursor) {
+	public InputData read(XmlCursor cursor) {
 
-    InputData.Builder builder = InputData.newBuilder();
+		InputData.Builder builder = InputData.newBuilder();
 
-    builder.setNode(nodeReader.read(cursor));
+		builder.setNode(nodeReader.read(cursor));
 
-    if (cursor.firstChild()) {
+		if (cursor.firstChild()) {
 
-      do {
+			do {
 
-        switch (cursor.documentLocalName()) {
-          case "variable" -> builder.setVariable(variableReader.read(cursor));
+				switch (cursor.documentLocalName()) {
+					case "variable" -> builder.setVariable(variableReader.read(cursor));
 
-          case "documentation", "description", "extensionElements" -> { }
+					case "documentation", "description", "extensionElements" -> {
+					}
 
-          default -> UnsupportedContent.rejectDmnChild(cursor, "inputData");
-        }
+					default -> UnsupportedContent.rejectDmnChild(cursor, "inputData");
+				}
 
-      } while (cursor.nextSibling());
+			} while (cursor.nextSibling());
 
-      cursor.parent();
-    }
+			cursor.parent();
+		}
 
-    return builder.build();
-  }
+		return builder.build();
+	}
 }

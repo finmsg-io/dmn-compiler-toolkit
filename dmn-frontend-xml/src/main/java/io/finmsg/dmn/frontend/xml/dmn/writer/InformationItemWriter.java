@@ -5,16 +5,16 @@ import io.finmsg.dmn.model.InformationItem;
 
 public final class InformationItemWriter {
 
-  private final NodeWriter nodeWriter = new NodeWriter();
-  private final TypeReferenceWriter typeReferenceWriter = new TypeReferenceWriter();
+	private final NodeWriter nodeWriter = new NodeWriter();
+	private final TypeReferenceWriter typeReferenceWriter = new TypeReferenceWriter();
 
-  public void write(XmlEmitter xml, String elementName, InformationItem value) {
-    xml.startElement(elementName);
-    nodeWriter.writeAttributes(xml, value.getNode());
-    if (value.hasType()) {
-      xml.attribute("typeRef", typeReferenceWriter.write(xml, value.getType()));
-    }
-    nodeWriter.writeChildren(xml, value.getNode());
-    xml.endElement();
-  }
+	public void write(XmlEmitter xml, String elementName, InformationItem value) {
+		xml.startElement(elementName);
+		nodeWriter.writeAttributes(xml, value.getNode());
+		if (value.hasType()) {
+			xml.attribute("typeRef", typeReferenceWriter.write(xml, value.getType()));
+		}
+		nodeWriter.writeChildren(xml, value.getNode());
+		xml.endElement();
+	}
 }

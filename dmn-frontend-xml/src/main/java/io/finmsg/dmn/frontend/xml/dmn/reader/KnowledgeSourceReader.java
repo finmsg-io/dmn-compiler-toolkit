@@ -5,33 +5,34 @@ import io.finmsg.dmn.model.KnowledgeSource;
 
 public final class KnowledgeSourceReader {
 
-  private final NodeReader nodeReader = new NodeReader();
+	private final NodeReader nodeReader = new NodeReader();
 
-  public KnowledgeSource read(XmlCursor cursor) {
+	public KnowledgeSource read(XmlCursor cursor) {
 
-    KnowledgeSource.Builder builder = KnowledgeSource.newBuilder();
+		KnowledgeSource.Builder builder = KnowledgeSource.newBuilder();
 
-    builder.setNode(nodeReader.read(cursor));
+		builder.setNode(nodeReader.read(cursor));
 
-    if (cursor.firstChild()) {
+		if (cursor.firstChild()) {
 
-      do {
+			do {
 
-        switch (cursor.documentLocalName()) {
-          case "owner" -> builder.setAuthority(cursor.requiredAttribute("href"));
+				switch (cursor.documentLocalName()) {
+					case "owner" -> builder.setAuthority(cursor.requiredAttribute("href"));
 
-          case "locationURI" -> builder.setLocationUri(cursor.text().trim());
+					case "locationURI" -> builder.setLocationUri(cursor.text().trim());
 
-          case "documentation", "description", "extensionElements", "type", "authorityRequirement" -> { }
+					case "documentation", "description", "extensionElements", "type", "authorityRequirement" -> {
+					}
 
-          default -> UnsupportedContent.rejectDmnChild(cursor, "knowledgeSource");
-        }
+					default -> UnsupportedContent.rejectDmnChild(cursor, "knowledgeSource");
+				}
 
-      } while (cursor.nextSibling());
+			} while (cursor.nextSibling());
 
-      cursor.parent();
-    }
+			cursor.parent();
+		}
 
-    return builder.build();
-  }
+		return builder.build();
+	}
 }

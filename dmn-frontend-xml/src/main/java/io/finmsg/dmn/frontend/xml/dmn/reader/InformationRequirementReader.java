@@ -6,26 +6,24 @@ import io.finmsg.dmn.model.InformationRequirement;
 
 public final class InformationRequirementReader {
 
-  public InformationRequirement read(XmlCursor cursor) {
+	public InformationRequirement read(XmlCursor cursor) {
 
-    InformationRequirement.Builder builder = InformationRequirement.newBuilder();
+		InformationRequirement.Builder builder = InformationRequirement.newBuilder();
 
-    if (cursor.firstChild()) {
-      do {
-        switch (cursor.documentLocalName()) {
-          case "requiredInput" ->
-              builder.setInput(
-                  ElementReference.newBuilder().setHref(cursor.attribute("href").get()).build());
+		if (cursor.firstChild()) {
+			do {
+				switch (cursor.documentLocalName()) {
+					case "requiredInput" ->
+						builder.setInput(ElementReference.newBuilder().setHref(cursor.attribute("href").get()).build());
 
-          case "requiredDecision" ->
-              builder.setDecision(
-                  ElementReference.newBuilder().setHref(cursor.attribute("href").get()).build());
+					case "requiredDecision" -> builder
+							.setDecision(ElementReference.newBuilder().setHref(cursor.attribute("href").get()).build());
 
-          default -> UnsupportedContent.rejectDmnChild(cursor, "informationRequirement");
-        }
-      } while (cursor.nextSibling());
-      cursor.parent();
-    }
-    return builder.build();
-  }
+					default -> UnsupportedContent.rejectDmnChild(cursor, "informationRequirement");
+				}
+			} while (cursor.nextSibling());
+			cursor.parent();
+		}
+		return builder.build();
+	}
 }

@@ -6,47 +6,45 @@ import io.finmsg.dmn.model.ElementReference;
 
 public final class DecisionServiceReader {
 
-  private final NodeReader nodeReader = new NodeReader();
-  private final VariableReader variableReader = new VariableReader();
+	private final NodeReader nodeReader = new NodeReader();
+	private final VariableReader variableReader = new VariableReader();
 
-  public DecisionService read(XmlCursor cursor) {
+	public DecisionService read(XmlCursor cursor) {
 
-    DecisionService.Builder builder = DecisionService.newBuilder();
+		DecisionService.Builder builder = DecisionService.newBuilder();
 
-    builder.setNode(nodeReader.read(cursor));
+		builder.setNode(nodeReader.read(cursor));
 
-    if (cursor.firstChild()) {
+		if (cursor.firstChild()) {
 
-      do {
+			do {
 
-        switch (cursor.documentLocalName()) {
-          case "variable" -> builder.setVariable(variableReader.read(cursor));
+				switch (cursor.documentLocalName()) {
+					case "variable" -> builder.setVariable(variableReader.read(cursor));
 
-          case "outputDecision" ->
-              builder.addOutputDecisions(reference(cursor));
+					case "outputDecision" -> builder.addOutputDecisions(reference(cursor));
 
-          case "encapsulatedDecision" ->
-              builder.addEncapsulatedDecisions(reference(cursor));
+					case "encapsulatedDecision" -> builder.addEncapsulatedDecisions(reference(cursor));
 
-          case "inputDecision" ->
-              builder.addInputDecisions(reference(cursor));
+					case "inputDecision" -> builder.addInputDecisions(reference(cursor));
 
-          case "inputData" -> builder.addInputData(reference(cursor));
+					case "inputData" -> builder.addInputData(reference(cursor));
 
-          case "documentation", "description", "extensionElements" -> { }
+					case "documentation", "description", "extensionElements" -> {
+					}
 
-          default -> UnsupportedContent.rejectDmnChild(cursor, "decisionService");
-        }
+					default -> UnsupportedContent.rejectDmnChild(cursor, "decisionService");
+				}
 
-      } while (cursor.nextSibling());
+			} while (cursor.nextSibling());
 
-      cursor.parent();
-    }
+			cursor.parent();
+		}
 
-    return builder.build();
-  }
+		return builder.build();
+	}
 
-  private static ElementReference reference(XmlCursor cursor) {
-    return ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")).build();
-  }
+	private static ElementReference reference(XmlCursor cursor) {
+		return ElementReference.newBuilder().setHref(cursor.requiredAttribute("href")).build();
+	}
 }

@@ -6,17 +6,17 @@ import io.finmsg.dmn.model.InputData;
 
 public final class InputDataWriter implements XmlWriter<InputData> {
 
-  private final NodeWriter nodeWriter = new NodeWriter();
-  private final InformationItemWriter informationItemWriter = new InformationItemWriter();
+	private final NodeWriter nodeWriter = new NodeWriter();
+	private final InformationItemWriter informationItemWriter = new InformationItemWriter();
 
-  @Override
-  public void write(XmlEmitter xml, InputData value) {
-    xml.startElement("inputData");
-    nodeWriter.writeAttributes(xml, value.getNode());
-    nodeWriter.writeChildren(xml, value.getNode());
-    if (value.hasVariable()) {
-      informationItemWriter.write(xml, "variable", value.getVariable());
-    }
-    xml.endElement();
-  }
+	@Override
+	public void write(XmlEmitter xml, InputData value) {
+		xml.startElement("inputData");
+		nodeWriter.writeAttributes(xml, value.getNode());
+		nodeWriter.writeChildren(xml, value.getNode());
+		if (value.hasVariable()) {
+			informationItemWriter.write(xml, "variable", value.getVariable());
+		}
+		xml.endElement();
+	}
 }

@@ -10,145 +10,148 @@ import java.util.Map;
 
 public final class XmlEmitter implements AutoCloseable {
 
-  private final XMLStreamWriter writer;
-  private String elementNamespace = "";
-  private String elementPrefix = "";
-  private final Map<String, String> prefixNamespaces = new LinkedHashMap<>();
-  private final Map<String, String> namespacePrefixes = new LinkedHashMap<>();
+	private final XMLStreamWriter writer;
+	private String elementNamespace = "";
+	private String elementPrefix = "";
+	private final Map<String, String> prefixNamespaces = new LinkedHashMap<>();
+	private final Map<String, String> namespacePrefixes = new LinkedHashMap<>();
 
-  public XmlEmitter(OutputStream output) {
-    try {
-      writer = XMLOutputFactory.newFactory().createXMLStreamWriter(output, "UTF-8");
-    } catch (XMLStreamException e) {
-      throw new XmlWriteException("Could not create XML writer.", e);
-    }
-  }
+	public XmlEmitter(OutputStream output) {
+		try {
+			writer = XMLOutputFactory.newFactory().createXMLStreamWriter(output, "UTF-8");
+		} catch (XMLStreamException e) {
+			throw new XmlWriteException("Could not create XML writer.", e);
+		}
+	}
 
-  public void startDocument() {
-    execute(() -> writer.writeStartDocument("UTF-8", "1.0"));
-  }
+	public void startDocument() {
+		execute(() -> writer.writeStartDocument("UTF-8", "1.0"));
+	}
 
-  public void startElement(String name) {
-    if (elementNamespace.isEmpty()) {
-      execute(() -> writer.writeStartElement(name));
-    } else {
-      execute(() -> writer.writeStartElement(elementPrefix, name, elementNamespace));
-    }
-  }
+	public void startElement(String name) {
+		if (elementNamespace.isEmpty()) {
+			execute(() -> writer.writeStartElement(name));
+		} else {
+			execute(() -> writer.writeStartElement(elementPrefix, name, elementNamespace));
+		}
+	}
 
-  /** Configures the namespace used by subsequent ordinary element starts. */
-  public void elementNamespace(String prefix, String namespace) {
-    elementPrefix = prefix == null ? "" : prefix;
-    elementNamespace = namespace == null ? "" : namespace;
-    if (!elementNamespace.isEmpty()) {
-      execute(() -> writer.setPrefix(elementPrefix, elementNamespace));
-    }
-  }
+	/** Configures the namespace used by subsequent ordinary element starts. */
+	public void elementNamespace(String prefix, String namespace) {
+		elementPrefix = prefix == null ? "" : prefix;
+		elementNamespace = namespace == null ? "" : namespace;
+		if (!elementNamespace.isEmpty()) {
+			execute(() -> writer.setPrefix(elementPrefix, elementNamespace));
+		}
+	}
 
-  public void startElement(String namespace, String name) {
-    try {
-      String prefix = writer.getPrefix(namespace);
-      if (prefix == null) {
-        throw new XmlWriteException("No namespace prefix is declared for " + namespace);
-      }
-      writer.writeStartElement(prefix, name, namespace);
-    } catch (XMLStreamException e) {
-      throw new XmlWriteException("Could not write namespaced XML element.", e);
-    }
-  }
+	public void startElement(String namespace, String name) {
+		try {
+			String prefix = writer.getPrefix(namespace);
+			if (prefix == null) {
+				throw new XmlWriteException("No namespace prefix is declared for " + namespace);
+			}
+			writer.writeStartElement(prefix, name, namespace);
+		} catch (XMLStreamException e) {
+			throw new XmlWriteException("Could not write namespaced XML element.", e);
+		}
+	}
 
-  public void defaultNamespace(String namespace) {
-    execute(() -> writer.writeDefaultNamespace(namespace));
-  }
+	public void defaultNamespace(String namespace) {
+		execute(() -> writer.writeDefaultNamespace(namespace));
+	}
 
-  public void namespace(String prefix, String namespace) {
-    if (prefix == null || prefix.isEmpty()) {
-      defaultNamespace(namespace);
-    } else {
-      execute(() -> {
-        writer.setPrefix(prefix, namespace);
-        writer.writeNamespace(prefix, namespace);
-      });
-      prefixNamespaces.put(prefix, namespace);
-      namespacePrefixes.putIfAbsent(namespace, prefix);
-    }
-  }
+	public void namespace(String prefix, String namespace) {
+		if (prefix == null || prefix.isEmpty()) {
+			defaultNamespace(namespace);
+		} else {
+			execute(() -> {
+				writer.setPrefix(prefix, namespace);
+				writer.writeNamespace(prefix, namespace);
+			});
+			prefixNamespaces.put(prefix, namespace);
+			namespacePrefixes.putIfAbsent(namespace, prefix);
+		}
+	}
 
-  /** Returns a namespace-qualified lexical QName, declaring a prefix when necessary. */
-  public String qualifiedName(String namespace, String localName) {
-    if (namespace == null || namespace.isEmpty()) {
-      return localName;
-    }
-    String prefix = namespacePrefixes.get(namespace);
-    if (prefix == null) {
-      prefix = "ns";
-      int suffix = 1;
-      while (prefixNamespaces.containsKey(prefix)) {
-        prefix = "ns" + suffix++;
-      }
-      namespace(prefix, namespace);
-    }
-    return prefix + ":" + localName;
-  }
+	/**
+	 * Returns a namespace-qualified lexical QName, declaring a prefix when
+	 * necessary.
+	 */
+	public String qualifiedName(String namespace, String localName) {
+		if (namespace == null || namespace.isEmpty()) {
+			return localName;
+		}
+		String prefix = namespacePrefixes.get(namespace);
+		if (prefix == null) {
+			prefix = "ns";
+			int suffix = 1;
+			while (prefixNamespaces.containsKey(prefix)) {
+				prefix = "ns" + suffix++;
+			}
+			namespace(prefix, namespace);
+		}
+		return prefix + ":" + localName;
+	}
 
-  public void attribute(String name, String value) {
-    if (value != null && !value.isEmpty()) {
-      execute(() -> writer.writeAttribute(name, value));
-    }
-  }
+	public void attribute(String name, String value) {
+		if (value != null && !value.isEmpty()) {
+			execute(() -> writer.writeAttribute(name, value));
+		}
+	}
 
-  public void attribute(String namespace, String name, String value) {
-    if (value == null || value.isEmpty()) {
-      return;
-    }
-    if (namespace == null || namespace.isEmpty()) {
-      attribute(name, value);
-      return;
-    }
-    try {
-      String prefix = writer.getPrefix(namespace);
-      if (prefix == null || prefix.isEmpty()) {
-        throw new XmlWriteException("No attribute namespace prefix is declared for " + namespace);
-      }
-      writer.writeAttribute(prefix, namespace, name, value);
-    } catch (XMLStreamException e) {
-      throw new XmlWriteException("Could not write namespaced XML attribute.", e);
-    }
-  }
+	public void attribute(String namespace, String name, String value) {
+		if (value == null || value.isEmpty()) {
+			return;
+		}
+		if (namespace == null || namespace.isEmpty()) {
+			attribute(name, value);
+			return;
+		}
+		try {
+			String prefix = writer.getPrefix(namespace);
+			if (prefix == null || prefix.isEmpty()) {
+				throw new XmlWriteException("No attribute namespace prefix is declared for " + namespace);
+			}
+			writer.writeAttribute(prefix, namespace, name, value);
+		} catch (XMLStreamException e) {
+			throw new XmlWriteException("Could not write namespaced XML attribute.", e);
+		}
+	}
 
-  public void text(String value) {
-    if (value != null) {
-      execute(() -> writer.writeCharacters(value));
-    }
-  }
+	public void text(String value) {
+		if (value != null) {
+			execute(() -> writer.writeCharacters(value));
+		}
+	}
 
-  public void endElement() {
-    execute(writer::writeEndElement);
-  }
+	public void endElement() {
+		execute(writer::writeEndElement);
+	}
 
-  public void endDocument() {
-    execute(writer::writeEndDocument);
-  }
+	public void endDocument() {
+		execute(writer::writeEndDocument);
+	}
 
-  public void flush() {
-    execute(writer::flush);
-  }
+	public void flush() {
+		execute(writer::flush);
+	}
 
-  @Override
-  public void close() {
-    execute(writer::close);
-  }
+	@Override
+	public void close() {
+		execute(writer::close);
+	}
 
-  private void execute(XmlOperation operation) {
-    try {
-      operation.run();
-    } catch (XMLStreamException e) {
-      throw new XmlWriteException("Could not write DMN XML.", e);
-    }
-  }
+	private void execute(XmlOperation operation) {
+		try {
+			operation.run();
+		} catch (XMLStreamException e) {
+			throw new XmlWriteException("Could not write DMN XML.", e);
+		}
+	}
 
-  @FunctionalInterface
-  private interface XmlOperation {
-    void run() throws XMLStreamException;
-  }
+	@FunctionalInterface
+	private interface XmlOperation {
+		void run() throws XMLStreamException;
+	}
 }
