@@ -92,6 +92,7 @@ nav:
           - Runtime: todos/dmn-runtime.md
       - Audits:
           - Overview: audits/index.md
+          - ChatGPT Project Assessment (2026-08-08): audits/assessment-chatgpt-project-progress-2026-08-08.md
           - Protobuf Assessment: audits/assessment-implementation-dmn-protobuf.md
           - XML Frontend Assessment: audits/assessment-implementation-dmn-frontend-xml.md
           - XML Frontend Completeness: audits/dmn-frontend-xml-completeness.md
