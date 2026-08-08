@@ -1,2 +1,6 @@
-/dmn-models/target/
-/dmn-compiler/target/
+target/
+**/target/
+.idea/
+.vscode/
+*.class
+dependency-reduced-pom.xml
