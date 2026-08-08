@@ -88,7 +88,7 @@ class DmnJavaGeneratorTest {
 		String relativePath = fqcn.replace('.', '/') + ".java";
 		Path sourceFile = tempDir.resolve(relativePath);
 		Files.createDirectories(sourceFile.getParent());
-		Files.writeString(sourceFile, sourceCode);
+		Files.writeString(sourceFile, sourceCode, java.nio.charset.StandardCharsets.UTF_8);
 
 		JavaCompiler javaCompiler = ToolProvider.getSystemJavaCompiler();
 		assertThat(javaCompiler).withFailMessage("JDK JavaCompiler not available").isNotNull();
@@ -98,7 +98,7 @@ class DmnJavaGeneratorTest {
 		Iterable<? extends JavaFileObject> compilationUnits = fileManager.getJavaFileObjects(sourceFile.toFile());
 
 		JavaCompiler.CompilationTask task = javaCompiler.getTask(null, fileManager, diagnostics,
-				List.of("-d", tempDir.toString()), null, compilationUnits);
+				List.of("-d", tempDir.toString(), "-encoding", "UTF-8"), null, compilationUnits);
 		boolean success = task.call();
 		fileManager.close();
 

@@ -112,10 +112,10 @@ public final class ReferenceModelRegistry {
 		Path pkgDir = tempDir.resolve("io/finmsg/dmn/benchmark/gen");
 		Files.createDirectories(pkgDir);
 		Path sourceFile = pkgDir.resolve(className + ".java");
-		Files.writeString(sourceFile, code);
+		Files.writeString(sourceFile, code, java.nio.charset.StandardCharsets.UTF_8);
 
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		int exitCode = compiler.run(null, null, null, sourceFile.toString());
+		int exitCode = compiler.run(null, null, null, "-encoding", "UTF-8", sourceFile.toString());
 		if (exitCode != 0) {
 			throw new IllegalStateException("InMemory Java compilation failed for " + fqcn);
 		}

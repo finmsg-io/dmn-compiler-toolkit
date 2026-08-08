@@ -126,11 +126,12 @@ class DmnGrpcServiceTest {
 			Path pkgDir = tempDir.resolve("io/finmsg/dmn/grpc/gen");
 			Files.createDirectories(pkgDir);
 			Path sourceFile = pkgDir.resolve(className + ".java");
-			Files.writeString(sourceFile, entry.getValue());
+			Files.writeString(sourceFile, entry.getValue(), java.nio.charset.StandardCharsets.UTF_8);
 		}
 
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		List<String> options = List.of("-d", tempDir.toString(), "-classpath", System.getProperty("java.class.path"));
+		List<String> options = List.of("-d", tempDir.toString(), "-classpath", System.getProperty("java.class.path"),
+				"-encoding", "UTF-8");
 
 		List<File> files = new ArrayList<>();
 		for (String fqcn : sources.keySet()) {
