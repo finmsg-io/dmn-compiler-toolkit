@@ -81,6 +81,11 @@ nav:
   - Development:
       - Living Development Plan: development-plan.md
       - Documentation Structure: documentation-structure.md
+      - Documentation and Positioning Improvement Proposal: improvements/documentation-and-positioning.md
+      - Reusable Spec-Driven Delivery Proposal: improvements/spec-driven-delivery-system.md
+      - Pragmatic Automated Release Train: improvements/automated-release-train.md
+      - Production Readiness Graduation: improvements/production-readiness-graduation.md
+      - Capability Maturity and Incubation: improvements/capability-maturity-and-incubation.md
       - Module TODOs:
           - Overview: todos/index.md
           - Compiler: todos/dmn-compiler.md
