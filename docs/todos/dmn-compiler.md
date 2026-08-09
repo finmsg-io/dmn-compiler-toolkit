@@ -31,6 +31,6 @@ It provides `DmnCompiler` (one-call compiler facade), `DmnModelResolver` / `File
 | Priority | Work item | Status | Target / Evidence |
 | --- | --- | --- | --- |
 | P14.11 | Automated FEEL parser fuzzing & XML hostile-identifier stress tests | `proposed` | `dmn-compiler` & `dmn-feel-parser` |
-| P15 | Cross-language decision generators (Rust, Golang, C++) | `proposed` | Native generator SPI backends |
+| P20 | Cross-language decision generators (Rust, Golang, C++) | `deferred` | Reassess native generator SPI backends after the reference showcase and production/evidence milestones |
 
 Historical context: [compiler assessment](../audits/assessment-implementation-dmn-compiler.md).

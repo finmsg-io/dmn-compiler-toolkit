@@ -4,6 +4,7 @@
 ## Table of contents
 
 - [Plan metadata](#contents-section-1)
+- [Improvement delivery tracks](#contents-section-27)
 - [Status vocabulary](#contents-section-2)
 - [Current baseline](#contents-section-3)
 - [Target delivery architecture](#contents-section-4)
@@ -22,12 +23,17 @@
 - [P12 — Typed Protobuf and gRPC generation](#contents-section-17)
 - [P13 — Multi-File DMN Models & Java Streaming API](#contents-section-18)
 - [P14 — Governance, CI Lockdown & Release Hardening](#contents-section-19)
-- [P15 — Additional Language Generators (Rust, Golang, C++)](#contents-section-20)
-- [Cross-cutting rules](#contents-section-21)
-- [Decisions required](#contents-section-22)
-- [Change log](#contents-section-23)
-- [How to maintain this document](#contents-section-24)
-- [Versioning and Compatibility Policy](#contents-section-25)
+- [P15 — SWIFT MT564 Data Quality Reference Showcase](#contents-section-20)
+- [P16 — Production Readiness Graduation](#contents-section-21)
+- [P17 — Automated Release Train](#contents-section-22)
+- [P18 — Documentation and Positioning](#contents-section-23)
+- [P19 — Capability Maturity and Evidence Graduation](#contents-section-24)
+- [P20 — Additional Language Generators (Rust, Golang, C++)](#contents-section-25)
+- [Cross-cutting rules](#contents-section-26)
+- [Decisions required](#contents-section-28)
+- [Change log](#contents-section-29)
+- [How to maintain this document](#contents-section-30)
+- [Versioning and Compatibility Policy](#contents-section-31)
 <!-- generated-toc:end -->
 
 This is the living delivery plan for the DMN Compiler Toolkit. It translates the
@@ -42,11 +48,127 @@ promise. Update it whenever implementation evidence or priorities materially cha
 
 | Field | Value |
 | --- | --- |
-| Last reviewed | 2026-08-08 |
-| Current phase | P14 — Governance, CI Lockdown & Release Hardening (`in progress`) |
+| Last reviewed | 2026-08-09 |
+| Current phase | P15 — SWIFT MT564 Data Quality Reference Showcase (`in progress`) |
 | Overall state | Compiler facade, model resolver, runtime IR, Java generator, 100% OMG DMN 1.5/1.6 TCK engine, JMH benchmarks, optimizer, Data Quality Corpus, gRPC generator, Spark SQL CTE generator, and multi-file streaming models established |
-| Primary objective | Lock down CI publishing, fix TCK silent-skip gate, add license, reconcile docs, and publish backend parity matrix |
-| Next major objective | Complex DMN Models (`originations`, `ranked-loan-products`), JMH Performance Suite (Parsing, Optimization, Compilation, Execution), and Data-driven Load Generation |
+| Primary objective | Deliver a full working SWIFT MT564 DQM reference showcase using reusable imported BKMs, a protobuf-defined canonical input, executable scenarios, interpreter/generated-Java parity, and a reference benchmark |
+| Next major objective | Resume conformance-evidence, release-safety, production-graduation, and documentation hardening after the MT564 reference outcome |
+
+### Agreed near-term implementation order
+
+The MT564 DQM reference showcase is the deliberate first priority. This is a product-driven exception
+to the otherwise preferred order of completing release and evidence hardening first. The showcase
+must still avoid unsupported production, certification, or performance claims until the corresponding
+gates are complete.
+
+| Phase | Outcome | State | Primary specification/proposal | Exit condition |
+| --- | --- | --- | --- | --- |
+| 0A | Prepare the MT564 DQM contracts while the protobuf input is pending | `in progress` | [DQ-001](improvements/examples/data-quality/reusable-bkm-library-spec.md), [DQ-002](improvements/examples/data-quality/swift-mt564-showcase-spec.md) | Violation/report contract, candidate BKM signatures, rule traceability structure, scenario format, and implementation skeleton are ready without inventing a competing input schema |
+| 0B | Integrate the supplied protobuf contract and deliver the full working MT564 DQM model | `blocked` on external protobufs | [DQ-002](improvements/examples/data-quality/swift-mt564-showcase-spec.md) | Reviewed protobuf-to-DMN mapping, reusable imported BKMs, selected-scope MT564 rules, valid/invalid/boundary fixtures, and executable quality report |
+| 0C | Prove parity and establish the MT564 reference benchmark | `ready` after 0B | [DQ-004](improvements/examples/data-quality/swift-mt564-benchmark-spec.md), [BENCH-001](improvements/examples/benchmark-evidence/refine-execution-benchmarks-spec.md) | Interpreter/generated-Java correctness parity plus trustworthy latency, throughput, allocation, and retained benchmark evidence |
+| 1 | Restore claim and release trust | `ready` after Phase 0 | [Conformance closure](improvements/dmn-conformance-accelerator-closure.md), [release train](improvements/automated-release-train.md), [documentation](improvements/documentation-and-positioning.md) | Safe release controls, strict TCK catalogue accounting, corrected public claims, and initial maturity labels |
+| 2 | Establish the production and security baseline | `ready` after Phase 1 | [Production readiness graduation](improvements/production-readiness-graduation.md) | Controlled release-candidate gates, public compatibility boundaries, security/dependency checks, and external-consumer verification |
+| 3 | Make conformance and benchmark evidence reusable | `ready` after Phase 2 | [TCK-ACC-002](improvements/examples/conformance-accelerator/actionable-evidence-spec.md), [BENCH-002](improvements/examples/benchmark-evidence/scalability-study-spec.md) | Focused reproduction, structured reports, baseline diffs, corrected scalability matrix, and durable CI evidence |
+| 4 | Automate frequent releases | `ready` after Phase 3 | [Automated release train](improvements/automated-release-train.md) | Automated versions, notes, evidence, publication, provenance, and released-artifact consumer test |
+| 5 | Consolidate documentation and positioning | `ready` after Phase 3 evidence | [Documentation and positioning](improvements/documentation-and-positioning.md) | Architect/developer/DMN-user views and selling points derive from canonical evidence without duplicated facts |
+| 6 | Decide and possibly extract the authoring toolkit | `conditional` after MT564 dogfooding | [DQ-003](improvements/examples/data-quality/authoring-toolkit-spec.md) | Recorded friction proves the smallest validate/test/evaluate workflow is worth supporting, or the tool is explicitly deferred |
+| 7 | Graduate capabilities and ratchet quality gates | `proposed` after repeated releases | [Capability maturity](improvements/capability-maturity-and-incubation.md), [production graduation](improvements/production-readiness-graduation.md) | Evidence-backed maturity decisions, stable regression ranges, trustworthy badges, and stronger release gates |
+
+The [pragmatic spec-driven delivery method](improvements/spec-driven-delivery-system.md) applies
+throughout these phases. It is not a phase that must finish before product implementation. The MT564
+showcase is its first concrete pilot.
+
+### Ordered delivery backlog
+
+The following list expands the phase table into the agreed implementation order. Items remain in the
+plan even when another outcome is intentionally moved ahead of them.
+
+1. **Deliver the MT564 DQM reference model.** Complete P15.1-P15.7: protobuf-bound canonical input,
+   reusable imported BKMs, full selected-scope rule model, scenario evidence, and interpreter/
+   generated-Java parity. Work not requiring the external protobuf starts immediately; input mapping
+   and authoritative rules resume as soon as the contract arrives.
+2. **Correct the benchmark harness and benchmark MT564.** Complete BENCH-001 before accepting the
+   DQ-004 reference results. Remove shared mutable worker state, distinguish direct/adapter/end-to-end
+   paths, add allocation evidence, and retain the MT564 baseline outside `target/`.
+3. **Make releases and public claims safe.** Execute release `R0`: prevent accidental publication,
+   define tag/branch authority, publish only clean reviewed commits, confirm coordinates/versioning,
+   and require essential reactor gates.
+4. **Close critical TCK catalogue accounting.** Execute TCK-ACC-001/C0. Every discovered entry must
+   receive one terminal classification; parsing or compilation failures must never disappear through
+   `continue`.
+5. **Repair documentation trust.** Execute documentation `P0`: remove unsupported certification
+   language, reconcile TCK counts, separate implemented/incubating/planned/historical material, and
+   stop manually copying evidence facts.
+6. **Establish the maturity contract.** Execute incubation `I0`: accept the maturity vocabulary,
+   choose the canonical owner, assign candidate states, and make Spark SQL/gRPC limitations visible.
+7. **Establish the production and security baseline.** Execute production-graduation `P0-P1`:
+   supported platform matrix, public compatibility boundaries, dependency/license/security checks,
+   hostile-input limits, external-consumer verification, installation, and rollback evidence.
+8. **Complete the conformance accelerator.** Execute TCK-ACC-002/C1-C2: shared FEEL comparator,
+   phase-aware results, focused reproduction, deterministic JSON/Markdown, CI artifacts, and TCK
+   revision baseline diffs. Only then mark IDEA-001 implemented.
+9. **Produce general scalability evidence.** Execute BENCH-002 after the harness correction: run the
+   controlled thread matrix, calculate scaling/efficiency, retain environment metadata, and avoid
+   thresholds until normal variance is known.
+10. **Automate the release train.** Execute `R1-R3`: versions, categorized release notes, complete
+    evidence gates, signing/checksums/provenance, publication, and verification from released
+    artifacts. Add badges only when backed by canonical evidence.
+11. **Consolidate documentation and positioning.** Complete audience views for architects,
+    developers, and DMN users; generate capability/conformance/benchmark projections; synchronize
+    navigation/TOCs; and use the MT564 reference showcase as an executable product proof point.
+12. **Decide whether to extract the authoring toolkit.** Review the MT564 friction log against DQ-003.
+    If justified, start with only multi-file validate/test/evaluate and focused scenario selection;
+    otherwise explicitly defer it.
+13. **Graduate capabilities and ratchet gates.** After repeated successful releases, make evidence-
+    backed maturity decisions, introduce stable regression ranges and coverage thresholds, strengthen
+    security/provenance, and publish trustworthy badges.
+14. **Reassess additional language generators.** Keep P20 deferred until the reference showcase,
+    production release, and evidence infrastructure demonstrate stronger user value than another
+    backend.
+
+### Immediate specifications
+
+The next executable specifications are:
+
+1. [DQ-001 - Reusable data-quality BKM library](improvements/examples/data-quality/reusable-bkm-library-spec.md)
+   and [DQ-002 - SWIFT MT564 reference showcase](improvements/examples/data-quality/swift-mt564-showcase-spec.md),
+   starting with contracts/scenario structure while the protobuf input is pending;
+2. protobuf integration and the full DQ-002 rule/scenario implementation when the external contract
+   arrives;
+3. [BENCH-001 - Correct the execution benchmark harness](improvements/examples/benchmark-evidence/refine-execution-benchmarks-spec.md)
+   followed by [DQ-004 - MT564 reference benchmark](improvements/examples/data-quality/swift-mt564-benchmark-spec.md);
+4. [TCK-ACC-001 - Trustworthy catalogue accounting](improvements/examples/conformance-accelerator/catalogue-accounting-spec.md)
+   plus release `R0` and documentation trust repair;
+5. the production/security baseline, followed by TCK-ACC-002 and the remaining release/evidence
+   phases above.
+
+DQ-003 authoring-tool implementation is intentionally absent from the immediate list. Its
+specification exists so MT564 dogfooding can make the later decision evidence-based.
+
+<a id="contents-section-27"></a>
+## Improvement delivery tracks
+
+Every accepted improvement proposal remains explicitly tracked. The phase and ordered-backlog
+sections above determine execution order; this table prevents cross-cutting work from disappearing
+merely because it is not represented by a new Maven module.
+
+| Improvement track | Current plan position | State | Development-plan ownership |
+| --- | --- | --- | --- |
+| [Pragmatic spec-driven delivery](improvements/spec-driven-delivery-system.md) | Operating method used from Phase 0 onward | `in progress` | Applied to every active specification; refine from MT564 pilot evidence rather than building a workflow engine |
+| [Data-quality patterns and authoring](improvements/data-quality-patterns-and-authoring.md) | Phases 0A-0C; P15 | `in progress` | Full protobuf-bound MT564 DQM, reusable BKMs, parity, reference benchmark, and conditional authoring decision |
+| [Trustworthy benchmark evidence and scalability](improvements/benchmark-evidence-and-scalability.md) | Phase 0C and Phase 3; P7/P15.8-P15.9 | `ready` | Correct the harness before MT564 benchmark evidence, then produce the broader scalability matrix |
+| [DMN conformance accelerator closure](improvements/dmn-conformance-accelerator-closure.md) | Phase 1 and Phase 3; P6 follow-up | `ready` | Strict catalogue accounting first; actionable classifications, focused reproduction, and durable evidence afterward |
+| [Production readiness graduation](improvements/production-readiness-graduation.md) | Phase 2 | `ready` | Release-candidate, security, compatibility, hostile-input, external-consumer, installation, and rollback gates |
+| [Pragmatic automated release train](improvements/automated-release-train.md) | Release R0 in Phase 1; R1-R3 in Phase 4 | `ready` | Safe publication first; then versions, release notes, evidence, provenance, publication, and released-consumer verification |
+| [Documentation and positioning](improvements/documentation-and-positioning.md) | Trust repair in Phase 1; full consolidation in Phase 5 | `ready` | Correct claims early; later generate audience views, selling points, navigation, and evidence projections |
+| [Capability maturity and incubation](improvements/capability-maturity-and-incubation.md) | Contract in Phase 1; graduation/ratchets in Phase 7 | `ready` | Establish maturity vocabulary and ownership early; graduate capabilities only from retained evidence |
+
+Production readiness and release automation are separate but connected tracks:
+
+- **Production readiness graduation defines the gates** a candidate must satisfy.
+- **The automated release train executes and records those gates** before publishing artifacts.
+
+The release train must not invent weaker success criteria than the production-readiness contract.
 
 <a id="contents-section-2"></a>
 ## Status vocabulary
@@ -139,7 +261,12 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P12 | Typed Protobuf and gRPC generation | `done` | P10, P11 | Strongly-typed Protobuf schemas and gRPC contracts from DMN `ItemDefinition` structures (`TypedProtoSchemaGenerator`) |
 | P13 | Multi-File DMN Models & Java Streaming API | `done` | P1, P2 | Multi-file DMN sample suites & streaming ingestion API (`dmn-models`) |
 | P14 | Governance, CI Lockdown & Release Hardening | `in progress` | P6, P10 | Tag-gated CI publishing, fail-fast TCK gate, doc reconciliation, open-source license, and backend parity matrix |
-| P15 | Additional Language Generators (Rust, Go, C++) | `proposed` | P5, P10 | Native zero-allocation binaries in Rust, Go handlers, and C++ decision engines |
+| P15 | SWIFT MT564 Data Quality Reference Showcase | `in progress` | P2, P4, P5, P9 | Full working protobuf-bound MT564 DQM model, reusable BKM rules, scenario/parity evidence, and reference benchmark |
+| P16 | Production Readiness Graduation | `ready` | P14, P15 | Controlled production candidate with explicit compatibility, security, support, consumer, installation, and rollback evidence |
+| P17 | Automated Release Train | `ready` | P16 | Frequent reproducible releases with versions, notes, evidence gates, provenance, publication, and released-consumer verification |
+| P18 | Documentation and Positioning | `ready` | P15-P17 evidence | Architect, developer, and DMN-user views plus generated claims, capability, conformance, and benchmark projections |
+| P19 | Capability Maturity and Evidence Graduation | `ready` | P16-P18 | Stable/incubating contracts, evidence-backed graduation, trustworthy badges, and quality-gate ratchets |
+| P20 | Additional Language Generators (Rust, Go, C++) | `deferred` | P5, P10, P15-P19 | Reassess native Rust, Go, and C++ generators after the reference showcase, production release, and evidence infrastructure |
 
 <a id="contents-section-6"></a>
 ## P1 — Compiler facade and model resolution
@@ -449,11 +576,110 @@ Work items:
 3. **Parser fuzzing & hostile inputs (P14.11):** Build automated fuzz testing for `dmn-feel-parser` AST generation and XML hostile-identifier stress tests in `dmn-frontend-xml`.
 
 <a id="contents-section-20"></a>
-## P15 — Additional Language Generators (Rust, Golang, C++)
+## P15 — SWIFT MT564 Data Quality Reference Showcase
 
-**Goal:** leverage the unified Generator SPI and Protobuf IR to build cross-language decision generators (Rust zero-allocation binaries, Golang decision handlers, C++ low-latency decision engines).
+**Goal:** deliver a full working, maintained MT564 data-quality management reference model that
+accepts the externally supplied protobuf-defined canonical message, composes reusable validation
+BKMs, returns structured violations and a quality report, executes equivalently through interpreter
+and generated Java, and has reproducible benchmark evidence.
+
+This milestone is the current first priority. It builds on P9 concepts but replaces generic benchmark
+fixtures with a reviewed multi-file reference showcase and an explicit protobuf integration boundary.
+
+Work items:
+
+| ID | Work item | State | Dependency/evidence |
+| --- | --- | --- | --- |
+| P15.1 | Define canonical `QualityViolation`, `QualityReport`, rule metadata, and deterministic ordering | `in progress` | [DQ-001](improvements/examples/data-quality/reusable-bkm-library-spec.md) |
+| P15.2 | Receive and review the external MT564 protobuf root message, imports, examples, version, and compatibility semantics | `blocked` | Protobuf contract to be supplied from the user's other project |
+| P15.3 | Define and test protobuf-to-DMN canonical input mapping without duplicating the schema contract | `blocked` | P15.2, [DQ-002](improvements/examples/data-quality/swift-mt564-showcase-spec.md) |
+| P15.4 | Implement the reusable imported BKM library required by the selected MT564 rule catalogue | `ready` | P15.1, provisional signatures reviewed when P15.2 arrives |
+| P15.5 | Implement the full selected-scope MT564 DQM root model and domain-rule model | `blocked` | P15.2-P15.4 plus applicable standards/version and domain review |
+| P15.6 | Add valid, invalid, boundary, multi-violation, unsupported-scope, and representative-size scenario fixtures | `in progress` | Scenario structure may start now; authoritative field fixtures require P15.2/P15.5 |
+| P15.7 | Prove interpreter and generated-Java structural parity through the public compiler path | `ready` | P15.5-P15.6 |
+| P15.8 | Correct relevant benchmark harness state/invocation issues | `ready` | [BENCH-001](improvements/examples/benchmark-evidence/refine-execution-benchmarks-spec.md) |
+| P15.9 | Add valid, single-violation, multi-violation, and large-structure JMH cases with retained reference evidence | `ready` | P15.7-P15.8, [DQ-004](improvements/examples/data-quality/swift-mt564-benchmark-spec.md) |
+| P15.10 | Publish reference-showcase documentation, supported scope, limitations, rule traceability, and runnable example | `ready` | P15.5-P15.9 |
+| P15.11 | Review the authoring friction log and decide whether DQ-003 earned implementation | `conditional` | Completed showcase dogfooding evidence |
+
+Acceptance criteria:
+
+- the supplied protobuf contract is the canonical normalized MT564 input boundary;
+- the root DMN imports and invokes reusable domain-neutral validation BKMs;
+- the selected MT564 scenario has a reviewed, traceable rule catalogue and explicit unsupported
+  variants;
+- valid, invalid, boundary, multiple-violation, and representative-size scenarios are deterministic;
+- interpreter and generated Java produce structurally equivalent quality reports;
+- violations remain authoritative and cannot be hidden by an aggregate score;
+- the benchmark distinguishes core evaluation from end-to-end adaptation and retains raw evidence;
+- examples contain only synthetic or approved anonymized data;
+- documentation presents a reference data-quality showcase, not a complete or certified SWIFT
+  validator;
+- the authoring toolkit remains conditional on observed friction and does not delay the DQM model.
+
+Implementation details and current decisions are owned by
+[the improvement proposal](improvements/data-quality-patterns-and-authoring.md) and its linked specs.
+This development-plan milestone owns only priority, coarse status, dependencies, and exit evidence.
 
 <a id="contents-section-21"></a>
+## P16 — Production Readiness Graduation
+
+**State:** `ready` after the MT564 reference outcome and Phase 1 trust repairs
+
+**Goal:** graduate the toolkit to a controlled, supportable production candidate using the explicit
+compatibility, security, hostile-input, external-consumer, installation, rollback, and operational
+gates in the [production-readiness proposal](improvements/production-readiness-graduation.md).
+
+P16 defines the release gates. It does not itself publish artifacts.
+
+<a id="contents-section-22"></a>
+## P17 — Automated Release Train
+
+**State:** `ready` after P16 gates are accepted
+
+**Goal:** implement the [pragmatic automated release train](improvements/automated-release-train.md),
+starting with safe publication and then automating versions, categorized release notes, evidence,
+signing/checksums/provenance, publication, and verification from released artifacts.
+
+P17 executes and records P16 gates; it must not replace them with weaker workflow success criteria.
+
+<a id="contents-section-23"></a>
+## P18 — Documentation and Positioning
+
+**State:** `ready`, with trust corrections performed earlier where claims are unsafe
+
+**Goal:** complete the [documentation and positioning proposal](improvements/documentation-and-positioning.md)
+using canonical release, conformance, capability, MT564, and benchmark evidence. Provide focused
+architect, developer, and DMN-user views while eliminating manually synchronized facts.
+
+<a id="contents-section-24"></a>
+## P19 — Capability Maturity and Evidence Graduation
+
+**State:** `ready` for the initial maturity contract; graduation waits for repeated evidence
+
+**Goal:** apply the [capability maturity and incubation policy](improvements/capability-maturity-and-incubation.md),
+graduate capabilities only when their production evidence passes, and introduce trustworthy badges,
+coverage/performance ranges, and stronger quality ratchets after stable release history exists.
+
+<a id="contents-section-25"></a>
+## P20 — Additional Language Generators (Rust, Golang, C++)
+
+**State:** `deferred`
+
+**Goal:** leverage the unified Generator SPI and Protobuf IR to build cross-language decision
+generators such as Rust binaries, Go decision handlers, and C++ decision engines when user demand and
+retained evidence justify another backend.
+
+P20 is intentionally the final milestone in the current plan. It is reconsidered only after:
+
+- P15 delivers the MT564 reference showcase and benchmark;
+- production-readiness and automated-release phases establish a supportable distribution path;
+- conformance, benchmark, and documentation evidence are trustworthy and reusable;
+- a concrete consumer or product outcome establishes priority over deepening existing backends.
+
+No new language backend should be started merely to expand the module list.
+
+<a id="contents-section-26"></a>
 ## Cross-cutting rules
 
 These constraints apply to every milestone:
@@ -471,7 +697,7 @@ These constraints apply to every milestone:
 6. **Compatibility is explicit.** Public API, Runtime IR serialization, and generated
    contract compatibility are distinct policies and must be documented separately.
 
-<a id="contents-section-22"></a>
+<a id="contents-section-28"></a>
 ## Decisions required
 
 | ID | Decision | Needed by | State | Resolution |
@@ -485,7 +711,7 @@ These constraints apply to every milestone:
 Material architectural decisions should graduate to an ADR. This table tracks only
 when a decision is needed and where its final resolution can be found.
 
-<a id="contents-section-23"></a>
+<a id="contents-section-29"></a>
 ## Change log
 
 Record meaningful plan changes, not routine status transitions already visible in
@@ -493,9 +719,10 @@ the milestone tables.
 
 | Date | Change | Reason | Evidence |
 | --- | --- | --- | --- |
+| 2026-08-09 | Made P15 MT564 DQM the immediate priority and sequenced the following improvement phases | A full working reference DQM is the selected near-term product outcome; its protobuf input will be supplied externally | [DQ improvement proposal](improvements/data-quality-patterns-and-authoring.md) and linked specifications |
 | 2026-08-02 | Created the living plan and prioritized multi-file compilation before code generation | Real DMN repositories provide the shared correctness target for interpreter, Java, and gRPC work | Current module assessments and test baseline |
 
-<a id="contents-section-24"></a>
+<a id="contents-section-30"></a>
 ## How to maintain this document
 
 When work starts:
@@ -520,7 +747,7 @@ the ultimate source of truth.
 
 ---
 
-<a id="contents-section-25"></a>
+<a id="contents-section-31"></a>
 ## Versioning and Compatibility Policy
 
 Last reviewed: 2026-08-08

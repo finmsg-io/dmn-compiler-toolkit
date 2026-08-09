@@ -61,6 +61,38 @@ Examples:
 
 These remain examples until explicitly reviewed and installed.
 
+## Planning and document ownership
+
+The new structure does **not** replace `docs/development-plan.md`. It prevents that document from
+becoming a mixture of roadmap, design, task list, evidence report, and historical narrative.
+
+Use this ownership model:
+
+| Artifact | Owns | Does not own |
+| --- | --- | --- |
+| `docs/development-plan.md` | Portfolio priorities, active outcomes, dependencies, coarse status, and links to accepted specs | Detailed acceptance criteria, implementation steps, copied evidence, or speculative design |
+| `docs/ideation/` | Uncommitted product opportunities and decision gates | Committed delivery status |
+| `docs/improvements/` | Cross-cutting problem analysis, options, recommended direction, and sequencing | Fine-grained implementation tracking |
+| `spec.md` | One approved outcome, acceptance examples, constraints, non-goals, required inputs, and verification | Portfolio priority or long-lived project history |
+| Optional `design.md` | Costly-to-reverse technical decisions and consequences | Restating requirements |
+| Optional `plan.md` | Multi-slice sequencing when coordination genuinely requires it | A second development roadmap |
+| Tests and generated evidence | Executable proof of behavior and claims | Product priority decisions |
+
+Recommended status flow:
+
+```text
+Idea
+  -> improvement/decision
+  -> accepted development-plan outcome
+  -> active spec
+  -> implementation and executable evidence
+  -> development-plan completion summary
+```
+
+Only accepted work appears as active in the development plan. The plan links to the specification
+rather than copying it. When a slice completes, update its coarse status and evidence link; preserve
+detailed findings with the specification or generated evidence.
+
 ## The normal specification
 
 A normal specification should fit in an issue, task description, or short `spec.md`:
@@ -186,11 +218,66 @@ repository instructions and skills.
 
 Do not build a workflow engine yet.
 
-1. Review and shorten the constitution and repository agent overlay.
-2. Use the specification template on three real tasks:
-   - one local defect;
-   - one generated-code change;
-   - one documentation improvement.
+### First pilot: MT564 reference showcase
+
+Use the first vertical slice of the
+[SWIFT MT564 data-quality reference showcase](examples/data-quality/swift-mt564-showcase-spec.md)
+as the initial evidence-backed delivery pilot. This deliberately starts with a valuable product
+example rather than completing all process, release, and documentation infrastructure first.
+
+The pilot should prove the delivery method and the product path together:
+
+```text
+One reviewed normalized MT564 scenario
+        |
+        v
+Small reusable DQ BKM contract
+        |
+        v
+One imported MT564 rule model
+        |
+        v
+Valid and invalid scenario fixtures
+        |
+        v
+Interpreter and generated-Java parity
+        |
+        v
+Evidence, friction log, and next decision
+```
+
+Keep the first slice intentionally narrow. Do not require the complete pattern library, complete
+MT564 rule catalogue, authoring toolkit, release automation, Spark SQL parity, or reference benchmark
+before demonstrating one working end-to-end result.
+
+Phase 0 for this pilot is:
+
+1. agree on one MT564 corporate-action scenario, standards/version context, and domain reviewer;
+2. define the normalized input and canonical violation output needed by that scenario;
+3. select two or three reusable BKM rules required by the first vertical slice;
+4. write one valid and several focused invalid acceptance examples before model implementation;
+5. implement the multi-file import/BKM path through the public compiler facade;
+6. execute the same scenarios through interpreter and generated Java;
+7. retain exact verification evidence and record authoring friction;
+8. review what was learned before expanding the rules, process, or tooling.
+
+Broader known gaps remain visible in the improvement backlog. They do not block this pilot unless
+they invalidate its correctness, safety, or evidence. In particular:
+
+- do not repeat unsupported certification or production-readiness claims;
+- use synthetic or approved anonymized message data;
+- do not treat current TCK or benchmark claims as evidence for the new showcase;
+- do not publish artifacts externally until the release-safety gate is complete;
+- do not build the authoring toolkit before the pilot demonstrates recurring friction.
+
+### Broader adoption
+
+After the MT564 vertical slice:
+
+1. Review and shorten the constitution and repository agent overlay using lessons from the pilot.
+2. Apply the specification template to two additional real tasks:
+   - one local defect or evidence-integrity correction;
+   - one documentation/release improvement.
 3. Track only two questions:
    - Did the specification prevent rework or reveal a constraint earlier?
    - Did any required artifact fail to influence a decision or verification?
