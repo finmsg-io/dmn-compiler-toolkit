@@ -6,7 +6,7 @@ items. An idea must pass its decision gates before it is promoted into
 
 | ID | Idea | Status | Product outcome |
 | --- | --- | --- | --- |
-| [IDEA-001](IDEA-001-dmn-conformance-accelerator.md) | DMN Conformance Accelerator | exploring | Make standards compatibility measurable and guide conformance investment |
+| [IDEA-001](IDEA-001-dmn-conformance-accelerator.md) | DMN Conformance Accelerator | partially implemented | Dual-engine TCK execution exists; catalogue accounting, actionable classification, and durable evidence remain |
 | [IDEA-002](IDEA-002-governed-dmn-policy-optimizer.md) | Governed DMN Policy Optimizer | exploring | Tune declared decision parameters against measured outcomes while preserving safety, explainability, and approval |
 | [IDEA-003](IDEA-003-portable-runtime-ir-artifact.md) | Portable Runtime IR Artifact | exploring | Compile DMN once and distribute a deterministic, validated artifact to cross-language runtimes and code generators |
 | [IDEA-004](IDEA-004-decision-authoring-dsl.md) | Decision Authoring DSL and Canonical Model | exploring | Author decisions quickly as concise text while retaining valid DMN interchange and executable backend generation |

@@ -1,9 +1,37 @@
 # IDEA-001 — DMN Conformance Accelerator
 
-Status: exploring  
-Created: 2026-08-02  
-Owner: product and compiler team  
+Status: partially implemented
+
+Created: 2026-08-02
+
+Owner: product and compiler team
+
 Related milestones: P2 — Real multi-file DMN corpus; P3 — Runtime semantic baseline; P4 — Stable compiled-model API; P5 — Java code generation
+
+## Implementation status
+
+The core dual-engine conformance execution path is implemented and promoted into the development
+plan. The repository pins the official TCK corpus, decodes TCK values, compiles and evaluates models
+through the interpreter and generated Java, checks expected results and backend parity, and fails
+when the entire external corpus is unavailable.
+
+IDEA-001 remains **partially implemented** because its broader accelerator contract is not yet fully
+met. Individual catalogue entries can still disappear through silent discovery, parsing, or
+compilation `continue` paths; stable case filtering, phase-aware classifications, deterministic
+structured reports, baseline diffs, and generated evidence-backed documentation remain incomplete.
+
+Relevant implementation and follow-up documents:
+
+- [P6.1-P6.4 - 100% OMG DMN 1.5 TCK compliance](../dev/slices/P6.1-P6.4-100-omg-dmn-1.5-tck-compliance.md)
+- [TCK.2-3a - Scalar TCK smoke runner](../dev/slices/TCK.2-3a-scalar-smoke-runner.md)
+- [TCK conformance record](../tck-conformance.md)
+- [DMN conformance accelerator closure](../improvements/dmn-conformance-accelerator-closure.md)
+- [Production readiness graduation](../improvements/production-readiness-graduation.md)
+
+Completion should follow the closure proposal: first make catalogue accounting strict, then make
+failures actionable and evidence reusable. Until that work is complete, public claims should say
+that the toolkit is self-verified against the pinned corpus and should avoid external-certification
+language.
 
 ## Idea summary
 
@@ -293,4 +321,3 @@ instructions, and claimed DMN version have independent review.
 This idea should be promoted into the development plan only after Gate 1. Promotion should add a
 distinct conformance-tooling track or explicit slices under P2/P3 rather than silently expanding the
 scope of an existing milestone.
-
