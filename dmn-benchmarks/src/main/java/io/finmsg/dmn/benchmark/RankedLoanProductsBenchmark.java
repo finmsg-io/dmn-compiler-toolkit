@@ -52,6 +52,7 @@ public class RankedLoanProductsBenchmark {
 	}
 
 	Object evaluateGeneratedAt(int payloadIndex) throws Exception {
-		return holder.evaluateMethod().invoke(holder.generatedEngineInstance(), (Object) slotPayloads.get(payloadIndex));
+		return holder.evaluateMethod().invoke(holder.generatedEngineInstance(),
+				(Object) slotPayloads.get(payloadIndex));
 	}
 }

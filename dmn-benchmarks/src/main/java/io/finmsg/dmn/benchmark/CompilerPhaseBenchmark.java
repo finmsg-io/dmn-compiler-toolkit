@@ -38,10 +38,8 @@ public class CompilerPhaseBenchmark {
 		source = new DmnSource(new DmnSourceId(URI.create("urn:benchmark:originations")), sourceBytes);
 		loadedModel = new DmnModelLoader().load(source, new InMemoryDmnModelResolver(List.of()));
 		DmnModelSetSemanticResult semantic = new DmnModelSetSemanticAnalyzer().analyze(loadedModel);
-		semanticAnalyses = semantic.models().stream()
-				.map(model -> new DmnSemanticPipelineResult(model.model(), model.compilationOrder(), List.of(),
-						model.bindings()))
-				.toList();
+		semanticAnalyses = semantic.models().stream().map(model -> new DmnSemanticPipelineResult(model.model(),
+				model.compilationOrder(), List.of(), model.bindings())).toList();
 		loweredModel = new RuntimeIrLowerer().lowerModelSet(semanticAnalyses);
 	}
 

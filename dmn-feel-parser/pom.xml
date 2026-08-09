@@ -102,6 +102,35 @@
                             </execution>
                         </executions>
                     </plugin>
+
+                    <!--
+                      ANTLR uses the host line separator. Normalize its checked-in output
+                      immediately after generate-sources so Windows and Linux produce the
+                      same files. This execution intentionally applies no Java restyling.
+                    -->
+                    <plugin>
+                        <groupId>com.diffplug.spotless</groupId>
+                        <artifactId>spotless-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>normalize-antlr-generated-line-endings</id>
+                                <phase>process-sources</phase>
+                                <goals>
+                                    <goal>apply</goal>
+                                </goals>
+                                <configuration combine.self="override">
+                                    <formats>
+                                        <format>
+                                            <includes>
+                                                <include>src/gen/**/*</include>
+                                            </includes>
+                                            <lineEndings>UNIX</lineEndings>
+                                        </format>
+                                    </formats>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                 </plugins>
             </build>
         </profile>

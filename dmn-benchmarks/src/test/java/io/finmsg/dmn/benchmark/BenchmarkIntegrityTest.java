@@ -53,8 +53,8 @@ class BenchmarkIntegrityTest {
 
 		for (int payloadIndex = 0; payloadIndex < 25; payloadIndex++) {
 			Object[] generatedSlots = (Object[]) benchmark.evaluateGeneratedAt(payloadIndex);
-			assertThat(generatedSlots).containsExactlyElementsOf(
-					benchmark.evaluateInterpreterAt(payloadIndex).slotValues());
+			assertThat(generatedSlots)
+					.containsExactlyElementsOf(benchmark.evaluateInterpreterAt(payloadIndex).slotValues());
 		}
 	}
 
@@ -64,8 +64,8 @@ class BenchmarkIntegrityTest {
 		benchmark.setup();
 		for (int payloadIndex = 0; payloadIndex < 25; payloadIndex++) {
 			Object[] generatedSlots = (Object[]) benchmark.evaluateGeneratedAt(payloadIndex);
-			assertThat(generatedSlots).containsExactlyElementsOf(
-					benchmark.evaluateInterpreterAt(payloadIndex).slotValues());
+			assertThat(generatedSlots)
+					.containsExactlyElementsOf(benchmark.evaluateInterpreterAt(payloadIndex).slotValues());
 		}
 	}
 
