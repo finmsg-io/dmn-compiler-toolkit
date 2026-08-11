@@ -66,6 +66,11 @@ public final class DmnCompiledModel {
 		return optimizedModel;
 	}
 
+	/** Returns the mapping of input data node names to their value slot indices. */
+	public Map<String, Integer> inputSlots() {
+		return inputSlots;
+	}
+
 	/** Evaluates model using Protobuf EvaluationRequest payload. */
 	public EvaluationResponse evaluate(EvaluationRequest request) {
 		long startTime = System.nanoTime();

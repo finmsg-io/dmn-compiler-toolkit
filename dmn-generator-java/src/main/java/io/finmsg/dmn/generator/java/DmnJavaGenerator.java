@@ -30,6 +30,10 @@ public final class DmnJavaGenerator {
 
 		sb.append("  public static final int SLOT_COUNT = ").append(model.valueSlotCount()).append(";\n\n");
 
+		// Build BKM slot map so emitter can resolve BKM invocations to direct method calls
+		Map<Integer, RuntimeBkm> bkmBySlot = new HashMap<>();
+		model.businessKnowledgeModels().forEach(bkm -> bkmBySlot.put(bkm.resultSlot(), bkm));
+
 		// Evaluation entry point
 		sb.append("  public Object[] evaluate(Object[] inputSlots) {\n");
 		sb.append("    Object[] slots = new Object[SLOT_COUNT];\n");
@@ -51,9 +55,14 @@ public final class DmnJavaGenerator {
 		sb.append("\n    return slots;\n");
 		sb.append("  }\n\n");
 
+		// Generate BKM methods first (decisions may call them)
+		for (RuntimeBkm bkm : model.businessKnowledgeModels()) {
+			generateBkmMethod(sb, bkm, bkmBySlot);
+		}
+
 		// Generate individual decision methods
 		for (RuntimeDecision decision : model.decisions()) {
-			generateDecisionMethod(sb, decision);
+			generateDecisionMethod(sb, decision, bkmBySlot);
 		}
 
 		// Generate runtime helper methods
@@ -64,15 +73,37 @@ public final class DmnJavaGenerator {
 		return new DmnJavaGeneratorResult(fqcn, Map.of(fqcn, sb.toString()));
 	}
 
-	private static void generateDecisionMethod(StringBuilder sb, RuntimeDecision decision) {
+	/**
+	 * Generates a static helper method for each BKM.
+	 * Each parameter becomes a Java parameter; the body is the lowered FEEL expression.
+	 */
+	private static void generateBkmMethod(StringBuilder sb, RuntimeBkm bkm, Map<Integer, RuntimeBkm> bkmBySlot) {
+		if (bkm.functionKind() != RuntimeFunctionKind.FEEL || bkm.function().isEmpty()) {
+			return; // skip external/PMML BKMs
+		}
+		RuntimeFunctionDefinition fn = bkm.function().get();
+		if (fn.body().isEmpty()) {
+			return;
+		}
+		sb.append("  private static Object bkm_").append(bkm.resultSlot()).append("(Object[] slots");
+		for (RuntimeFunctionParameter param : fn.parameters()) {
+			sb.append(", Object ").append(JavaExpressionEmitter.localSlotName(param.localSlot()));
+		}
+		sb.append(") {\n");
+		sb.append("    return ").append(JavaExpressionEmitter.emitWithBkms(fn.body().get(), bkmBySlot)).append(";\n");
+		sb.append("  }\n\n");
+	}
+
+	private static void generateDecisionMethod(StringBuilder sb, RuntimeDecision decision,
+			Map<Integer, RuntimeBkm> bkmBySlot) {
 		sb.append("  private Object evaluate_").append(decision.resultSlot()).append("(Object[] slots) {\n");
 
 		if (decision.decisionTable().isPresent()) {
 			RuntimeDecisionTable table = decision.decisionTable().get();
-			generateDecisionTableBody(sb, table);
+			generateDecisionTableBody(sb, table, bkmBySlot);
 		} else if (decision.expression().isPresent()) {
 			RuntimeExpression expr = decision.expression().get();
-			sb.append("    return ").append(JavaExpressionEmitter.emit(expr)).append(";\n");
+			sb.append("    return ").append(JavaExpressionEmitter.emitWithBkms(expr, bkmBySlot)).append(";\n");
 		} else {
 			sb.append("    return null;\n");
 		}
@@ -80,12 +111,13 @@ public final class DmnJavaGenerator {
 		sb.append("  }\n\n");
 	}
 
-	private static void generateDecisionTableBody(StringBuilder sb, RuntimeDecisionTable table) {
+	private static void generateDecisionTableBody(StringBuilder sb, RuntimeDecisionTable table,
+			Map<Integer, RuntimeBkm> bkmBySlot) {
 		sb.append("    // Evaluate Decision Table Inputs\n");
 		for (int i = 0; i < table.inputs().size(); i++) {
 			RuntimeDecisionTableInput input = table.inputs().get(i);
-			sb.append("    Object in_").append(i).append(" = ").append(JavaExpressionEmitter.emit(input.expression()))
-					.append(";\n");
+			sb.append("    Object in_").append(i).append(" = ")
+					.append(JavaExpressionEmitter.emitWithBkms(input.expression(), bkmBySlot)).append(";\n");
 		}
 
 		boolean isMultiMatch = table.hitPolicy() == RuntimeHitPolicy.COLLECT
@@ -120,14 +152,14 @@ public final class DmnJavaGenerator {
 						ctxSb.append(", ");
 					String name = table.outputs().get(o).name().orElse("output" + (o + 1));
 					String valCode = o < rule.outputEntries().size()
-							? JavaExpressionEmitter.emit(rule.outputEntries().get(o))
+							? JavaExpressionEmitter.emitWithBkms(rule.outputEntries().get(o), bkmBySlot)
 							: "null";
 					ctxSb.append("{\"").append(name).append("\", ").append(valCode).append("}");
 				}
 				ctxSb.append("})");
 				outExpr = ctxSb.toString();
 			} else {
-				outExpr = JavaExpressionEmitter.emit(rule.outputEntries().get(0));
+				outExpr = JavaExpressionEmitter.emitWithBkms(rule.outputEntries().get(0), bkmBySlot);
 			}
 			if (isMultiMatch) {
 				sb.append("      matches.add(").append(outExpr).append(");\n");
@@ -143,7 +175,7 @@ public final class DmnJavaGenerator {
 			} else if (table.hitPolicy() == RuntimeHitPolicy.OUTPUT_ORDER) {
 				sb.append("    return sortOutputOrder(matches, ").append(emitAllowedValuesList(table)).append(");\n");
 			} else {
-				sb.append("    return List.copyOf(matches);\n");
+				sb.append("    return Collections.unmodifiableList(new ArrayList<>(matches));\n");
 			}
 		} else {
 			sb.append("    return null;\n");
@@ -162,10 +194,10 @@ public final class DmnJavaGenerator {
 				}
 			}
 			if (!entries.isEmpty()) {
-				return "List.of(" + String.join(", ", entries) + ")";
+				return "Arrays.asList(" + String.join(", ", entries) + ")";
 			}
 		}
-		return "List.of()";
+		return "Collections.emptyList()";
 	}
 
 	private static String emitUnaryTests(String inputVar, RuntimeUnaryTests tests) {
@@ -395,7 +427,7 @@ public final class DmnJavaGenerator {
 						    return result;
 						  }
 						  private static Object forLoop(Object listObj, java.util.function.Function<Object, Object> mapper) {
-						    if (!(listObj instanceof List<?> list)) return List.of();
+						    if (!(listObj instanceof List<?> list)) return Collections.emptyList();
 						    List<Object> result = new ArrayList<>();
 						    for (Object item : list) {
 						      Object res = mapper.apply(item);
@@ -406,6 +438,14 @@ public final class DmnJavaGenerator {
 						      }
 						    }
 						    return result;
+						  }
+						  @SuppressWarnings("unchecked")
+						  private static void flattenInto(Object val, List<Object> result) {
+						    if (val instanceof List<?> list) {
+						      for (Object item : list) flattenInto(item, result);
+						    } else if (val != null) {
+						      result.add(val);
+						    }
 						  }
 						  private static Object builtin(String name, List<Object> args) {
 						    if ("date".equals(name) && !args.isEmpty()) {
@@ -426,6 +466,9 @@ public final class DmnJavaGenerator {
 						    }
 						    if ("string length".equals(name) && args.size() == 1) {
 						      return args.get(0) == null ? null : BigDecimal.valueOf(String.valueOf(args.get(0)).length());
+						    }
+						    if ("decimal".equals(name) && args.size() == 2 && args.get(0) instanceof Number n && args.get(1) instanceof Number scale) {
+						      return toBigDecimal(n).setScale(scale.intValue(), java.math.RoundingMode.HALF_EVEN);
 						    }
 						    if ("sort".equals(name) && !args.isEmpty() && args.get(0) instanceof List<?> list) {
 						      List<Object> copy = new ArrayList<>((List<Object>) list);
@@ -463,7 +506,128 @@ public final class DmnJavaGenerator {
 						      }
 						      return List.copyOf(copy);
 						    }
-						    return null;
+						    if ("flatten".equals(name) && !args.isEmpty()) {
+					      List<Object> result = new ArrayList<>();
+					      flattenInto(args.get(0), result);
+					      return result;
+					    }
+					    if ("concatenate".equals(name)) {
+					      List<Object> result = new ArrayList<>();
+					      for (Object arg : args) {
+					        if (arg instanceof List<?> l) result.addAll((List<Object>) l);
+					        else if (arg != null) result.add(arg);
+					      }
+					      return result;
+					    }
+					    if ("list contains".equals(name) && args.size() == 2) {
+					      Object listArg = args.get(0);
+					      Object item = args.get(1);
+					      if (!(listArg instanceof List<?> list)) return false;
+					      for (Object el : list) { if (equal(el, item)) return true; }
+					      return false;
+					    }
+					    if ("not".equals(name) && args.size() == 1) {
+					      return not(args.get(0));
+					    }
+					    if ("substring".equals(name) && args.size() >= 2) {
+					      String s = args.get(0) == null ? null : String.valueOf(args.get(0));
+					      if (s == null) return null;
+					      int start = ((Number) args.get(1)).intValue();
+					      int idx = start > 0 ? start - 1 : Math.max(0, s.length() + start);
+					      if (idx < 0 || idx >= s.length()) return "";
+					      if (args.size() >= 3) {
+					        int len = ((Number) args.get(2)).intValue();
+					        int end = Math.min(idx + len, s.length());
+					        return s.substring(idx, end);
+					      }
+					      return s.substring(idx);
+					    }
+					    if ("substring before".equals(name) && args.size() == 2) {
+					      String s = args.get(0) == null ? null : String.valueOf(args.get(0));
+					      String m = args.get(1) == null ? null : String.valueOf(args.get(1));
+					      if (s == null || m == null) return null;
+					      int i = s.indexOf(m);
+					      return i < 0 ? "" : s.substring(0, i);
+					    }
+					    if ("substring after".equals(name) && args.size() == 2) {
+					      String s = args.get(0) == null ? null : String.valueOf(args.get(0));
+					      String m = args.get(1) == null ? null : String.valueOf(args.get(1));
+					      if (s == null || m == null) return null;
+					      int i = s.indexOf(m);
+					      return i < 0 ? "" : s.substring(i + m.length());
+					    }
+					    if ("upper case".equals(name) && args.size() == 1) {
+					      return args.get(0) == null ? null : String.valueOf(args.get(0)).toUpperCase();
+					    }
+					    if ("lower case".equals(name) && args.size() == 1) {
+					      return args.get(0) == null ? null : String.valueOf(args.get(0)).toLowerCase();
+					    }
+					    if ("string".equals(name) && args.size() == 1) {
+					      return args.get(0) == null ? null : String.valueOf(args.get(0));
+					    }
+					    if ("number".equals(name) && !args.isEmpty()) {
+					      return toBigDecimal(args.get(0));
+					    }
+					    if (("abs".equals(name) || "floor".equals(name) || "ceiling".equals(name) || "round up".equals(name) || "round down".equals(name)) && !args.isEmpty()) {
+					      BigDecimal d = toBigDecimal(args.get(0));
+					      if (d == null) return null;
+					      if ("abs".equals(name)) return d.abs();
+					      if ("floor".equals(name)) return d.setScale(0, java.math.RoundingMode.FLOOR);
+					      if ("ceiling".equals(name)) return d.setScale(0, java.math.RoundingMode.CEILING);
+					      if ("round up".equals(name)) return d.setScale(0, java.math.RoundingMode.UP);
+					      return d.setScale(0, java.math.RoundingMode.DOWN);
+					    }
+					    if ("count".equals(name) && !args.isEmpty()) {
+					      Object a = args.get(0);
+					      return a instanceof List<?> l ? BigDecimal.valueOf(l.size()) : (a == null ? BigDecimal.ZERO : BigDecimal.ONE);
+					    }
+					    if ("sum".equals(name) && !args.isEmpty()) {
+					      List<?> items = args.get(0) instanceof List<?> l ? l : args;
+					      BigDecimal sum = BigDecimal.ZERO;
+					      for (Object it : items) { BigDecimal d = toBigDecimal(it); if (d != null) sum = sum.add(d); }
+					      return sum;
+					    }
+					    if ("min".equals(name) && !args.isEmpty()) {
+					      List<?> items = args.get(0) instanceof List<?> l ? l : args;
+					      BigDecimal min = null;
+					      for (Object it : items) { BigDecimal d = toBigDecimal(it); if (d != null && (min == null || d.compareTo(min) < 0)) min = d; }
+					      return min;
+					    }
+					    if ("max".equals(name) && !args.isEmpty()) {
+					      List<?> items = args.get(0) instanceof List<?> l ? l : args;
+					      BigDecimal max = null;
+					      for (Object it : items) { BigDecimal d = toBigDecimal(it); if (d != null && (d.compareTo(max) > 0 || max == null)) max = d; }
+					      return max;
+					    }
+					    if ("index of".equals(name) && args.size() == 2) {
+					      if (!(args.get(0) instanceof List<?> list)) return Collections.emptyList();
+					      Object match = args.get(1);
+					      List<Object> indices = new ArrayList<>();
+					      for (int i = 0; i < list.size(); i++) { if (equal(list.get(i), match)) indices.add(BigDecimal.valueOf(i + 1)); }
+					      return indices;
+					    }
+					    if ("append".equals(name) && args.size() >= 2) {
+					      List<Object> result = new ArrayList<>();
+					      Object first = args.get(0);
+					      if (first instanceof List<?> l) result.addAll((List<Object>) l); else if (first != null) result.add(first);
+					      for (int i = 1; i < args.size(); i++) result.add(args.get(i));
+					      return result;
+					    }
+					    if ("starts with".equals(name) && args.size() == 2) {
+					      return args.get(0) != null && args.get(1) != null && String.valueOf(args.get(0)).startsWith(String.valueOf(args.get(1)));
+					    }
+					    if ("ends with".equals(name) && args.size() == 2) {
+					      return args.get(0) != null && args.get(1) != null && String.valueOf(args.get(0)).endsWith(String.valueOf(args.get(1)));
+					    }
+					    if ("matches".equals(name) && args.size() >= 2) {
+					      if (args.get(0) == null || args.get(1) == null) return false;
+					      return String.valueOf(args.get(0)).matches(String.valueOf(args.get(1)));
+					    }
+					    if ("replace".equals(name) && args.size() >= 3) {
+					      if (args.get(0) == null) return null;
+					      return String.valueOf(args.get(0)).replaceAll(String.valueOf(args.get(1)), String.valueOf(args.get(2)));
+					    }
+					    return null;
 						  }
 						""");
 	}

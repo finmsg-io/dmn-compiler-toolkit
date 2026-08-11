@@ -865,7 +865,13 @@ public final class FeelTypeAnalyzer {
 	}
 
 	private static boolean compatible(TypeReference left, TypeReference right) {
-		return isAny(left) || isAny(right) || left.equals(right) || is(left, NULL) || is(right, NULL);
+		if (isAny(left) || isAny(right) || left.equals(right) || is(left, NULL) || is(right, NULL)) {
+			return true;
+		}
+		if (left.hasList() && right.hasList()) {
+			return compatible(left.getList().getElementType(), right.getList().getElementType());
+		}
+		return false;
 	}
 
 	private static boolean assignable(TypeReference actual, TypeReference expected) {

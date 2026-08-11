@@ -474,7 +474,7 @@ public final class DmnRuntime {
 			RuntimeBuiltinOperation operation = RuntimeBuiltinOperation.find(name)
 					.orElseThrow(() -> new DmnEvaluationException("Unsupported built-in function '" + name + "'"));
 			return switch (operation) {
-				case NOT -> !truth(argument(arguments, 0));
+				case NOT -> not(argument(arguments, 0));
 				case STRING -> argument(arguments, 0) == null ? null : String.valueOf(argument(arguments, 0));
 				case NUMBER ->
 					argument(arguments, 0) == null ? null : new BigDecimal(String.valueOf(argument(arguments, 0)));
@@ -521,10 +521,7 @@ public final class DmnRuntime {
 				case CEILING -> argument(arguments, 0) == null
 						? null
 						: number(argument(arguments, 0)).setScale(0, java.math.RoundingMode.CEILING);
-				case DECIMAL -> argument(arguments, 0) == null
-						? null
-						: number(argument(arguments, 0)).setScale(number(argument(arguments, 1)).intValueExact(),
-								java.math.RoundingMode.HALF_UP);
+				case DECIMAL -> rounded(arguments, java.math.RoundingMode.HALF_EVEN);
 				case ROUND_HALF_UP -> argument(arguments, 0) == null
 						? null
 						: number(argument(arguments, 0)).setScale(number(argument(arguments, 1)).intValueExact(),
@@ -549,16 +546,33 @@ public final class DmnRuntime {
 			if (args.getFirst() == null)
 				return null;
 			String str = String.valueOf(args.getFirst());
-			int start = number(args.get(1)).intValueExact();
+			Integer start = integer(args.get(1));
+			if (start == null)
+				return null;
 			int idx = start > 0 ? start - 1 : str.length() + start;
 			if (idx < 0 || idx >= str.length())
 				return "";
 			if (args.size() > 2 && args.get(2) != null) {
-				int len = number(args.get(2)).intValueExact();
+				Integer len = integer(args.get(2));
+				if (len == null)
+					return null;
 				int end = Math.min(str.length(), idx + len);
 				return str.substring(idx, end);
 			}
 			return str.substring(idx);
+		}
+
+		private Object rounded(List<Object> args, java.math.RoundingMode mode) {
+			if (argument(args, 0) == null)
+				return null;
+			Integer scale = integer(argument(args, 1));
+			return scale == null ? null : number(argument(args, 0)).setScale(scale, mode);
+		}
+
+		private Integer integer(Object value) {
+			if (value == null)
+				return null;
+			return number(value).intValue();
 		}
 
 		private Object substringBefore(List<Object> args) {

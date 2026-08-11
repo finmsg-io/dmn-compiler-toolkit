@@ -54,7 +54,11 @@ public final class BuiltinFeelFunctionRegistry implements FeelFunctionRegistry {
 			entry("sublist",
 					List.of(signature("sublist", LIST_ANY, LIST_ANY, NUMBER),
 							signature("sublist", LIST_ANY, LIST_ANY, NUMBER, NUMBER))),
-			entry("concatenate", signature("concatenate", LIST_ANY, LIST_ANY)),
+			entry("concatenate", List.of(
+					signature("concatenate", LIST_ANY, LIST_ANY, LIST_ANY),
+					signature("concatenate", LIST_ANY, LIST_ANY, LIST_ANY, LIST_ANY),
+					signature("concatenate", LIST_ANY, LIST_ANY, LIST_ANY, LIST_ANY, LIST_ANY),
+					signature("concatenate", LIST_ANY, LIST_ANY))),
 			entry("distinct values", signature("distinct values", LIST_ANY, LIST_ANY)),
 			entry("flatten", signature("flatten", LIST_ANY, LIST_ANY)),
 			entry("reverse", signature("reverse", LIST_ANY, LIST_ANY)),
