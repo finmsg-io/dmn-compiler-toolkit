@@ -9,19 +9,28 @@ import java.util.Map;
  */
 public final class JavaExpressionEmitter {
 
-	/** Emits an expression without BKM context (for compatibility with old call sites). */
+	/**
+	 * Emits an expression without BKM context (for compatibility with old call
+	 * sites).
+	 */
 	public static String emit(RuntimeExpression expr) {
 		return emitWithBkms(expr, Map.of());
 	}
 
-	/** Public accessor for local slot names (used by DmnJavaGenerator for BKM method params). */
+	/**
+	 * Public accessor for local slot names (used by DmnJavaGenerator for BKM method
+	 * params).
+	 */
 	public static String localSlotName(int slot) {
 		return slotName(slot);
 	}
 
 	/**
 	 * Emits an expression, resolving BKM slot references to direct method calls.
-	 * @param bkmBySlot map from slot number to RuntimeBkm, for resolving invocation targets
+	 * 
+	 * @param bkmBySlot
+	 *            map from slot number to RuntimeBkm, for resolving invocation
+	 *            targets
 	 */
 	public static String emitWithBkms(RuntimeExpression expr, Map<Integer, RuntimeBkm> bkmBySlot) {
 		if (expr == null) {
@@ -47,10 +56,10 @@ public final class JavaExpressionEmitter {
 			case RuntimeForExpression forExpr -> emitForB(forExpr, bkmBySlot);
 			case RuntimeRangeExpression range -> emitRangeB(range, bkmBySlot);
 			case RuntimeFunctionDefinition fnDef -> emitFunctionDefinition(fnDef);
-			case RuntimeBetweenExpression btn ->
-				"(" + emitWithBkms(btn.value(), bkmBySlot) + " != null && compare(" + emitWithBkms(btn.value(), bkmBySlot)
-						+ ", " + emitWithBkms(btn.lower(), bkmBySlot) + ") >= 0 && compare("
-						+ emitWithBkms(btn.value(), bkmBySlot) + ", " + emitWithBkms(btn.upper(), bkmBySlot) + ") <= 0)";
+			case RuntimeBetweenExpression btn -> "(" + emitWithBkms(btn.value(), bkmBySlot) + " != null && compare("
+					+ emitWithBkms(btn.value(), bkmBySlot) + ", " + emitWithBkms(btn.lower(), bkmBySlot)
+					+ ") >= 0 && compare(" + emitWithBkms(btn.value(), bkmBySlot) + ", "
+					+ emitWithBkms(btn.upper(), bkmBySlot) + ") <= 0)";
 			case RuntimeInExpression inExpr -> emitWithBkms(inExpr.value(), bkmBySlot) + " != null";
 			default -> "null";
 		};
@@ -119,7 +128,8 @@ public final class JavaExpressionEmitter {
 		if (fn.arguments().isEmpty()) {
 			return "builtin(\"" + escapeString(fn.function()) + "\", Collections.emptyList())";
 		}
-		StringBuilder sb = new StringBuilder("builtin(\"").append(escapeString(fn.function())).append("\", Arrays.asList(");
+		StringBuilder sb = new StringBuilder("builtin(\"").append(escapeString(fn.function()))
+				.append("\", Arrays.asList(");
 		for (int i = 0; i < fn.arguments().size(); i++) {
 			if (i > 0)
 				sb.append(", ");
@@ -139,12 +149,14 @@ public final class JavaExpressionEmitter {
 					.append("\", Arrays.asList(");
 			boolean first = true;
 			for (RuntimeExpression arg : inv.positionalArguments()) {
-				if (!first) sb.append(", ");
+				if (!first)
+					sb.append(", ");
 				sb.append(emitWithBkms(arg, bkmBySlot));
 				first = false;
 			}
 			for (RuntimeNamedArgument arg : inv.namedArguments()) {
-				if (!first) sb.append(", ");
+				if (!first)
+					sb.append(", ");
 				sb.append(emitWithBkms(arg.expression(), bkmBySlot));
 				first = false;
 			}
@@ -153,7 +165,8 @@ public final class JavaExpressionEmitter {
 		}
 		if (inv.target().isPresent()) {
 			RuntimeExpression target = inv.target().get();
-			// BKM invocation: if the target references a BKM slot, emit a direct method call
+			// BKM invocation: if the target references a BKM slot, emit a direct method
+			// call
 			if (target instanceof RuntimeValueReference ref && bkmBySlot.containsKey(ref.sourceSlot())) {
 				RuntimeBkm bkm = bkmBySlot.get(ref.sourceSlot());
 				if (bkm.functionKind() == RuntimeFunctionKind.FEEL && bkm.function().isPresent()) {

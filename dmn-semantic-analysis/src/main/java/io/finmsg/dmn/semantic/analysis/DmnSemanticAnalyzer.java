@@ -20,9 +20,9 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 	private static final Set<String> BUILTIN_NAMES = Set.of("date", "time", "date and time", "duration",
 			"years and months duration", "days and time duration", "string", "number", "boolean", "context", "list",
 			"range", "any", "null", "flatten", "concatenate", "distinct values", "index of", "reverse", "sublist",
-			"substring", "substring before", "substring after", "string length", "upper case", "lower case",
-			"contains", "starts with", "ends with", "matches", "replace", "split", "floor", "ceiling", "decimal",
-			"round half up", "round half even", "min", "max", "sum", "mean", "count", "all", "not");
+			"substring", "substring before", "substring after", "string length", "upper case", "lower case", "contains",
+			"starts with", "ends with", "matches", "replace", "split", "floor", "ceiling", "decimal", "round half up",
+			"round half even", "min", "max", "sum", "mean", "count", "all", "not");
 
 	@Override
 	public DmnSemanticAnalysisResult analyze(Definitions parsedModel) {

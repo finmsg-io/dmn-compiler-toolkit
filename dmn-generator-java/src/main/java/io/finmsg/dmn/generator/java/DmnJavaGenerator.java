@@ -30,7 +30,8 @@ public final class DmnJavaGenerator {
 
 		sb.append("  public static final int SLOT_COUNT = ").append(model.valueSlotCount()).append(";\n\n");
 
-		// Build BKM slot map so emitter can resolve BKM invocations to direct method calls
+		// Build BKM slot map so emitter can resolve BKM invocations to direct method
+		// calls
 		Map<Integer, RuntimeBkm> bkmBySlot = new HashMap<>();
 		model.businessKnowledgeModels().forEach(bkm -> bkmBySlot.put(bkm.resultSlot(), bkm));
 
@@ -74,8 +75,8 @@ public final class DmnJavaGenerator {
 	}
 
 	/**
-	 * Generates a static helper method for each BKM.
-	 * Each parameter becomes a Java parameter; the body is the lowered FEEL expression.
+	 * Generates a static helper method for each BKM. Each parameter becomes a Java
+	 * parameter; the body is the lowered FEEL expression.
 	 */
 	private static void generateBkmMethod(StringBuilder sb, RuntimeBkm bkm, Map<Integer, RuntimeBkm> bkmBySlot) {
 		if (bkm.functionKind() != RuntimeFunctionKind.FEEL || bkm.function().isEmpty()) {
@@ -507,127 +508,127 @@ public final class DmnJavaGenerator {
 						      return List.copyOf(copy);
 						    }
 						    if ("flatten".equals(name) && !args.isEmpty()) {
-					      List<Object> result = new ArrayList<>();
-					      flattenInto(args.get(0), result);
-					      return result;
-					    }
-					    if ("concatenate".equals(name)) {
-					      List<Object> result = new ArrayList<>();
-					      for (Object arg : args) {
-					        if (arg instanceof List<?> l) result.addAll((List<Object>) l);
-					        else if (arg != null) result.add(arg);
-					      }
-					      return result;
-					    }
-					    if ("list contains".equals(name) && args.size() == 2) {
-					      Object listArg = args.get(0);
-					      Object item = args.get(1);
-					      if (!(listArg instanceof List<?> list)) return false;
-					      for (Object el : list) { if (equal(el, item)) return true; }
-					      return false;
-					    }
-					    if ("not".equals(name) && args.size() == 1) {
-					      return not(args.get(0));
-					    }
-					    if ("substring".equals(name) && args.size() >= 2) {
-					      String s = args.get(0) == null ? null : String.valueOf(args.get(0));
-					      if (s == null) return null;
-					      int start = ((Number) args.get(1)).intValue();
-					      int idx = start > 0 ? start - 1 : Math.max(0, s.length() + start);
-					      if (idx < 0 || idx >= s.length()) return "";
-					      if (args.size() >= 3) {
-					        int len = ((Number) args.get(2)).intValue();
-					        int end = Math.min(idx + len, s.length());
-					        return s.substring(idx, end);
-					      }
-					      return s.substring(idx);
-					    }
-					    if ("substring before".equals(name) && args.size() == 2) {
-					      String s = args.get(0) == null ? null : String.valueOf(args.get(0));
-					      String m = args.get(1) == null ? null : String.valueOf(args.get(1));
-					      if (s == null || m == null) return null;
-					      int i = s.indexOf(m);
-					      return i < 0 ? "" : s.substring(0, i);
-					    }
-					    if ("substring after".equals(name) && args.size() == 2) {
-					      String s = args.get(0) == null ? null : String.valueOf(args.get(0));
-					      String m = args.get(1) == null ? null : String.valueOf(args.get(1));
-					      if (s == null || m == null) return null;
-					      int i = s.indexOf(m);
-					      return i < 0 ? "" : s.substring(i + m.length());
-					    }
-					    if ("upper case".equals(name) && args.size() == 1) {
-					      return args.get(0) == null ? null : String.valueOf(args.get(0)).toUpperCase();
-					    }
-					    if ("lower case".equals(name) && args.size() == 1) {
-					      return args.get(0) == null ? null : String.valueOf(args.get(0)).toLowerCase();
-					    }
-					    if ("string".equals(name) && args.size() == 1) {
-					      return args.get(0) == null ? null : String.valueOf(args.get(0));
-					    }
-					    if ("number".equals(name) && !args.isEmpty()) {
-					      return toBigDecimal(args.get(0));
-					    }
-					    if (("abs".equals(name) || "floor".equals(name) || "ceiling".equals(name) || "round up".equals(name) || "round down".equals(name)) && !args.isEmpty()) {
-					      BigDecimal d = toBigDecimal(args.get(0));
-					      if (d == null) return null;
-					      if ("abs".equals(name)) return d.abs();
-					      if ("floor".equals(name)) return d.setScale(0, java.math.RoundingMode.FLOOR);
-					      if ("ceiling".equals(name)) return d.setScale(0, java.math.RoundingMode.CEILING);
-					      if ("round up".equals(name)) return d.setScale(0, java.math.RoundingMode.UP);
-					      return d.setScale(0, java.math.RoundingMode.DOWN);
-					    }
-					    if ("count".equals(name) && !args.isEmpty()) {
-					      Object a = args.get(0);
-					      return a instanceof List<?> l ? BigDecimal.valueOf(l.size()) : (a == null ? BigDecimal.ZERO : BigDecimal.ONE);
-					    }
-					    if ("sum".equals(name) && !args.isEmpty()) {
-					      List<?> items = args.get(0) instanceof List<?> l ? l : args;
-					      BigDecimal sum = BigDecimal.ZERO;
-					      for (Object it : items) { BigDecimal d = toBigDecimal(it); if (d != null) sum = sum.add(d); }
-					      return sum;
-					    }
-					    if ("min".equals(name) && !args.isEmpty()) {
-					      List<?> items = args.get(0) instanceof List<?> l ? l : args;
-					      BigDecimal min = null;
-					      for (Object it : items) { BigDecimal d = toBigDecimal(it); if (d != null && (min == null || d.compareTo(min) < 0)) min = d; }
-					      return min;
-					    }
-					    if ("max".equals(name) && !args.isEmpty()) {
-					      List<?> items = args.get(0) instanceof List<?> l ? l : args;
-					      BigDecimal max = null;
-					      for (Object it : items) { BigDecimal d = toBigDecimal(it); if (d != null && (d.compareTo(max) > 0 || max == null)) max = d; }
-					      return max;
-					    }
-					    if ("index of".equals(name) && args.size() == 2) {
-					      if (!(args.get(0) instanceof List<?> list)) return Collections.emptyList();
-					      Object match = args.get(1);
-					      List<Object> indices = new ArrayList<>();
-					      for (int i = 0; i < list.size(); i++) { if (equal(list.get(i), match)) indices.add(BigDecimal.valueOf(i + 1)); }
-					      return indices;
-					    }
-					    if ("append".equals(name) && args.size() >= 2) {
-					      List<Object> result = new ArrayList<>();
-					      Object first = args.get(0);
-					      if (first instanceof List<?> l) result.addAll((List<Object>) l); else if (first != null) result.add(first);
-					      for (int i = 1; i < args.size(); i++) result.add(args.get(i));
-					      return result;
-					    }
-					    if ("starts with".equals(name) && args.size() == 2) {
-					      return args.get(0) != null && args.get(1) != null && String.valueOf(args.get(0)).startsWith(String.valueOf(args.get(1)));
-					    }
-					    if ("ends with".equals(name) && args.size() == 2) {
-					      return args.get(0) != null && args.get(1) != null && String.valueOf(args.get(0)).endsWith(String.valueOf(args.get(1)));
-					    }
-					    if ("matches".equals(name) && args.size() >= 2) {
-					      if (args.get(0) == null || args.get(1) == null) return false;
-					      return String.valueOf(args.get(0)).matches(String.valueOf(args.get(1)));
-					    }
-					    if ("replace".equals(name) && args.size() >= 3) {
-					      if (args.get(0) == null) return null;
-					      return String.valueOf(args.get(0)).replaceAll(String.valueOf(args.get(1)), String.valueOf(args.get(2)));
-					    }
-					    return null;
+						     List<Object> result = new ArrayList<>();
+						     flattenInto(args.get(0), result);
+						     return result;
+						   }
+						   if ("concatenate".equals(name)) {
+						     List<Object> result = new ArrayList<>();
+						     for (Object arg : args) {
+						       if (arg instanceof List<?> l) result.addAll((List<Object>) l);
+						       else if (arg != null) result.add(arg);
+						     }
+						     return result;
+						   }
+						   if ("list contains".equals(name) && args.size() == 2) {
+						     Object listArg = args.get(0);
+						     Object item = args.get(1);
+						     if (!(listArg instanceof List<?> list)) return false;
+						     for (Object el : list) { if (equal(el, item)) return true; }
+						     return false;
+						   }
+						   if ("not".equals(name) && args.size() == 1) {
+						     return not(args.get(0));
+						   }
+						   if ("substring".equals(name) && args.size() >= 2) {
+						     String s = args.get(0) == null ? null : String.valueOf(args.get(0));
+						     if (s == null) return null;
+						     int start = ((Number) args.get(1)).intValue();
+						     int idx = start > 0 ? start - 1 : Math.max(0, s.length() + start);
+						     if (idx < 0 || idx >= s.length()) return "";
+						     if (args.size() >= 3) {
+						       int len = ((Number) args.get(2)).intValue();
+						       int end = Math.min(idx + len, s.length());
+						       return s.substring(idx, end);
+						     }
+						     return s.substring(idx);
+						   }
+						   if ("substring before".equals(name) && args.size() == 2) {
+						     String s = args.get(0) == null ? null : String.valueOf(args.get(0));
+						     String m = args.get(1) == null ? null : String.valueOf(args.get(1));
+						     if (s == null || m == null) return null;
+						     int i = s.indexOf(m);
+						     return i < 0 ? "" : s.substring(0, i);
+						   }
+						   if ("substring after".equals(name) && args.size() == 2) {
+						     String s = args.get(0) == null ? null : String.valueOf(args.get(0));
+						     String m = args.get(1) == null ? null : String.valueOf(args.get(1));
+						     if (s == null || m == null) return null;
+						     int i = s.indexOf(m);
+						     return i < 0 ? "" : s.substring(i + m.length());
+						   }
+						   if ("upper case".equals(name) && args.size() == 1) {
+						     return args.get(0) == null ? null : String.valueOf(args.get(0)).toUpperCase();
+						   }
+						   if ("lower case".equals(name) && args.size() == 1) {
+						     return args.get(0) == null ? null : String.valueOf(args.get(0)).toLowerCase();
+						   }
+						   if ("string".equals(name) && args.size() == 1) {
+						     return args.get(0) == null ? null : String.valueOf(args.get(0));
+						   }
+						   if ("number".equals(name) && !args.isEmpty()) {
+						     return toBigDecimal(args.get(0));
+						   }
+						   if (("abs".equals(name) || "floor".equals(name) || "ceiling".equals(name) || "round up".equals(name) || "round down".equals(name)) && !args.isEmpty()) {
+						     BigDecimal d = toBigDecimal(args.get(0));
+						     if (d == null) return null;
+						     if ("abs".equals(name)) return d.abs();
+						     if ("floor".equals(name)) return d.setScale(0, java.math.RoundingMode.FLOOR);
+						     if ("ceiling".equals(name)) return d.setScale(0, java.math.RoundingMode.CEILING);
+						     if ("round up".equals(name)) return d.setScale(0, java.math.RoundingMode.UP);
+						     return d.setScale(0, java.math.RoundingMode.DOWN);
+						   }
+						   if ("count".equals(name) && !args.isEmpty()) {
+						     Object a = args.get(0);
+						     return a instanceof List<?> l ? BigDecimal.valueOf(l.size()) : (a == null ? BigDecimal.ZERO : BigDecimal.ONE);
+						   }
+						   if ("sum".equals(name) && !args.isEmpty()) {
+						     List<?> items = args.get(0) instanceof List<?> l ? l : args;
+						     BigDecimal sum = BigDecimal.ZERO;
+						     for (Object it : items) { BigDecimal d = toBigDecimal(it); if (d != null) sum = sum.add(d); }
+						     return sum;
+						   }
+						   if ("min".equals(name) && !args.isEmpty()) {
+						     List<?> items = args.get(0) instanceof List<?> l ? l : args;
+						     BigDecimal min = null;
+						     for (Object it : items) { BigDecimal d = toBigDecimal(it); if (d != null && (min == null || d.compareTo(min) < 0)) min = d; }
+						     return min;
+						   }
+						   if ("max".equals(name) && !args.isEmpty()) {
+						     List<?> items = args.get(0) instanceof List<?> l ? l : args;
+						     BigDecimal max = null;
+						     for (Object it : items) { BigDecimal d = toBigDecimal(it); if (d != null && (d.compareTo(max) > 0 || max == null)) max = d; }
+						     return max;
+						   }
+						   if ("index of".equals(name) && args.size() == 2) {
+						     if (!(args.get(0) instanceof List<?> list)) return Collections.emptyList();
+						     Object match = args.get(1);
+						     List<Object> indices = new ArrayList<>();
+						     for (int i = 0; i < list.size(); i++) { if (equal(list.get(i), match)) indices.add(BigDecimal.valueOf(i + 1)); }
+						     return indices;
+						   }
+						   if ("append".equals(name) && args.size() >= 2) {
+						     List<Object> result = new ArrayList<>();
+						     Object first = args.get(0);
+						     if (first instanceof List<?> l) result.addAll((List<Object>) l); else if (first != null) result.add(first);
+						     for (int i = 1; i < args.size(); i++) result.add(args.get(i));
+						     return result;
+						   }
+						   if ("starts with".equals(name) && args.size() == 2) {
+						     return args.get(0) != null && args.get(1) != null && String.valueOf(args.get(0)).startsWith(String.valueOf(args.get(1)));
+						   }
+						   if ("ends with".equals(name) && args.size() == 2) {
+						     return args.get(0) != null && args.get(1) != null && String.valueOf(args.get(0)).endsWith(String.valueOf(args.get(1)));
+						   }
+						   if ("matches".equals(name) && args.size() >= 2) {
+						     if (args.get(0) == null || args.get(1) == null) return false;
+						     return String.valueOf(args.get(0)).matches(String.valueOf(args.get(1)));
+						   }
+						   if ("replace".equals(name) && args.size() >= 3) {
+						     if (args.get(0) == null) return null;
+						     return String.valueOf(args.get(0)).replaceAll(String.valueOf(args.get(1)), String.valueOf(args.get(2)));
+						   }
+						   return null;
 						  }
 						""");
 	}
