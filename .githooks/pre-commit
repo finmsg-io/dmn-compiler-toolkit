@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+if ! command -v mvn >/dev/null 2>&1; then
+  echo "Maven is required for the repository formatting check." >&2
+  echo "Install Maven 3.9+ or commit with --no-verify only when CI ownership is explicit." >&2
+  exit 1
+fi
+
+echo "Checking Java formatting with Spotless..."
+if ! mvn --batch-mode --quiet -Pformat spotless:check; then
+  echo "Formatting check failed. Run: mvn -Pformat spotless:apply" >&2
+  echo "Review the resulting diff, then commit again." >&2
+  exit 1
+fi

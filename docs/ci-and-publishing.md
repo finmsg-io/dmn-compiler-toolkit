@@ -4,8 +4,8 @@
 ## Table of contents
 
 - [Workflow behavior](#contents-section-1)
-- [Feature snapshots](#contents-section-2)
-- [Releases from main](#contents-section-3)
+- [Source formatting](#contents-section-2)
+- [Tagged releases](#contents-section-3)
 - [GitHub Packages repository](#contents-section-4)
 <!-- generated-toc:end -->
 
@@ -15,36 +15,49 @@ The project uses GitHub Actions (`.github/workflows/ci.yml`) running on JDK 25 (
 ## Workflow behavior
 
 ```text
-Feature branch push  -> build, test (`mvn verify`), publish branch SNAPSHOT
-Pull request         -> build and test (`mvn verify`)
-Main branch push     -> build, test (`mvn verify`), publish release
+Branch push          -> documentation checks, format check, build and test
+Pull request         -> documentation checks, format check, build and test
+Version tag push     -> set tag version and publish to GitHub Packages
 ```
 
 <a id="contents-section-2"></a>
-## Feature snapshots
+## Source formatting
 
-A feature branch receives a branch-specific Maven version.
+CI runs `spotless:check` before compilation and tests, so formatting failures return quickly. CI
+never rewrites source files.
 
-Example:
+Apply formatting locally:
 
-```text
-Branch:  feature/initiate
-Version: 1.0.0-feature-initiate-SNAPSHOT
+```powershell
+./tools/format.ps1
 ```
 
-This prevents different feature branches from publishing the same snapshot version.
+Check without changing files:
+
+```powershell
+./tools/check-format.ps1
+```
+
+Equivalent `format.sh` and `check-format.sh` commands are provided for Unix shells. To reject
+unformatted commits locally, install the version-controlled Git hook once:
+
+```powershell
+./tools/install-git-hooks.ps1
+```
+
+The hook prints the automatic repair command when it finds a violation. Emergency bypass with
+`git commit --no-verify` is possible, but CI still enforces the check.
 
 <a id="contents-section-3"></a>
-## Releases from `main`
+## Tagged releases
 
-When a pull request is merged into `main`, GitHub emits a push event for `main`.
-
-The workflow removes the `-SNAPSHOT` suffix in its temporary workspace and deploys the release version.
+Publication occurs only for tags matching `v*.*.*`. The workflow derives the Maven version from the
+tag in its temporary workspace and deploys that version.
 
 Example:
 
 ```text
-POM version:       1.0.0-SNAPSHOT
+Tag:               v1.0.0
 Published version: 1.0.0
 ```
 
