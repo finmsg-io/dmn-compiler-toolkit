@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @Warmup(iterations = 2, time = 1)
 @Measurement(iterations = 3, time = 1)
-@Fork(1)
+@Fork(3)
 public class ScalarArithmeticBenchmark {
 
 	private CompiledModelHolder holder;
@@ -59,12 +59,22 @@ public class ScalarArithmeticBenchmark {
 	}
 
 	@Benchmark
-	public DmnEvaluationResult interpreter_ScalarArithmetic() {
+	public DmnEvaluationResult interpreterCore_ScalarArithmetic() {
 		return runtime.evaluate(runtimeModel, interpreterInputMap);
 	}
 
 	@Benchmark
-	public Object generatedJava_ScalarArithmetic() throws Exception {
-		return holder.evaluateMethod().invoke(holder.generatedEngineInstance(), (Object) inputSlots);
+	public Object generatedDirect_ScalarArithmetic() {
+		return holder.evaluateDirect(inputSlots);
+	}
+
+	@Benchmark
+	public Object generatedAdapter_ScalarArithmetic() throws Exception {
+		return holder.evaluateAdapter(inputSlots);
+	}
+
+	@Benchmark
+	public Object invocationControl_ScalarArithmetic() {
+		return inputSlots;
 	}
 }

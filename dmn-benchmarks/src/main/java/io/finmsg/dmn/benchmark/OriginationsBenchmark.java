@@ -12,12 +12,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-@State(Scope.Thread)
+@State(Scope.Benchmark)
 @BenchmarkMode({Mode.Throughput, Mode.AverageTime})
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Warmup(iterations = 2, time = 1)
 @Measurement(iterations = 3, time = 1)
-@Fork(1)
+@Fork(3)
 public class OriginationsBenchmark {
 
 	private CompiledModelHolder holder;
@@ -25,7 +25,6 @@ public class OriginationsBenchmark {
 	private DmnRuntime runtime;
 	private List<Map<Integer, Object>> interpreterPayloads;
 	private List<Object[]> slotPayloads;
-	private int index;
 
 	@Setup(Level.Trial)
 	public void setup() throws Exception {
@@ -39,21 +38,25 @@ public class OriginationsBenchmark {
 	}
 
 	@Benchmark
-	public DmnEvaluationResult interpreter_Originations() {
-		return evaluateInterpreterAt((index++) % interpreterPayloads.size());
+	public DmnEvaluationResult interpreterCore_Originations(BenchmarkCursor cursor) {
+		return evaluateInterpreterAt(cursor.next(interpreterPayloads.size()));
 	}
 
 	@Benchmark
-	public Object generatedJava_Originations() throws Exception {
-		return evaluateGeneratedAt((index++) % slotPayloads.size());
+	public Object generatedDirect_Originations(BenchmarkCursor cursor) {
+		return evaluateGeneratedAt(cursor.next(slotPayloads.size()));
+	}
+
+	@Benchmark
+	public Object generatedAdapter_Originations(BenchmarkCursor cursor) throws Exception {
+		return holder.evaluateAdapter(slotPayloads.get(cursor.next(slotPayloads.size())));
 	}
 
 	DmnEvaluationResult evaluateInterpreterAt(int payloadIndex) {
 		return runtime.evaluate(runtimeModel, interpreterPayloads.get(payloadIndex));
 	}
 
-	Object evaluateGeneratedAt(int payloadIndex) throws Exception {
-		return holder.evaluateMethod().invoke(holder.generatedEngineInstance(),
-				(Object) slotPayloads.get(payloadIndex));
+	Object evaluateGeneratedAt(int payloadIndex) {
+		return holder.evaluateDirect(slotPayloads.get(payloadIndex));
 	}
 }

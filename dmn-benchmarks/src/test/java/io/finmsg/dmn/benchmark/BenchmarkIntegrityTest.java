@@ -5,6 +5,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -14,9 +17,10 @@ class BenchmarkIntegrityTest {
 	void testTrafficViolationBenchmarkExecutionAndParity() throws Exception {
 		TrafficViolationBenchmark benchmark = new TrafficViolationBenchmark();
 		benchmark.setup();
+		BenchmarkCursor cursor = new BenchmarkCursor();
 
-		Object interpreterResult = benchmark.interpreter_TrafficViolation();
-		Object generatedJavaResult = benchmark.generatedJava_TrafficViolation();
+		Object interpreterResult = benchmark.interpreterCore_TrafficViolation(cursor);
+		Object generatedJavaResult = benchmark.generatedDirect_TrafficViolation(cursor);
 
 		assertThat(interpreterResult).isNotNull();
 		assertThat(generatedJavaResult).isNotNull();
@@ -26,9 +30,10 @@ class BenchmarkIntegrityTest {
 	void testCreditApprovalBenchmarkExecutionAndParity() throws Exception {
 		CreditApprovalBenchmark benchmark = new CreditApprovalBenchmark();
 		benchmark.setup();
+		BenchmarkCursor cursor = new BenchmarkCursor();
 
-		Object interpreterResult = benchmark.interpreter_CreditApproval();
-		Object generatedJavaResult = benchmark.generatedJava_CreditApproval();
+		Object interpreterResult = benchmark.interpreterCore_CreditApproval(cursor);
+		Object generatedJavaResult = benchmark.generatedDirect_CreditApproval(cursor);
 
 		assertThat(interpreterResult).isNotNull();
 		assertThat(generatedJavaResult).isNotNull();
@@ -39,8 +44,8 @@ class BenchmarkIntegrityTest {
 		ScalarArithmeticBenchmark benchmark = new ScalarArithmeticBenchmark();
 		benchmark.setup();
 
-		Object interpreterResult = benchmark.interpreter_ScalarArithmetic();
-		Object generatedJavaResult = benchmark.generatedJava_ScalarArithmetic();
+		Object interpreterResult = benchmark.interpreterCore_ScalarArithmetic();
+		Object generatedJavaResult = benchmark.generatedDirect_ScalarArithmetic();
 
 		assertThat(interpreterResult).isNotNull();
 		assertThat(generatedJavaResult).isNotNull();
@@ -66,6 +71,27 @@ class BenchmarkIntegrityTest {
 			Object[] generatedSlots = (Object[]) benchmark.evaluateGeneratedAt(payloadIndex);
 			assertThat(generatedSlots)
 					.containsExactlyElementsOf(benchmark.evaluateInterpreterAt(payloadIndex).slotValues());
+		}
+	}
+
+	@Test
+	void sharedRuntimeModelAndGeneratedEngineAreConcurrencySafe() throws Exception {
+		OriginationsBenchmark benchmark = new OriginationsBenchmark();
+		benchmark.setup();
+		List<List<Object>> expected = IntStream.range(0, 25)
+				.mapToObj(index -> benchmark.evaluateInterpreterAt(index).slotValues()).toList();
+
+		try (var executor = Executors.newFixedThreadPool(8)) {
+			var futures = IntStream.range(0, 800).mapToObj(invocation -> executor.submit(() -> {
+				int payloadIndex = invocation % expected.size();
+				Object[] generated = (Object[]) benchmark.evaluateGeneratedAt(payloadIndex);
+				assertThat(generated).containsExactlyElementsOf(expected.get(payloadIndex));
+				assertThat(benchmark.evaluateInterpreterAt(payloadIndex).slotValues())
+						.containsExactlyElementsOf(expected.get(payloadIndex));
+			})).toList();
+			for (var future : futures) {
+				future.get(30, TimeUnit.SECONDS);
+			}
 		}
 	}
 

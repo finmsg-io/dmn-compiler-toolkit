@@ -26,7 +26,8 @@ public final class DmnJavaGenerator {
 		sb.append("import java.time.*;\n");
 		sb.append("import java.util.*;\n\n");
 		sb.append("/** Generated high-performance DMN Decision Engine. */\n");
-		sb.append("public final class ").append(options.className()).append(" {\n\n");
+		sb.append("public final class ").append(options.className())
+				.append(" implements io.finmsg.dmn.generator.java.GeneratedDecisionEngine {\n\n");
 
 		sb.append("  public static final int SLOT_COUNT = ").append(model.valueSlotCount()).append(";\n\n");
 
@@ -36,6 +37,7 @@ public final class DmnJavaGenerator {
 		model.businessKnowledgeModels().forEach(bkm -> bkmBySlot.put(bkm.resultSlot(), bkm));
 
 		// Evaluation entry point
+		sb.append("  @Override\n");
 		sb.append("  public Object[] evaluate(Object[] inputSlots) {\n");
 		sb.append("    Object[] slots = new Object[SLOT_COUNT];\n");
 		sb.append("    if (inputSlots != null) {\n");

@@ -2,7 +2,10 @@
 
 This module provides microbenchmarks and reference model workloads evaluating performance across the **DMN Runtime IR Interpreter** (`DmnRuntime`) and **Generated Java Bytecode** (`dmn-generator-java`).
 
-## Empirical Performance Results
+## Historical, pre-BENCH-001 performance snapshot
+
+The following figures predate the corrected harness and are retained only as historical context.
+They must not be used as release-grade performance or scalability claims.
 
 Benchmark environment: OpenJDK 25.0.2 LTS (Zulu25.32+21-CA) on 64-Bit Server VM.
 
@@ -47,7 +50,7 @@ mvn -pl dmn-benchmarks -am clean package
 Execute all microbenchmarks:
 
 ```bash
-java -jar dmn-benchmarks/target/benchmarks.jar -f 1 -i 3 -wi 2
+java -jar dmn-benchmarks/target/benchmarks.jar -f 3 -i 5 -wi 5 -prof gc
 ```
 
 To run a specific benchmark class:
@@ -55,3 +58,26 @@ To run a specific benchmark class:
 ```bash
 java -jar dmn-benchmarks/target/benchmarks.jar CreditApprovalBenchmark
 ```
+
+Execution benchmark names identify the measured layer:
+
+- `interpreterCore_*`: pre-mapped slot inputs through `DmnRuntime`;
+- `generatedDirect_*`: stable `GeneratedDecisionEngine` interface invocation;
+- `generatedAdapter_*`: reflective `Method.invoke` adapter overhead included;
+- `generatedEndToEnd_*`: named-input-to-slot mapping plus generated evaluation;
+- `invocationControl_*`: payload selection/control cost for the smallest model.
+
+Trial state contains compiled models and immutable payload collections. Every JMH worker receives a
+thread-scoped `BenchmarkCursor`; no mutable cursor or payload is shared. `DmnRuntime`, immutable
+Runtime IR, and generated engine instances are intentionally shared and covered by concurrent parity
+tests.
+
+For retained allocation and scalability evidence, run:
+
+```powershell
+./dmn-benchmarks/scripts/run-scalability.ps1
+```
+
+The equivalent Linux command is `./dmn-benchmarks/scripts/run-scalability.sh`. Both use three forks,
+the JMH GC profiler, 1/2/4/8 threads, and write raw JSON plus environment metadata under
+`dmn-benchmarks/results/`.

@@ -6,7 +6,6 @@ import io.finmsg.dmn.compiler.*;
 import io.finmsg.dmn.ir.*;
 import io.finmsg.dmn.runtime.DmnEvaluationResult;
 import io.finmsg.dmn.runtime.DmnRuntime;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -44,8 +43,7 @@ class DmnJavaGeneratorTest {
 
 		// 2. Dynamically compile generated Java source using standard JDK JavaCompiler
 		Class<?> compiledClass = compileJavaSource(tempDir, genResult.mainClassName(), genResult.mainSource());
-		Object instance = compiledClass.getDeclaredConstructor().newInstance();
-		Method evalMethod = compiledClass.getMethod("evaluate", Object[].class);
+		GeneratedDecisionEngine engine = (GeneratedDecisionEngine) compiledClass.getDeclaredConstructor().newInstance();
 
 		// 3. Prepare Input Slots for Lending Eligibility Scenario
 		// Input slots: RequestedAmount, Applicant map (score, income, monthlyDebt)
@@ -67,7 +65,7 @@ class DmnJavaGeneratorTest {
 		inputSlots[4] = new BigDecimal("10000");
 		runtimeInputMap.put(4, new BigDecimal("10000"));
 
-		Object[] outputSlots = (Object[]) evalMethod.invoke(instance, (Object) inputSlots);
+		Object[] outputSlots = engine.evaluate(inputSlots);
 		assertThat(outputSlots).isNotNull();
 		assertThat(outputSlots.length).isEqualTo(optimized.model().valueSlotCount());
 
