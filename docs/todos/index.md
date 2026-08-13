@@ -1,0 +1,30 @@
+# Module TODOs
+
+<!-- generated-toc:start -->
+## Table of contents
+
+
+<!-- generated-toc:end -->
+
+Last reviewed: 2026-08-07
+
+This directory contains the current work list per active Maven module. These documents track module-local gaps; cross-module delivery sequencing belongs in the [development plan](../development-plan.md), and dated findings belong in [`audits`](../audits/index.md).
+
+| Module | Current Status & Roadmap |
+| --- | --- |
+| `dmn-compiler` | [Compiler facade and resolution](dmn-compiler.md) — implemented core; evidence hardening tracked separately (`done`) |
+| `dmn-protobuf` | [Protobuf semantic contracts](dmn-protobuf.md) — Stable Core (`done`) |
+| `dmn-frontend-xml` | [XML frontend](dmn-frontend-xml.md) — Round-Trip Symmetric (`done`) |
+| `dmn-feel-parser` | [FEEL parser](dmn-feel-parser.md) — FEEL 1.5 AST Builder (`done`) |
+| `dmn-semantic-analysis` | [Semantic analysis](dmn-semantic-analysis.md) — Symbol & Scoped Analysis (`done`) |
+| `dmn-runtime-ir` | [Runtime IR](dmn-runtime-ir.md) — Immutable Runtime IR & Optimizer (`done`) |
+| `dmn-runtime` | [Runtime interpreter](dmn-runtime.md) — Deterministic Interpreter (`done`) |
+| `dmn-generator-java` | [Java code generator](../modules.md#contents-section-8) — Zero-Reflection AOT Java (`done`) |
+| `dmn-tck-runner` | [TCK runner](../modules.md#contents-section-9) — self-verified execution implemented; catalogue accounting remains in the cross-module plan (`done`) |
+| `dmn-benchmarks` | [JMH benchmarks](dmn-benchmarks.md) — DataFaker Workloads & Phase Isolation Benchmarks (`in progress`) |
+| `dmn-optimizer` | [Optimizer pass](dmn-optimizer.md) — Constant Folding & Rule Pruning (`done`) |
+| `dmn-grpc` | [gRPC adapter](dmn-grpc.md) — Transport-Neutral Pure gRPC Java (`done`) |
+| `dmn-generator-sparksql` | [Spark SQL generator](dmn-generator-sparksql.md) — Pure Spark / Databricks SQL CTE Generator (`done`) |
+| `dmn-models` | [Models & Streaming API](dmn-models.md) — Multi-file DMN sample suites & streaming ingestion (`done`) |
+
+An item is marked `done` when completed and verified with test evidence; Git history records completed work.

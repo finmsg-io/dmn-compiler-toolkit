@@ -1,0 +1,217 @@
+syntax = "proto3";
+
+package io.finmsg.dmn;
+
+option java_package = "io.finmsg.dmn.model";
+option java_multiple_files = true;
+option java_outer_classname = "DecisionTableProtos";
+
+import "core.proto";
+import "types.proto";
+import "feel.proto";
+import "feel_text.proto";
+import "feel_parsed.proto";
+
+//
+// ============================================================================
+// DMN Decision Tables
+//
+// Semantic DMN model.
+// FEEL expressions start as text and are replaced by parsed nodes
+// during the FEEL parsing phase.
+//
+// ============================================================================
+//
+
+
+//
+// -----------------------------------------------------------------------------
+// Decision Table
+// -----------------------------------------------------------------------------
+//
+
+message DecisionTable {
+  Node node = 1;
+  HitPolicySpec hit_policy = 2;
+
+  Orientation preferred_orientation = 3;
+
+  repeated InputClause inputs = 10;
+  repeated OutputClause outputs = 11;
+  repeated DecisionRule rules = 12;
+  repeated AnnotationClause annotations = 13;
+}
+
+enum Orientation {
+  ORIENTATION_UNSPECIFIED = 0;
+  ORIENTATION_RULE_AS_ROW = 1;
+  ORIENTATION_RULE_AS_COLUMN = 2;
+  ORIENTATION_CROSS_TABLE = 3;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Hit Policy
+// -----------------------------------------------------------------------------
+//
+message HitPolicySpec {
+  HitPolicy policy = 1;
+  //
+  // Only valid for COLLECT
+  //
+  Aggregation aggregation = 2;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Input Clause
+// -----------------------------------------------------------------------------
+//
+
+message InputClause {
+  Node node = 1;
+
+  Feel input_expression = 2;
+  Feel input_values = 3;
+
+  TypeReference type = 4;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Output Clause
+// -----------------------------------------------------------------------------
+//
+message OutputClause {
+  //
+  // id, name, description
+  //
+  Node node = 1;
+  //
+  // Output type
+  //
+  TypeReference type = 2;
+  //
+  // Allowed output values
+  //
+  Feel output_values = 3;
+  //
+  // Default output expression
+  //
+  ExpressionNode default_output_entry = 4;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Decision Rule
+// -----------------------------------------------------------------------------
+//
+message DecisionRule {
+  //
+  // id, description
+  //
+  Node node = 1;
+  //
+  // Position in rule order.
+  //
+  // Required for FIRST,
+  // RULE_ORDER,
+  // OUTPUT_ORDER
+  //
+  int32 rule_index = 2;
+  //
+  // Input entries:
+  //
+  // examples:
+  //
+  //   <10
+  //   "Gold"
+  //   [1..10]
+  //   -
+  //
+  repeated UnaryTest input_entries = 3;
+  //
+  // Output expressions
+  //
+  repeated Feel output_entries = 4;
+  //
+  // Rule annotations
+  //
+  repeated RuleAnnotation annotation_entries = 5;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Unary Test
+// -----------------------------------------------------------------------------
+//
+// IMPORTANT:
+//
+// The XML frontend creates the text representation.
+// The FEEL parser replaces it with the parsed representation in a copied model.
+//
+// Examples:
+//
+//   < 10
+//   >= 100
+//   "Gold"
+//   [1..10]
+//   -
+//
+// Parsing happens later.
+//
+// -----------------------------------------------------------------------------
+//
+message UnaryTest {
+  oneof representation {
+    FeelText text = 1;
+    UnaryTestParsed parsed = 2;
+  }
+}
+
+//
+// -----------------------------------------------------------------------------
+// Annotation Column
+// -----------------------------------------------------------------------------
+//
+message AnnotationClause {
+  Node node = 1;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Annotation Cell
+// -----------------------------------------------------------------------------
+//
+message RuleAnnotation {
+  string text = 1;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Hit Policy
+// -----------------------------------------------------------------------------
+//
+enum HitPolicy {
+  HIT_POLICY_UNSPECIFIED = 0;
+  HIT_POLICY_UNIQUE = 1;
+  HIT_POLICY_FIRST = 2;
+  HIT_POLICY_PRIORITY = 3;
+  HIT_POLICY_ANY = 4;
+  HIT_POLICY_COLLECT = 5;
+  HIT_POLICY_RULE_ORDER = 6;
+  HIT_POLICY_OUTPUT_ORDER = 7;
+}
+
+//
+// -----------------------------------------------------------------------------
+// Aggregation
+// -----------------------------------------------------------------------------
+//
+enum Aggregation {
+  AGGREGATION_UNSPECIFIED = 0;
+  AGGREGATION_SUM = 1;
+  AGGREGATION_MIN = 2;
+  AGGREGATION_MAX = 3;
+  AGGREGATION_COUNT = 4;
+}

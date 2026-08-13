@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             namespace="https://finmsg.io/models/dq/scoring"
+             name="dq-scoring"
+             id="definitions_dq_scoring">
+
+    <inputData id="i_field_valid" name="fieldValid">
+        <variable name="fieldValid" typeRef="boolean"/>
+    </inputData>
+
+    <inputData id="i_consistency_valid" name="consistencyValid">
+        <variable name="consistencyValid" typeRef="boolean"/>
+    </inputData>
+
+    <decision id="d_dqi_score" name="DqiScore">
+        <variable name="DqiScore" typeRef="number"/>
+        <informationRequirement>
+            <requiredInput href="#i_field_valid"/>
+        </informationRequirement>
+        <informationRequirement>
+            <requiredInput href="#i_consistency_valid"/>
+        </informationRequirement>
+        <literalExpression>
+            <text>if fieldValid = true and consistencyValid = true then 100 else if fieldValid = true or consistencyValid = true then 50 else 0</text>
+        </literalExpression>
+    </decision>
+
+    <decision id="d_quality_status" name="QualityStatus">
+        <variable name="QualityStatus" typeRef="string"/>
+        <informationRequirement>
+            <requiredDecision href="#d_dqi_score"/>
+        </informationRequirement>
+        <decisionTable hitPolicy="FIRST">
+            <input id="input_dqi">
+                <inputExpression typeRef="number">
+                    <text>DqiScore</text>
+                </inputExpression>
+            </input>
+            <output id="output_status" name="QualityStatus" typeRef="string"/>
+            <rule id="rule_pass">
+                <inputEntry id="ie_pass"><text>&gt;= 80</text></inputEntry>
+                <outputEntry id="oe_pass"><text>"PASS"</text></outputEntry>
+            </rule>
+            <rule id="rule_warning">
+                <inputEntry id="ie_warning"><text>&gt;= 50</text></inputEntry>
+                <outputEntry id="oe_warning"><text>"WARNING"</text></outputEntry>
+            </rule>
+            <rule id="rule_reject">
+                <inputEntry id="ie_reject"><text>-</text></inputEntry>
+                <outputEntry id="oe_reject"><text>"REJECT"</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+</definitions>

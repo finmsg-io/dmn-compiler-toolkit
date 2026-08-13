@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 id="model-b"
+                 name="Level B"
+                 namespace="urn:p2-02:b">
+    <dmn:import namespace="urn:p2-02:c" locationURI="level-c.dmn" name="LevelC" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+    <dmn:decision id="dec-b" name="valB">
+        <dmn:variable id="var-b" name="valB" typeRef="number"/>
+        <dmn:informationRequirement id="req-c">
+            <dmn:requiredDecision href="urn:p2-02:c#dec-c"/>
+        </dmn:informationRequirement>
+        <dmn:literalExpression id="expr-b">
+            <dmn:text>valC + 20</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+</dmn:definitions>

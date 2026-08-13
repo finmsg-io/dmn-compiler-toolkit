@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 xmlns:types="urn:p2-05:types"
+                 id="model-main-types"
+                 name="Main Model Types"
+                 namespace="urn:p2-05:main">
+    <dmn:import namespace="urn:p2-05:types" locationURI="types.dmn" name="Types" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+    <dmn:inputData id="input-person" name="Person">
+        <dmn:variable id="var-person" name="Person" typeRef="types:tPerson"/>
+    </dmn:inputData>
+    <dmn:decision id="dec-score-bonus" name="ScoreBonus">
+        <dmn:variable id="var-score-bonus" name="ScoreBonus" typeRef="number"/>
+        <dmn:informationRequirement id="req-person">
+            <dmn:requiredInput href="#input-person"/>
+        </dmn:informationRequirement>
+        <dmn:literalExpression id="expr-score-bonus">
+            <dmn:text>Person.score + 10</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+</dmn:definitions>

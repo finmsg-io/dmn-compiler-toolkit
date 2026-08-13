@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="traffic-violation" name="Traffic Violation Conformance" namespace="urn:finmsg:benchmark:traffic-violation">
+  
+  <inputData id="input-driver-speed" name="Speed">
+    <variable id="input-driver-speed-var" name="Speed" typeRef="number"/>
+  </inputData>
+
+  <inputData id="input-speed-limit" name="SpeedLimit">
+    <variable id="input-speed-limit-var" name="SpeedLimit" typeRef="number"/>
+  </inputData>
+
+  <decision id="decision-violation-pts" name="Violation Points">
+    <variable id="decision-violation-pts-var" name="Violation Points" typeRef="number"/>
+    <informationRequirement><requiredInput href="#input-driver-speed"/></informationRequirement>
+    <informationRequirement><requiredInput href="#input-speed-limit"/></informationRequirement>
+    <decisionTable id="dt-violation-pts" hitPolicy="FIRST">
+      <input id="input-delta">
+        <inputExpression typeRef="number">
+          <text>Speed - SpeedLimit</text>
+        </inputExpression>
+      </input>
+      <output id="output-pts" typeRef="number"/>
+      <rule id="rule-1">
+        <inputEntry><text>&lt;= 0</text></inputEntry>
+        <outputEntry><text>0</text></outputEntry>
+      </rule>
+      <rule id="rule-2">
+        <inputEntry><text>&lt;= 10</text></inputEntry>
+        <outputEntry><text>1</text></outputEntry>
+      </rule>
+      <rule id="rule-3">
+        <inputEntry><text>&lt;= 20</text></inputEntry>
+        <outputEntry><text>3</text></outputEntry>
+      </rule>
+      <rule id="rule-4">
+        <inputEntry><text>&lt;= 30</text></inputEntry>
+        <outputEntry><text>5</text></outputEntry>
+      </rule>
+      <rule id="rule-5">
+        <inputEntry><text>&gt; 30</text></inputEntry>
+        <outputEntry><text>10</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

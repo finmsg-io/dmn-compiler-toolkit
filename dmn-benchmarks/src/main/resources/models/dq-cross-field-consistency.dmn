@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             namespace="https://finmsg.io/models/dq/cross-field-consistency"
+             name="dq-cross-field-consistency"
+             id="definitions_dq_cross_field_consistency">
+
+    <inputData id="i_subtotal" name="subtotal">
+        <variable name="subtotal" typeRef="number"/>
+    </inputData>
+
+    <inputData id="i_tax" name="tax">
+        <variable name="tax" typeRef="number"/>
+    </inputData>
+
+    <inputData id="i_total" name="total">
+        <variable name="total" typeRef="number"/>
+    </inputData>
+
+    <decision id="d_invoice_matching" name="IsInvoiceTotalMatching">
+        <variable name="IsInvoiceTotalMatching" typeRef="boolean"/>
+        <informationRequirement>
+            <requiredInput href="#i_subtotal"/>
+        </informationRequirement>
+        <informationRequirement>
+            <requiredInput href="#i_tax"/>
+        </informationRequirement>
+        <informationRequirement>
+            <requiredInput href="#i_total"/>
+        </informationRequirement>
+        <literalExpression>
+            <text>if subtotal != null and tax != null and total != null and total = subtotal + tax then true else false</text>
+        </literalExpression>
+    </decision>
+
+</definitions>

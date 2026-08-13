@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.finmsg.proto.def.swift.mt.fld.v1";
+option java_outer_classname = "MsgProtoDefSwiftMtFldV1";
+
+import "google/protobuf/descriptor.proto";
+
+message FldDefLst {
+    repeated FldDef fld_def = 1;
+}
+
+message FldDef {
+    string tag = 1;
+    string frmt = 2;
+    string sub_fld_nms = 3;
+    string sub_fld_nm_abbrvtns = 4;
+    bool cmplx_frmt = 5;
+    repeated SubFldDef sub_fld_def = 10;
+}
+
+message SubFldDef {
+    string nm = 1;
+    string frmt = 2;
+    string pttrn = 3;
+    string sub_fld_nm_abbrvtn = 4;
+    bool optnl = 5;
+    string sep_prfx = 6;
+    string sep_pstfx = 7;
+}
+
+message MtFldDefFltr {
+    string reg_exp = 1;
+}

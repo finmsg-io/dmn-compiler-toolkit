@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.finmsg.dmn</groupId>
+    <artifactId>dmn-compiler-toolkit</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <packaging>pom</packaging>
+
+    <name>DMN Compiler Toolkit</name>
+    <description>High-performance DMN Compiler Toolkit</description>
+
+    <modules>
+        <module>dmn-protobuf</module>
+        <module>dmn-frontend-xml</module>
+        <module>dmn-feel-parser</module>
+        <module>dmn-semantic-analysis</module>
+        <module>dmn-runtime-ir</module>
+        <module>dmn-runtime</module>
+        <module>dmn-compiler</module>
+        <module>dmn-generator-java</module>
+        <module>dmn-tck-runner</module>
+        <module>dmn-benchmarks</module>
+        <module>dmn-optimizer</module>
+        <module>dmn-grpc</module>
+        <module>dmn-generator-sparksql</module>
+        <module>dmn-models</module>
+    </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>25</maven.compiler.release>
+        <antlr4.version>4.13.2</antlr4.version>
+        <protobuf.version>4.31.1</protobuf.version>
+        <grpc.version>1.76.0</grpc.version>
+        <spark.version>4.2.0</spark.version>
+        <vtdxml.version>2.13.4</vtdxml.version>
+        <junit.version>5.13.4</junit.version>
+        <slf4j.version>2.0.17</slf4j.version>
+        <assertj.version>3.27.6</assertj.version>
+        <jmh.version>1.37</jmh.version>
+        <datafaker.version>1.9.0</datafaker.version>
+        <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
+        <protobuf.maven.plugin.version>0.6.1</protobuf.maven.plugin.version>
+        <maven.enforcer.plugin.version>3.5.0</maven.enforcer.plugin.version>
+        <jacoco.plugin.version>0.8.14</jacoco.plugin.version>
+        <spotless.plugin.version>2.46.1</spotless.plugin.version>
+        <palantir.java.format.version>2.50.0</palantir.java.format.version>
+        <owasp.dependency.check.version>12.1.3</owasp.dependency.check.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-sql_2.13</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.ximpleware</groupId>
+                <artifactId>vtd-xml</artifactId>
+                <version>${vtdxml.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.openjdk.jmh</groupId>
+                <artifactId>jmh-core</artifactId>
+                <version>${jmh.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.openjdk.jmh</groupId>
+                <artifactId>jmh-generator-annprocess</artifactId>
+                <version>${jmh.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>net.datafaker</groupId>
+                <artifactId>datafaker</artifactId>
+                <version>${datafaker.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>${assertj.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven.compiler.plugin.version}</version>
+                    <configuration>
+                        <release>${maven.compiler.release}</release>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${maven.enforcer.plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco.plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>com.diffplug.spotless</groupId>
+                    <artifactId>spotless-maven-plugin</artifactId>
+                    <version>${spotless.plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <!-- Enforce minimum Maven and JDK versions; fail on dependency convergence errors -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-build-environment</id>
+                        <goals><goal>enforce</goal></goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>[3.9,)</version>
+                                    <message>Maven 3.9 or later is required.</message>
+                                </requireMavenVersion>
+                                <requireJavaVersion>
+                                    <version>[25,)</version>
+                                    <message>JDK 25 or later is required.</message>
+                                </requireJavaVersion>
+                                <dependencyConvergence>
+                                    <includes>
+                                        <include>io.finmsg.dmn:*</include>
+                                        <include>com.google.protobuf:*</include>
+                                        <include>io.grpc:*</include>
+                                        <include>org.antlr:*</include>
+                                        <include>org.slf4j:*</include>
+                                        <include>org.junit.jupiter:*</include>
+                                        <include>org.assertj:*</include>
+                                        <include>com.ximpleware:*</include>
+                                        <include>net.datafaker:*</include>
+                                        <include>org.openjdk.jmh:*</include>
+                                    </includes>
+                                </dependencyConvergence>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- JaCoCo: collect coverage on every test run and generate per-module report -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- Format profile: enforce palantir-java-format (requires Maven 3.9+).
+             Usage: mvn -Pformat spotless:apply  (apply)
+                    mvn -Pformat verify         (check in CI) -->
+        <profile>
+            <id>format</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.diffplug.spotless</groupId>
+                        <artifactId>spotless-maven-plugin</artifactId>
+                        <configuration>
+                            <!-- Checked-in generated artifacts get EOL normalization only; do not restyle generated code. -->
+                            <formats>
+                                <format>
+                                    <includes>
+                                        <include>src/gen/**/*</include>
+                                    </includes>
+                                    <lineEndings>UNIX</lineEndings>
+                                </format>
+                            </formats>
+                            <java>
+                                <!-- Never derive source line endings from the host OS or checkout settings. -->
+                                <lineEndings>UNIX</lineEndings>
+                                <removeUnusedImports/>
+                                <eclipse/>
+                            </java>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>spotless-check</id>
+                                <phase>verify</phase>
+                                <goals><goal>check</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Security scan profile: run manually or in dedicated CI step.
+             Usage: mvn -Psecurity-scan verify -->
+        <profile>
+            <id>security-scan</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>${owasp.dependency.check.version}</version>
+                        <inherited>false</inherited>
+                        <configuration>
+                            <failBuildOnCVSS>7</failBuildOnCVSS>
+                            <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
+                            <skipProvidedScope>true</skipProvidedScope>
+                            <suppressionFile>${maven.multiModuleProjectDirectory}/dependency-check-suppressions.xml</suppressionFile>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals><goal>aggregate</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/finmsg-io/dmn-compiler-toolkit</url>
+        </repository>
+    </distributionManagement>
+
+</project>

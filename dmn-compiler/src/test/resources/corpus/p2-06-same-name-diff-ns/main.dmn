@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 id="main-model-ns"
+                 name="Main NS Disambiguation"
+                 namespace="urn:p2-06:main">
+    <dmn:import namespace="urn:p2-06:ns1" locationURI="ns1-common.dmn" name="Common1" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+    <dmn:import namespace="urn:p2-06:ns2" locationURI="ns2-common.dmn" name="Common2" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+    <dmn:decision id="combined-dec" name="combinedDec">
+        <dmn:variable id="var-combined" name="combinedDec" typeRef="number"/>
+        <dmn:informationRequirement id="req-ns1">
+            <dmn:requiredDecision href="urn:p2-06:ns1#ns1-dec"/>
+        </dmn:informationRequirement>
+        <dmn:informationRequirement id="req-ns2">
+            <dmn:requiredDecision href="urn:p2-06:ns2#ns2-dec"/>
+        </dmn:informationRequirement>
+        <dmn:literalExpression id="expr-combined">
+            <dmn:text>ns1Dec + ns2Dec</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+</dmn:definitions>

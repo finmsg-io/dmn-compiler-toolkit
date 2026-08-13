@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="scalar-arithmetic" name="Scalar arithmetic" namespace="urn:finmsg:tck:smoke">
+  <inputData id="input-age" name="age">
+    <variable id="input-age-variable" name="age" typeRef="number"/>
+  </inputData>
+  <decision id="decision-next-age" name="nextAge">
+    <variable id="decision-next-age-variable" name="nextAge" typeRef="number"/>
+    <informationRequirement><requiredInput href="#input-age"/></informationRequirement>
+    <literalExpression><text>age + 1</text></literalExpression>
+  </decision>
+</definitions>

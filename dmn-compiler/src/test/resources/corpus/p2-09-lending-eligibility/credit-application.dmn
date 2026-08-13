@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20230324/MODEL/"
+                 id="model-credit-application"
+                 name="Credit Application"
+                 namespace="urn:p2-09:credit-app">
+    <dmn:import namespace="urn:p2-09:applicant-score" locationURI="applicant-score.dmn" name="ApplicantScore" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+    <dmn:import namespace="urn:p2-09:policy-rules" locationURI="policy-rules.dmn" name="PolicyRules" importType="https://www.omg.org/spec/DMN/20230324/MODEL/"/>
+
+    <dmn:inputData id="input-requested" name="RequestedAmount">
+        <dmn:variable id="var-requested" name="RequestedAmount" typeRef="number"/>
+    </dmn:inputData>
+
+    <dmn:decision id="dec-approval" name="LoanApproval">
+        <dmn:variable id="var-approval" name="LoanApproval" typeRef="string"/>
+        <dmn:informationRequirement id="req-risk-app">
+            <dmn:requiredDecision href="urn:p2-09:applicant-score#dec-risk"/>
+        </dmn:informationRequirement>
+        <dmn:informationRequirement id="req-applicant-app">
+            <dmn:requiredInput href="urn:p2-09:applicant-score#input-applicant"/>
+        </dmn:informationRequirement>
+        <dmn:informationRequirement id="req-requested-app">
+            <dmn:requiredInput href="#input-requested"/>
+        </dmn:informationRequirement>
+        <dmn:knowledgeRequirement id="req-max-loan-bkm">
+            <dmn:requiredKnowledge href="urn:p2-09:policy-rules#bkm-max-loan"/>
+        </dmn:knowledgeRequirement>
+        <dmn:context id="ctx-approval">
+            <dmn:contextEntry>
+                <dmn:variable id="var-limit" name="Limit" typeRef="number"/>
+                <dmn:literalExpression id="expr-limit">
+                    <dmn:text>if RiskCategory = "LOW" then Applicant.income * 4 else if RiskCategory = "MEDIUM" then Applicant.income * 2 else 0</dmn:text>
+                </dmn:literalExpression>
+            </dmn:contextEntry>
+            <dmn:contextEntry>
+                <dmn:literalExpression id="expr-result-app">
+                    <dmn:text>if RiskCategory != "HIGH" and RequestedAmount &lt;= Limit then "APPROVED" else "DECLINED"</dmn:text>
+                </dmn:literalExpression>
+            </dmn:contextEntry>
+        </dmn:context>
+    </dmn:decision>
+</dmn:definitions>

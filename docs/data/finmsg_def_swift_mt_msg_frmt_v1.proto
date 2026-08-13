@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.finmsg.proto.def.swift.mt.msg.frmt.v1";
+option java_outer_classname = "MsgProtoDefSwiftMtMsgFrmtV1";
+
+message MtDefs {
+    repeated MtDef mt_def = 10;
+}
+
+message MtDef {
+    string mt = 1;
+    string mt_nm = 2;
+    string flvr = 3;
+    string sr = 4;
+    repeated MtDefObj mt_def_obj = 10;
+}
+
+message MtDefObj {
+    oneof mt_def_obj {
+        MtDefSeq seq = 1;
+        MtDefFld fld = 2;
+        MtDefOptn optn = 3;
+        MtDefRptn rptn = 4;
+    }
+}
+
+message MtDefSeq {
+    string tag = 1;               // sF1
+    string nm = 2;                // Subsequence F1 Barrier Window Block
+    string id = 3;                // F1
+    string cntt_start = 4;        // -----> Optional Repetitive Subsequence F1 Barrier Window Block
+    string cntt_end = 5;          // -----| Optional Repetitive Subsequence F1 Barrier Window Block
+    bool optnl = 7;
+    bool rpttv = 8;
+    repeated MtDefObj mt_def_obj = 10;
+}
+
+message MtDefOptn {
+    string tag = 1;
+    string nm = 2;
+    string nm_gnrc = 3;
+    bool optnl = 7;
+    string fld_nb = 9;
+    repeated MtDefFld mt_def_fld = 10;
+}
+
+message MtDefRptn {
+    string tag = 1;
+    string id = 3;
+    string cntt_start = 4;        // ----->
+    string cntt_end = 5;          // -----|
+    repeated MtDefRptnObj mt_def_rptn_obj = 10;
+}
+
+message MtDefRptnObj {
+    oneof mtDefRptnObj {
+        MtDefFld fld = 2;
+        MtDefOptn optn = 3;
+        MtDefRptn rptn = 4;
+    }
+}
+
+message MtDefFld {
+    string tag = 1;
+    string nm = 2;
+    string nm_gnrc = 3;
+    string frmt = 4;
+    string qlfr = 5;
+    bool optnl = 7;
+    string cntt = 8;
+    string fld_nb = 9;
+    repeated MtDefSubFld mt_def_sub_fld = 10;
+    string sub_fld_nms = 11;
+    string sub_fld_nms_gnrc = 12;
+}
+
+message MtDefSubFld {
+    string nm = 1;
+    string nm_gnrc = 2;
+    string frmt = 3;
+    string pttrn = 4;
+    bool optnl = 5;
+    string sep_prfx = 6;
+    string sep_pstfx = 7;
+}

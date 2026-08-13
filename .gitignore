@@ -1,0 +1,12 @@
+target/
+**/target/
+.idea/
+.vscode/
+*.class
+dependency-reduced-pom.xml
+
+# Generated MkDocs static site output
+site/
+
+# Release zip archives
+zips/

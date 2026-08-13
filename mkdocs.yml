@@ -1,0 +1,163 @@
+
+site_name: DMN Compiler Toolkit
+site_description: High-performance compiler infrastructure for DMN 1.5
+site_url: https://finmsg-io.github.io/dmn-compiler-toolkit/
+repo_name: finmsg-io/dmn-compiler-toolkit
+repo_url: https://github.com/finmsg-io/dmn-compiler-toolkit
+edit_uri: edit/main/docs/
+
+copyright: Copyright © finmsg.io
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Capability Maturity: capabilities.md
+  - TCK Conformance: tck-conformance.md
+  - Glossary: glossary.md
+
+  - Architecture:
+      - Overview: architecture.md
+      - Architecture Specification: architecture/architecture-spec.md
+      - Architecture Decisions:
+          - ADR Guide and Index: architecture/adr/generall-adr.md
+          - ADR-0001 Compiler Architecture: architecture/adr/adr-0001-compiler-architecture-instead-of-interpreter.md
+          - ADR-0002 Protobuf Semantic Model: architecture/adr/adr-0002-protobuf-as-internal-semantic-representation.md
+          - ADR-0003 VTD-XML: architecture/adr/adr-0003-vtd-xml-instead-of-dom-or-jaxb.md
+          - ADR-0004 ANTLR: architecture/adr/adr-0004-antlr-for-feel-parsing.md
+          - ADR-0005 Immutable IRs: architecture/adr/adr-0005-immutable-intermediate-representations.md
+          - ADR-0006 Runtime IR: architecture/adr/adr-0006-runtime-ir.md
+          - ADR-0007 Compiler Passes: architecture/adr/adr-0007-compiler-pass-architecture.md
+          - ADR-0008 XML-free Runtime: architecture/adr/adr-0008-runtime-without-xml-knowledge.md
+          - ADR-0009 Integer References: architecture/adr/adr-0009-integer-based-runtime-references.md
+          - ADR-0010 Multiple Backends: architecture/adr/adr-0010-multi-backend-architecture.md
+          - ADR-0011 Determinism: architecture/adr/adr-0011-deterministic-compilation.md
+          - ADR-0012 Diagnostics: architecture/adr/adr-0012-diagnostics-as-first-class-objects.md
+          - ADR-0013 No Reflection: architecture/adr/adr-0013-no-reflection-in-generated-code.md
+          - ADR-0014 Maven Modules: architecture/adr/adr-0014-maven-multi-module-architecture.md
+          - ADR-0015 Extensions: architecture/adr/adr-0015-open-extension-model.md
+          - ADR-0025 Runtime IR Persistence: architecture/adr/adr-0025-runtime-ir-persistence-and-compatibility-boundary.md
+
+      - Chapters:
+          - Vision: "architecture/chapters/01-Vision.md"
+          - Architecture Principles: "architecture/chapters/02-Architecture Principles.md"
+          - Stakeholders and Quality Attributes: "architecture/chapters/03-Stakeholders and Quality Attributes.md"
+          - System Context and External Interfaces: "architecture/chapters/04-System Context and External Interfaces.md"
+          - Overall Architecture: "architecture/chapters/05-Overall Architecture.md"
+          - Logical Component Architecture: "architecture/chapters/06-Logical Component Architecture.md"
+          - Maven Modules: "architecture/chapters/07-Maven Modules.md"
+          - Package Layout: "architecture/chapters/08-Package Layout.md"
+          - Public API: "architecture/chapters/09-Public API.md"
+          - Semantic Model: "architecture/chapters/10-Semantic Model.md"
+          - FEEL AST: "architecture/chapters/11-FEEL AST.md"
+          - Runtime IR: "architecture/chapters/12-Runtime IR.md"
+          - XML Frontend: "architecture/chapters/13-XML Frontend.md"
+          - FEEL Parser: "architecture/chapters/14-FEEL Parser.md"
+          - Semantic Analysis: "architecture/chapters/15-Semantic Analysis.md"
+          - Compiler Passes: "architecture/chapters/16-Compiler Passes.md"
+          - Internal Compiler Architecture: "architecture/chapters/17-Internal Compiler Architecture.md"
+          - Java Generator: "architecture/chapters/18-Java Generator.md"
+          - Future Generators: "architecture/chapters/19-Future Generators.md"
+          - Testing Strategy: "architecture/chapters/20-Testing Strategy.md"
+          - Performance: "architecture/chapters/21-Performance.md"
+          - Deployment and Operational Architecture: "architecture/chapters/22-Deployment and Operational Architecture.md"
+          - Security and Trust Boundaries: "architecture/chapters/23-Security and Trust Boundaries.md"
+          - Failure Model and Resilience: "architecture/chapters/24-Failure Model and Resilience.md"
+          - Data Lifecycle, Caching, and Compatibility: "architecture/chapters/25-Data Lifecycle Caching and Compatibility.md"
+          - Observability and Supportability: "architecture/chapters/26-Observability and Supportability.md"
+          - Build, Release, and Supply Chain: "architecture/chapters/27-Build Release and Supply Chain.md"
+          - Architecture Traceability and Conformance: "architecture/chapters/28-Architecture Traceability and Conformance.md"
+          - Architecture Risks and Technical Debt: "architecture/chapters/29-Architecture Risks and Technical Debt.md"
+          - Roadmap: "architecture/chapters/30-Roadmap.md"
+          - Reference Material: "architecture/chapters/31-Appendices.md"
+
+  - Modules: modules.md
+  - Development:
+      - Living Development Plan: development-plan.md
+      - Documentation Structure: documentation-structure.md
+      - Documentation and Positioning Improvement Proposal: improvements/documentation-and-positioning.md
+      - Reusable Spec-Driven Delivery Proposal: improvements/spec-driven-delivery-system.md
+      - Pragmatic Automated Release Train: improvements/automated-release-train.md
+      - Production Readiness Graduation: improvements/production-readiness-graduation.md
+      - Capability Maturity and Incubation: improvements/capability-maturity-and-incubation.md
+      - Module TODOs:
+          - Overview: todos/index.md
+          - Compiler: todos/dmn-compiler.md
+          - Protobuf: todos/dmn-protobuf.md
+          - XML Frontend: todos/dmn-frontend-xml.md
+          - FEEL Parser: todos/dmn-feel-parser.md
+          - Semantic Analysis: todos/dmn-semantic-analysis.md
+          - Runtime IR: todos/dmn-runtime-ir.md
+          - Runtime: todos/dmn-runtime.md
+      - Audits:
+          - Overview: audits/index.md
+          - ChatGPT Project Assessment (2026-08-08): audits/assessment-chatgpt-project-progress-2026-08-08.md
+          - Protobuf Assessment: audits/assessment-implementation-dmn-protobuf.md
+          - XML Frontend Assessment: audits/assessment-implementation-dmn-frontend-xml.md
+          - XML Frontend Completeness: audits/dmn-frontend-xml-completeness.md
+          - FEEL Parser Assessment: audits/assessment-implementation-dmn-feel-parser.md
+          - Semantic Analysis Assessment: audits/assessment-implementation-dmn-semantic-analysis.md
+          - Runtime IR Assessment: audits/assessment-implementation-dmn-runtime-ir.md
+          - Runtime Assessment: audits/assessment-implementation-dmn-runtime.md
+          - Compiler Assessment: audits/assessment-implementation-dmn-compiler.md
+          - Java Generator Assessment: audits/assessment-implementation-dmn-generator-java.md
+          - TCK Runner Assessment: audits/assessment-implementation-dmn-tck-runner.md
+          - Benchmarks Assessment: audits/assessment-implementation-dmn-benchmarks.md
+          - Optimizer Assessment: audits/assessment-implementation-dmn-optimizer.md
+          - Data Quality Corpus Assessment: audits/assessment-implementation-data-quality-corpus.md
+          - gRPC Assessment: audits/assessment-implementation-dmn-grpc.md
+          - SparkSQL Assessment: audits/assessment-implementation-dmn-generator-sparksql.md
+          - Module Architecture Assessment: audits/assessment-module-architecture.md
+          - Architecture by Module:
+              - Protobuf: audits/assessment-architecture-dmn-protobuf.md
+              - XML Frontend: audits/assessment-architecture-dmn-frontend-xml.md
+              - FEEL Parser: audits/assessment-architecture-dmn-feel-parser.md
+              - Semantic Analysis: audits/assessment-architecture-dmn-semantic-analysis.md
+              - Runtime IR: audits/assessment-architecture-dmn-runtime-ir.md
+              - Runtime: audits/assessment-architecture-dmn-runtime.md
+              - Compiler: audits/assessment-architecture-dmn-compiler.md
+              - Java Generator: audits/assessment-architecture-dmn-generator-java.md
+              - TCK Runner: audits/assessment-architecture-dmn-tck-runner.md
+              - Benchmarks: audits/assessment-architecture-dmn-benchmarks.md
+              - Optimizer: audits/assessment-architecture-dmn-optimizer.md
+              - Data Quality Corpus: audits/assessment-architecture-data-quality-corpus.md
+              - gRPC: audits/assessment-architecture-dmn-grpc.md
+              - SparkSQL Generator: audits/assessment-architecture-dmn-generator-sparksql.md
+      - Style Guide: dev/style.md
+      - Evidence-Backed Spec-Driven Development: dev/evidence-backed-spec-driven-development.md
+      - Development Slices:
+          - Overview: dev/slices/index.md
+          - P1.3 Transitive Import Loading: dev/slices/P1.3-load-transitive-imports.md
+          - P1.4 Import Diagnostics: dev/slices/P1.4-diagnose-invalid-import-structures.md
+          - P1.5 Shared Diagnostic Context: dev/slices/P1.5-add-shared-diagnostic-context.md
+          - P1.6 Whole-Model-Set Semantics: dev/slices/P1.6-whole-model-set-semantic-result.md
+          - P1.7 Immutable Compiler Facade: dev/slices/P1.7-immutable-compiler-facade.md
+          - P2.1-P2.9 Real Multi-File Corpus: dev/slices/P2.1-P2.9-real-multi-file-corpus.md
+          - P3.1-P3.7 Runtime Semantic Baseline: dev/slices/P3.1-P3.7-runtime-semantic-baseline.md
+          - P4.1-P4.4 Stable Compiled-Model API: dev/slices/P4.1-P4.4-stable-compiled-model-api.md
+          - P5.1 Pure Java Generator: dev/slices/P5.1-pure-java-generator.md
+          - P6.1-P6.4 100% TCK Compliance: dev/slices/P6.1-P6.4-100-omg-dmn-1.5-tck-compliance.md
+      - CI and Publishing: ci-and-publishing.md
+  - Roadmap: roadmap.md
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+
+plugins:
+  - search

@@ -1,0 +1,17 @@
+# Keep repository text deterministic on Windows, Linux, and macOS.
+# Explicit eol rules override each developer's core.autocrlf setting.
+* text=auto eol=lf
+
+# Windows command scripts must retain CRLF for cmd.exe compatibility.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files must never be line-ending normalized.
+*.gif binary
+*.ico binary
+*.jar binary
+*.jpeg binary
+*.jpg binary
+*.pdf binary
+*.png binary
+*.zip binary

@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20191111/MODEL/"
+                  xmlns="urn:io.finmsg:dmn:dq:mt564"
+                  xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+                  xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+                  xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+                  xmlns:kie="http://www.drools.org/kie/dmn/1.2"
+                  id="_model-swift-mt564-dqm"
+                  name="SWIFT MT564 Data Quality Model"
+                  expressionLanguage="https://www.omg.org/spec/DMN/20191111/FEEL/"
+                  typeLanguage="https://www.omg.org/spec/DMN/20191111/FEEL/"
+                  namespace="urn:io.finmsg:dmn:dq:mt564">
+
+    <dmn:extensionElements/>
+
+    <dmn:import id="_imp-dq-bkm" name="DqBkm" namespace="urn:io.finmsg:dmn:dq:bkm" locationURI="reusable-dq-bkm.dmn" importType="https://www.omg.org/spec/DMN/20191111/MODEL/"/>
+
+    <dmn:inputData id="_input-message" name="Message">
+        <dmn:variable id="_var-input-message" name="Message" typeRef="Any"/>
+    </dmn:inputData>
+
+    <dmn:decision id="_dec-seme-ref" name="SemeReferenceValue">
+        <dmn:variable id="_var-seme-ref" name="SemeReferenceValue" typeRef="string"/>
+        <dmn:informationRequirement id="_req-msg-seme">
+            <dmn:requiredInput href="#_input-message"/>
+        </dmn:informationRequirement>
+        <dmn:literalExpression id="_expr-seme-ref" typeRef="string">
+            <dmn:text>if Message.semeRef != null then Message.semeRef else Message.mt_std.seq_A.semeRef</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+
+    <dmn:decision id="_dec-msg-function" name="MessageFunctionValue">
+        <dmn:variable id="_var-msg-function" name="MessageFunctionValue" typeRef="string"/>
+        <dmn:informationRequirement id="_req-msg-function">
+            <dmn:requiredInput href="#_input-message"/>
+        </dmn:informationRequirement>
+        <dmn:literalExpression id="_expr-msg-function" typeRef="string">
+            <dmn:text>if Message.msgFunction != null then Message.msgFunction else Message.mt_std.seq_A.msgFunction</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+
+    <dmn:decision id="_dec-ca-event" name="CorporateActionEventValue">
+        <dmn:variable id="_var-ca-event" name="CorporateActionEventValue" typeRef="string"/>
+        <dmn:informationRequirement id="_req-msg-event">
+            <dmn:requiredInput href="#_input-message"/>
+        </dmn:informationRequirement>
+        <dmn:literalExpression id="_expr-ca-event" typeRef="string">
+            <dmn:text>if Message.caEvent != null then Message.caEvent else Message.mt_std.seq_A.caEvent</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+
+    <dmn:decision id="_dec-rule-seme" name="Rule_SEME_Validation">
+        <dmn:variable id="_var-rule-seme" name="Rule_SEME_Validation" typeRef="Any"/>
+        <dmn:informationRequirement id="_req-seme-ref-val">
+            <dmn:requiredDecision href="#_dec-seme-ref"/>
+        </dmn:informationRequirement>
+        <dmn:knowledgeRequirement id="_req-bkm-required">
+            <dmn:requiredKnowledge href="urn:io.finmsg:dmn:dq:bkm#_bkm-required-value"/>
+        </dmn:knowledgeRequirement>
+        <dmn:invocation id="_inv-rule-seme">
+            <dmn:literalExpression id="_expr-inv-seme">
+                <dmn:text>requiredValue</dmn:text>
+            </dmn:literalExpression>
+            <dmn:binding>
+                <dmn:parameter id="_p-seme-val" name="value"/>
+                <dmn:literalExpression id="_expr-p-seme-val"><dmn:text>SemeReferenceValue</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-seme-id" name="ruleId"/>
+                <dmn:literalExpression id="_expr-p-seme-id"><dmn:text>"DQ-MT564-001"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-seme-sev" name="severity"/>
+                <dmn:literalExpression id="_expr-p-seme-sev"><dmn:text>"ERROR"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-seme-path" name="path"/>
+                <dmn:literalExpression id="_expr-p-seme-path"><dmn:text>"mt_std.seq[A].rptn[20C::SEME].Ref"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-seme-msg" name="message"/>
+                <dmn:literalExpression id="_expr-p-seme-msg"><dmn:text>"Sender Reference (20C::SEME) is required in Sequence A"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-seme-exp" name="expectedState"/>
+                <dmn:literalExpression id="_expr-p-seme-exp"><dmn:text>"Non-empty reference string"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+        </dmn:invocation>
+    </dmn:decision>
+
+    <dmn:decision id="_dec-rule-function" name="Rule_MessageFunction_Validation">
+        <dmn:variable id="_var-rule-function" name="Rule_MessageFunction_Validation" typeRef="Any"/>
+        <dmn:informationRequirement id="_req-function-val">
+            <dmn:requiredDecision href="#_dec-msg-function"/>
+        </dmn:informationRequirement>
+        <dmn:knowledgeRequirement id="_req-bkm-allowed-func">
+            <dmn:requiredKnowledge href="urn:io.finmsg:dmn:dq:bkm#_bkm-allowed-value"/>
+        </dmn:knowledgeRequirement>
+        <dmn:invocation id="_inv-rule-function">
+            <dmn:literalExpression id="_expr-inv-function">
+                <dmn:text>allowedValue</dmn:text>
+            </dmn:literalExpression>
+            <dmn:binding>
+                <dmn:parameter id="_p-func-val" name="value"/>
+                <dmn:literalExpression id="_expr-p-func-val"><dmn:text>MessageFunctionValue</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-func-codes" name="allowedCodes"/>
+                <dmn:literalExpression id="_expr-p-func-codes"><dmn:text>["NEWM", "REPE", "RMDR", "WITH", "CODU", "CANCEL"]</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-func-id" name="ruleId"/>
+                <dmn:literalExpression id="_expr-p-func-id"><dmn:text>"DQ-MT564-002"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-func-sev" name="severity"/>
+                <dmn:literalExpression id="_expr-p-func-sev"><dmn:text>"ERROR"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-func-path" name="path"/>
+                <dmn:literalExpression id="_expr-p-func-path"><dmn:text>"mt_std.seq[A].fld[23G].Fctn"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-func-msg" name="message"/>
+                <dmn:literalExpression id="_expr-p-func-msg"><dmn:text>"Function of Message (23G) must be a valid SWIFT MT564 function code"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-func-exp" name="expectedState"/>
+                <dmn:literalExpression id="_expr-p-func-exp"><dmn:text>"One of: NEWM, REPE, RMDR, WITH, CODU, CANCEL"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+        </dmn:invocation>
+    </dmn:decision>
+
+    <dmn:decision id="_dec-rule-event" name="Rule_AuditEvent_Validation">
+        <dmn:variable id="_var-rule-event" name="Rule_AuditEvent_Validation" typeRef="Any"/>
+        <dmn:informationRequirement id="_req-event-val">
+            <dmn:requiredDecision href="#_dec-ca-event"/>
+        </dmn:informationRequirement>
+        <dmn:knowledgeRequirement id="_req-bkm-allowed-event">
+            <dmn:requiredKnowledge href="urn:io.finmsg:dmn:dq:bkm#_bkm-allowed-value"/>
+        </dmn:knowledgeRequirement>
+        <dmn:invocation id="_inv-rule-event">
+            <dmn:literalExpression id="_expr-inv-event">
+                <dmn:text>allowedValue</dmn:text>
+            </dmn:literalExpression>
+            <dmn:binding>
+                <dmn:parameter id="_p-event-val" name="value"/>
+                <dmn:literalExpression id="_expr-p-event-val"><dmn:text>CorporateActionEventValue</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-event-codes" name="allowedCodes"/>
+                <dmn:literalExpression id="_expr-p-event-codes"><dmn:text>["ACTV", "DVCA", "BONU", "EXOF", "MEET", "INCR", "PTPR"]</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-event-id" name="ruleId"/>
+                <dmn:literalExpression id="_expr-p-event-id"><dmn:text>"DQ-MT564-003"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-event-sev" name="severity"/>
+                <dmn:literalExpression id="_expr-p-event-sev"><dmn:text>"ERROR"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-event-path" name="path"/>
+                <dmn:literalExpression id="_expr-p-event-path"><dmn:text>"mt_std.seq[A].rptn[22F::CAEV].Value"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-event-msg" name="message"/>
+                <dmn:literalExpression id="_expr-p-event-msg"><dmn:text>"Corporate Action Event Indicator (22F::CAEV) must be a valid SWIFT event code"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+            <dmn:binding>
+                <dmn:parameter id="_p-event-exp" name="expectedState"/>
+                <dmn:literalExpression id="_expr-p-event-exp"><dmn:text>"One of: ACTV, DVCA, BONU, EXOF, MEET, INCR, PTPR"</dmn:text></dmn:literalExpression>
+            </dmn:binding>
+        </dmn:invocation>
+    </dmn:decision>
+
+    <dmn:decision id="_dec-quality-report" name="QualityReport">
+        <dmn:variable id="_var-quality-report" name="QualityReport" typeRef="Any"/>
+        <dmn:informationRequirement id="_req-report-seme">
+            <dmn:requiredDecision href="#_dec-rule-seme"/>
+        </dmn:informationRequirement>
+        <dmn:informationRequirement id="_req-report-func">
+            <dmn:requiredDecision href="#_dec-rule-function"/>
+        </dmn:informationRequirement>
+        <dmn:informationRequirement id="_req-report-event">
+            <dmn:requiredDecision href="#_dec-rule-event"/>
+        </dmn:informationRequirement>
+        <dmn:literalExpression id="_expr-quality-report" typeRef="Any">
+            <dmn:text>flatten([Rule_SEME_Validation, Rule_MessageFunction_Validation, Rule_AuditEvent_Validation])</dmn:text>
+        </dmn:literalExpression>
+    </dmn:decision>
+
+    <dmndi:DMNDI>
+        <dmndi:DMNDiagram id="_diagram-swift-mt564-dqm" name="SWIFT MT564 Data Quality Model">
+            <di:extension/>
+            <dmndi:DMNShape id="_shape-input-message" dmnElementRef="_input-message" isCollapsed="false">
+                <dmndi:DMNStyle>
+                    <dmndi:FillColor red="255" green="255" blue="255"/>
+                    <dmndi:StrokeColor red="0" green="0" blue="0"/>
+                    <dmndi:FontColor red="0" green="0" blue="0"/>
+                </dmndi:DMNStyle>
+                <dc:Bounds x="350" y="450" width="160" height="60"/>
+                <dmndi:DMNLabel/>
+            </dmndi:DMNShape>
+
+            <dmndi:DMNShape id="_shape-dec-seme-ref" dmnElementRef="_dec-seme-ref" isCollapsed="false">
+                <dmndi:DMNStyle>
+                    <dmndi:FillColor red="255" green="255" blue="255"/>
+                    <dmndi:StrokeColor red="0" green="0" blue="0"/>
+                    <dmndi:FontColor red="0" green="0" blue="0"/>
+                </dmndi:DMNStyle>
+                <dc:Bounds x="150" y="320" width="160" height="60"/>
+                <dmndi:DMNLabel/>
+            </dmndi:DMNShape>
+            <dmndi:DMNShape id="_shape-dec-msg-function" dmnElementRef="_dec-msg-function" isCollapsed="false">
+                <dmndi:DMNStyle>
+                    <dmndi:FillColor red="255" green="255" blue="255"/>
+                    <dmndi:StrokeColor red="0" green="0" blue="0"/>
+                    <dmndi:FontColor red="0" green="0" blue="0"/>
+                </dmndi:DMNStyle>
+                <dc:Bounds x="350" y="320" width="160" height="60"/>
+                <dmndi:DMNLabel/>
+            </dmndi:DMNShape>
+            <dmndi:DMNShape id="_shape-dec-ca-event" dmnElementRef="_dec-ca-event" isCollapsed="false">
+                <dmndi:DMNStyle>
+                    <dmndi:FillColor red="255" green="255" blue="255"/>
+                    <dmndi:StrokeColor red="0" green="0" blue="0"/>
+                    <dmndi:FontColor red="0" green="0" blue="0"/>
+                </dmndi:DMNStyle>
+                <dc:Bounds x="550" y="320" width="160" height="60"/>
+                <dmndi:DMNLabel/>
+            </dmndi:DMNShape>
+
+            <dmndi:DMNShape id="_shape-dec-rule-seme" dmnElementRef="_dec-rule-seme" isCollapsed="false">
+                <dmndi:DMNStyle>
+                    <dmndi:FillColor red="255" green="255" blue="255"/>
+                    <dmndi:StrokeColor red="0" green="0" blue="0"/>
+                    <dmndi:FontColor red="0" green="0" blue="0"/>
+                </dmndi:DMNStyle>
+                <dc:Bounds x="150" y="190" width="160" height="60"/>
+                <dmndi:DMNLabel/>
+            </dmndi:DMNShape>
+            <dmndi:DMNShape id="_shape-dec-rule-function" dmnElementRef="_dec-rule-function" isCollapsed="false">
+                <dmndi:DMNStyle>
+                    <dmndi:FillColor red="255" green="255" blue="255"/>
+                    <dmndi:StrokeColor red="0" green="0" blue="0"/>
+                    <dmndi:FontColor red="0" green="0" blue="0"/>
+                </dmndi:DMNStyle>
+                <dc:Bounds x="350" y="190" width="160" height="60"/>
+                <dmndi:DMNLabel/>
+            </dmndi:DMNShape>
+            <dmndi:DMNShape id="_shape-dec-rule-event" dmnElementRef="_dec-rule-event" isCollapsed="false">
+                <dmndi:DMNStyle>
+                    <dmndi:FillColor red="255" green="255" blue="255"/>
+                    <dmndi:StrokeColor red="0" green="0" blue="0"/>
+                    <dmndi:FontColor red="0" green="0" blue="0"/>
+                </dmndi:DMNStyle>
+                <dc:Bounds x="550" y="190" width="160" height="60"/>
+                <dmndi:DMNLabel/>
+            </dmndi:DMNShape>
+
+            <dmndi:DMNShape id="_shape-dec-quality-report" dmnElementRef="_dec-quality-report" isCollapsed="false">
+                <dmndi:DMNStyle>
+                    <dmndi:FillColor red="255" green="255" blue="255"/>
+                    <dmndi:StrokeColor red="0" green="0" blue="0"/>
+                    <dmndi:FontColor red="0" green="0" blue="0"/>
+                </dmndi:DMNStyle>
+                <dc:Bounds x="350" y="60" width="160" height="60"/>
+                <dmndi:DMNLabel/>
+            </dmndi:DMNShape>
+
+            <dmndi:DMNEdge id="_edge-req-msg-seme" dmnElementRef="_req-msg-seme">
+                <di:waypoint x="430" y="450"/>
+                <di:waypoint x="230" y="380"/>
+            </dmndi:DMNEdge>
+            <dmndi:DMNEdge id="_edge-req-msg-function" dmnElementRef="_req-msg-function">
+                <di:waypoint x="430" y="450"/>
+                <di:waypoint x="430" y="380"/>
+            </dmndi:DMNEdge>
+            <dmndi:DMNEdge id="_edge-req-msg-event" dmnElementRef="_req-msg-event">
+                <di:waypoint x="430" y="450"/>
+                <di:waypoint x="630" y="380"/>
+            </dmndi:DMNEdge>
+
+            <dmndi:DMNEdge id="_edge-req-seme-ref-val" dmnElementRef="_req-seme-ref-val">
+                <di:waypoint x="230" y="320"/>
+                <di:waypoint x="230" y="250"/>
+            </dmndi:DMNEdge>
+            <dmndi:DMNEdge id="_edge-req-function-val" dmnElementRef="_req-function-val">
+                <di:waypoint x="430" y="320"/>
+                <di:waypoint x="430" y="250"/>
+            </dmndi:DMNEdge>
+            <dmndi:DMNEdge id="_edge-req-event-val" dmnElementRef="_req-event-val">
+                <di:waypoint x="630" y="320"/>
+                <di:waypoint x="630" y="250"/>
+            </dmndi:DMNEdge>
+
+            <dmndi:DMNEdge id="_edge-req-report-seme" dmnElementRef="_req-report-seme">
+                <di:waypoint x="230" y="190"/>
+                <di:waypoint x="430" y="120"/>
+            </dmndi:DMNEdge>
+            <dmndi:DMNEdge id="_edge-req-report-func" dmnElementRef="_req-report-func">
+                <di:waypoint x="430" y="190"/>
+                <di:waypoint x="430" y="120"/>
+            </dmndi:DMNEdge>
+            <dmndi:DMNEdge id="_edge-req-report-event" dmnElementRef="_req-report-event">
+                <di:waypoint x="630" y="190"/>
+                <di:waypoint x="430" y="120"/>
+            </dmndi:DMNEdge>
+        </dmndi:DMNDiagram>
+    </dmndi:DMNDI>
+
+</dmn:definitions>

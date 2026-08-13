@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="ranked-products" name="Ranked Loan Products" namespace="urn:finmsg:benchmark:ranked-products">
+  <inputData id="score" name="CreditScore"><variable id="score-v" name="CreditScore" typeRef="number"/></inputData>
+  <inputData id="income" name="AnnualIncome"><variable id="income-v" name="AnnualIncome" typeRef="number"/></inputData>
+  <inputData id="debt" name="ExistingDebt"><variable id="debt-v" name="ExistingDebt" typeRef="number"/></inputData>
+  <inputData id="amount" name="RequestedAmount"><variable id="amount-v" name="RequestedAmount" typeRef="number"/></inputData>
+  <inputData id="term" name="PreferredTerm"><variable id="term-v" name="PreferredTerm" typeRef="number"/></inputData>
+
+  <decision id="leverage" name="LeverageRatio">
+    <variable id="leverage-v" name="LeverageRatio" typeRef="number"/>
+    <informationRequirement><requiredInput href="#debt"/></informationRequirement>
+    <informationRequirement><requiredInput href="#income"/></informationRequirement>
+    <literalExpression><text>ExistingDebt / AnnualIncome</text></literalExpression>
+  </decision>
+  <decision id="segment" name="CustomerSegment">
+    <variable id="segment-v" name="CustomerSegment" typeRef="string"/>
+    <informationRequirement><requiredInput href="#score"/></informationRequirement>
+    <informationRequirement><requiredDecision href="#leverage"/></informationRequirement>
+    <decisionTable id="segment-table" hitPolicy="FIRST">
+      <input><inputExpression typeRef="number"><text>CreditScore</text></inputExpression></input>
+      <input><inputExpression typeRef="number"><text>LeverageRatio</text></inputExpression></input>
+      <output typeRef="string"/>
+      <rule><inputEntry><text>&gt;= 780</text></inputEntry><inputEntry><text>&lt;= 0.25</text></inputEntry><outputEntry><text>"PRIME"</text></outputEntry></rule>
+      <rule><inputEntry><text>&gt;= 680</text></inputEntry><inputEntry><text>&lt;= 0.5</text></inputEntry><outputEntry><text>"STANDARD"</text></outputEntry></rule>
+      <rule><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"RESTRICTED"</text></outputEntry></rule>
+    </decisionTable>
+  </decision>
+  <decision id="capacity" name="CapacityBand">
+    <variable id="capacity-v" name="CapacityBand" typeRef="string"/>
+    <informationRequirement><requiredInput href="#income"/></informationRequirement>
+    <informationRequirement><requiredInput href="#amount"/></informationRequirement>
+    <decisionTable id="capacity-table" hitPolicy="FIRST">
+      <input><inputExpression typeRef="number"><text>AnnualIncome</text></inputExpression></input>
+      <input><inputExpression typeRef="number"><text>RequestedAmount</text></inputExpression></input>
+      <output typeRef="string"/>
+      <rule><inputEntry><text>&gt;= 100000</text></inputEntry><inputEntry><text>&lt;= 100000</text></inputEntry><outputEntry><text>"HIGH"</text></outputEntry></rule>
+      <rule><inputEntry><text>&gt;= 50000</text></inputEntry><inputEntry><text>&lt;= 60000</text></inputEntry><outputEntry><text>"MEDIUM"</text></outputEntry></rule>
+      <rule><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"LOW"</text></outputEntry></rule>
+    </decisionTable>
+  </decision>
+  <decision id="term-band" name="TermBand">
+    <variable id="term-band-v" name="TermBand" typeRef="string"/>
+    <informationRequirement><requiredInput href="#term"/></informationRequirement>
+    <decisionTable id="term-table" hitPolicy="FIRST">
+      <input><inputExpression typeRef="number"><text>PreferredTerm</text></inputExpression></input><output typeRef="string"/>
+      <rule><inputEntry><text>&lt;= 24</text></inputEntry><outputEntry><text>"SHORT"</text></outputEntry></rule>
+      <rule><inputEntry><text>&lt;= 48</text></inputEntry><outputEntry><text>"MEDIUM"</text></outputEntry></rule>
+      <rule><inputEntry><text>-</text></inputEntry><outputEntry><text>"LONG"</text></outputEntry></rule>
+    </decisionTable>
+  </decision>
+  <decision id="recommendation" name="RecommendedProduct">
+    <variable id="recommendation-v" name="RecommendedProduct" typeRef="string"/>
+    <informationRequirement><requiredDecision href="#segment"/></informationRequirement>
+    <informationRequirement><requiredDecision href="#capacity"/></informationRequirement>
+    <informationRequirement><requiredDecision href="#term-band"/></informationRequirement>
+    <decisionTable id="recommendation-table" hitPolicy="FIRST">
+      <input><inputExpression typeRef="string"><text>CustomerSegment</text></inputExpression></input>
+      <input><inputExpression typeRef="string"><text>CapacityBand</text></inputExpression></input>
+      <input><inputExpression typeRef="string"><text>TermBand</text></inputExpression></input>
+      <output typeRef="string"/>
+      <rule><inputEntry><text>"PRIME"</text></inputEntry><inputEntry><text>"HIGH"</text></inputEntry><inputEntry><text>"SHORT"</text></inputEntry><outputEntry><text>"FLEX-PRIME"</text></outputEntry></rule>
+      <rule><inputEntry><text>"PRIME"</text></inputEntry><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"PRIME-FIXED"</text></outputEntry></rule>
+      <rule><inputEntry><text>"STANDARD"</text></inputEntry><inputEntry><text>"MEDIUM"</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"STANDARD-PLUS"</text></outputEntry></rule>
+      <rule><inputEntry><text>"RESTRICTED"</text></inputEntry><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"SECURED"</text></outputEntry></rule>
+      <rule><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><inputEntry><text>-</text></inputEntry><outputEntry><text>"STANDARD"</text></outputEntry></rule>
+    </decisionTable>
+  </decision>
+</definitions>

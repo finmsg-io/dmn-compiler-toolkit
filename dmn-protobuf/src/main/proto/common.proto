@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package io.finmsg.dmn;
+
+option java_package = "io.finmsg.dmn.model";
+option java_multiple_files = true;
+option java_outer_classname = "CommonProtos";
+
+//
+// ============================================================================
+// Common model shared by all DMN compiler components.
+// This file has NO dependencies on other .proto files.
+// ============================================================================
+
+//
+// Documentation element.
+//
+message Documentation {
+  string text = 1;
+}
+
+//
+// Extension elements.
+//
+// The compiler preserves unknown extensions for round-trip
+// serialization.
+//
+message ExtensionElements {
+  repeated ExtensionElement element = 1;
+}
+
+message ExtensionElement {
+  string namespace = 1;
+  string name = 2;
+  string value = 3;
+  repeated ExtensionAttribute attribute = 4;
+}
+
+message ExtensionAttribute {
+  string namespace = 1;
+  string name = 2;
+  string value = 3;
+}
+
+//
+// XML namespace declaration.
+//
+message Namespace {
+  string prefix = 1;
+  string uri = 2;
+}
+
+//
+// Reference to another DMN element.
+//
+message ElementReference {
+  string href = 1;
+}
+
+//
+// Source location.
+//
+// Used only by compiler diagnostics.
+//
+message SourceLocation {
+  string system_id = 1;
+  uint32 line = 2;
+  uint32 column = 3;
+  uint32 offset = 4;
+  uint32 length = 5;
+}
+
+//
+// Compiler diagnostic.
+//
+message Diagnostic {
+  DiagnosticSeverity severity = 1;
+  string code = 2;
+  string message = 3;
+  SourceLocation location = 4;
+}
+
+//
+// Diagnostic severity.
+//
+enum DiagnosticSeverity {
+  DIAGNOSTIC_SEVERITY_UNSPECIFIED = 0;
+  DIAGNOSTIC_SEVERITY_INFO = 1;
+  DIAGNOSTIC_SEVERITY_WARNING = 2;
+  DIAGNOSTIC_SEVERITY_ERROR = 3;
+  DIAGNOSTIC_SEVERITY_FATAL = 4;
+}
+
+//
+// Qualified name.
+//
+// Used internally by the compiler.
+//
+message QualifiedName {
+  string namespace = 1;
+  string local_name = 2;
+}
+
+//
+// Compiler version.
+//
+message Version {
+  uint32 major = 1;
+  uint32 minor = 2;
+  uint32 patch = 3;
+  string qualifier = 4;
+}

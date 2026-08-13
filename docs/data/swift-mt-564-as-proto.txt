@@ -1,0 +1,2113 @@
+sts: OK
+parse_response {
+  parsed_msg {
+    swift_mt_msg {
+      swift_fin_msg {
+        bh {
+          appl_id: "F"
+          svc_id: "01"
+          lt: "PTSACHB0AXXX"
+          ssn_nb: "0553"
+          seq_nb: "048950"
+        }
+        ah {
+          ah_fin {
+            ah_fin_outgng {
+              outgng_id: "O"
+              msg_tp: "564"
+              incmg_tm: "0833"
+              mir {
+                incmg_dt: "160511"
+                sndr: "LPLPXXXX4A16"
+                ssn_nb: "0000"
+                isn: "070796"
+              }
+              outgng_dt: "160511"
+              outgng_tm: "1033"
+              msg_prty: "N"
+            }
+          }
+        }
+        uh {
+          fld {
+            tag: "108"
+            sub_fld {
+              nm: "Mur"
+              val: "MT564 057 OF 060"
+            }
+          }
+        }
+        mt_std {
+          msg_tp: "564"
+          sr: "2022"
+          urn: "urn:msg:swift:fin:564:2022"
+          obj {
+            seq {
+              tag: "A"
+              obj {
+                fld {
+                  tag: "16R"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "GENL"
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "20C"
+                  rptn_obj {
+                    fld {
+                      tag: "20C"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "CORP"
+                      }
+                      sub_fld {
+                        nm: "Ref"
+                        val: "x"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "20C"
+                  rptn_obj {
+                    fld {
+                      tag: "20C"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "SEME"
+                      }
+                      sub_fld {
+                        nm: "Ref"
+                        val: "01787"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "23G"
+                  sub_fld {
+                    nm: "Fctn"
+                    val: "NEWM"
+                  }
+                  sub_fld {
+                    nm: "Sub"
+                    val: "CODU"
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "22F"
+                  rptn_obj {
+                    fld {
+                      tag: "22F"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "CAEV"
+                      }
+                      sub_fld {
+                        nm: "Dss"
+                        val: "A2C4E6G8"
+                      }
+                      sub_fld {
+                        nm: "Id"
+                        val: "ACTV"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "22F"
+                  rptn_obj {
+                    fld {
+                      tag: "22F"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "CAMV"
+                      }
+                      sub_fld {
+                        nm: "Dss"
+                        val: "A2C4E6G8"
+                      }
+                      sub_fld {
+                        nm: "Id"
+                        val: "A2C4"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                optn {
+                  tag: "98a_A"
+                  fld {
+                    tag: "98C"
+                    sub_fld {
+                      nm: "Qlfr"
+                      val: "PREP"
+                    }
+                    sub_fld {
+                      nm: "Dt"
+                      val: "20101231"
+                    }
+                    sub_fld {
+                      nm: "Tm"
+                      val: "232359"
+                    }
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "25D"
+                  sub_fld {
+                    nm: "Qlfr"
+                    val: "PROC"
+                  }
+                  sub_fld {
+                    nm: "Dss"
+                    val: "A2C4E6G8"
+                  }
+                  sub_fld {
+                    nm: "Cd"
+                    val: "A2C4"
+                  }
+                }
+              }
+              obj {
+                seq {
+                  tag: "A1"
+                  obj {
+                    fld {
+                      tag: "16R"
+                      sub_fld {
+                        nm: "mrkr"
+                        val: "LINK"
+                      }
+                    }
+                  }
+                  obj {
+                    fld {
+                      tag: "22F"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "LINK"
+                      }
+                      sub_fld {
+                        nm: "Dss"
+                        val: "A2C4E6G8"
+                      }
+                      sub_fld {
+                        nm: "Id"
+                        val: "AFTE"
+                      }
+                    }
+                  }
+                  obj {
+                    optn {
+                      tag: "13a_A1"
+                      fld {
+                        tag: "13A"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "LINK"
+                        }
+                        sub_fld {
+                          nm: "Id"
+                          val: "513"
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    fld {
+                      tag: "20C"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "CORP"
+                      }
+                      sub_fld {
+                        nm: "Ref"
+                        val: "x"
+                      }
+                    }
+                  }
+                  obj {
+                    fld {
+                      tag: "16S"
+                      sub_fld {
+                        nm: "mrkr"
+                        val: "LINK"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "16S"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "GENL"
+                  }
+                }
+              }
+            }
+          }
+          obj {
+            seq {
+              tag: "B"
+              obj {
+                fld {
+                  tag: "16R"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "USECU"
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "35B"
+                  sub_fld {
+                    nm: "Scty"
+                    val: "ISIN A2C4E6G8I0K2"
+                  }
+                }
+              }
+              obj {
+                seq {
+                  tag: "B1"
+                  obj {
+                    fld {
+                      tag: "16R"
+                      sub_fld {
+                        nm: "mrkr"
+                        val: "FIA"
+                      }
+                    }
+                  }
+                  obj {
+                    fld {
+                      tag: "94B"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "PLIS"
+                      }
+                      sub_fld {
+                        nm: "PlcCd"
+                        val: "EXCH"
+                      }
+                      sub_fld {
+                        nm: "Nrrtv"
+                        val: "0123456789ABCDEFGHIJ./12365478"
+                      }
+                    }
+                  }
+                  obj {
+                    fld {
+                      tag: "22F"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "MICO"
+                      }
+                      sub_fld {
+                        nm: "Dss"
+                        val: "A2C4E6G8"
+                      }
+                      sub_fld {
+                        nm: "Id"
+                        val: "A001"
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "12a_B1"
+                      rptn_obj {
+                        optn {
+                          tag: "12a_B1"
+                          fld {
+                            tag: "12C"
+                            sub_fld {
+                              nm: "Qlfr"
+                              val: "CLAS"
+                            }
+                            sub_fld {
+                              nm: "Cd"
+                              val: "A2C4E6"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    fld {
+                      tag: "11A"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "DENO"
+                      }
+                      sub_fld {
+                        nm: "Ccy"
+                        val: "USD"
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "98A"
+                      rptn_obj {
+                        fld {
+                          tag: "98A"
+                          sub_fld {
+                            nm: "Qlfr"
+                            val: "COUP"
+                          }
+                          sub_fld {
+                            nm: "Dt"
+                            val: "20101231"
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "98A"
+                      rptn_obj {
+                        fld {
+                          tag: "98A"
+                          sub_fld {
+                            nm: "Qlfr"
+                            val: "EXPI"
+                          }
+                          sub_fld {
+                            nm: "Dt"
+                            val: "20101231"
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "98A"
+                      rptn_obj {
+                        fld {
+                          tag: "98A"
+                          sub_fld {
+                            nm: "Qlfr"
+                            val: "FRNR"
+                          }
+                          sub_fld {
+                            nm: "Dt"
+                            val: "20101231"
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "98A"
+                      rptn_obj {
+                        fld {
+                          tag: "98A"
+                          sub_fld {
+                            nm: "Qlfr"
+                            val: "MATU"
+                          }
+                          sub_fld {
+                            nm: "Dt"
+                            val: "20101231"
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "98A"
+                      rptn_obj {
+                        fld {
+                          tag: "98A"
+                          sub_fld {
+                            nm: "Qlfr"
+                            val: "ISSU"
+                          }
+                          sub_fld {
+                            nm: "Dt"
+                            val: "20101231"
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "98A"
+                      rptn_obj {
+                        fld {
+                          tag: "98A"
+                          sub_fld {
+                            nm: "Qlfr"
+                            val: "CALD"
+                          }
+                          sub_fld {
+                            nm: "Dt"
+                            val: "20101231"
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "98A"
+                      rptn_obj {
+                        fld {
+                          tag: "98A"
+                          sub_fld {
+                            nm: "Qlfr"
+                            val: "PUTT"
+                          }
+                          sub_fld {
+                            nm: "Dt"
+                            val: "20101231"
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "98A"
+                      rptn_obj {
+                        fld {
+                          tag: "98A"
+                          sub_fld {
+                            nm: "Qlfr"
+                            val: "DDTE"
+                          }
+                          sub_fld {
+                            nm: "Dt"
+                            val: "20101231"
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "92a_B1"
+                      rptn_obj {
+                        optn {
+                          tag: "92a_B1"
+                          fld {
+                            tag: "92A"
+                            sub_fld {
+                              nm: "Qlfr"
+                              val: "PRFC"
+                            }
+                            sub_fld {
+                              nm: "Sgn"
+                              val: "N"
+                            }
+                            sub_fld {
+                              nm: "Rate"
+                              val: "1,3456789012345"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "92a_B1"
+                      rptn_obj {
+                        optn {
+                          tag: "92a_B1"
+                          fld {
+                            tag: "92A"
+                            sub_fld {
+                              nm: "Qlfr"
+                              val: "DECL"
+                            }
+                            sub_fld {
+                              nm: "Sgn"
+                              val: "N"
+                            }
+                            sub_fld {
+                              nm: "Rate"
+                              val: "1,3456789012345"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "92a_B1"
+                      rptn_obj {
+                        optn {
+                          tag: "92a_B1"
+                          fld {
+                            tag: "92A"
+                            sub_fld {
+                              nm: "Qlfr"
+                              val: "NWFC"
+                            }
+                            sub_fld {
+                              nm: "Sgn"
+                              val: "N"
+                            }
+                            sub_fld {
+                              nm: "Rate"
+                              val: "1,3456789012345"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "92a_B1"
+                      rptn_obj {
+                        optn {
+                          tag: "92a_B1"
+                          fld {
+                            tag: "92A"
+                            sub_fld {
+                              nm: "Qlfr"
+                              val: "INTR"
+                            }
+                            sub_fld {
+                              nm: "Sgn"
+                              val: "N"
+                            }
+                            sub_fld {
+                              nm: "Rate"
+                              val: "1,3456789012345"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "92a_B1"
+                      rptn_obj {
+                        optn {
+                          tag: "92a_B1"
+                          fld {
+                            tag: "92A"
+                            sub_fld {
+                              nm: "Qlfr"
+                              val: "NXRT"
+                            }
+                            sub_fld {
+                              nm: "Sgn"
+                              val: "N"
+                            }
+                            sub_fld {
+                              nm: "Rate"
+                              val: "1,3456789012345"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "92a_B1"
+                      rptn_obj {
+                        optn {
+                          tag: "92a_B1"
+                          fld {
+                            tag: "92D"
+                            sub_fld {
+                              nm: "Qlfr"
+                              val: "WAPA"
+                            }
+                            sub_fld {
+                              nm: "Qty1"
+                              val: "4,"
+                            }
+                            sub_fld {
+                              nm: "Qty2"
+                              val: "1,"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    rptn {
+                      tag: "36a_B1"
+                      rptn_obj {
+                        optn {
+                          tag: "36a_B1"
+                          fld {
+                            tag: "36B"
+                            sub_fld {
+                              nm: "Qlfr"
+                              val: "MINO"
+                            }
+                            sub_fld {
+                              nm: "QtyTpCd"
+                              val: "UNIT"
+                            }
+                            sub_fld {
+                              nm: "Qty"
+                              val: "1,3456789012345"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    fld {
+                      tag: "16S"
+                      sub_fld {
+                        nm: "mrkr"
+                        val: "FIA"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                seq {
+                  tag: "B2"
+                  obj {
+                    fld {
+                      tag: "16R"
+                      sub_fld {
+                        nm: "mrkr"
+                        val: "ACCTINFO"
+                      }
+                    }
+                  }
+                  obj {
+                    optn {
+                      tag: "97a_B2"
+                      fld {
+                        tag: "97C"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "SAFE"
+                        }
+                        sub_fld {
+                          nm: "Cd"
+                          val: "GENR"
+                        }
+                      }
+                    }
+                  }
+                  obj {
+                    fld {
+                      tag: "16S"
+                      sub_fld {
+                        nm: "mrkr"
+                        val: "ACCTINFO"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "16S"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "USECU"
+                  }
+                }
+              }
+            }
+          }
+          obj {
+            seq {
+              tag: "C"
+              obj {
+                fld {
+                  tag: "16R"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "INTSEC"
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "35B"
+                  sub_fld {
+                    nm: "Scty"
+                    val: "ISIN A2C4E6G8I0K2"
+                  }
+                }
+              }
+              obj {
+                optn {
+                  tag: "36a_C"
+                  fld {
+                    tag: "36B"
+                    sub_fld {
+                      nm: "Qlfr"
+                      val: "QINT"
+                    }
+                    sub_fld {
+                      nm: "QtyTpCd"
+                      val: "UNIT"
+                    }
+                    sub_fld {
+                      nm: "Qty"
+                      val: "1,3456789012345"
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "22F"
+                  rptn_obj {
+                    fld {
+                      tag: "22F"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "DISF"
+                      }
+                      sub_fld {
+                        nm: "Dss"
+                        val: "A2C4E6G8"
+                      }
+                      sub_fld {
+                        nm: "Id"
+                        val: "A2C4"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "22F"
+                  rptn_obj {
+                    fld {
+                      tag: "22F"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "SELL"
+                      }
+                      sub_fld {
+                        nm: "Dss"
+                        val: "A2C4E6G8"
+                      }
+                      sub_fld {
+                        nm: "Id"
+                        val: "A2C4"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "92D"
+                  sub_fld {
+                    nm: "Qlfr"
+                    val: "RTUN"
+                  }
+                  sub_fld {
+                    nm: "Qty1"
+                    val: "12345678901234,"
+                  }
+                  sub_fld {
+                    nm: "Qty2"
+                    val: "1,3456789012345"
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "90B"
+                  sub_fld {
+                    nm: "Qlfr"
+                    val: "MRKT"
+                  }
+                  sub_fld {
+                    nm: "AmtTpCd"
+                    val: "ACTU"
+                  }
+                  sub_fld {
+                    nm: "Ccy"
+                  }
+                  sub_fld {
+                    nm: "Pric"
+                    val: "USD123456789012,45"
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_C"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_C"
+                      fld {
+                        tag: "98A"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "EXPI"
+                        }
+                        sub_fld {
+                          nm: "Dt"
+                          val: "20101231"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_C"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_C"
+                      fld {
+                        tag: "98A"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "POST"
+                        }
+                        sub_fld {
+                          nm: "Dt"
+                          val: "20101231"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                optn {
+                  tag: "69a_C"
+                  fld {
+                    tag: "69B"
+                    sub_fld {
+                      nm: "Qlfr"
+                      val: "TRDP"
+                    }
+                    sub_fld {
+                      nm: "Dt1"
+                      val: "20101231"
+                    }
+                    sub_fld {
+                      nm: "Tm1"
+                      val: "235959"
+                    }
+                    sub_fld {
+                      nm: "Dt2"
+                      val: "20101231"
+                    }
+                    sub_fld {
+                      nm: "Tm2"
+                      val: "235959"
+                    }
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "16S"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "INTSEC"
+                  }
+                }
+              }
+            }
+          }
+          obj {
+            seq {
+              tag: "D"
+              obj {
+                fld {
+                  tag: "16R"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "CADETL"
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "ANOU"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "CERT"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "XDTE"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "EFFD"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "PAYD"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "PROD"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "MEET"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "RDTE"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "ECDT"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "TSDT"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "REGI"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "RESU"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_D"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "SPLT"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "69a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "69a_D"
+                      fld {
+                        tag: "69B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "DSWS"
+                        }
+                        sub_fld {
+                          nm: "Dt1"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm1"
+                          val: "235959"
+                        }
+                        sub_fld {
+                          nm: "Dt2"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm2"
+                          val: "235959"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "69a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "69a_D"
+                      fld {
+                        tag: "69B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "PRIC"
+                        }
+                        sub_fld {
+                          nm: "Dt1"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm1"
+                          val: "235959"
+                        }
+                        sub_fld {
+                          nm: "Dt2"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm2"
+                          val: "235959"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "69a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "69a_D"
+                      fld {
+                        tag: "69B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "DSWA"
+                        }
+                        sub_fld {
+                          nm: "Dt1"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm1"
+                          val: "235959"
+                        }
+                        sub_fld {
+                          nm: "Dt2"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm2"
+                          val: "235959"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "92a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "92a_D"
+                      fld {
+                        tag: "92A"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "BIDI"
+                        }
+                        sub_fld {
+                          nm: "Sgn"
+                          val: "N"
+                        }
+                        sub_fld {
+                          nm: "Rate"
+                          val: "1,3456789012345"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "92a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "92a_D"
+                      fld {
+                        tag: "92A"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "PTSC"
+                        }
+                        sub_fld {
+                          nm: "Sgn"
+                          val: "N"
+                        }
+                        sub_fld {
+                          nm: "Rate"
+                          val: "1,3456789012345"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "90a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "90a_D"
+                      fld {
+                        tag: "90L"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "MAXP"
+                        }
+                        sub_fld {
+                          nm: "Sgn"
+                          val: "N"
+                        }
+                        sub_fld {
+                          nm: "IndxPts"
+                          val: "1,2345678909876"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "90a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "90a_D"
+                      fld {
+                        tag: "90B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "MINP"
+                        }
+                        sub_fld {
+                          nm: "AmtTpCd"
+                          val: "DISC"
+                        }
+                        sub_fld {
+                          nm: "Ccy"
+                        }
+                        sub_fld {
+                          nm: "Pric"
+                          val: "USD1,3456789012345"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "22F"
+                  rptn_obj {
+                    fld {
+                      tag: "22F"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "DIVI"
+                      }
+                      sub_fld {
+                        nm: "Dss"
+                        val: "A2C4E6G8"
+                      }
+                      sub_fld {
+                        nm: "Id"
+                        val: "A2C4"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "70a_D"
+                  rptn_obj {
+                    optn {
+                      tag: "70a_D"
+                      fld {
+                        tag: "70E"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "WEBB"
+                        }
+                        sub_fld {
+                          nm: "Nrrtv"
+                          val: "x"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "16S"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "CADETL"
+                  }
+                }
+              }
+            }
+          }
+          obj {
+            seq {
+              tag: "E"
+              obj {
+                fld {
+                  tag: "16R"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "CAOPTN"
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "13A"
+                  sub_fld {
+                    nm: "Qlfr"
+                    val: "CAON"
+                  }
+                  sub_fld {
+                    nm: "Id"
+                    val: "002"
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "22F"
+                  rptn_obj {
+                    fld {
+                      tag: "22F"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "CAOP"
+                      }
+                      sub_fld {
+                        nm: "Dss"
+                        val: "A2C4E6G8"
+                      }
+                      sub_fld {
+                        nm: "Id"
+                        val: "A2C4"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "22F"
+                  rptn_obj {
+                    fld {
+                      tag: "22F"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "DISF"
+                      }
+                      sub_fld {
+                        nm: "Dss"
+                        val: "A2C4E6G8"
+                      }
+                      sub_fld {
+                        nm: "Id"
+                        val: "A2C4"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "11A"
+                  sub_fld {
+                    nm: "Qlfr"
+                    val: "OPTN"
+                  }
+                  sub_fld {
+                    nm: "Ccy"
+                    val: "EUR"
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "17B"
+                  rptn_obj {
+                    fld {
+                      tag: "17B"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "DFLT"
+                      }
+                      sub_fld {
+                        nm: "Flg"
+                        val: "N"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "35B"
+                  sub_fld {
+                    nm: "Scty"
+                    val: "ISIN A2C4E6G8I0K2"
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_E"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_E"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "MKDT"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "98a_E"
+                  rptn_obj {
+                    optn {
+                      tag: "98a_E"
+                      fld {
+                        tag: "98B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "EXPI"
+                        }
+                        sub_fld {
+                          nm: "Dss"
+                          val: "A2C4E6G8"
+                        }
+                        sub_fld {
+                          nm: "DtCd"
+                          val: "A2C4"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "69a_E"
+                  rptn_obj {
+                    optn {
+                      tag: "69a_E"
+                      fld {
+                        tag: "69B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "PWAL"
+                        }
+                        sub_fld {
+                          nm: "Dt1"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm1"
+                          val: "235959"
+                        }
+                        sub_fld {
+                          nm: "Dt2"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm2"
+                          val: "235959"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "69a_E"
+                  rptn_obj {
+                    optn {
+                      tag: "69a_E"
+                      fld {
+                        tag: "69B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "PRIC"
+                        }
+                        sub_fld {
+                          nm: "Dt1"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm1"
+                          val: "235959"
+                        }
+                        sub_fld {
+                          nm: "Dt2"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm2"
+                          val: "235959"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "69a_E"
+                  rptn_obj {
+                    optn {
+                      tag: "69a_E"
+                      fld {
+                        tag: "69B"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "REVO"
+                        }
+                        sub_fld {
+                          nm: "Dt1"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm1"
+                          val: "235959"
+                        }
+                        sub_fld {
+                          nm: "Dt2"
+                          val: "20101231"
+                        }
+                        sub_fld {
+                          nm: "Tm2"
+                          val: "235959"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "92a_E"
+                  rptn_obj {
+                    optn {
+                      tag: "92a_E"
+                      fld {
+                        tag: "92J"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "GRSS"
+                        }
+                        sub_fld {
+                          nm: "RateTpCd"
+                          val: "UNFR"
+                        }
+                        sub_fld {
+                          nm: "Ccy"
+                          val: "EUR"
+                        }
+                        sub_fld {
+                          nm: "Amt"
+                          val: "12345678901234,"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "92a_E"
+                  rptn_obj {
+                    optn {
+                      tag: "92a_E"
+                      fld {
+                        tag: "92J"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "TDMT"
+                        }
+                        sub_fld {
+                          nm: "RateTpCd"
+                          val: "TXBL"
+                        }
+                        sub_fld {
+                          nm: "Ccy"
+                          val: "USD"
+                        }
+                        sub_fld {
+                          nm: "Amt"
+                          val: "1,3456789012345"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "70E"
+                  rptn_obj {
+                    fld {
+                      tag: "70E"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "ADTX"
+                      }
+                      sub_fld {
+                        nm: "Nrrtv"
+                        val: "x"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "70E"
+                  rptn_obj {
+                    fld {
+                      tag: "70E"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "TXNR"
+                      }
+                      sub_fld {
+                        nm: "Nrrtv"
+                        val: "x"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "16S"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "CAOPTN"
+                  }
+                }
+              }
+            }
+          }
+          obj {
+            seq {
+              tag: "F"
+              obj {
+                fld {
+                  tag: "16R"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "ADDINFO"
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "70E"
+                  rptn_obj {
+                    fld {
+                      tag: "70E"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "ADTX"
+                      }
+                      sub_fld {
+                        nm: "Nrrtv"
+                        val: "x"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "70E"
+                  rptn_obj {
+                    fld {
+                      tag: "70E"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "TXNR"
+                      }
+                      sub_fld {
+                        nm: "Nrrtv"
+                        val: "x"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "70E"
+                  rptn_obj {
+                    fld {
+                      tag: "70E"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "REGI"
+                      }
+                      sub_fld {
+                        nm: "Nrrtv"
+                        val: "x"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "70E"
+                  rptn_obj {
+                    fld {
+                      tag: "70E"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "INCO"
+                      }
+                      sub_fld {
+                        nm: "Nrrtv"
+                        val: "x"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "70E"
+                  rptn_obj {
+                    fld {
+                      tag: "70E"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "INCO"
+                      }
+                      sub_fld {
+                        nm: "Nrrtv"
+                        val: "x"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "70E"
+                  rptn_obj {
+                    fld {
+                      tag: "70E"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "COMP"
+                      }
+                      sub_fld {
+                        nm: "Nrrtv"
+                        val: "x"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "70E"
+                  rptn_obj {
+                    fld {
+                      tag: "70E"
+                      sub_fld {
+                        nm: "Qlfr"
+                        val: "COMP"
+                      }
+                      sub_fld {
+                        nm: "Nrrtv"
+                        val: "x"
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "95a_F"
+                  rptn_obj {
+                    optn {
+                      tag: "95a_F"
+                      fld {
+                        tag: "95Q"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "MEOR"
+                        }
+                        sub_fld {
+                          nm: "NmAdr"
+                          val: "x"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                rptn {
+                  tag: "95a_F"
+                  rptn_obj {
+                    optn {
+                      tag: "95a_F"
+                      fld {
+                        tag: "95Q"
+                        sub_fld {
+                          nm: "Qlfr"
+                          val: "MERE"
+                        }
+                        sub_fld {
+                          nm: "NmAdr"
+                          val: "x"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              obj {
+                fld {
+                  tag: "16S"
+                  sub_fld {
+                    nm: "mrkr"
+                    val: "ADDINFO"
+                  }
+                }
+              }
+            }
+          }
+        }
+        tr {
+          fld {
+            tag: "CHK"
+            sub_fld {
+              nm: "Chk"
+              val: "EE7F71EBA1F0"
+            }
+          }
+          fld {
+            tag: "TNG"
+          }
+        }
+      }
+    }
+  }
+}

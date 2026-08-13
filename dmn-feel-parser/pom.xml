@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.finmsg.dmn</groupId>
+        <artifactId>dmn-compiler-toolkit</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>dmn-feel-parser</artifactId>
+    <packaging>jar</packaging>
+
+    <name>DMN FEEL Parser</name>
+    <description>ANTLR4 parser for DMN 1.5 FEEL</description>
+
+    <properties>
+        <antlr4.version>4.13.2</antlr4.version>
+        <build-helper-maven-plugin.version>3.6.1</build-helper-maven-plugin.version>
+
+        <antlr.source.directory>${project.basedir}/src/main/antlr4</antlr.source.directory>
+        <antlr.generated.directory>${project.basedir}/src/gen/java</antlr.generated.directory>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.finmsg.dmn</groupId>
+            <artifactId>dmn-protobuf</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4-runtime</artifactId>
+            <version>${antlr4.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.finmsg.dmn</groupId>
+            <artifactId>dmn-frontend-xml</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <profiles>
+        <profile>
+            <id>generate-code</id>
+            <build>
+                <plugins>
+                    <!--
+                      Generates the ANTLR lexer/parser before Java compilation.
+                      The package is derived from the grammar directory below
+                      src/main/antlr4 and retained below src/gen/java.
+                    -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-clean-plugin</artifactId>
+                        <version>3.4.1</version>
+                        <configuration>
+                            <filesets>
+                                <fileset>
+                                    <directory>${antlr.generated.directory}</directory>
+                                    <followSymlinks>false</followSymlinks>
+                                </fileset>
+                            </filesets>
+                        </configuration>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.antlr</groupId>
+                        <artifactId>antlr4-maven-plugin</artifactId>
+                        <version>${antlr4.version}</version>
+                        <executions>
+                            <execution>
+                                <id>generate-antlr-sources</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>antlr4</goal>
+                                </goals>
+                                <configuration>
+                                    <sourceDirectory>${antlr.source.directory}</sourceDirectory>
+                                    <outputDirectory>${antlr.generated.directory}</outputDirectory>
+                                    <visitor>true</visitor>
+                                    <listener>false</listener>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!--
+                      ANTLR uses the host line separator. Normalize its checked-in output
+                      immediately after generate-sources so Windows and Linux produce the
+                      same files. This execution intentionally applies no Java restyling.
+                    -->
+                    <plugin>
+                        <groupId>com.diffplug.spotless</groupId>
+                        <artifactId>spotless-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>normalize-antlr-generated-line-endings</id>
+                                <phase>process-sources</phase>
+                                <goals>
+                                    <goal>apply</goal>
+                                </goals>
+                                <configuration combine.self="override">
+                                    <formats>
+                                        <format>
+                                            <includes>
+                                                <include>src/gen/**/*</include>
+                                            </includes>
+                                            <lineEndings>UNIX</lineEndings>
+                                        </format>
+                                    </formats>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+    <build>
+        <plugins>
+            <!-- Adds src/gen/java to the Java compiler source roots. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${build-helper-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>add-antlr-generated-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${antlr.generated.directory}</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

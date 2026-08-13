@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dmn:definitions xmlns:dmn="https://www.omg.org/spec/DMN/20191111/MODEL/"
+                  xmlns="urn:io.finmsg:dmn:dq:bkm"
+                  xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+                  xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+                  xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+                  xmlns:kie="http://www.drools.org/kie/dmn/1.2"
+                  id="_model-reusable-dq-bkm"
+                  name="Reusable Data Quality BKM Library"
+                  expressionLanguage="https://www.omg.org/spec/DMN/20191111/FEEL/"
+                  typeLanguage="https://www.omg.org/spec/DMN/20191111/FEEL/"
+                  namespace="urn:io.finmsg:dmn:dq:bkm">
+    <dmn:extensionElements/>
+    <dmn:itemDefinition id="_item-quality-violation" name="tQualityViolation" isCollection="false">
+        <dmn:itemComponent id="_comp-rule-id" name="ruleId" isCollection="false">
+            <dmn:typeRef>string</dmn:typeRef>
+        </dmn:itemComponent>
+        <dmn:itemComponent id="_comp-severity" name="severity" isCollection="false">
+            <dmn:typeRef>string</dmn:typeRef>
+        </dmn:itemComponent>
+        <dmn:itemComponent id="_comp-path" name="path" isCollection="false">
+            <dmn:typeRef>string</dmn:typeRef>
+        </dmn:itemComponent>
+        <dmn:itemComponent id="_comp-message" name="message" isCollection="false">
+            <dmn:typeRef>string</dmn:typeRef>
+        </dmn:itemComponent>
+        <dmn:itemComponent id="_comp-actual-value" name="actualValue" isCollection="false">
+            <dmn:typeRef>string</dmn:typeRef>
+        </dmn:itemComponent>
+        <dmn:itemComponent id="_comp-expected-state" name="expectedState" isCollection="false">
+            <dmn:typeRef>string</dmn:typeRef>
+        </dmn:itemComponent>
+    </dmn:itemDefinition>
+
+    <dmn:businessKnowledgeModel id="_bkm-required-value" name="requiredValue">
+        <dmn:variable id="_var-bkm-required" name="requiredValue" typeRef="tQualityViolation"/>
+        <dmn:encapsulatedLogic id="_logic-bkm-required" kind="FEEL">
+            <dmn:formalParameter id="_param-req-val" name="value" typeRef="string"/>
+            <dmn:formalParameter id="_param-req-ruleId" name="ruleId" typeRef="string"/>
+            <dmn:formalParameter id="_param-req-severity" name="severity" typeRef="string"/>
+            <dmn:formalParameter id="_param-req-path" name="path" typeRef="string"/>
+            <dmn:formalParameter id="_param-req-message" name="message" typeRef="string"/>
+            <dmn:formalParameter id="_param-req-expected" name="expectedState" typeRef="string"/>
+            <dmn:literalExpression id="_expr-bkm-required" typeRef="tQualityViolation">
+                <dmn:text>if value = null or value = "" then [{ruleId: ruleId, severity: severity, path: path, message: message, actualValue: if value = null then "null" else "blank", expectedState: expectedState}] else []</dmn:text>
+            </dmn:literalExpression>
+        </dmn:encapsulatedLogic>
+    </dmn:businessKnowledgeModel>
+
+    <dmn:businessKnowledgeModel id="_bkm-allowed-value" name="allowedValue">
+        <dmn:variable id="_var-bkm-allowed" name="allowedValue" typeRef="tQualityViolation"/>
+        <dmn:encapsulatedLogic id="_logic-bkm-allowed" kind="FEEL">
+            <dmn:formalParameter id="_param-all-val" name="value" typeRef="string"/>
+            <dmn:formalParameter id="_param-all-codes" name="allowedCodes" typeRef="Any"/>
+            <dmn:formalParameter id="_param-all-ruleId" name="ruleId" typeRef="string"/>
+            <dmn:formalParameter id="_param-all-severity" name="severity" typeRef="string"/>
+            <dmn:formalParameter id="_param-all-path" name="path" typeRef="string"/>
+            <dmn:formalParameter id="_param-all-message" name="message" typeRef="string"/>
+            <dmn:formalParameter id="_param-all-expected" name="expectedState" typeRef="string"/>
+            <dmn:literalExpression id="_expr-bkm-allowed" typeRef="tQualityViolation">
+                <dmn:text>if value = null or value = "" or (some code in allowedCodes satisfies code = value) then [] else [{ruleId: ruleId, severity: severity, path: path, message: message, actualValue: value, expectedState: expectedState}]</dmn:text>
+            </dmn:literalExpression>
+        </dmn:encapsulatedLogic>
+    </dmn:businessKnowledgeModel>
+
+    <dmn:businessKnowledgeModel id="_bkm-conditional-value" name="conditionalValue">
+        <dmn:variable id="_var-bkm-conditional" name="conditionalValue" typeRef="tQualityViolation"/>
+        <dmn:encapsulatedLogic id="_logic-bkm-conditional" kind="FEEL">
+            <dmn:formalParameter id="_param-cond-flag" name="condition" typeRef="boolean"/>
+            <dmn:formalParameter id="_param-cond-val" name="value" typeRef="string"/>
+            <dmn:formalParameter id="_param-cond-ruleId" name="ruleId" typeRef="string"/>
+            <dmn:formalParameter id="_param-cond-severity" name="severity" typeRef="string"/>
+            <dmn:formalParameter id="_param-cond-path" name="path" typeRef="string"/>
+            <dmn:formalParameter id="_param-cond-message" name="message" typeRef="string"/>
+            <dmn:formalParameter id="_param-cond-expected" name="expectedState" typeRef="string"/>
+            <dmn:literalExpression id="_expr-bkm-conditional" typeRef="tQualityViolation">
+                <dmn:text>if condition = true and (value = null or value = "") then [{ruleId: ruleId, severity: severity, path: path, message: message, actualValue: if value = null then "null" else "blank", expectedState: expectedState}] else []</dmn:text>
+            </dmn:literalExpression>
+        </dmn:encapsulatedLogic>
+    </dmn:businessKnowledgeModel>
+
+    <dmndi:DMNDI>
+        <dmndi:DMNDiagram id="_diagram-reusable-dq-bkm" name="Reusable Data Quality BKM Library">
+            <di:extension/>
+            <dmndi:DMNShape id="_shape-bkm-required-value" dmnElementRef="_bkm-required-value" isCollapsed="false">
+                <dmndi:DMNStyle>
+                    <dmndi:FillColor red="255" green="255" blue="255"/>
+                    <dmndi:StrokeColor red="0" green="0" blue="0"/>
+                    <dmndi:FontColor red="0" green="0" blue="0"/>
+                </dmndi:DMNStyle>
+                <dc:Bounds x="150" y="100" width="160" height="60"/>
+                <dmndi:DMNLabel/>
+            </dmndi:DMNShape>
+            <dmndi:DMNShape id="_shape-bkm-allowed-value" dmnElementRef="_bkm-allowed-value" isCollapsed="false">
+                <dmndi:DMNStyle>
+                    <dmndi:FillColor red="255" green="255" blue="255"/>
+                    <dmndi:StrokeColor red="0" green="0" blue="0"/>
+                    <dmndi:FontColor red="0" green="0" blue="0"/>
+                </dmndi:DMNStyle>
+                <dc:Bounds x="350" y="100" width="160" height="60"/>
+                <dmndi:DMNLabel/>
+            </dmndi:DMNShape>
+            <dmndi:DMNShape id="_shape-bkm-conditional-value" dmnElementRef="_bkm-conditional-value" isCollapsed="false">
+                <dmndi:DMNStyle>
+                    <dmndi:FillColor red="255" green="255" blue="255"/>
+                    <dmndi:StrokeColor red="0" green="0" blue="0"/>
+                    <dmndi:FontColor red="0" green="0" blue="0"/>
+                </dmndi:DMNStyle>
+                <dc:Bounds x="550" y="100" width="160" height="60"/>
+                <dmndi:DMNLabel/>
+            </dmndi:DMNShape>
+        </dmndi:DMNDiagram>
+    </dmndi:DMNDI>
+
+</dmn:definitions>
