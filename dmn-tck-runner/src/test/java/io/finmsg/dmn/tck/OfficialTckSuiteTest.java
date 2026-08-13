@@ -29,7 +29,7 @@ import org.junit.jupiter.api.TestFactory;
  * (https://github.com/dmn-tck/tck) across both DmnInterpreter and
  * dmn-generator-java.
  */
-class   OfficialTckSuiteTest {
+class OfficialTckSuiteTest {
 
 	private static final AtomicInteger ENGINE_COUNTER = new AtomicInteger(1);
 
