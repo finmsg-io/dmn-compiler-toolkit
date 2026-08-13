@@ -1,6 +1,6 @@
 # BENCH-001 - Correct and clarify the execution benchmark harness
 
-Status: example - proposed  
+Status: implemented
 Profile: benchmark correctness  
 Source proposal: [Trustworthy benchmark evidence and scalability](../../benchmark-evidence-and-scalability.md)
 
@@ -75,3 +75,14 @@ the supported concurrent-sharing contract is verified for correctness.
 - raw smoke output for interpreter, direct generated, and adapter paths;
 - documented sharing decision for runtime and generated engine instances;
 - exact Windows and Linux verification commands.
+
+## Completion evidence
+
+- benchmark fixtures are benchmark-scoped while `BenchmarkCursor` is thread-scoped;
+- generated engines implement the reflection-free `GeneratedDecisionEngine` invocation contract;
+- benchmark names distinguish interpreter core, generated direct, reflective adapter, end-to-end,
+  and invocation-control paths;
+- `BenchmarkIntegrityTest` verifies concurrent interpreter/generated parity with eight workers;
+- benchmark defaults use three forks and the retained-run scripts use 1/2/4/8 threads with `-prof gc`;
+- raw one-thread and eight-thread smoke JSON is retained under `dmn-benchmarks/results/`;
+- Windows and Linux commands are documented in `dmn-benchmarks/README.md`.

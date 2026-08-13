@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Warmup(iterations = 2, time = 1)
 @Measurement(iterations = 3, time = 1)
-@Fork(1)
+@Fork(3)
 public class CreditApprovalBenchmark {
 
 	private CompiledModelHolder holder;
@@ -26,7 +26,7 @@ public class CreditApprovalBenchmark {
 	private DmnRuntime runtime;
 	private List<Map<Integer, Object>> interpreterPayloads;
 	private List<Object[]> slotPayloads;
-	private int index;
+	private List<Map<String, Object>> rawPayloads;
 
 	@Setup(Level.Trial)
 	public void setup() throws Exception {
@@ -35,24 +35,34 @@ public class CreditApprovalBenchmark {
 		runtime = new DmnRuntime();
 
 		BenchmarkDataGenerator generator = new BenchmarkDataGenerator(202L);
-		List<Map<String, Object>> rawPayloads = generator.generateCreditPayloads(1000);
+		rawPayloads = generator.generateCreditPayloads(1000);
 		interpreterPayloads = rawPayloads.stream().map(p -> ReferenceModelRegistry.buildInterpreterSlotMap(holder, p))
 				.toList();
 		slotPayloads = rawPayloads.stream().map(p -> ReferenceModelRegistry.buildInputSlots(holder, p)).toList();
-		index = 0;
 	}
 
 	@Benchmark
-	public DmnEvaluationResult interpreter_CreditApproval() {
-		int idx = (index++) % interpreterPayloads.size();
+	public DmnEvaluationResult interpreterCore_CreditApproval(BenchmarkCursor cursor) {
+		int idx = cursor.next(interpreterPayloads.size());
 		Map<Integer, Object> inputs = interpreterPayloads.get(idx);
 		return runtime.evaluate(runtimeModel, inputs);
 	}
 
 	@Benchmark
-	public Object generatedJava_CreditApproval() throws Exception {
-		int idx = (index++) % slotPayloads.size();
+	public Object generatedDirect_CreditApproval(BenchmarkCursor cursor) {
+		int idx = cursor.next(slotPayloads.size());
 		Object[] slots = slotPayloads.get(idx);
-		return holder.evaluateMethod().invoke(holder.generatedEngineInstance(), (Object) slots);
+		return holder.evaluateDirect(slots);
+	}
+
+	@Benchmark
+	public Object generatedAdapter_CreditApproval(BenchmarkCursor cursor) throws Exception {
+		return holder.evaluateAdapter(slotPayloads.get(cursor.next(slotPayloads.size())));
+	}
+
+	@Benchmark
+	public Object generatedEndToEnd_CreditApproval(BenchmarkCursor cursor) {
+		return holder.evaluateDirect(
+				ReferenceModelRegistry.buildInputSlots(holder, rawPayloads.get(cursor.next(rawPayloads.size()))));
 	}
 }

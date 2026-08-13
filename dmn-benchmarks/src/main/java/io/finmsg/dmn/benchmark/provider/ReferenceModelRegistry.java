@@ -8,6 +8,7 @@ import io.finmsg.dmn.compiler.DmnSourceId;
 import io.finmsg.dmn.generator.java.DmnJavaGenerator;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorOptions;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorResult;
+import io.finmsg.dmn.generator.java.GeneratedDecisionEngine;
 import io.finmsg.dmn.ir.RuntimeOptimizedModel;
 import io.finmsg.dmn.model.DrgElement;
 import io.finmsg.dmn.models.stream.DmnStreamBundle;
@@ -32,7 +33,15 @@ public final class ReferenceModelRegistry {
 	private static final AtomicInteger COUNTER = new AtomicInteger(1);
 
 	public record CompiledModelHolder(String modelName, DmnCompilationResult compilationResult,
-			Object generatedEngineInstance, Method evaluateMethod, Map<String, Integer> inputSlotMapping) {
+			GeneratedDecisionEngine generatedEngine, Method evaluateMethod, Map<String, Integer> inputSlotMapping) {
+
+		public Object[] evaluateDirect(Object[] slots) {
+			return generatedEngine.evaluate(slots);
+		}
+
+		public Object evaluateAdapter(Object[] slots) throws ReflectiveOperationException {
+			return evaluateMethod.invoke(generatedEngine, (Object) slots);
+		}
 	}
 
 	public static CompiledModelHolder loadFromClasspath(String resourcePath) throws Exception {
@@ -73,7 +82,8 @@ public final class ReferenceModelRegistry {
 
 		DmnJavaGeneratorResult genResult = generator.generate(optModel, DmnJavaGeneratorOptions.of(pkgName, className));
 		Class<?> genClass = compileInMemory(fqcn, genResult.sources().get(fqcn));
-		Object engineInstance = genClass.getDeclaredConstructor().newInstance();
+		GeneratedDecisionEngine engineInstance = (GeneratedDecisionEngine) genClass.getDeclaredConstructor()
+				.newInstance();
 		Method evalMethod = genClass.getMethod("evaluate", Object[].class);
 
 		Map<String, Integer> inputSlots = new LinkedHashMap<>();
