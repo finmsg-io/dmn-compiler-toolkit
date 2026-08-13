@@ -1,6 +1,6 @@
 param(
     [string]$ResultDirectory = "dmn-benchmarks/results",
-    [string]$Include = ".*(CreditApproval|TrafficViolation|ScalarArithmetic).*",
+    [string]$Include = ".*(CreditApproval|TrafficViolation|ScalarArithmetic|Originations|RankedLoanProducts).*",
     [int[]]$Threads = @(1, 2, 4, 8)
 )
 

@@ -22,6 +22,7 @@ public class RankedLoanProductsBenchmark {
 	private CompiledModelHolder holder;
 	private RuntimeModel runtimeModel;
 	private DmnRuntime runtime;
+	private List<Map<String, Object>> rawPayloads;
 	private List<Map<Integer, Object>> interpreterPayloads;
 	private List<Object[]> slotPayloads;
 
@@ -30,10 +31,10 @@ public class RankedLoanProductsBenchmark {
 		holder = ReferenceModelRegistry.loadFromClasspath("models/ranked-loan-products.dmn");
 		runtimeModel = holder.compilationResult().optimizedRuntimeModel().orElseThrow().model();
 		runtime = new DmnRuntime();
-		List<Map<String, Object>> payloads = new BenchmarkDataGenerator(2903L).generateLoanProductPayloads(1000);
-		interpreterPayloads = payloads.stream().map(p -> ReferenceModelRegistry.buildInterpreterSlotMap(holder, p))
+		rawPayloads = new BenchmarkDataGenerator(2903L).generateLoanProductPayloads(1000);
+		interpreterPayloads = rawPayloads.stream().map(p -> ReferenceModelRegistry.buildInterpreterSlotMap(holder, p))
 				.toList();
-		slotPayloads = payloads.stream().map(p -> ReferenceModelRegistry.buildInputSlots(holder, p)).toList();
+		slotPayloads = rawPayloads.stream().map(p -> ReferenceModelRegistry.buildInputSlots(holder, p)).toList();
 	}
 
 	@Benchmark
@@ -49,6 +50,12 @@ public class RankedLoanProductsBenchmark {
 	@Benchmark
 	public Object generatedAdapter_RankedLoanProducts(BenchmarkCursor cursor) throws Exception {
 		return holder.evaluateAdapter(slotPayloads.get(cursor.next(slotPayloads.size())));
+	}
+
+	@Benchmark
+	public Object generatedEndToEnd_RankedLoanProducts(BenchmarkCursor cursor) {
+		return holder.evaluateDirect(
+				ReferenceModelRegistry.buildInputSlots(holder, rawPayloads.get(cursor.next(rawPayloads.size()))));
 	}
 
 	DmnEvaluationResult evaluateInterpreterAt(int payloadIndex) {

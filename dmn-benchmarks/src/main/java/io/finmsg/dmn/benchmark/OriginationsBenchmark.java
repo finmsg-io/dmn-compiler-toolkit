@@ -23,6 +23,7 @@ public class OriginationsBenchmark {
 	private CompiledModelHolder holder;
 	private RuntimeModel runtimeModel;
 	private DmnRuntime runtime;
+	private List<Map<String, Object>> rawPayloads;
 	private List<Map<Integer, Object>> interpreterPayloads;
 	private List<Object[]> slotPayloads;
 
@@ -31,10 +32,10 @@ public class OriginationsBenchmark {
 		holder = ReferenceModelRegistry.loadFromClasspath("models/originations.dmn");
 		runtimeModel = holder.compilationResult().optimizedRuntimeModel().orElseThrow().model();
 		runtime = new DmnRuntime();
-		List<Map<String, Object>> payloads = new BenchmarkDataGenerator(1207L).generateOriginationPayloads(1000);
-		interpreterPayloads = payloads.stream().map(p -> ReferenceModelRegistry.buildInterpreterSlotMap(holder, p))
+		rawPayloads = new BenchmarkDataGenerator(1207L).generateOriginationPayloads(1000);
+		interpreterPayloads = rawPayloads.stream().map(p -> ReferenceModelRegistry.buildInterpreterSlotMap(holder, p))
 				.toList();
-		slotPayloads = payloads.stream().map(p -> ReferenceModelRegistry.buildInputSlots(holder, p)).toList();
+		slotPayloads = rawPayloads.stream().map(p -> ReferenceModelRegistry.buildInputSlots(holder, p)).toList();
 	}
 
 	@Benchmark
@@ -50,6 +51,12 @@ public class OriginationsBenchmark {
 	@Benchmark
 	public Object generatedAdapter_Originations(BenchmarkCursor cursor) throws Exception {
 		return holder.evaluateAdapter(slotPayloads.get(cursor.next(slotPayloads.size())));
+	}
+
+	@Benchmark
+	public Object generatedEndToEnd_Originations(BenchmarkCursor cursor) {
+		return holder.evaluateDirect(
+				ReferenceModelRegistry.buildInputSlots(holder, rawPayloads.get(cursor.next(rawPayloads.size()))));
 	}
 
 	DmnEvaluationResult evaluateInterpreterAt(int payloadIndex) {

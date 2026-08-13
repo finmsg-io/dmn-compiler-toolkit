@@ -3,7 +3,7 @@ set -eu
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 result_dir=${1:-dmn-benchmarks/results}
-include=${2:-'.*(CreditApproval|TrafficViolation|ScalarArithmetic).*'}
+include=${2:-'.*(CreditApproval|TrafficViolation|ScalarArithmetic|Originations|RankedLoanProducts).*'}
 mkdir -p "$repo_root/$result_dir"
 cd "$repo_root"
 

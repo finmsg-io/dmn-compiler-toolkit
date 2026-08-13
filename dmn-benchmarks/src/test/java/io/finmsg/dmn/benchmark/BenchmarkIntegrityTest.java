@@ -61,6 +61,7 @@ class BenchmarkIntegrityTest {
 			assertThat(generatedSlots)
 					.containsExactlyElementsOf(benchmark.evaluateInterpreterAt(payloadIndex).slotValues());
 		}
+		assertThat(benchmark.generatedEndToEnd_Originations(new BenchmarkCursor())).isNotNull();
 	}
 
 	@Test
@@ -72,6 +73,7 @@ class BenchmarkIntegrityTest {
 			assertThat(generatedSlots)
 					.containsExactlyElementsOf(benchmark.evaluateInterpreterAt(payloadIndex).slotValues());
 		}
+		assertThat(benchmark.generatedEndToEnd_RankedLoanProducts(new BenchmarkCursor())).isNotNull();
 	}
 
 	@Test
