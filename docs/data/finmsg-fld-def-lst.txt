@@ -1,0 +1,7593 @@
+fld_def {
+  tag: "11A"
+  frmt: ":4!c//3!a"
+  sub_fld_nms: "(Qualifier)(Currency Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ccy)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "11R"
+  frmt: "3!n<crlf>6!n<crlf>[4!n6!n]"
+  sub_fld_nms: "(MT Number)<crlf>(Date)<crlf>(Session Number)(ISN)"
+  sub_fld_nm_abbrvtns: "(Mt)(Dt)(Ssn)(Isn)"
+  sub_fld_def {
+    nm: "Mt"
+    frmt: "3!n"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+    sep_prfx: "<crlf>"
+  }
+  sub_fld_def {
+    nm: "Ssn"
+    frmt: "4!n"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+  sub_fld_def {
+    nm: "Isn"
+    frmt: "6!n"
+    optnl: true
+  }
+}
+fld_def {
+  tag: "11S"
+  frmt: "3!n<crlf>6!n<crlf>[4!n6!n]"
+  sub_fld_nms: "(MT Number)<crlf>(Date)<crlf>(Session Number)(ISN)"
+  sub_fld_nm_abbrvtns: "(Mt)(Dt)(Ssn)(Isn)"
+  sub_fld_def {
+    nm: "Mt"
+    frmt: "3!n"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+    sep_prfx: "<crlf>"
+  }
+  sub_fld_def {
+    nm: "Ssn"
+    frmt: "4!n"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+  sub_fld_def {
+    nm: "Isn"
+    frmt: "6!n"
+    optnl: true
+  }
+}
+fld_def {
+  tag: "12"
+  frmt: "3!n"
+  sub_fld_nms: "(Message Type)"
+  sub_fld_nm_abbrvtns: "(Mt)"
+  sub_fld_def {
+    nm: "Mt"
+    frmt: "3!n"
+  }
+}
+fld_def {
+  tag: "12A"
+  frmt: ":4!c/[8c]/30x"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Instrument Code or Description)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(Desc)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Desc"
+    frmt: "30x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "12B"
+  frmt: ":4!c/[8c]/4!c"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Instrument Type Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(Cd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "12C"
+  frmt: ":4!c//6!c"
+  sub_fld_nms: "(Qualifier)(CFI Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Cd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "6!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "12D"
+  frmt: "4!c"
+  sub_fld_nms: "(Option Type)"
+  sub_fld_nm_abbrvtns: "(Tp)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "12E"
+  frmt: "4!c"
+  sub_fld_nms: "(Expiration Style)"
+  sub_fld_nm_abbrvtns: "(Style)"
+  sub_fld_def {
+    nm: "Style"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "12F"
+  frmt: "4!c"
+  sub_fld_nms: "(Option Style)"
+  sub_fld_nm_abbrvtns: "(Style)"
+  sub_fld_def {
+    nm: "Style"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "12G"
+  frmt: "4!c"
+  sub_fld_nms: "(Early Termination  Style)"
+  sub_fld_nm_abbrvtns: "(Style)"
+  sub_fld_def {
+    nm: "Style"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "13A"
+  frmt: ":4!c//3!c"
+  sub_fld_nms: "(Qualifier)(Number Id)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Id)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Id"
+    frmt: "3!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "13B"
+  frmt: ":4!c/[8c]/30x"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Number)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(Nb)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "30x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "13C"
+  frmt: "/8c/4!n1!x4!n"
+  sub_fld_nms: "(Code)(Time indication)(Sign)(Time offset)"
+  sub_fld_nm_abbrvtns: "(Cd)(Indctn)(Sgn)(Offset)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "8c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Indctn"
+    frmt: "4!n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "1!x"
+  }
+  sub_fld_def {
+    nm: "Offset"
+    frmt: "4!n"
+  }
+}
+fld_def {
+  tag: "13D"
+  frmt: "6!n4!n1!x4!n"
+  sub_fld_nms: "(Date)(Time)(Sign)(Offset)"
+  sub_fld_nm_abbrvtns: "(Dt)(Tm)(Sgn)(Offset)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "4!n"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "1!x"
+  }
+  sub_fld_def {
+    nm: "Offset"
+    frmt: "!n"
+  }
+}
+fld_def {
+  tag: "13J"
+  frmt: ":4!c//5!c"
+  sub_fld_nms: "(Qualifier)(Extended Number Id)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Id)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Id"
+    frmt: "5!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "13K"
+  frmt: ":4!c//3!c/15d"
+  sub_fld_nms: "(Qualifier)(Number Id)(Quantity)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Id)(Qty)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Id"
+    frmt: "3!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Qty"
+    frmt: "15d"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "14A"
+  frmt: "9a"
+  sub_fld_nms: "(Convention)"
+  sub_fld_nm_abbrvtns: "(Cnvntn)"
+  sub_fld_def {
+    nm: "Cnvntn"
+    frmt: "9a"
+  }
+}
+fld_def {
+  tag: "14B"
+  frmt: "2!c"
+  sub_fld_nms: "(Method)"
+  sub_fld_nm_abbrvtns: "(Mtd)"
+  sub_fld_def {
+    nm: "Mtd"
+    frmt: "2!c"
+  }
+}
+fld_def {
+  tag: "14C"
+  frmt: "4!n"
+  sub_fld_nms: "(Year)"
+  sub_fld_nm_abbrvtns: "(Yr)"
+  sub_fld_def {
+    nm: "Yr"
+    frmt: "4!n"
+  }
+}
+fld_def {
+  tag: "14D"
+  frmt: "7x"
+  sub_fld_nms: "(Code)"
+  sub_fld_nm_abbrvtns: "(Cd)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "7x"
+  }
+}
+fld_def {
+  tag: "14E"
+  frmt: "35x"
+  sub_fld_nms: "(Reference)"
+  sub_fld_nm_abbrvtns: "(Ref)"
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "35x"
+  }
+}
+fld_def {
+  tag: "14F"
+  frmt: "24x"
+  sub_fld_nms: "(Option)"
+  sub_fld_nm_abbrvtns: "(Optn)"
+  sub_fld_def {
+    nm: "Optn"
+    frmt: "24x"
+  }
+}
+fld_def {
+  tag: "14G"
+  frmt: "1!a/8!a"
+  sub_fld_nms: "(Frequency)(Method)"
+  sub_fld_nm_abbrvtns: "(Frqcy)(Mtd)"
+  sub_fld_def {
+    nm: "Frqcy"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Mtd"
+    frmt: "8!a"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "14J"
+  frmt: "5a"
+  sub_fld_nms: "(Code)"
+  sub_fld_nm_abbrvtns: "(Cd)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "5a"
+  }
+}
+fld_def {
+  tag: "14S"
+  frmt: "3!a2n[/4!n/4!c]"
+  sub_fld_nms: "(Rate Source)(Time and Location)"
+  sub_fld_nm_abbrvtns: "(Src)(TmLctn)"
+  sub_fld_def {
+    nm: "Src"
+    frmt: "3!a2n"
+  }
+  sub_fld_def {
+    nm: "TmLctn"
+    frmt: "4!n/4!c"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "15A"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15B"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15C"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15D"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15E"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15F"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15G"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15H"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15I"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15J"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15K"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15L"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15M"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15N"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15O"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "15P"
+  frmt: "Empty field"
+}
+fld_def {
+  tag: "16A"
+  frmt: "5n"
+  sub_fld_nms: "(Number)"
+  sub_fld_nm_abbrvtns: "(Nb)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "5n"
+  }
+}
+fld_def {
+  tag: "16C"
+  frmt: "2n"
+  sub_fld_nms: "(Decimals)"
+  sub_fld_nm_abbrvtns: "(Dcmls)"
+  sub_fld_def {
+    nm: "Dcmls"
+    frmt: "2n"
+  }
+}
+fld_def {
+  tag: "16R"
+  frmt: "16c"
+}
+fld_def {
+  tag: "16S"
+  frmt: "16c"
+}
+fld_def {
+  tag: "17A"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17B"
+  frmt: ":4!c//1!a"
+  sub_fld_nms: "(Qualifier)(Flag)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Flg)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Flg"
+    frmt: "1!a"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "17E"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17F"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17G"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17H"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17I"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17L"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17M"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17N"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17O"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17P"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17Q"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17R"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17S"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17T"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17U"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17V"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17W"
+  frmt: "1!a"
+  sub_fld_nms: "(Flag)"
+  sub_fld_nm_abbrvtns: "(Flg)"
+  sub_fld_def {
+    nm: "Flg"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17X"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17Y"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "17Z"
+  frmt: "1!a"
+  sub_fld_nms: "(Indicator)"
+  sub_fld_nm_abbrvtns: "(Id)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "18A"
+  frmt: "5n"
+  sub_fld_nms: "(Number)"
+  sub_fld_nm_abbrvtns: "(Nb)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "5n"
+  }
+}
+fld_def {
+  tag: "18B"
+  frmt: "3n"
+  sub_fld_nms: "(Number)"
+  sub_fld_nm_abbrvtns: "(Nb)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3n"
+  }
+}
+fld_def {
+  tag: "18C"
+  frmt: "3n"
+  sub_fld_nms: "(Number)"
+  sub_fld_nm_abbrvtns: "(Nb)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3n"
+  }
+}
+fld_def {
+  tag: "18D"
+  frmt: "3n"
+  sub_fld_nms: "(Number)"
+  sub_fld_nm_abbrvtns: "(Nb)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3n"
+  }
+}
+fld_def {
+  tag: "19"
+  frmt: "17d"
+  sub_fld_nms: "(Amount)"
+  sub_fld_nm_abbrvtns: "(Amt)"
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "17d"
+  }
+}
+fld_def {
+  tag: "19A"
+  frmt: ":4!c//[N]3!a15d"
+  sub_fld_nms: "(Qualifier)(Sign)(Currency Code)(Amount)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Sgn)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "//"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "19B"
+  frmt: ":4!c//3!a15d"
+  sub_fld_nms: "(Qualifier)(Currency Code)(Amount)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "19C"
+  frmt: "[N]15d"
+  sub_fld_nms: "(Sign)(Adjustment Factor)"
+  sub_fld_nm_abbrvtns: "(Sgn)(Fctr)"
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Fctr"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "19Y"
+  frmt: "15d"
+  sub_fld_nms: "(Weight)"
+  sub_fld_nm_abbrvtns: "(Wght)"
+  sub_fld_def {
+    nm: "Wght"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "19Z"
+  frmt: "15d"
+  sub_fld_nms: "(Weight)"
+  sub_fld_nm_abbrvtns: "(Wght)"
+  sub_fld_def {
+    nm: "Wght"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "20"
+  frmt: "16x"
+  sub_fld_nms: "(Reference)"
+  sub_fld_nm_abbrvtns: "(Ref)"
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "16x"
+  }
+}
+fld_def {
+  tag: "20C"
+  frmt: ":4!c//16x"
+  sub_fld_nms: "(Qualifier)(Reference)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ref)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "16x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "20D"
+  frmt: ":4!c//25x"
+  sub_fld_nms: "(Qualifier)(Reference)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ref)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "25x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "20U"
+  frmt: ":4!c//52x"
+  sub_fld_nms: "(Qualifier)(UTI Reference)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ref)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "52x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "21"
+  frmt: "16x"
+  sub_fld_nms: "(Reference)"
+  sub_fld_nm_abbrvtns: "(Ref)"
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "16x"
+  }
+}
+fld_def {
+  tag: "21A"
+  frmt: "16x"
+  sub_fld_nms: "(Reference)"
+  sub_fld_nm_abbrvtns: "(Ref)"
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "16x"
+  }
+}
+fld_def {
+  tag: "21B"
+  frmt: "16x"
+  sub_fld_nms: "(Contract Number)"
+  sub_fld_nm_abbrvtns: "(Nb)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "16x"
+  }
+}
+fld_def {
+  tag: "21C"
+  frmt: "35x"
+  sub_fld_nms: "(Reference)"
+  sub_fld_nm_abbrvtns: "(Ref)"
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "35x"
+  }
+}
+fld_def {
+  tag: "21D"
+  frmt: "35x"
+  sub_fld_nms: "(Reference)"
+  sub_fld_nm_abbrvtns: "(Ref)"
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "35x"
+  }
+}
+fld_def {
+  tag: "21E"
+  frmt: "35x"
+  sub_fld_nms: "(Reference)"
+  sub_fld_nm_abbrvtns: "(Ref)"
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "35x"
+  }
+}
+fld_def {
+  tag: "21F"
+  frmt: "16x"
+  sub_fld_nms: "(Reference)"
+  sub_fld_nm_abbrvtns: "(Ref)"
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "16x"
+  }
+}
+fld_def {
+  tag: "21G"
+  frmt: "16x"
+  sub_fld_nms: "(Reference)"
+  sub_fld_nm_abbrvtns: "(Ref)"
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "16x"
+  }
+}
+fld_def {
+  tag: "21H"
+  frmt: "4!c/16x"
+  sub_fld_nms: "(Event Type)(Reference of Previous Confirmation)"
+  sub_fld_nm_abbrvtns: "(Tp)(Ref)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "4!a"
+  }
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "16x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "21N"
+  frmt: "16x"
+  sub_fld_nms: "(Contract Number)"
+  sub_fld_nm_abbrvtns: "(Nb)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "16x"
+  }
+}
+fld_def {
+  tag: "21P"
+  frmt: "16x"
+  sub_fld_nms: "(Reference)"
+  sub_fld_nm_abbrvtns: "(Ref)"
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "16x"
+  }
+}
+fld_def {
+  tag: "21R"
+  frmt: "16x"
+  sub_fld_nms: "(Reference)"
+  sub_fld_nm_abbrvtns: "(Ref)"
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "16x"
+  }
+}
+fld_def {
+  tag: "22"
+  frmt: "8a/4!a2!c4!n4!a2!c"
+  sub_fld_nms: "(Code)(Common Reference)"
+  sub_fld_nm_abbrvtns: "(Cd)(Ref)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "8a"
+  }
+  sub_fld_def {
+    nm: "Ref"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "22A"
+  frmt: "4!c"
+  sub_fld_nms: "(Function)"
+  sub_fld_nm_abbrvtns: "(Fctn)"
+  sub_fld_def {
+    nm: "Fctn"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "22B"
+  frmt: "4!c"
+  sub_fld_nms: "(Centre)"
+  sub_fld_nm_abbrvtns: "(Centr)"
+  sub_fld_def {
+    nm: "Centr"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "22C"
+  frmt: "4!a2!c4!n4!a2!c"
+  sub_fld_nms: "(Party Prefix 1)(Party Suffix 1)(Reference Code)(Party Prefix 2)(Party Suffix 2)"
+  sub_fld_nm_abbrvtns: "(Prfx1)(Sfx1)(Cd)(Prfx2)(Sfx2)"
+  sub_fld_def {
+    nm: "Prfx1"
+    frmt: "4!a"
+  }
+  sub_fld_def {
+    nm: "Sfx1"
+    frmt: "2!c"
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!n"
+  }
+  sub_fld_def {
+    nm: "Prfx2"
+    frmt: "4!a"
+  }
+  sub_fld_def {
+    nm: "Sfx2"
+    frmt: "2!c"
+  }
+}
+fld_def {
+  tag: "22D"
+  frmt: "4!c"
+  sub_fld_nms: "(Form)"
+  sub_fld_nm_abbrvtns: "(Form)"
+  sub_fld_def {
+    nm: "Form"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "22E"
+  frmt: "4!c"
+  sub_fld_nms: "(Type of Payment)"
+  sub_fld_nm_abbrvtns: "(Tp)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "22F"
+  frmt: ":4!c/[8c]/4!c"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Indicator)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(Id)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Id"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "22G"
+  frmt: "4!c"
+  sub_fld_nms: "(Type)"
+  sub_fld_nm_abbrvtns: "(Tp)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "22H"
+  frmt: ":4!c//4!c"
+  sub_fld_nms: "(Qualifier)(Indicator)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Id)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Id"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "22J"
+  frmt: "4!c"
+  sub_fld_nms: "(Type of Trigger)"
+  sub_fld_nm_abbrvtns: "(Tp)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "22K"
+  frmt: "4!c[/35x]"
+  sub_fld_nms: "(Code)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Cd)(Nrrtv)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "22L"
+  frmt: "35x"
+  sub_fld_nms: "(Reporting Jurisdiction)"
+  sub_fld_nm_abbrvtns: "(Jursdctn)"
+  sub_fld_def {
+    nm: "Jursdctn"
+    frmt: "35x"
+  }
+}
+fld_def {
+  tag: "22M"
+  frmt: "30x"
+  sub_fld_nms: "(Namespace)"
+  sub_fld_nm_abbrvtns: "(Ns)"
+  sub_fld_def {
+    nm: "Ns"
+    frmt: "30x"
+  }
+}
+fld_def {
+  tag: "22N"
+  frmt: "32x"
+  sub_fld_nms: "(Transaction Identifier)"
+  sub_fld_nm_abbrvtns: "(Idr)"
+  sub_fld_def {
+    nm: "Idr"
+    frmt: "32x"
+  }
+}
+fld_def {
+  tag: "22P"
+  frmt: "30x"
+  sub_fld_nms: "(Namespace)"
+  sub_fld_nm_abbrvtns: "(Ns)"
+  sub_fld_def {
+    nm: "Ns"
+    frmt: "30x"
+  }
+}
+fld_def {
+  tag: "22Q"
+  frmt: "10x"
+  sub_fld_nms: "(Portfolio)"
+  sub_fld_nm_abbrvtns: "(Prtfl)"
+  sub_fld_def {
+    nm: "Prtfl"
+    frmt: "10x"
+  }
+}
+fld_def {
+  tag: "22R"
+  frmt: "32x"
+  sub_fld_nms: "(Prior Transaction Identifier)"
+  sub_fld_nm_abbrvtns: "(Idr)"
+  sub_fld_def {
+    nm: "Idr"
+    frmt: "32x"
+  }
+}
+fld_def {
+  tag: "22S"
+  frmt: "1!a/35x"
+  sub_fld_nms: "(Side Indicator)(Identification)"
+  sub_fld_nm_abbrvtns: "(Ind)(Idn)"
+  sub_fld_def {
+    nm: "Ind"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Idn"
+    frmt: "35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "22T"
+  frmt: "35x"
+  sub_fld_nms: "(Identification)"
+  sub_fld_nm_abbrvtns: "(Idn)"
+  sub_fld_def {
+    nm: "Idn"
+    frmt: "35x"
+  }
+}
+fld_def {
+  tag: "22U"
+  frmt: "6a"
+  sub_fld_nms: "(Product Identifier)"
+  sub_fld_nm_abbrvtns: "(Idr)"
+  sub_fld_def {
+    nm: "Idr"
+    frmt: "6a"
+  }
+}
+fld_def {
+  tag: "22V"
+  frmt: "35x"
+  sub_fld_nms: "(Execution Venue)"
+  sub_fld_nm_abbrvtns: "(Vn)"
+  sub_fld_def {
+    nm: "Vn"
+    frmt: "35x"
+  }
+}
+fld_def {
+  tag: "22W"
+  frmt: "42x"
+  sub_fld_nms: "(Identification)"
+  sub_fld_nm_abbrvtns: "(Idn)"
+  sub_fld_def {
+    nm: "Idn"
+    frmt: "42x"
+  }
+}
+fld_def {
+  tag: "22X"
+  frmt: "4!c"
+  sub_fld_nms: "(Type)"
+  sub_fld_nm_abbrvtns: "(Tp)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "22Y"
+  frmt: "4!c"
+  sub_fld_nms: "(Period)"
+  sub_fld_nm_abbrvtns: "(Prd)"
+  sub_fld_def {
+    nm: "Prd"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "22Z"
+  frmt: "6a"
+  sub_fld_nms: "(Product Identifier)"
+  sub_fld_nm_abbrvtns: "(Idr)"
+  sub_fld_def {
+    nm: "Idr"
+    frmt: "6a"
+  }
+}
+fld_def {
+  tag: "23"
+  frmt: "16x"
+  sub_fld_nms: "(Further Identification)"
+  sub_fld_nm_abbrvtns: "(Idn)"
+  sub_fld_def {
+    nm: "Idn"
+    frmt: "16x"
+  }
+}
+fld_def {
+  tag: "23A"
+  frmt: "10a/5a"
+  sub_fld_nms: "(Type of Swap)(Settlement Method)"
+  sub_fld_nm_abbrvtns: "(Tp)(Mtd)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "10a"
+  }
+  sub_fld_def {
+    nm: "Mtd"
+    frmt: "5a"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "23B"
+  frmt: "4!c"
+  sub_fld_nms: "(Type)"
+  sub_fld_nm_abbrvtns: "(Tp)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "23C"
+  frmt: "7a"
+  sub_fld_nms: "(Settlement Calculation)"
+  sub_fld_nm_abbrvtns: "(Clctn)"
+  sub_fld_def {
+    nm: "Clctn"
+    frmt: "7a"
+  }
+}
+fld_def {
+  tag: "23D"
+  frmt: "10a"
+  sub_fld_nms: "(Type)"
+  sub_fld_nm_abbrvtns: "(Tp)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "10a"
+  }
+}
+fld_def {
+  tag: "23E"
+  frmt: "4!c[/30x]"
+  sub_fld_nms: "(Instruction Code)(Additional Information)"
+  sub_fld_nm_abbrvtns: "(Cd)(Inf)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Inf"
+    frmt: "30x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "23F"
+  frmt: "4!a[/35x]"
+  sub_fld_nms: "(Period)(Details)"
+  sub_fld_nm_abbrvtns: "(Prd)(Dtls)"
+  sub_fld_def {
+    nm: "Prd"
+    frmt: "4!a"
+  }
+  sub_fld_def {
+    nm: "Dtls"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "23G"
+  frmt: "4!c[/4!c]"
+  sub_fld_nms: "(Function)(Subfunction)"
+  sub_fld_nm_abbrvtns: "(Fctn)(Sub)"
+  sub_fld_def {
+    nm: "Fctn"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Sub"
+    frmt: "4!c"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "23H"
+  frmt: "8!c"
+  sub_fld_nms: "(Function)"
+  sub_fld_nm_abbrvtns: "(Fctn)"
+  sub_fld_def {
+    nm: "Fctn"
+    frmt: "8!c"
+  }
+}
+fld_def {
+  tag: "23R"
+  frmt: "4!c<crlf>[6*35x]"
+  sub_fld_nms: "(Code)<crlf>(Text)"
+  sub_fld_nm_abbrvtns: "(Cd)(Txt)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Txt"
+    frmt: "6*35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "23S"
+  frmt: "6!a"
+  sub_fld_nms: "(Request)"
+  sub_fld_nm_abbrvtns: "(Req)"
+  sub_fld_def {
+    nm: "Req"
+    frmt: "6!a"
+  }
+}
+fld_def {
+  tag: "23X"
+  frmt: "4!c/65x"
+  sub_fld_nms: "(Code)(File Name or Reference)"
+  sub_fld_nm_abbrvtns: "(Cd)(FileNmRef)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!a"
+  }
+  sub_fld_def {
+    nm: "FileNmRef"
+    frmt: "65x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "24B"
+  frmt: ":4!c/[8c]/4!c"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Reason Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(Cd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "24D"
+  frmt: "4!c[/35x]"
+  sub_fld_nms: "(Method)(Additional Information)"
+  sub_fld_nm_abbrvtns: "(Mtd)(Inf)"
+  sub_fld_def {
+    nm: "Mtd"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Inf"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "24E"
+  frmt: "4!c[/35x]"
+  sub_fld_nms: "(Code)(Additional Information)"
+  sub_fld_nm_abbrvtns: "(Cd)(Inf)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Inf"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "24G"
+  frmt: "4!c<crlf>[6*35x]"
+  sub_fld_nms: "(Code)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(Cd)(NmAdr)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "6*35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "25"
+  frmt: "35x"
+  sub_fld_nms: "(Account)"
+  sub_fld_nm_abbrvtns: "(Acct)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "35x"
+  }
+}
+fld_def {
+  tag: "25A"
+  frmt: "/34x"
+  sub_fld_nms: "(Account)"
+  sub_fld_nm_abbrvtns: "(Acct)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "25D"
+  frmt: ":4!c/[8c]/4!c"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Status Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(Cd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "25P"
+  frmt: "35x<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Account)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(Acct)(IdrCd)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "35x"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!a2!c[3!c]"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "26A"
+  frmt: "16x[/4!x]"
+  sub_fld_nms: "(Number 1)(Number 2)"
+  sub_fld_nm_abbrvtns: "(Nb1)(Nb2)"
+  sub_fld_def {
+    nm: "Nb1"
+    frmt: "16x"
+  }
+  sub_fld_def {
+    nm: "Nb2"
+    frmt: "4!x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "26C"
+  frmt: "[3!a]/15x/5!a4!a[4x][//8x]"
+  sub_fld_nms: "(Delivery Details)(Delivery Location)(Allocation)(Type)(Denomination)(Form)"
+  sub_fld_nm_abbrvtns: "(Dtls)(Lctn)(Allcn)(Tp)(Dnmtn)(Form)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Dtls"
+    frmt: "3!a"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "15x"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Allcn"
+    frmt: "5!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "5!a"
+  }
+  sub_fld_def {
+    nm: "Dnmtn"
+    frmt: "4x"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Form"
+    frmt: "8x"
+    optnl: true
+    sep_prfx: "//"
+  }
+}
+fld_def {
+  tag: "26D"
+  frmt: "30*65x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "30*65x"
+  }
+}
+fld_def {
+  tag: "26E"
+  frmt: "3n"
+  sub_fld_nms: "(Number of Amendment)"
+  sub_fld_nm_abbrvtns: "(Nb)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3n"
+  }
+}
+fld_def {
+  tag: "26F"
+  frmt: "9a"
+  sub_fld_nms: "(Type)"
+  sub_fld_nm_abbrvtns: "(Tp)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "9a"
+  }
+}
+fld_def {
+  tag: "26H"
+  frmt: "16x"
+  sub_fld_nms: "(Location of Trigger Hit)"
+  sub_fld_nm_abbrvtns: "(Lctn)"
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "16x"
+  }
+}
+fld_def {
+  tag: "26K"
+  frmt: "4!c"
+  sub_fld_nms: "(Calculation Agent)"
+  sub_fld_nm_abbrvtns: "(ClctnAgt)"
+  sub_fld_def {
+    nm: "ClctnAgt"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "26T"
+  frmt: "3!c"
+  sub_fld_nms: "(Type)"
+  sub_fld_nm_abbrvtns: "(Tp)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "3!c"
+  }
+}
+fld_def {
+  tag: "27"
+  frmt: "1!n/1!n"
+  sub_fld_nms: "(Number)(Total)"
+  sub_fld_nm_abbrvtns: "(Nb)(Ttl)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "1!n"
+  }
+  sub_fld_def {
+    nm: "Ttl"
+    frmt: "1!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "28"
+  frmt: "5n[/2n]"
+  sub_fld_nms: "(Settlement Number)(Page Number)"
+  sub_fld_nm_abbrvtns: "(SttlmNb)(PgNb)"
+  sub_fld_def {
+    nm: "SttlmNb"
+    frmt: "5n"
+  }
+  sub_fld_def {
+    nm: "PgNb"
+    frmt: "2n"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "28C"
+  frmt: "5n[/5n]"
+  sub_fld_nms: "(Statement Number)(Sequence Number)"
+  sub_fld_nm_abbrvtns: "(StmtNb)(SeqNb)"
+  sub_fld_def {
+    nm: "StmtNb"
+    frmt: "5n"
+  }
+  sub_fld_def {
+    nm: "SeqNb"
+    frmt: "5n"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "28D"
+  frmt: "5n/5n"
+  sub_fld_nms: "(Message Index)(Total)"
+  sub_fld_nm_abbrvtns: "(Indx)(Ttl)"
+  sub_fld_def {
+    nm: "Indx"
+    frmt: "5n"
+  }
+  sub_fld_def {
+    nm: "Ttl"
+    frmt: "5n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "28E"
+  frmt: "5n/4!c"
+  sub_fld_nms: "(Page Number)(Continuation Indicator)"
+  sub_fld_nm_abbrvtns: "(PgNb)(Id)"
+  sub_fld_def {
+    nm: "PgNb"
+    frmt: "5n"
+  }
+  sub_fld_def {
+    nm: "Id"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "29A"
+  frmt: "4*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "4*35x"
+  }
+}
+fld_def {
+  tag: "29B"
+  frmt: "4*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "4*35x"
+  }
+}
+fld_def {
+  tag: "29E"
+  frmt: "4!c/4!n"
+  sub_fld_nms: "(Location)(Time)"
+  sub_fld_nm_abbrvtns: "(Lctn)(Tm)"
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "4!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "29H"
+  frmt: "4!c"
+  sub_fld_nms: "(Location)"
+  sub_fld_nm_abbrvtns: "(Lctn)"
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "29J"
+  frmt: "4!c[/4!n]"
+  sub_fld_nms: "(Location)(Time)"
+  sub_fld_nm_abbrvtns: "(Lctn)(Tm)"
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "4!n"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "29K"
+  frmt: "4!c/4!n"
+  sub_fld_nms: "(Location)(Time)"
+  sub_fld_nm_abbrvtns: "(Lctn)(Tm)"
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "4!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "29L"
+  frmt: "8!n/4!c/4!n"
+  sub_fld_nms: "(Date)(Location)(Time)"
+  sub_fld_nm_abbrvtns: "(Dt)(Lctn)(Tm)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "4!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "29M"
+  frmt: "4!c/4!n"
+  sub_fld_nms: "(Location)(Time)"
+  sub_fld_nm_abbrvtns: "(Lctn)(Tm)"
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "4!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "29N"
+  frmt: "8!n/4!c/4!n"
+  sub_fld_nms: "(Date)(Location)(Time)"
+  sub_fld_nm_abbrvtns: "(Dt)(Lctn)(Tm)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "4!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "30"
+  frmt: "6!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+}
+fld_def {
+  tag: "30F"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30G"
+  frmt: "8!n/8!n"
+  sub_fld_nms: "(Start Date)(End Date)"
+  sub_fld_nm_abbrvtns: "(StartDt)(EndDt)"
+  sub_fld_def {
+    nm: "StartDt"
+    frmt: "8!n"
+  }
+  sub_fld_def {
+    nm: "EndDt"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "30H"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30J"
+  frmt: "1!a3!n"
+  sub_fld_nms: "(Indicator)(Number)"
+  sub_fld_nm_abbrvtns: "(Id)(Nb)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3!n"
+  }
+}
+fld_def {
+  tag: "30M"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30N"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30P"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30Q"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30S"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30T"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30U"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30V"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30X"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30Y"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "30Z"
+  frmt: "8!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+}
+fld_def {
+  tag: "31C"
+  frmt: "6!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+}
+fld_def {
+  tag: "31D"
+  frmt: "6!n29x"
+  sub_fld_nms: "(Date)(Place)"
+  sub_fld_nm_abbrvtns: "(Dt)(Plc)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Plc"
+    frmt: "29x"
+  }
+}
+fld_def {
+  tag: "31E"
+  frmt: "6!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+}
+fld_def {
+  tag: "31F"
+  frmt: "6!n[/6!n][//35x]"
+  sub_fld_nms: "(Date)(Period Date)(Period Details)"
+  sub_fld_nm_abbrvtns: "(Dt)(PrdDt)(PrdDtls)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "PrdDt"
+    frmt: "6!n"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "PrdDtls"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "//"
+  }
+}
+fld_def {
+  tag: "31G"
+  frmt: "6!n/4!n/12a"
+  sub_fld_nms: "(Date)(Time)(Location)"
+  sub_fld_nm_abbrvtns: "(Dt)(Tm)(Lctn)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "4!n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "12a"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "31L"
+  frmt: "6!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+}
+fld_def {
+  tag: "31P"
+  frmt: "6!n[29x]"
+  sub_fld_nms: "(Date)(Place)"
+  sub_fld_nm_abbrvtns: "(Dt)(Plc)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Plc"
+    frmt: "29x"
+    optnl: true
+  }
+}
+fld_def {
+  tag: "31S"
+  frmt: "6!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+}
+fld_def {
+  tag: "31X"
+  frmt: "[6!n[4!n]][7!a]"
+  sub_fld_nms: "(Date)(Time)(Code)"
+  sub_fld_nm_abbrvtns: "(Dt)(Tm)(Cd)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "4!n"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "7!a"
+    optnl: true
+  }
+}
+fld_def {
+  tag: "32A"
+  frmt: "6!n3!a15d"
+  sub_fld_nms: "(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "32B"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "32C"
+  frmt: "6!n3!a15d"
+  sub_fld_nms: "(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "32D"
+  frmt: "6!n3!a15d"
+  sub_fld_nms: "(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "32E"
+  frmt: "3!a"
+  sub_fld_nms: "(Currency)"
+  sub_fld_nm_abbrvtns: "(Ccy)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+}
+fld_def {
+  tag: "32F"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Unit)(Amount)"
+  sub_fld_nm_abbrvtns: "(Unit)(Amt)"
+  sub_fld_def {
+    nm: "Unit"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "32G"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "32H"
+  frmt: "[N]3!a15d"
+  sub_fld_nms: "(Sign)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Sgn)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "32K"
+  frmt: "1!a3!n2!a3!a15d"
+  sub_fld_nms: "(Day/Month)(Number of Days/Months)(Code)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(DayMnth)(Nb)(Cd)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "DayMnth"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3!n"
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "2!a"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "32M"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "32Q"
+  frmt: "3!a/3!a"
+  sub_fld_nms: "(Currency1)(Currency2)"
+  sub_fld_nm_abbrvtns: "(Ccy1)(Ccy2)"
+  sub_fld_def {
+    nm: "Ccy1"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Ccy2"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "32R"
+  frmt: "[N]3!a15d"
+  sub_fld_nms: "(Sign)(Unit)(Amount)"
+  sub_fld_nm_abbrvtns: "(Sgn)(Unit)(Amt)"
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Unit"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "32U"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "33A"
+  frmt: "6!n3!a15d"
+  sub_fld_nms: "(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "33B"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "33C"
+  frmt: "6!n3!a15d"
+  sub_fld_nms: "(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "33D"
+  frmt: "6!n3!a15d"
+  sub_fld_nms: "(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "33E"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "33F"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "33G"
+  frmt: "3!a15d[5!c]"
+  sub_fld_nms: "(Currency)(Price)(Code)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Pric)(Cd)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Pric"
+    frmt: "15d"
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "5!c"
+    optnl: true
+  }
+}
+fld_def {
+  tag: "33H"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "33J"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Unit)(Amount)"
+  sub_fld_nm_abbrvtns: "(Unit)(Amt)"
+  sub_fld_def {
+    nm: "Unit"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "33K"
+  frmt: "1!a3!n2!a3!a15d"
+  sub_fld_nms: "(Day/Month)(Number of Days/Months)(Code)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(DayMnth)(Nb)(Cd)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "DayMnth"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3!n"
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "2!a"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "33S"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Code)(Amount)"
+  sub_fld_nm_abbrvtns: "(Cd)(Amt)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "33T"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Price)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Pric)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Pric"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "34A"
+  frmt: "6!n3!a15d"
+  sub_fld_nms: "(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "34B"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "34C"
+  frmt: "4!c/[N]3!a15d"
+  sub_fld_nms: "(Commission Type)(Sign)(Currency/Percent)(Amount/Rate)"
+  sub_fld_nm_abbrvtns: "(Tp)(Sgn)(CcyPct)(AmtRate)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "4!c"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "CcyPct"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "AmtRate"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "34E"
+  frmt: "[N]3!a15d"
+  sub_fld_nms: "(Sign)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Sgn)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "34F"
+  frmt: "3!a[1!a]15d"
+  sub_fld_nms: "(Currency)(D/C Mark)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Dc)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Dc"
+    frmt: "1!a"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "34J"
+  frmt: "[N]3!a15d"
+  sub_fld_nms: "(Sign)(Unit)(Amount)"
+  sub_fld_nm_abbrvtns: "(Sgn)(Unit)(Amt)"
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Unit"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "34P"
+  frmt: "6!n3!a15d"
+  sub_fld_nms: "(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "34R"
+  frmt: "6!n3!a15d"
+  sub_fld_nms: "(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "35A"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Type)(Quantity)"
+  sub_fld_nm_abbrvtns: "(Tp)(Qty)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Qty"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "35B"
+  frmt: "[ISIN1!e12!c]<crlf>[4*35x]"
+  sub_fld_nms: "(Identification of Security)<crlf>(Description of Security)"
+  sub_fld_nm_abbrvtns: "(Scty)(Desc)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Scty"
+    frmt: "ISIN1!e12!c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Desc"
+    frmt: "4*35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "35C"
+  frmt: "8x[/30x]"
+  sub_fld_nms: "(Digital Token Identifier)(Description )"
+  sub_fld_nm_abbrvtns: "(DgtlTknIdr)(Desc)"
+  sub_fld_def {
+    nm: "DgtlTknIdr"
+    frmt: "8x"
+  }
+  sub_fld_def {
+    nm: "Desc"
+    frmt: "30x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "35G"
+  frmt: "12*65x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "12*65x"
+  }
+}
+fld_def {
+  tag: "35H"
+  frmt: "[N]3!a15d"
+  sub_fld_nms: "(Sign)(Currency)(Quantity)"
+  sub_fld_nm_abbrvtns: "(Sgn)(Ccy)(Qty)"
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Qty"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "35N"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Type)(Quantity)"
+  sub_fld_nm_abbrvtns: "(Tp)(Qty)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Qty"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "35S"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Type)(Quantity)"
+  sub_fld_nm_abbrvtns: "(Tp)(Qty)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Qty"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "36"
+  frmt: "12d"
+  sub_fld_nms: "(Rate)"
+  sub_fld_nm_abbrvtns: "(Rate)"
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+}
+fld_def {
+  tag: "36B"
+  frmt: ":4!c//4!c/15d"
+  sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(QtyTpCd)(Qty)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "QtyTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Qty"
+    frmt: "15d"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "36C"
+  frmt: ":4!c//4!c"
+  sub_fld_nms: "(Qualifier)(Quantity Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(QtyCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "QtyCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "36D"
+  frmt: ":4!c//4!c/30d"
+  sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity of Digital Tokens)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(QtyTpCd)(QtyDgtlTkns)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "QtyTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "QtyDgtlTkns"
+    frmt: "30d"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "36E"
+  frmt: ":4!c//4!c/[N]15d"
+  sub_fld_nms: "(Qualifier)(Quantity Type Code)(Sign)(Quantity)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(QtyTpCd)(Sgn)(Qty)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "QtyTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Qty"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "37A"
+  frmt: "12d[//6!n1!a3n][/16x]"
+  sub_fld_nms: "(Rate)(End Date)(Period)(Number)(Information)"
+  sub_fld_nm_abbrvtns: "(Rate)(EndDt)(Prd)(Nb)(Inf)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+  sub_fld_def {
+    nm: "EndDt"
+    frmt: "6!n"
+    optnl: true
+    sep_prfx: "//"
+  }
+  sub_fld_def {
+    nm: "Prd"
+    frmt: "1!a"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3n"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Inf"
+    frmt: "16x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "37B"
+  frmt: "12d[//6!n1!a3n][/16x]"
+  sub_fld_nms: "(Rate)(End Date)(Period)(Number)(Information)"
+  sub_fld_nm_abbrvtns: "(Rate)(EndDt)(Prd)(Nb)(Inf)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+  sub_fld_def {
+    nm: "EndDt"
+    frmt: "6!n"
+    optnl: true
+    sep_prfx: "//"
+  }
+  sub_fld_def {
+    nm: "Prd"
+    frmt: "1!a"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3n"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Inf"
+    frmt: "16x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "37C"
+  frmt: "12d[//6!n1!a3n][/16x]"
+  sub_fld_nms: "(Rate)(End Date)(Period)(Number)(Information)"
+  sub_fld_nm_abbrvtns: "(Rate)(EndDt)(Prd)(Nb)(Inf)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+  sub_fld_def {
+    nm: "EndDt"
+    frmt: "6!n"
+    optnl: true
+    sep_prfx: "//"
+  }
+  sub_fld_def {
+    nm: "Prd"
+    frmt: "1!a"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3n"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Inf"
+    frmt: "16x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "37D"
+  frmt: "12d[//6!n1!a3n][/16x]"
+  sub_fld_nms: "(Rate)(End Date)(Period)(Number)(Information)"
+  sub_fld_nm_abbrvtns: "(Rate)(EndDt)(Prd)(Nb)(Inf)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+  sub_fld_def {
+    nm: "EndDt"
+    frmt: "6!n"
+    optnl: true
+    sep_prfx: "//"
+  }
+  sub_fld_def {
+    nm: "Prd"
+    frmt: "1!a"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3n"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Inf"
+    frmt: "16x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "37E"
+  frmt: "12d[//6!n1!a3n][/16x]"
+  sub_fld_nms: "(Rate)(End Date)(Period)(Number)(Information)"
+  sub_fld_nm_abbrvtns: "(Rate)(EndDt)(Prd)(Nb)(Inf)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+  sub_fld_def {
+    nm: "EndDt"
+    frmt: "6!n"
+    optnl: true
+    sep_prfx: "//"
+  }
+  sub_fld_def {
+    nm: "Prd"
+    frmt: "1!a"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3n"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Inf"
+    frmt: "16x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "37F"
+  frmt: "12d[//6!n1!a3n][/16x]"
+  sub_fld_nms: "(Rate)(End Date)(Period)(Number)(Information)"
+  sub_fld_nm_abbrvtns: "(Rate)(EndDt)(Prd)(Nb)(Inf)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+  sub_fld_def {
+    nm: "EndDt"
+    frmt: "6!n"
+    optnl: true
+    sep_prfx: "//"
+  }
+  sub_fld_def {
+    nm: "Prd"
+    frmt: "1!a"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3n"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Inf"
+    frmt: "16x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "37G"
+  frmt: "[N]12d"
+  sub_fld_nms: "(Sign)(Rate)"
+  sub_fld_nm_abbrvtns: "(Sgn)(Rate)"
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+}
+fld_def {
+  tag: "37H"
+  frmt: "1!a[N]12d"
+  sub_fld_nms: "(Indicator)(Sign)(Rate)"
+  sub_fld_nm_abbrvtns: "(Id)(Sgn)(Rate)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+}
+fld_def {
+  tag: "37J"
+  frmt: "12d"
+  sub_fld_nms: "(Rate)"
+  sub_fld_nm_abbrvtns: "(Rate)"
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+}
+fld_def {
+  tag: "37K"
+  frmt: "3!a12d"
+  sub_fld_nms: "(Currency)(Rate)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Rate)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+}
+fld_def {
+  tag: "37L"
+  frmt: "12d"
+  sub_fld_nms: "(Rate)"
+  sub_fld_nm_abbrvtns: "(Rate)"
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+}
+fld_def {
+  tag: "37M"
+  frmt: "[N]12d"
+  sub_fld_nms: "(Sign)(Rate)"
+  sub_fld_nm_abbrvtns: "(Sgn)(Rate)"
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+}
+fld_def {
+  tag: "37N"
+  frmt: "6*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35x"
+  }
+}
+fld_def {
+  tag: "37P"
+  frmt: "12d"
+  sub_fld_nms: "(Rate)"
+  sub_fld_nm_abbrvtns: "(Rate)"
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+}
+fld_def {
+  tag: "37R"
+  frmt: "[N]12d"
+  sub_fld_nms: "(Sign)(Rate)"
+  sub_fld_nm_abbrvtns: "(Sgn)(Rate)"
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+}
+fld_def {
+  tag: "37U"
+  frmt: "12d"
+  sub_fld_nms: "(Rate)"
+  sub_fld_nm_abbrvtns: "(Rate)"
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+}
+fld_def {
+  tag: "37V"
+  frmt: "[N]12d"
+  sub_fld_nms: "(Sign)(Rate)"
+  sub_fld_nm_abbrvtns: "(Sgn)(Rate)"
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "12d"
+  }
+}
+fld_def {
+  tag: "38A"
+  frmt: "3n"
+  sub_fld_nms: "(Period)"
+  sub_fld_nm_abbrvtns: "(Prd)"
+  sub_fld_def {
+    nm: "Prd"
+    frmt: "3n"
+  }
+}
+fld_def {
+  tag: "38D"
+  frmt: "4n"
+  sub_fld_nms: "(Period)"
+  sub_fld_nm_abbrvtns: "(Prd)"
+  sub_fld_def {
+    nm: "Prd"
+    frmt: "4n"
+  }
+}
+fld_def {
+  tag: "38E"
+  frmt: "2n1!a"
+  sub_fld_nms: "(Number)(Period)"
+  sub_fld_nm_abbrvtns: "(Nb)(Prd)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "2!n"
+  }
+  sub_fld_def {
+    nm: "Prd"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "38G"
+  frmt: "2n1!a/2n1!a"
+  sub_fld_nms: "(Number From)(Period From)(Number To)(Period To)"
+  sub_fld_nm_abbrvtns: "(NbFr)(PrdFr)(NbTo)(PrdTo)"
+  sub_fld_def {
+    nm: "NbFr"
+    frmt: "2n"
+  }
+  sub_fld_def {
+    nm: "PrdFr"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "NbTo"
+    frmt: "2n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "PrdTo"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "38H"
+  frmt: "2n1!a/2n1!a"
+  sub_fld_nms: "(Number From)(Period From)(Number To)(Period To)"
+  sub_fld_nm_abbrvtns: "(NbFr)(PrdFr)(NbTo)(PrdTo)"
+  sub_fld_def {
+    nm: "NbFr"
+    frmt: "2n"
+  }
+  sub_fld_def {
+    nm: "PrdFr"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "NbTo"
+    frmt: "2n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "PrdTo"
+    frmt: "1!a"
+  }
+}
+fld_def {
+  tag: "38J"
+  frmt: "1!a3!n"
+  sub_fld_nms: "(Indicator)(Number)"
+  sub_fld_nm_abbrvtns: "(Id)(Nb)"
+  sub_fld_def {
+    nm: "Id"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3!n"
+  }
+}
+fld_def {
+  tag: "39A"
+  frmt: "2n/2n"
+  sub_fld_nms: "(Tolerance 1)(Tolerance 2)"
+  sub_fld_nm_abbrvtns: "(Tlrnce1)(Tlrnce2)"
+  sub_fld_def {
+    nm: "Tlrnce1"
+    frmt: "2n"
+  }
+  sub_fld_def {
+    nm: "Tlrnce2"
+    frmt: "2n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "39C"
+  frmt: "4*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "4*35x"
+  }
+}
+fld_def {
+  tag: "39D"
+  frmt: "12*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "12*65z"
+  }
+}
+fld_def {
+  tag: "39E"
+  frmt: "12*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "12*65z"
+  }
+}
+fld_def {
+  tag: "39M"
+  frmt: "2!a"
+  sub_fld_nms: "(Country Code)"
+  sub_fld_nm_abbrvtns: "(Ctry)"
+  sub_fld_def {
+    nm: "Ctry"
+    frmt: "2!a"
+  }
+}
+fld_def {
+  tag: "40A"
+  frmt: "24x"
+  sub_fld_nms: "(Type)"
+  sub_fld_nm_abbrvtns: "(Tp)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "24x"
+  }
+}
+fld_def {
+  tag: "40B"
+  frmt: "24x<crlf>24x"
+  sub_fld_nms: "(Type)<crlf>(Code)"
+  sub_fld_nm_abbrvtns: "(Tp)(Cd)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "24x"
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "24x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "40C"
+  frmt: "4!a[/35x]"
+  sub_fld_nms: "(Type)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Tp)(Nrrtv)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "4!a"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "40D"
+  frmt: "2!a"
+  sub_fld_nms: "(Code)"
+  sub_fld_nm_abbrvtns: "(Cd)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "2!a"
+  }
+}
+fld_def {
+  tag: "40E"
+  frmt: "30x[/35x]"
+  sub_fld_nms: "(Applicable Rules)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Rules)(Nrrtv)"
+  sub_fld_def {
+    nm: "Rules"
+    frmt: "30x"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "40F"
+  frmt: "30x"
+  sub_fld_nms: "(Applicable Rules)"
+  sub_fld_nm_abbrvtns: "(Rules)"
+  sub_fld_def {
+    nm: "Rules"
+    frmt: "30x"
+  }
+}
+fld_def {
+  tag: "41A"
+  frmt: "4!a2!a2!c[3!c]<crlf>14x"
+  sub_fld_nms: "(Identifier Code)<crlf>(Code)"
+  sub_fld_nm_abbrvtns: "(IdrCd)(Cd)"
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!a2!c[3!c]"
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "14x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "41D"
+  frmt: "4*35x<crlf>14x"
+  sub_fld_nms: "(Name and Address)<crlf>(Code)"
+  sub_fld_nm_abbrvtns: "(NmAdr)(Cd)"
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "14x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "41F"
+  frmt: "4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(IdrCd)"
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!a2!c[3!c]"
+  }
+}
+fld_def {
+  tag: "41G"
+  frmt: "4*35x"
+  sub_fld_nms: "(Name and Address)"
+  sub_fld_nm_abbrvtns: "(NmAdr)"
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+  }
+}
+fld_def {
+  tag: "42A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "42C"
+  frmt: "3*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "3*35x"
+  }
+}
+fld_def {
+  tag: "42D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "42M"
+  frmt: "4*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "4*35x"
+  }
+}
+fld_def {
+  tag: "42P"
+  frmt: "4*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "4*35x"
+  }
+}
+fld_def {
+  tag: "43P"
+  frmt: "11x"
+  sub_fld_nms: "(Code)"
+  sub_fld_nm_abbrvtns: "(Cd)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "11x"
+  }
+}
+fld_def {
+  tag: "43T"
+  frmt: "11x"
+  sub_fld_nms: "(Code)"
+  sub_fld_nm_abbrvtns: "(Cd)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "11x"
+  }
+}
+fld_def {
+  tag: "44A"
+  frmt: "65x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "65x"
+  }
+}
+fld_def {
+  tag: "44B"
+  frmt: "65x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "65x"
+  }
+}
+fld_def {
+  tag: "44C"
+  frmt: "6!n"
+  sub_fld_nms: "(Date)"
+  sub_fld_nm_abbrvtns: "(Dt)"
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+}
+fld_def {
+  tag: "44D"
+  frmt: "6*65x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*65x"
+  }
+}
+fld_def {
+  tag: "44E"
+  frmt: "65x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "65x"
+  }
+}
+fld_def {
+  tag: "44F"
+  frmt: "65x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "65x"
+  }
+}
+fld_def {
+  tag: "44H"
+  frmt: "2!a[/65x]"
+  sub_fld_nms: "(Country Code)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Ctry)(Nrrtv)"
+  sub_fld_def {
+    nm: "Ctry"
+    frmt: "2!a"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "65x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "45A"
+  frmt: "100*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "100*65z"
+  }
+}
+fld_def {
+  tag: "45B"
+  frmt: "100*65z"
+  sub_fld_nms: "(Narrative Structured Text)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "100*65z"
+  }
+}
+fld_def {
+  tag: "45C"
+  frmt: "100*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "100*65z"
+  }
+}
+fld_def {
+  tag: "45D"
+  frmt: "150*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "150*65z"
+  }
+}
+fld_def {
+  tag: "45L"
+  frmt: "50*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "50*65z"
+  }
+}
+fld_def {
+  tag: "46A"
+  frmt: "100*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "100*65z"
+  }
+}
+fld_def {
+  tag: "46B"
+  frmt: "100*65z"
+  sub_fld_nms: "(Narrative Structured Text)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "100*65z"
+  }
+}
+fld_def {
+  tag: "47A"
+  frmt: "100*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "100*65z"
+  }
+}
+fld_def {
+  tag: "47B"
+  frmt: "100*65z"
+  sub_fld_nms: "(Narrative  Structured Text)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "100*65z"
+  }
+}
+fld_def {
+  tag: "48"
+  frmt: "3n[/35x]"
+  sub_fld_nms: "(Days)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Days)(Nrrtv)"
+  sub_fld_def {
+    nm: "Days"
+    frmt: "3n"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "48B"
+  frmt: "4!c"
+  sub_fld_nms: "(Code)"
+  sub_fld_nm_abbrvtns: "(Cd)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "48D"
+  frmt: "4!c"
+  sub_fld_nms: "(Code)"
+  sub_fld_nm_abbrvtns: "(Cd)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "49"
+  frmt: "7!x"
+  sub_fld_nms: "(Instruction)"
+  sub_fld_nm_abbrvtns: "(Instr)"
+  sub_fld_def {
+    nm: "Instr"
+    frmt: "7!x"
+  }
+}
+fld_def {
+  tag: "49A"
+  frmt: "4!c<crlf>[50*65z]"
+  sub_fld_nms: "(Code)<crlf>(Narrative)"
+  sub_fld_nm_abbrvtns: "(Cd)(Nrrtv)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "50*65z"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "49G"
+  frmt: "100*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "100*65z"
+  }
+}
+fld_def {
+  tag: "49H"
+  frmt: "100*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "100*65z"
+  }
+}
+fld_def {
+  tag: "49M"
+  frmt: "100*65z"
+  sub_fld_nms: "(Narrative Structured Text)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "100*65z"
+  }
+}
+fld_def {
+  tag: "49N"
+  frmt: "100*65z"
+  sub_fld_nms: "(Narrative Structured Text)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "100*65z"
+  }
+}
+fld_def {
+  tag: "50"
+  frmt: "4*35x"
+  sub_fld_nms: "(Name and Address)"
+  sub_fld_nm_abbrvtns: "(NmAdr)"
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+  }
+}
+fld_def {
+  tag: "50A"
+  frmt: "[/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Account)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(Acct)(IdrCd)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!a2!c[3!c]"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "50B"
+  frmt: "4*35x"
+  sub_fld_nms: "(Name and Address)"
+  sub_fld_nm_abbrvtns: "(NmAdr)"
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+  }
+}
+fld_def {
+  tag: "50C"
+  frmt: "4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(IdrCd)"
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!a2!c[3!c]"
+  }
+}
+fld_def {
+  tag: "50D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "50F"
+  frmt: "35x<crlf>4*(1!n/33x)"
+  sub_fld_nms: "(Party Identifier)<crlf>(Number/Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NbNmAdr)"
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "35x"
+  }
+  sub_fld_def {
+    nm: "NbNmAdr"
+    frmt: "4*(1!n/33x)"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "50G"
+  frmt: "/34x<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Account)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(Acct)(IdrCd)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!a2!c[3!c]"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "50H"
+  frmt: "/34x<crlf>4*35x"
+  sub_fld_nms: "(Account)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(Acct)(NmAdr)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4!a2!a2!c[3!c]"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "50K"
+  frmt: "[/34x]<crlf>4*35x"
+  sub_fld_nms: "(Account)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(Acct)(NmAdr)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "50L"
+  frmt: "35x"
+  sub_fld_nms: "(Party Identifier)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)"
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "35x"
+  }
+}
+fld_def {
+  tag: "51"
+  frmt: "4*35x"
+  sub_fld_nms: "(Name and Address)"
+  sub_fld_nm_abbrvtns: "(NmAdr)"
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+  }
+}
+fld_def {
+  tag: "51A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "51C"
+  frmt: "/34x"
+  sub_fld_nms: "(Account)"
+  sub_fld_nm_abbrvtns: "(Acct)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "51D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "52A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "52B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "52C"
+  frmt: "/34x"
+  sub_fld_nms: "(Party Identifier)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)"
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "52D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "53A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "53B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "53C"
+  frmt: "/34x"
+  sub_fld_nms: "(Account)"
+  sub_fld_nm_abbrvtns: "(Acct)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "53D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "53J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "54A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "54B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "54D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "55A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "55B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "55D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "56A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "56B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "56C"
+  frmt: "/34x"
+  sub_fld_nms: "(Party Identifier)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)"
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "56D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "56J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "57A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "57B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "57C"
+  frmt: "/34x"
+  sub_fld_nms: "(Party Identifier)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)"
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "57D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "57J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "58A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "58B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "58D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "58J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "59"
+  frmt: "[/34x]<crlf>4*35x"
+  sub_fld_nms: "(Account)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(Acct)(NmAdr)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "59A"
+  frmt: "[/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Account)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(Acct)(IdrCd)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!a2!c[3!c]"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "59F"
+  frmt: "[/34x]<crlf>4*(1!n/33x)"
+  sub_fld_nms: "(Account)<crlf>(Number/Name and Address)"
+  sub_fld_nm_abbrvtns: "(Acct)(NbNmAdr)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NbNmAdr"
+    frmt: "4*(1!n/33x)"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "60F"
+  frmt: "1!a6!n3!a15d"
+  sub_fld_nms: "(D/C Mark)(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dc)(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dc"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "60M"
+  frmt: "1!a6!n3!a15d"
+  sub_fld_nms: "(D/C Mark)(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dc)(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dc"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "61"
+  frmt: "6!n[4!n]2a[1!a]15d1!a3!c16x[//16x]<crlf>[34x]"
+  sub_fld_nms: "(Date)(Entry Date)(Debit/Credit Mark)(Funds Code)(Amount)(Transaction Type)(Identification Code)(Reference for the Account Owner)(Reference of the Account Servicing Institution)<crlf>(Supplementary Details)"
+  sub_fld_nm_abbrvtns: "(Dt)(NtryDt)(Dc)(FndsCd)(Amt)(TxTp)(IdnCd)(RefOwnr)(RefInstn)(Dtls)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "NtryDt"
+    frmt: "4!n"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Dc"
+    frmt: "2a"
+  }
+  sub_fld_def {
+    nm: "FndsCd"
+    frmt: "1!a"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+  sub_fld_def {
+    nm: "TxTp"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "IdnCd"
+    frmt: "3!c"
+  }
+  sub_fld_def {
+    nm: "RefOwnr"
+    frmt: "16x"
+  }
+  sub_fld_def {
+    nm: "RefInstn"
+    frmt: "16x"
+    optnl: true
+    sep_prfx: "//"
+  }
+  sub_fld_def {
+    nm: "Dtls"
+    frmt: "34x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "62F"
+  frmt: "1!a6!n3!a15d"
+  sub_fld_nms: "(D/C Mark)(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dc)(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dc"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "62M"
+  frmt: "1!a6!n3!a15d"
+  sub_fld_nms: "(D/C Mark)(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dc)(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dc"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "64"
+  frmt: "1!a6!n3!a15d"
+  sub_fld_nms: "(D/C Mark)(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dc)(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dc"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "65"
+  frmt: "1!a6!n3!a15d"
+  sub_fld_nms: "(D/C Mark)(Date)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Dc)(Dt)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Dc"
+    frmt: "1!a"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "69A"
+  frmt: ":4!c//8!n/8!n"
+  sub_fld_nms: "(Qualifier)(Date1)(Date2)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dt1)(Dt2)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dt1"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dt2"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "69B"
+  frmt: ":4!c//8!n6!n/8!n6!n"
+  sub_fld_nms: "(Qualifier)(Date1)(Time1)(Date2)(Time2)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dt1)(Tm1)(Dt2)(Tm2)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dt1"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tm1"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Dt2"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tm2"
+    frmt: "6!n"
+  }
+}
+fld_def {
+  tag: "69C"
+  frmt: ":4!c//8!n/4!c"
+  sub_fld_nms: "(Qualifier)(Date)(Date Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dt)(DtCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "DtCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "69D"
+  frmt: ":4!c//8!n6!n/4!c"
+  sub_fld_nms: "(Qualifier)(Date)(Time)(Date Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dt)(Tm)(DtCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "DtCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "69E"
+  frmt: ":4!c//4!c/8!n"
+  sub_fld_nms: "(Qualifier)(Date Code)(Date)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(DtCd)(Dt)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "DtCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "69F"
+  frmt: ":4!c//4!c/8!n6!n"
+  sub_fld_nms: "(Qualifier)(Date Code)(Date)(Time)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(DtCd)(Dt)(Tm)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "DtCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "6!n"
+  }
+}
+fld_def {
+  tag: "69J"
+  frmt: ":4!c//4!c"
+  sub_fld_nms: "(Qualifier)(Date Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(DtCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "DtCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "70"
+  frmt: "4*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "4*35x"
+  }
+}
+fld_def {
+  tag: "70C"
+  frmt: ":4!c//4*35x"
+  sub_fld_nms: "(Qualifier)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Nrrtv)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "4*35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "70D"
+  frmt: ":4!c//6*35x"
+  sub_fld_nms: "(Qualifier)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Nrrtv)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "70E"
+  frmt: ":4!c//10*35x"
+  sub_fld_nms: "(Qualifier)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Nrrtv)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "10*35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "70F"
+  frmt: ":4!c//8000z"
+  sub_fld_nms: "(Qualifier)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Nrrtv)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "8000z"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "70G"
+  frmt: ":4!c//10*35z"
+  sub_fld_nms: "(Qualifier)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Nrrtv)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "10*35z"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "70H"
+  frmt: ":4!c//2500z"
+  sub_fld_nms: "(Qualifier)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Nrrtv)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "2500z"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "71A"
+  frmt: "3!a"
+  sub_fld_nms: "(Code)"
+  sub_fld_nm_abbrvtns: "(Cd)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "3!a"
+  }
+}
+fld_def {
+  tag: "71B"
+  frmt: "6*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35x"
+  }
+}
+fld_def {
+  tag: "71C"
+  frmt: "6*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35x"
+  }
+}
+fld_def {
+  tag: "71D"
+  frmt: "6*35z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35z"
+  }
+}
+fld_def {
+  tag: "71F"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "71G"
+  frmt: "3!a15d"
+  sub_fld_nms: "(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "71N"
+  frmt: "4!c<crlf>[6*35z]"
+  sub_fld_nms: "(Code)<crlf>(Narrative)"
+  sub_fld_nm_abbrvtns: "(Cd)(Nrrtv)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35z"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "72"
+  frmt: "6*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35x"
+  }
+}
+fld_def {
+  tag: "72Z"
+  frmt: "6*35z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35z"
+  }
+}
+fld_def {
+  tag: "73"
+  frmt: "6*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35x"
+  }
+}
+fld_def {
+  tag: "73A"
+  frmt: "6*35z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35z"
+  }
+}
+fld_def {
+  tag: "73R"
+  frmt: "4!c[/35x]"
+  sub_fld_nms: "(Code)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Cd)(Nrrtv)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "73S"
+  frmt: "4!c[/35x]"
+  sub_fld_nms: "(Code)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Cd)(Nrrtv)"
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "74"
+  frmt: "6*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35x"
+  }
+}
+fld_def {
+  tag: "75"
+  frmt: "6*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35x"
+  }
+}
+fld_def {
+  tag: "76"
+  frmt: "6*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35x"
+  }
+}
+fld_def {
+  tag: "77"
+  frmt: "20*35z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "20*35z"
+  }
+}
+fld_def {
+  tag: "77A"
+  frmt: "20*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "20*35x"
+  }
+}
+fld_def {
+  tag: "77B"
+  frmt: "3*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "3*35x"
+  }
+}
+fld_def {
+  tag: "77D"
+  frmt: "6*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35x"
+  }
+}
+fld_def {
+  tag: "77E"
+  frmt: "73z<crlf>[n*78z]"
+  sub_fld_nms: "(Text1)<crlf>(Text2)"
+  sub_fld_nm_abbrvtns: "(Txt1)(Txt2)"
+  sub_fld_def {
+    nm: "Txt1"
+    frmt: "73z"
+  }
+  sub_fld_def {
+    nm: "Txt2"
+    frmt: "n*78z"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "77F"
+  frmt: "1800y"
+  sub_fld_nms: "(EDIFACT Message)"
+  sub_fld_nm_abbrvtns: "(Msg)"
+  sub_fld_def {
+    nm: "Msg"
+    frmt: "1800y"
+  }
+}
+fld_def {
+  tag: "77H"
+  frmt: "6a[/8!n][//4!n]"
+  sub_fld_nms: "(Type of Agreement)(Date)(Version)"
+  sub_fld_nm_abbrvtns: "(Tp)(Dt)(Vrsn)"
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "6!a"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Vrsn"
+    frmt: "4!n"
+    optnl: true
+    sep_prfx: "//"
+  }
+}
+fld_def {
+  tag: "77J"
+  frmt: "70*50z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "70*50z"
+  }
+}
+fld_def {
+  tag: "77L"
+  frmt: "150*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "150*65z"
+  }
+}
+fld_def {
+  tag: "77T"
+  frmt: "9000z"
+  sub_fld_nms: "(Envelope Contents)"
+  sub_fld_nm_abbrvtns: "(Cnts)"
+  sub_fld_def {
+    nm: "Cnts"
+    frmt: "9000z"
+  }
+}
+fld_def {
+  tag: "77U"
+  frmt: "150*65z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "150*65z"
+  }
+}
+fld_def {
+  tag: "78"
+  frmt: "12*65x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "12*65x"
+  }
+}
+fld_def {
+  tag: "79"
+  frmt: "35*50x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "35*50x"
+  }
+}
+fld_def {
+  tag: "79Z"
+  frmt: "35*50z"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "35*50z"
+  }
+}
+fld_def {
+  tag: "80C"
+  frmt: "6*35x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*35x"
+  }
+}
+fld_def {
+  tag: "81A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "81D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "81J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "82A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "82B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "82D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "82J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "83A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "83C"
+  frmt: "/34x"
+  sub_fld_nms: "(Account)"
+  sub_fld_nm_abbrvtns: "(Acct)"
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "83D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "83J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "84A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "84B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "84D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "84J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "85A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "85B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "85D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "85J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "86"
+  frmt: "6*65x"
+  sub_fld_nms: "(Narrative)"
+  sub_fld_nm_abbrvtns: "(Nrrtv)"
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "6*65x"
+  }
+}
+fld_def {
+  tag: "86A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "86B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "86D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "86J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "87A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "87B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "87D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "87J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "88A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "88B"
+  frmt: "[/1!a][/34x]<crlf>[35x]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Location)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(Lctn)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Lctn"
+    frmt: "35x"
+    optnl: true
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "88D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "88J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "89A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "89D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "89J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "90A"
+  frmt: ":4!c//4!c/[N]15d"
+  sub_fld_nms: "(Qualifier)(Percentage Type Code)(Sign)(Price)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Cd)(Sgn)(Pric)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Pric"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "90B"
+  frmt: ":4!c//4!c/3!a15d"
+  sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Price)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(AmtTpCd)(Ccy)(Pric)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "AmtTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Pric"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "90C"
+  frmt: "5n3!a15d"
+  sub_fld_nms: "(Number)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Nb)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "5n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "90D"
+  frmt: "5n3!a15d"
+  sub_fld_nms: "(Number)(Currency)(Amount)"
+  sub_fld_nm_abbrvtns: "(Nb)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "5n"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "90E"
+  frmt: ":4!c//4!c"
+  sub_fld_nms: "(Qualifier)(Price Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(PricCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "PricCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "90F"
+  frmt: ":4!c//4!c/3!a15d/4!c/15d"
+  sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Amount)(Quantity Type Code)(Quantity)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(AmtTpCd)(Ccy)(Amt)(QtyTpCd)(Qty)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "AmtTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+  sub_fld_def {
+    nm: "QtyTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Qty"
+    frmt: "15d"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "90J"
+  frmt: ":4!c//4!c/3!a15d/3!a15d"
+  sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code1)(Amount1)(Currency Code2)(Amount2)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(AmtTpCd)(Ccy1)(Amt1)(Ccy2)(Amt2)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "AmtTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy1"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Amt1"
+    frmt: "15d"
+  }
+  sub_fld_def {
+    nm: "Ccy2"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Amt2"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "90K"
+  frmt: ":4!c//15d"
+  sub_fld_nms: "(Qualifier)(Index Points)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(IndxPts)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "IndxPts"
+    frmt: "15d"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "90L"
+  frmt: ":4!c//[N]15d"
+  sub_fld_nms: "(Qualifier)(Sign)(Index Points)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Sgn)(IndxPts)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "//"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IndxPts"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "91A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "91D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "91J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "92A"
+  frmt: ":4!c//[N]15d"
+  sub_fld_nms: "(Qualifier)(Sign)(Rate)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Sgn)(Rate)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "//"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "92B"
+  frmt: ":4!c//3!a/3!a/15d"
+  sub_fld_nms: "(Qualifier)(First Currency Code)(Second Currency Code)(Rate)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ccy1)(Ccy2)(Rate)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy1"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy2"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "92C"
+  frmt: ":4!c/[8c]/24x"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Rate Name)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(RateNm)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "RateNm"
+    frmt: "24x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "92D"
+  frmt: ":4!c//15d/15d"
+  sub_fld_nms: "(Qualifier)(Quantity1)(Quantity1)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Qty1)(Qty2)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Qty1"
+    frmt: "15d"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Qty2"
+    frmt: "15d"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "92F"
+  frmt: ":4!c//3!a15d"
+  sub_fld_nms: "(Qualifier)(Currency Code)(Amount)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "92H"
+  frmt: ":4!c//3!a15d/4!c"
+  sub_fld_nms: "(Qualifier)(Currency Code)(Amount)(Rate Status)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ccy)(Amt)(RateSts)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+  sub_fld_def {
+    nm: "RateSts"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "92J"
+  frmt: ":4!c/[8c]/4!c/3!a15d[/4!c]"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Rate Type Code)(Currency Code)(Amount)(Rate Status)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(RateTpCd)(Ccy)(Amt)(RateSts)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "RateTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+  sub_fld_def {
+    nm: "RateSts"
+    frmt: "4!c"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "92K"
+  frmt: ":4!c//4!c"
+  sub_fld_nms: "(Qualifier)(Rate Type Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(RateTpCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "RateTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "92L"
+  frmt: ":4!c//3!a15d/3!a15d"
+  sub_fld_nms: "(Qualifier)(First Currency Code)(Amount1)(Second Currency Code)(Amount2)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ccy1)(Amt1)(Ccy2)(Amt2)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy1"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Amt1"
+    frmt: "15d"
+  }
+  sub_fld_def {
+    nm: "Ccy2"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Amt2"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "92M"
+  frmt: ":4!c//3!a15d/15d"
+  sub_fld_nms: "(Qualifier)(Currency Code)(Amount)(Quantity)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ccy)(Amt)(Qty)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+  sub_fld_def {
+    nm: "Qty"
+    frmt: "15d"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "92N"
+  frmt: ":4!c//15d/3!a15d"
+  sub_fld_nms: "(Qualifier)(Quantity)(Currency Code)(Amount)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Qty)(Ccy)(Amt)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Qty"
+    frmt: "15d"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ccy"
+    frmt: "3!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Amt"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "92P"
+  frmt: ":4!c//15d"
+  sub_fld_nms: "(Qualifier)(Index Points)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(IndxPts)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "IndxPts"
+    frmt: "15d"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "92R"
+  frmt: ":4!c/[8c]/4!c/15d"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Rate Type Code)(Rate)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(RateTpCd)(Rate)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "RateTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Rate"
+    frmt: "15d"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "93A"
+  frmt: ":4!c/[8c]/4!c"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Sub-balance Type)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(Tp)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Tp"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "93B"
+  frmt: ":4!c/[8c]/4!c/[N]15d"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Quantity Type Code)(Sign)(Balance)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(QtyTpCd)(Sgn)(Bal)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "QtyTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Bal"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "93C"
+  frmt: ":4!c//4!c/4!c/[N]15d"
+  sub_fld_nms: "(Qualifier)(Quantity Type Code)(Balance Type Code)(Sign)(Balance)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(QtyTpCd)(BalTpCd)(Sgn)(Bal)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "QtyTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "BalTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Bal"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "93D"
+  frmt: ":4!c//[N]15d"
+  sub_fld_nms: "(Qualifier)(Sign)(Balance)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Sgn)(Bal)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "//"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Bal"
+    frmt: "15d"
+  }
+}
+fld_def {
+  tag: "93E"
+  frmt: ":4!c//4!c/4!c/[N]30d"
+  sub_fld_nms: "(Qualifier)(Quantity Type Code)(Balance Type Code)(Sign)(Balance of Digital Tokens)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(QtyTpCd)(BalTpCd)(Sgn)(BalDgtlTkns)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "QtyTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "BalTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "BalDgtlTkns"
+    frmt: "30d"
+  }
+}
+fld_def {
+  tag: "93F"
+  frmt: ":4!c/[8c]/4!c/[N]30d"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Quantity Type Code)(Sign)(Balance of Digital Tokens)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(QtyTpCd)(Sgn)(BalDgtlTkns)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "QtyTpCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "BalDgtlTkns"
+    frmt: "30d"
+  }
+}
+fld_def {
+  tag: "94A"
+  frmt: "4!c"
+  sub_fld_nms: "(Scope)"
+  sub_fld_nm_abbrvtns: "(Scp)"
+  sub_fld_def {
+    nm: "Scp"
+    frmt: "4!c"
+  }
+}
+fld_def {
+  tag: "94B"
+  frmt: ":4!c/[8c]/4!c[/30x]"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Place Code)(Narrative)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(PlcCd)(Nrrtv)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "PlcCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Nrrtv"
+    frmt: "30x"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "94C"
+  frmt: ":4!c//2!a"
+  sub_fld_nms: "(Qualifier)(Country Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ctry)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ctry"
+    frmt: "2!a"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "94D"
+  frmt: ":4!c//[2!a]/35x"
+  sub_fld_nms: "(Qualifier)(Country Code)(Place)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ctry)(Plc)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "//"
+  }
+  sub_fld_def {
+    nm: "Ctry"
+    frmt: "2!a"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Plc"
+    frmt: "35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "94E"
+  frmt: ":4!c//10*35x"
+  sub_fld_nms: "(Qualifier)(Address)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Adr)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Adr"
+    frmt: "10*35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "94F"
+  frmt: ":4!c//4!c/4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Qualifier)(Place Code)(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(PlcCd)(IdrCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "PlcCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!a2!c[3!c]"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "94G"
+  frmt: ":4!c//2*35x"
+  sub_fld_nms: "(Qualifier)(Address)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Adr)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Adr"
+    frmt: "2*35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "94H"
+  frmt: ":4!c//4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Qualifier)(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(IdrCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!a2!c[3!c]"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "94L"
+  frmt: ":4!c//18!c2!n"
+  sub_fld_nms: "(Qualifier)(Legal Entity Identifier)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(LglNttyIdr)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "LglNttyIdr"
+    frmt: "18!c2!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "95C"
+  frmt: ":4!c//2!a"
+  sub_fld_nms: "(Qualifier)(Country Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Ctry)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ctry"
+    frmt: "2!a"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "95L"
+  frmt: ":4!c//18!c2!n"
+  sub_fld_nms: "(Qualifier)(Legal Entity Identifier)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(LglNttyIdr)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "LglNttyIdr"
+    frmt: "18!c2!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "95P"
+  frmt: ":4!c//4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Qualifier)(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(IdrCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!a2!c[3!c]"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "95Q"
+  frmt: ":4!c//4*35x"
+  sub_fld_nms: "(Qualifier)(Name and Address)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(NmAdr)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "95R"
+  frmt: ":4!c/8c/34x"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Proprietary Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(PrtryCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+  }
+  sub_fld_def {
+    nm: "PrtryCd"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "95S"
+  frmt: ":4!c/[8c]/4!c/2!a/30x"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Type of ID)(Country Code)(Alternate ID)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(TpId)(Ctry)(AltrnID)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "TpId"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Ctry"
+    frmt: "2!a"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "AltrnID"
+    frmt: "30x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "95U"
+  frmt: ":4!c//3*35x"
+  sub_fld_nms: "(Qualifier)(Name)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Nm)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Nm"
+    frmt: "3*35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "95V"
+  frmt: ":4!c//10*35x"
+  sub_fld_nms: "(Qualifier)(Name and Address)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(NmAdr)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "10*35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "96A"
+  frmt: "[/1!a][/34x]<crlf>4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Party Identifier)<crlf>(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(IdrCd)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!c4!n4!a2!c"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "96D"
+  frmt: "[/1!a][/34x]<crlf>4*35x"
+  sub_fld_nms: "(Party Identifier)<crlf>(Name and Address)"
+  sub_fld_nm_abbrvtns: "(PtyIdr)(NmAdr)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "PtyIdr"
+    frmt: "[/1!a][/34x]"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "NmAdr"
+    frmt: "4*35x"
+    sep_prfx: "<crlf>"
+  }
+}
+fld_def {
+  tag: "96J"
+  frmt: "5*40x"
+  sub_fld_nms: "(Party Identification)"
+  sub_fld_nm_abbrvtns: "(PtyIdn)"
+  sub_fld_def {
+    nm: "PtyIdn"
+    frmt: "5*40x"
+  }
+}
+fld_def {
+  tag: "97A"
+  frmt: ":4!c//35x"
+  sub_fld_nms: "(Qualifier)(Account Number)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Acct)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "97B"
+  frmt: ":4!c/[8c]/4!c/35x"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Account Type Code)(Account Number)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(Cd)(Acct)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "35x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "97C"
+  frmt: ":4!c//4!c"
+  sub_fld_nms: "(Qualifier)(Account Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Cd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Cd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "97D"
+  frmt: ":4!c/[8c]/140x"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Identification of Blockchain or Wallet)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(Idn)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "Idn"
+    frmt: "140x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "97E"
+  frmt: ":4!c//34x"
+  sub_fld_nms: "(Qualifier)(International Bank Account Number)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Acct)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Acct"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "98A"
+  frmt: ":4!c//8!n"
+  sub_fld_nms: "(Qualifier)(Date)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dt)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "98B"
+  frmt: ":4!c/[8c]/4!c"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Date Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(DtCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "DtCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "98C"
+  frmt: ":4!c//8!n6!n"
+  sub_fld_nms: "(Qualifier)(Date)(Time)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dt)(Tm)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "6!n"
+  }
+}
+fld_def {
+  tag: "98D"
+  frmt: "8!n6!n[,3n][/[N]2!n[2!n]]"
+  sub_fld_nms: "(Date)(Time)(Decimals)(UTC Indicator)"
+  sub_fld_nm_abbrvtns: "(Dt)(Tm)(Dcmls)(Utc)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Dcmls"
+    frmt: "3n"
+    optnl: true
+    sep_prfx: ","
+  }
+  sub_fld_def {
+    nm: "Utc"
+    frmt: "[N]2!n[2!n]"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "98E"
+  frmt: ":4!c//8!n6!n[,3n][/[N]2!n[2!n]]"
+  sub_fld_nms: "(Qualifier)(Date)(Time)(Decimals)(UTC Indicator)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dt)(Tm)(Dcmls)(Utc)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Dcmls"
+    frmt: "3n"
+    optnl: true
+    sep_prfx: ","
+  }
+  sub_fld_def {
+    nm: "Utc"
+    frmt: "[N]2!n[2!n]"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "98F"
+  frmt: ":4!c/[8c]/4!c6!n"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Date Code)(Time)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(DtCd)(Tm)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+    optnl: true
+  }
+  sub_fld_def {
+    nm: "DtCd"
+    frmt: "4!c"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "6!n"
+  }
+}
+fld_def {
+  tag: "98G"
+  frmt: "8!n6!n[,3n][/[N]2!n[2!n]]"
+  sub_fld_nms: "(Date)(Time)(Decimals)(UTC Indicator)"
+  sub_fld_nm_abbrvtns: "(Dt)(Tm)(Dcmls)(Utc)"
+  cmplx_frmt: true
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Dcmls"
+    frmt: "3n"
+    optnl: true
+    sep_prfx: ","
+  }
+  sub_fld_def {
+    nm: "Utc"
+    frmt: "[N]2!n[2!n]"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "98H"
+  frmt: "6!n[,3n][/[N]2!n[2!n]]"
+  sub_fld_nms: "(Time)(Decimals)(UTC Indicator)"
+  sub_fld_nm_abbrvtns: "(Tm)(Dcmls)(Utc)"
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "Dcmls"
+    frmt: "3n"
+    optnl: true
+    sep_prfx: ","
+  }
+  sub_fld_def {
+    nm: "Utc"
+    frmt: "[N]2!n[2!n]"
+    optnl: true
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "98J"
+  frmt: ":4!c//8!n6!n/4!a2!a2!c[3!c]"
+  sub_fld_nms: "(Qualifier)(Date)(Time)(Identifier Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dt)(Tm)(IdrCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "IdrCd"
+    frmt: "4!a2!a2!c[3!c]"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "98K"
+  frmt: ":4!c/8c/8!n6!n/34x"
+  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Date)(Time)(Proprietary Code)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Dss)(Dt)(Tm)(PrtryCd)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Dss"
+    frmt: "8c"
+  }
+  sub_fld_def {
+    nm: "Dt"
+    frmt: "8!n"
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Tm"
+    frmt: "6!n"
+  }
+  sub_fld_def {
+    nm: "PrtryCd"
+    frmt: "34x"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "99A"
+  frmt: ":4!c//[N]3!n"
+  sub_fld_nms: "(Qualifier)(Sign)(Number)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Sgn)(Nb)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "//"
+  }
+  sub_fld_def {
+    nm: "Sgn"
+    frmt: "N"
+    optnl: true
+    sep_prfx: "/"
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3!n"
+  }
+}
+fld_def {
+  tag: "99B"
+  frmt: ":4!c//3!n"
+  sub_fld_nms: "(Qualifier)(Number)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Nb)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "3!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "99C"
+  frmt: ":4!c//6!n"
+  sub_fld_nms: "(Qualifier)(Number)"
+  sub_fld_nm_abbrvtns: "(Qlfr)(Nb)"
+  sub_fld_def {
+    nm: "Qlfr"
+    frmt: "4!c"
+    sep_prfx: ":"
+    sep_pstfx: "/"
+  }
+  sub_fld_def {
+    nm: "Nb"
+    frmt: "6!n"
+    sep_prfx: "/"
+  }
+}
+fld_def {
+  tag: "notag"
+  frmt: "Copy of fields"
+}

@@ -38,6 +38,21 @@ jobs:
           server-username: GITHUB_ACTOR
           server-password: GITHUB_TOKEN
 
+      - name: Set up Python for documentation
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install documentation dependencies
+        run: python -m pip install --requirement requirements-docs.txt
+
+      - name: Verify canonical documentation facts
+        run: python tools/verify_documentation.py
+
+      - name: Build documentation strictly
+        run: mkdocs build --strict
+
       # Pull requests and main pushes: verify build and run tests
       - name: Verify build and test
         if: github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))

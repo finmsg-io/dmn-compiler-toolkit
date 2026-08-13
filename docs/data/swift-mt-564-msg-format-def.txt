@@ -1,0 +1,6064 @@
+mt_def {
+  mt: "564"
+  mt_nm: "MT 564 Corporate Action Notification"
+  sr: "2022"
+  mt_def_obj {
+    seq {
+      tag: "sA"
+      nm: "Sequence A General Information"
+      id: "A"
+      cntt_start: "Mandatory Sequence A General Information"
+      cntt_end: "End of Sequence A General Information"
+      mt_def_obj {
+        fld {
+          tag: "f16R"
+          nm: "Start of Block"
+          frmt: "16c"
+          cntt: "GENL"
+          fld_nb: "1"
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f28E"
+          nm: "Page Number/Continuation Indicator"
+          frmt: "5n/4!c"
+          optnl: true
+          cntt: "5n/4!c"
+          fld_nb: "2"
+          mt_def_sub_fld {
+            nm_gnrc: "PgNb"
+            frmt: "5n"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Id"
+            frmt: "4!c"
+            sep_prfx: "/"
+          }
+          sub_fld_nms: "(Page Number)(Continuation Indicator)"
+          sub_fld_nms_gnrc: "(PgNb)(Id)"
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r20C"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            fld {
+              tag: "f20C"
+              nm: "Reference"
+              frmt: ":4!c//16x"
+              qlfr: "4!c"
+              cntt: ":4!c//16x"
+              fld_nb: "3"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Ref"
+                frmt: "16x"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Reference)"
+              sub_fld_nms_gnrc: "(Qlfr)(Ref)"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f23G"
+          nm: "Function of the Message"
+          frmt: "4!c[/4!c]"
+          cntt: "4!c[/4!c]"
+          fld_nb: "4"
+          mt_def_sub_fld {
+            nm_gnrc: "Fctn"
+            frmt: "4!c"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Sub"
+            frmt: "4!c"
+            optnl: true
+            sep_prfx: "/"
+          }
+          sub_fld_nms: "(Function)(Subfunction)"
+          sub_fld_nms_gnrc: "(Fctn)(Sub)"
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r22F"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            fld {
+              tag: "f22F"
+              nm: "Indicator"
+              frmt: ":4!c/[8c]/4!c"
+              qlfr: "4!c"
+              cntt: ":4!c/[8c]/4!c"
+              fld_nb: "5"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Dss"
+                frmt: "8c"
+                optnl: true
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Id"
+                frmt: "4!c"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Data Source Scheme)(Indicator)"
+              sub_fld_nms_gnrc: "(Qlfr)(Dss)(Id)"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        optn {
+          tag: "o98a_A"
+          nm: "Preparation Date/Time"
+          optnl: true
+          fld_nb: "6"
+          mt_def_fld {
+            tag: "f98A"
+            nm: "Preparation Date/Time"
+            frmt: ":4!c//8!n"
+            optnl: true
+            fld_nb: "6"
+            mt_def_sub_fld {
+              nm_gnrc: "Qlfr"
+              frmt: "4!c"
+              sep_prfx: ":"
+              sep_pstfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Dt"
+              frmt: "8!n"
+              sep_prfx: "/"
+            }
+            sub_fld_nms: "(Qualifier)(Date)"
+            sub_fld_nms_gnrc: "(Qlfr)(Dt)"
+          }
+          mt_def_fld {
+            tag: "f98C"
+            nm: "Preparation Date/Time"
+            frmt: ":4!c//8!n6!n"
+            optnl: true
+            fld_nb: "6"
+            mt_def_sub_fld {
+              nm_gnrc: "Qlfr"
+              frmt: "4!c"
+              sep_prfx: ":"
+              sep_pstfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Dt"
+              frmt: "8!n"
+              sep_prfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Tm"
+              frmt: "6!n"
+            }
+            sub_fld_nms: "(Qualifier)(Date)(Time)"
+            sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)"
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f25D"
+          nm: "Processing Status"
+          frmt: ":4!c/[8c]/4!c"
+          qlfr: "PROC"
+          cntt: ":4!c/[8c]/4!c"
+          fld_nb: "7"
+          mt_def_sub_fld {
+            nm_gnrc: "Qlfr"
+            frmt: "4!c"
+            sep_prfx: ":"
+            sep_pstfx: "/"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Dss"
+            frmt: "8c"
+            optnl: true
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Cd"
+            frmt: "4!c"
+            sep_prfx: "/"
+          }
+          sub_fld_nms: "(Qualifier)(Data Source Scheme)(Status Code)"
+          sub_fld_nms_gnrc: "(Qlfr)(Dss)(Cd)"
+        }
+      }
+      mt_def_obj {
+        seq {
+          tag: "sA1"
+          nm: "Subsequence A1 Linkages"
+          id: "A1"
+          cntt_start: "-----> Optional Repetitive Subsequence A1 Linkages"
+          cntt_end: "-----| End of Subsequence A1 Linkages"
+          optnl: true
+          rpttv: true
+          mt_def_obj {
+            fld {
+              tag: "f16R"
+              nm: "Start of Block"
+              frmt: "16c"
+              cntt: "LINK"
+              fld_nb: "8"
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f22F"
+              nm: "Linkage Type Indicator"
+              frmt: ":4!c/[8c]/4!c"
+              qlfr: "LINK"
+              optnl: true
+              cntt: ":4!c/[8c]/4!c"
+              fld_nb: "9"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Dss"
+                frmt: "8c"
+                optnl: true
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Id"
+                frmt: "4!c"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Data Source Scheme)(Indicator)"
+              sub_fld_nms_gnrc: "(Qlfr)(Dss)(Id)"
+            }
+          }
+          mt_def_obj {
+            optn {
+              tag: "o13a_A1"
+              nm: "Linked Message"
+              optnl: true
+              fld_nb: "10"
+              mt_def_fld {
+                tag: "f13A"
+                nm: "Linked Message"
+                frmt: ":4!c//3!c"
+                optnl: true
+                fld_nb: "10"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Id"
+                  frmt: "3!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Number Id)"
+                sub_fld_nms_gnrc: "(Qlfr)(Id)"
+              }
+              mt_def_fld {
+                tag: "f13B"
+                nm: "Linked Message"
+                frmt: ":4!c/[8c]/30x"
+                optnl: true
+                fld_nb: "10"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Nb"
+                  frmt: "30x"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Number)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(Nb)"
+              }
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f20C"
+              nm: "Reference"
+              frmt: ":4!c//16x"
+              qlfr: "4!c"
+              cntt: ":4!c//16x"
+              fld_nb: "11"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Ref"
+                frmt: "16x"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Reference)"
+              sub_fld_nms_gnrc: "(Qlfr)(Ref)"
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f16S"
+              nm: "End of Block"
+              frmt: "16c"
+              cntt: "LINK"
+              fld_nb: "12"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f16S"
+          nm: "End of Block"
+          frmt: "16c"
+          cntt: "GENL"
+          fld_nb: "13"
+        }
+      }
+    }
+  }
+  mt_def_obj {
+    seq {
+      tag: "sB"
+      nm: "Sequence B Underlying Securities"
+      id: "B"
+      cntt_start: "Mandatory Sequence B Underlying Securities"
+      cntt_end: "End of Sequence B Underlying Securities"
+      mt_def_obj {
+        fld {
+          tag: "f16R"
+          nm: "Start of Block"
+          frmt: "16c"
+          cntt: "USECU"
+          fld_nb: "14"
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f35B"
+          nm: "Identification of the Financial Instrument"
+          frmt: "[ISIN1!e12!c]<crlf>[4*35x]"
+          cntt: "[ISIN1!e12!c]<crlf>[4*35x]"
+          fld_nb: "15"
+          mt_def_sub_fld {
+            nm_gnrc: "Scty"
+            frmt: "ISIN1!e12!c"
+            optnl: true
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Desc"
+            frmt: "4*35x"
+            optnl: true
+            sep_prfx: "<crlf>"
+          }
+          sub_fld_nms: "(Identification of Security)<crlf>(Description of Security)"
+          sub_fld_nms_gnrc: "(Scty)(Desc)"
+        }
+      }
+      mt_def_obj {
+        seq {
+          tag: "sB1"
+          nm: "Subsequence B1 Financial Instrument Attributes"
+          id: "B1"
+          cntt_start: "Optional Subsequence B1 Financial Instrument Attributes"
+          cntt_end: "End of Subsequence B1 Financial Instrument Attributes"
+          optnl: true
+          mt_def_obj {
+            fld {
+              tag: "f16R"
+              nm: "Start of Block"
+              frmt: "16c"
+              cntt: "FIA"
+              fld_nb: "16"
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f94B"
+              nm: "Place of Listing"
+              frmt: ":4!c/[8c]/4!c[/30x]"
+              qlfr: "PLIS"
+              optnl: true
+              cntt: ":4!c/[8c]/4!c[/30x]"
+              fld_nb: "17"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Dss"
+                frmt: "8c"
+                optnl: true
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "PlcCd"
+                frmt: "4!c"
+                sep_prfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Nrrtv"
+                frmt: "30x"
+                optnl: true
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Data Source Scheme)(Place Code)(Narrative)"
+              sub_fld_nms_gnrc: "(Qlfr)(Dss)(PlcCd)(Nrrtv)"
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f22F"
+              nm: "Method of Interest Computation Indicator"
+              frmt: ":4!c/[8c]/4!c"
+              qlfr: "MICO"
+              optnl: true
+              cntt: ":4!c/[8c]/4!c"
+              fld_nb: "18"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Dss"
+                frmt: "8c"
+                optnl: true
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Id"
+                frmt: "4!c"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Data Source Scheme)(Indicator)"
+              sub_fld_nms_gnrc: "(Qlfr)(Dss)(Id)"
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r12a_B1"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o12a_B1"
+                  nm: "Type of Financial Instrument"
+                  optnl: true
+                  fld_nb: "19"
+                  mt_def_fld {
+                    tag: "f12A"
+                    nm: "Type of Financial Instrument"
+                    frmt: ":4!c/[8c]/30x"
+                    optnl: true
+                    fld_nb: "19"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dss"
+                      frmt: "8c"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Desc"
+                      frmt: "30x"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Data Source Scheme)(Instrument Code or Description)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dss)(Desc)"
+                  }
+                  mt_def_fld {
+                    tag: "f12B"
+                    nm: "Type of Financial Instrument"
+                    frmt: ":4!c/[8c]/4!c"
+                    optnl: true
+                    fld_nb: "19"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dss"
+                      frmt: "8c"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Cd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Data Source Scheme)(Instrument Type Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dss)(Cd)"
+                  }
+                  mt_def_fld {
+                    tag: "f12C"
+                    nm: "Type of Financial Instrument"
+                    frmt: ":4!c//6!c"
+                    optnl: true
+                    fld_nb: "19"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Cd"
+                      frmt: "6!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(CFI Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Cd)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f11A"
+              nm: "Currency of Denomination"
+              frmt: ":4!c//3!a"
+              qlfr: "DENO"
+              optnl: true
+              cntt: ":4!c//3!a"
+              fld_nb: "20"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Ccy"
+                frmt: "3!a"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Currency Code)"
+              sub_fld_nms_gnrc: "(Qlfr)(Ccy)"
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r98A"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                fld {
+                  tag: "f98A"
+                  nm: "Date/Time"
+                  frmt: ":4!c//8!n"
+                  qlfr: "4!c"
+                  optnl: true
+                  cntt: ":4!c//8!n"
+                  fld_nb: "21"
+                  mt_def_sub_fld {
+                    nm_gnrc: "Qlfr"
+                    frmt: "4!c"
+                    sep_prfx: ":"
+                    sep_pstfx: "/"
+                  }
+                  mt_def_sub_fld {
+                    nm_gnrc: "Dt"
+                    frmt: "8!n"
+                    sep_prfx: "/"
+                  }
+                  sub_fld_nms: "(Qualifier)(Date)"
+                  sub_fld_nms_gnrc: "(Qlfr)(Dt)"
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r92a_B1"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o92a_B1"
+                  nm: "Rate"
+                  optnl: true
+                  fld_nb: "22"
+                  mt_def_fld {
+                    tag: "f92A"
+                    nm: "Rate"
+                    frmt: ":4!c//[N]15d"
+                    optnl: true
+                    fld_nb: "22"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "//"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Rate"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Sign)(Rate)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Sgn)(Rate)"
+                  }
+                  mt_def_fld {
+                    tag: "f92D"
+                    nm: "Rate"
+                    frmt: ":4!c//15d/15d"
+                    optnl: true
+                    fld_nb: "22"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qty1"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qty2"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Quantity)(Quantity)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Qty)(Qty)"
+                  }
+                  mt_def_fld {
+                    tag: "f92K"
+                    nm: "Rate"
+                    frmt: ":4!c//4!c"
+                    optnl: true
+                    fld_nb: "22"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "RateTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Rate Type Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(RateTpCd)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r36a_B1"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o36a_B1"
+                  nm: "Quantity of Financial Instrument"
+                  optnl: true
+                  fld_nb: "23"
+                  mt_def_fld {
+                    tag: "f36B"
+                    nm: "Quantity of Financial Instrument"
+                    frmt: ":4!c//4!c/15d"
+                    optnl: true
+                    fld_nb: "23"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qty"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity)"
+                    sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(Qty)"
+                  }
+                  mt_def_fld {
+                    tag: "f36D"
+                    nm: "Quantity of Financial Instrument"
+                    frmt: ":4!c//4!c/30d"
+                    optnl: true
+                    fld_nb: "23"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyDgtlTkns"
+                      frmt: "30d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity of Digital Tokens)"
+                    sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(QtyDgtlTkns)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f16S"
+              nm: "End of Block"
+              frmt: "16c"
+              cntt: "FIA"
+              fld_nb: "24"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        seq {
+          tag: "sB2"
+          nm: "Subsequence B2 Account Information"
+          id: "B2"
+          cntt_start: "-----> Mandatory Repetitive Subsequence B2 Account Information"
+          cntt_end: "-----| End of Subsequence B2 Account Information"
+          rpttv: true
+          mt_def_obj {
+            fld {
+              tag: "f16R"
+              nm: "Start of Block"
+              frmt: "16c"
+              cntt: "ACCTINFO"
+              fld_nb: "25"
+            }
+          }
+          mt_def_obj {
+            optn {
+              tag: "o95a_B2"
+              nm: "Account Owner"
+              optnl: true
+              fld_nb: "26"
+              mt_def_fld {
+                tag: "f95P"
+                nm: "Account Owner"
+                frmt: ":4!c//4!a2!a2!c[3!c]"
+                optnl: true
+                fld_nb: "26"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "IdrCd"
+                  frmt: "4!a2!a2!c[3!c]"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Identifier Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(IdrCd)"
+              }
+              mt_def_fld {
+                tag: "f95R"
+                nm: "Account Owner"
+                frmt: ":4!c/8c/34x"
+                optnl: true
+                fld_nb: "26"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "PrtryCd"
+                  frmt: "34x"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Proprietary Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(PrtryCd)"
+              }
+            }
+          }
+          mt_def_obj {
+            optn {
+              tag: "o97a_B2"
+              nm: "Account"
+              fld_nb: "27"
+              mt_def_fld {
+                tag: "f97A"
+                nm: "Account"
+                frmt: ":4!c//35x"
+                fld_nb: "27"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Acct"
+                  frmt: "35x"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Account Number)"
+                sub_fld_nms_gnrc: "(Qlfr)(Acct)"
+              }
+              mt_def_fld {
+                tag: "f97C"
+                nm: "Account"
+                frmt: ":4!c//4!c"
+                fld_nb: "27"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Cd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Account Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Cd)"
+              }
+              mt_def_fld {
+                tag: "f97D"
+                nm: "Account"
+                frmt: ":4!c/[8c]/140x"
+                fld_nb: "27"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "IdnBlockchainWllt"
+                  frmt: "140x"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Identification of Blockchain or Wallet)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(IdnBlockchainWllt)"
+              }
+            }
+          }
+          mt_def_obj {
+            optn {
+              tag: "o94a_B2"
+              nm: "Place of Safekeeping"
+              optnl: true
+              fld_nb: "28"
+              mt_def_fld {
+                tag: "f94B"
+                nm: "Place of Safekeeping"
+                frmt: ":4!c/[8c]/4!c[/30x]"
+                optnl: true
+                fld_nb: "28"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "PlcCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Nrrtv"
+                  frmt: "30x"
+                  optnl: true
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Place Code)(Narrative)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(PlcCd)(Nrrtv)"
+              }
+              mt_def_fld {
+                tag: "f94C"
+                nm: "Place of Safekeeping"
+                frmt: ":4!c//2!a"
+                optnl: true
+                fld_nb: "28"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Ctry"
+                  frmt: "2!a"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Country Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Ctry)"
+              }
+              mt_def_fld {
+                tag: "f94F"
+                nm: "Place of Safekeeping"
+                frmt: ":4!c//4!c/4!a2!a2!c[3!c]"
+                optnl: true
+                fld_nb: "28"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "PlcCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "IdrCd"
+                  frmt: "4!a2!a2!c[3!c]"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Place Code)(Identifier Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(PlcCd)(IdrCd)"
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r93a_B2"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o93a_B2"
+                  nm: "Balance"
+                  optnl: true
+                  fld_nb: "29"
+                  mt_def_fld {
+                    tag: "f93B"
+                    nm: "Balance"
+                    frmt: ":4!c/[8c]/4!c/[N]15d"
+                    optnl: true
+                    fld_nb: "29"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dss"
+                      frmt: "8c"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Bal"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Data Source Scheme)(Quantity Type Code)(Sign)(Balance)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dss)(QtyTpCd)(Sgn)(Bal)"
+                  }
+                  mt_def_fld {
+                    tag: "f93C"
+                    nm: "Balance"
+                    frmt: ":4!c//4!c/4!c/[N]15d"
+                    optnl: true
+                    fld_nb: "29"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "BalTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Bal"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Quantity Type Code)(Balance Type Code)(Sign)(Balance)"
+                    sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(BalTpCd)(Sgn)(Bal)"
+                  }
+                  mt_def_fld {
+                    tag: "f93E"
+                    nm: "Balance"
+                    frmt: ":4!c//4!c/4!c/[N]30d"
+                    optnl: true
+                    fld_nb: "29"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "BalTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "BalDgtlTkns"
+                      frmt: "30d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Quantity Type Code)(Balance Type Code)(Sign)(Balance of Digital Tokens)"
+                    sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(BalTpCd)(Sgn)(BalDgtlTkns)"
+                  }
+                  mt_def_fld {
+                    tag: "f93F"
+                    nm: "Balance"
+                    frmt: ":4!c/[8c]/4!c/[N]30d"
+                    optnl: true
+                    fld_nb: "29"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dss"
+                      frmt: "8c"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "BalDgtlTkns"
+                      frmt: "30d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Data Source Scheme)(Quantity Type Code)(Sign)(Balance of Digital Tokens)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dss)(QtyTpCd)(Sgn)(BalDgtlTkns)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f16S"
+              nm: "End of Block"
+              frmt: "16c"
+              cntt: "ACCTINFO"
+              fld_nb: "30"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f16S"
+          nm: "End of Block"
+          frmt: "16c"
+          cntt: "USECU"
+          fld_nb: "31"
+        }
+      }
+    }
+  }
+  mt_def_obj {
+    seq {
+      tag: "sC"
+      nm: "Sequence C Intermediate Securities"
+      id: "C"
+      cntt_start: "Optional Sequence C Intermediate Securities"
+      cntt_end: "End of Sequence C Intermediate Securities"
+      optnl: true
+      mt_def_obj {
+        fld {
+          tag: "f16R"
+          nm: "Start of Block"
+          frmt: "16c"
+          cntt: "INTSEC"
+          fld_nb: "32"
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f35B"
+          nm: "Identification of the Financial Instrument"
+          frmt: "[ISIN1!e12!c]<crlf>[4*35x]"
+          cntt: "[ISIN1!e12!c]<crlf>[4*35x]"
+          fld_nb: "33"
+          mt_def_sub_fld {
+            nm_gnrc: "Scty"
+            frmt: "ISIN1!e12!c"
+            optnl: true
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Desc"
+            frmt: "4*35x"
+            optnl: true
+            sep_prfx: "<crlf>"
+          }
+          sub_fld_nms: "(Identification of Security)<crlf>(Description of Security)"
+          sub_fld_nms_gnrc: "(Scty)(Desc)"
+        }
+      }
+      mt_def_obj {
+        optn {
+          tag: "o36a_C"
+          nm: "Quantity of Intermediate Securities"
+          optnl: true
+          fld_nb: "34"
+          mt_def_fld {
+            tag: "f36B"
+            nm: "Quantity of Intermediate Securities"
+            frmt: ":4!c//4!c/15d"
+            optnl: true
+            fld_nb: "34"
+            mt_def_sub_fld {
+              nm_gnrc: "Qlfr"
+              frmt: "4!c"
+              sep_prfx: ":"
+              sep_pstfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "QtyTpCd"
+              frmt: "4!c"
+              sep_prfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Qty"
+              frmt: "15d"
+              sep_prfx: "/"
+            }
+            sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity)"
+            sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(Qty)"
+          }
+          mt_def_fld {
+            tag: "f36D"
+            nm: "Quantity of Intermediate Securities"
+            frmt: ":4!c//4!c/30d"
+            optnl: true
+            fld_nb: "34"
+            mt_def_sub_fld {
+              nm_gnrc: "Qlfr"
+              frmt: "4!c"
+              sep_prfx: ":"
+              sep_pstfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "QtyTpCd"
+              frmt: "4!c"
+              sep_prfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "QtyDgtlTkns"
+              frmt: "30d"
+              sep_prfx: "/"
+            }
+            sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity of Digital Tokens)"
+            sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(QtyDgtlTkns)"
+          }
+          mt_def_fld {
+            tag: "f36E"
+            nm: "Quantity of Intermediate Securities"
+            frmt: ":4!c//4!c/[N]15d"
+            optnl: true
+            fld_nb: "34"
+            mt_def_sub_fld {
+              nm_gnrc: "Qlfr"
+              frmt: "4!c"
+              sep_prfx: ":"
+              sep_pstfx: "//"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "QtyTpCd"
+              frmt: "4!c"
+              sep_prfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Sgn"
+              frmt: "N"
+              optnl: true
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Qty"
+              frmt: "15d"
+            }
+            sub_fld_nms: "(Qualifier)(Quantity Type Code)(Sign)(Quantity)"
+            sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(Sgn)(Qty)"
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r93a_C"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o93a_C"
+              nm: "Balance"
+              optnl: true
+              fld_nb: "35"
+              mt_def_fld {
+                tag: "f93B"
+                nm: "Balance"
+                frmt: ":4!c/[8c]/4!c/[N]15d"
+                optnl: true
+                fld_nb: "35"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "QtyTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Sgn"
+                  frmt: "N"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Bal"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Quantity Type Code)(Sign)(Balance)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(QtyTpCd)(Sgn)(Bal)"
+              }
+              mt_def_fld {
+                tag: "f93C"
+                nm: "Balance"
+                frmt: ":4!c//4!c/4!c/[N]15d"
+                optnl: true
+                fld_nb: "35"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "QtyTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "BalTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Sgn"
+                  frmt: "N"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Bal"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Quantity Type Code)(Balance Type Code)(Sign)(Balance)"
+                sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(BalTpCd)(Sgn)(Bal)"
+              }
+              mt_def_fld {
+                tag: "f93E"
+                nm: "Balance"
+                frmt: ":4!c//4!c/4!c/[N]30d"
+                optnl: true
+                fld_nb: "35"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "QtyTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "BalTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Sgn"
+                  frmt: "N"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "BalDgtlTkns"
+                  frmt: "30d"
+                }
+                sub_fld_nms: "(Qualifier)(Quantity Type Code)(Balance Type Code)(Sign)(Balance of Digital Tokens)"
+                sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(BalTpCd)(Sgn)(BalDgtlTkns)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r22F"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            fld {
+              tag: "f22F"
+              nm: "Indicator"
+              frmt: ":4!c/[8c]/4!c"
+              qlfr: "4!c"
+              optnl: true
+              cntt: ":4!c/[8c]/4!c"
+              fld_nb: "36"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Dss"
+                frmt: "8c"
+                optnl: true
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Id"
+                frmt: "4!c"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Data Source Scheme)(Indicator)"
+              sub_fld_nms_gnrc: "(Qlfr)(Dss)(Id)"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f92D"
+          nm: "Intermediate Securities to Underlying"
+          frmt: ":4!c//15d/15d"
+          qlfr: "RTUN"
+          optnl: true
+          cntt: ":4!c//15d/15d"
+          fld_nb: "37"
+          mt_def_sub_fld {
+            nm_gnrc: "Qlfr"
+            frmt: "4!c"
+            sep_prfx: ":"
+            sep_pstfx: "/"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Qty1"
+            frmt: "15d"
+            sep_prfx: "/"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Qty2"
+            frmt: "15d"
+            sep_prfx: "/"
+          }
+          sub_fld_nms: "(Qualifier)(Quantity)(Quantity)"
+          sub_fld_nms_gnrc: "(Qlfr)(Qty)(Qty)"
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f90B"
+          nm: "Market Price"
+          frmt: ":4!c//4!c/3!a15d"
+          qlfr: "MRKT"
+          optnl: true
+          cntt: ":4!c//4!c/3!a15d"
+          fld_nb: "38"
+          mt_def_sub_fld {
+            nm_gnrc: "Qlfr"
+            frmt: "4!c"
+            sep_prfx: ":"
+            sep_pstfx: "/"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "AmtTpCd"
+            frmt: "4!c"
+            sep_prfx: "/"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Ccy"
+            frmt: "3a"
+            sep_prfx: "/"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Pric"
+            frmt: "15d"
+          }
+          sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Price)"
+          sub_fld_nms_gnrc: "(Qlfr)(AmtTpCd)(Ccy)(Pric)"
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r98a_C"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o98a_C"
+              nm: "Date/Time"
+              fld_nb: "39"
+              mt_def_fld {
+                tag: "f98A"
+                nm: "Date/Time"
+                frmt: ":4!c//8!n"
+                fld_nb: "39"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)"
+              }
+              mt_def_fld {
+                tag: "f98B"
+                nm: "Date/Time"
+                frmt: ":4!c/[8c]/4!c"
+                fld_nb: "39"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(DtCd)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        optn {
+          tag: "o69a_C"
+          nm: "Trading Period"
+          optnl: true
+          fld_nb: "40"
+          mt_def_fld {
+            tag: "f69A"
+            nm: "Trading Period"
+            frmt: ":4!c//8!n/8!n"
+            optnl: true
+            fld_nb: "40"
+            mt_def_sub_fld {
+              nm_gnrc: "Qlfr"
+              frmt: "4!c"
+              sep_prfx: ":"
+              sep_pstfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Dt"
+              frmt: "8!n"
+              sep_prfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Dt"
+              frmt: "8!n"
+              sep_prfx: "/"
+            }
+            sub_fld_nms: "(Qualifier)(Date)(Date)"
+            sub_fld_nms_gnrc: "(Qlfr)(Dt)(Dt)"
+          }
+          mt_def_fld {
+            tag: "f69B"
+            nm: "Trading Period"
+            frmt: ":4!c//8!n6!n/8!n6!n"
+            optnl: true
+            fld_nb: "40"
+            mt_def_sub_fld {
+              nm_gnrc: "Qlfr"
+              frmt: "4!c"
+              sep_prfx: ":"
+              sep_pstfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Dt"
+              frmt: "8!n"
+              sep_prfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Tm"
+              frmt: "6!n"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Dt"
+              frmt: "8!n"
+              sep_prfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Tm"
+              frmt: "6!n"
+            }
+            sub_fld_nms: "(Qualifier)(Date)(Time)(Date)(Time)"
+            sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)(Dt)(Tm)"
+          }
+          mt_def_fld {
+            tag: "f69C"
+            nm: "Trading Period"
+            frmt: ":4!c//8!n/4!c"
+            optnl: true
+            fld_nb: "40"
+            mt_def_sub_fld {
+              nm_gnrc: "Qlfr"
+              frmt: "4!c"
+              sep_prfx: ":"
+              sep_pstfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Dt"
+              frmt: "8!n"
+              sep_prfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "DtCd"
+              frmt: "4!c"
+              sep_prfx: "/"
+            }
+            sub_fld_nms: "(Qualifier)(Date)(Date Code)"
+            sub_fld_nms_gnrc: "(Qlfr)(Dt)(DtCd)"
+          }
+          mt_def_fld {
+            tag: "f69D"
+            nm: "Trading Period"
+            frmt: ":4!c//8!n6!n/4!c"
+            optnl: true
+            fld_nb: "40"
+            mt_def_sub_fld {
+              nm_gnrc: "Qlfr"
+              frmt: "4!c"
+              sep_prfx: ":"
+              sep_pstfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Dt"
+              frmt: "8!n"
+              sep_prfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Tm"
+              frmt: "6!n"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "DtCd"
+              frmt: "4!c"
+              sep_prfx: "/"
+            }
+            sub_fld_nms: "(Qualifier)(Date)(Time)(Date Code)"
+            sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)(DtCd)"
+          }
+          mt_def_fld {
+            tag: "f69E"
+            nm: "Trading Period"
+            frmt: ":4!c//4!c/8!n"
+            optnl: true
+            fld_nb: "40"
+            mt_def_sub_fld {
+              nm_gnrc: "Qlfr"
+              frmt: "4!c"
+              sep_prfx: ":"
+              sep_pstfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "DtCd"
+              frmt: "4!c"
+              sep_prfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Dt"
+              frmt: "8!n"
+              sep_prfx: "/"
+            }
+            sub_fld_nms: "(Qualifier)(Date Code)(Date)"
+            sub_fld_nms_gnrc: "(Qlfr)(DtCd)(Dt)"
+          }
+          mt_def_fld {
+            tag: "f69F"
+            nm: "Trading Period"
+            frmt: ":4!c//4!c/8!n6!n"
+            optnl: true
+            fld_nb: "40"
+            mt_def_sub_fld {
+              nm_gnrc: "Qlfr"
+              frmt: "4!c"
+              sep_prfx: ":"
+              sep_pstfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "DtCd"
+              frmt: "4!c"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Dt"
+              frmt: "8!n"
+              sep_prfx: "/"
+            }
+            mt_def_sub_fld {
+              nm_gnrc: "Tm"
+              frmt: "6!n"
+            }
+            sub_fld_nms: "(Qualifier)(Date Code)(Date)(Time)"
+            sub_fld_nms_gnrc: "(Qlfr)(DtCd)(Dt)(Tm)"
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f16S"
+          nm: "End of Block"
+          frmt: "16c"
+          cntt: "INTSEC"
+          fld_nb: "41"
+        }
+      }
+    }
+  }
+  mt_def_obj {
+    seq {
+      tag: "sD"
+      nm: "Sequence D Corporate Action Details"
+      id: "D"
+      cntt_start: "Optional Sequence D Corporate Action Details"
+      cntt_end: "End of Sequence D Corporate Action Details"
+      optnl: true
+      mt_def_obj {
+        fld {
+          tag: "f16R"
+          nm: "Start of Block"
+          frmt: "16c"
+          cntt: "CADETL"
+          fld_nb: "42"
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r98a_D"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o98a_D"
+              nm: "Date/Time"
+              optnl: true
+              fld_nb: "43"
+              mt_def_fld {
+                tag: "f98A"
+                nm: "Date/Time"
+                frmt: ":4!c//8!n"
+                optnl: true
+                fld_nb: "43"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)"
+              }
+              mt_def_fld {
+                tag: "f98B"
+                nm: "Date/Time"
+                frmt: ":4!c/[8c]/4!c"
+                optnl: true
+                fld_nb: "43"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(DtCd)"
+              }
+              mt_def_fld {
+                tag: "f98C"
+                nm: "Date/Time"
+                frmt: ":4!c//8!n6!n"
+                optnl: true
+                fld_nb: "43"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Time)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)"
+              }
+              mt_def_fld {
+                tag: "f98E"
+                nm: "Date/Time"
+                frmt: ":4!c//8!n6!n[,3n][/[N]2!n[2!n]]"
+                optnl: true
+                fld_nb: "43"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  optnl: true
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dcmls"
+                  frmt: "3n"
+                  optnl: true
+                  sep_prfx: ","
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Utc"
+                  frmt: "[N]2!n[2!n]"
+                  optnl: true
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Time)(Decimals)(UTC Indicator)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)(Dcmls)(Utc)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r69a_D"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o69a_D"
+              nm: "Period"
+              optnl: true
+              fld_nb: "44"
+              mt_def_fld {
+                tag: "f69A"
+                nm: "Period"
+                frmt: ":4!c//8!n/8!n"
+                optnl: true
+                fld_nb: "44"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Date)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Dt)"
+              }
+              mt_def_fld {
+                tag: "f69B"
+                nm: "Period"
+                frmt: ":4!c//8!n6!n/8!n6!n"
+                optnl: true
+                fld_nb: "44"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Time)(Date)(Time)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)(Dt)(Tm)"
+              }
+              mt_def_fld {
+                tag: "f69C"
+                nm: "Period"
+                frmt: ":4!c//8!n/4!c"
+                optnl: true
+                fld_nb: "44"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(DtCd)"
+              }
+              mt_def_fld {
+                tag: "f69D"
+                nm: "Period"
+                frmt: ":4!c//8!n6!n/4!c"
+                optnl: true
+                fld_nb: "44"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Time)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)(DtCd)"
+              }
+              mt_def_fld {
+                tag: "f69E"
+                nm: "Period"
+                frmt: ":4!c//4!c/8!n"
+                optnl: true
+                fld_nb: "44"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date Code)(Date)"
+                sub_fld_nms_gnrc: "(Qlfr)(DtCd)(Dt)"
+              }
+              mt_def_fld {
+                tag: "f69F"
+                nm: "Period"
+                frmt: ":4!c//4!c/8!n6!n"
+                optnl: true
+                fld_nb: "44"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                sub_fld_nms: "(Qualifier)(Date Code)(Date)(Time)"
+                sub_fld_nms_gnrc: "(Qlfr)(DtCd)(Dt)(Tm)"
+              }
+              mt_def_fld {
+                tag: "f69J"
+                nm: "Period"
+                frmt: ":4!c//4!c"
+                optnl: true
+                fld_nb: "44"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(DtCd)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f99A"
+          nm: "Number of Days Accrued"
+          frmt: ":4!c//[N]3!n"
+          qlfr: "DAAC"
+          optnl: true
+          cntt: ":4!c//[N]3!n"
+          fld_nb: "45"
+          mt_def_sub_fld {
+            nm_gnrc: "Qlfr"
+            frmt: "4!c"
+            sep_prfx: ":"
+            sep_pstfx: "//"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Sgn"
+            frmt: "N"
+            optnl: true
+            sep_prfx: "/"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Nb"
+            frmt: "3!n"
+          }
+          sub_fld_nms: "(Qualifier)(Sign)(Number)"
+          sub_fld_nms_gnrc: "(Qlfr)(Sgn)(Nb)"
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r92a_D"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o92a_D"
+              nm: "Rate"
+              optnl: true
+              fld_nb: "46"
+              mt_def_fld {
+                tag: "f92A"
+                nm: "Rate"
+                frmt: ":4!c//[N]15d"
+                optnl: true
+                fld_nb: "46"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "//"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Sgn"
+                  frmt: "N"
+                  optnl: true
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Rate"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Sign)(Rate)"
+                sub_fld_nms_gnrc: "(Qlfr)(Sgn)(Rate)"
+              }
+              mt_def_fld {
+                tag: "f92F"
+                nm: "Rate"
+                frmt: ":4!c//3!a15d"
+                optnl: true
+                fld_nb: "46"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Ccy"
+                  frmt: "3!a"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Amt"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Currency Code)(Amount)"
+                sub_fld_nms_gnrc: "(Qlfr)(Ccy)(Amt)"
+              }
+              mt_def_fld {
+                tag: "f92K"
+                nm: "Rate"
+                frmt: ":4!c//4!c"
+                optnl: true
+                fld_nb: "46"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "RateTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Rate Type Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(RateTpCd)"
+              }
+              mt_def_fld {
+                tag: "f92P"
+                nm: "Rate"
+                frmt: ":4!c//15d"
+                optnl: true
+                fld_nb: "46"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "IndxPts"
+                  frmt: "15d"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Index Points)"
+                sub_fld_nms_gnrc: "(Qlfr)(IndxPts)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r90a_D"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o90a_D"
+              nm: "Price"
+              optnl: true
+              fld_nb: "47"
+              mt_def_fld {
+                tag: "f90A"
+                nm: "Price"
+                frmt: ":4!c//4!c/[N]15d"
+                optnl: true
+                fld_nb: "47"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "//"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Cd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Sgn"
+                  frmt: "N"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Pric"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Percentage Type Code)(Sign)(Price)"
+                sub_fld_nms_gnrc: "(Qlfr)(Cd)(Sgn)(Pric)"
+              }
+              mt_def_fld {
+                tag: "f90B"
+                nm: "Price"
+                frmt: ":4!c//4!c/3!a15d"
+                optnl: true
+                fld_nb: "47"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "AmtTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Ccy"
+                  frmt: "3a"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Pric"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Price)"
+                sub_fld_nms_gnrc: "(Qlfr)(AmtTpCd)(Ccy)(Pric)"
+              }
+              mt_def_fld {
+                tag: "f90E"
+                nm: "Price"
+                frmt: ":4!c//4!c"
+                optnl: true
+                fld_nb: "47"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "PricCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Price Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(PricCd)"
+              }
+              mt_def_fld {
+                tag: "f90L"
+                nm: "Price"
+                frmt: ":4!c//[N]15d"
+                optnl: true
+                fld_nb: "47"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "//"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Sgn"
+                  frmt: "N"
+                  optnl: true
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "IndxPts"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Sign)(Index Points)"
+                sub_fld_nms_gnrc: "(Qlfr)(Sgn)(IndxPts)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r36a_D"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o36a_D"
+              nm: "Quantity of Financial Instrument"
+              optnl: true
+              fld_nb: "48"
+              mt_def_fld {
+                tag: "f36B"
+                nm: "Quantity of Financial Instrument"
+                frmt: ":4!c//4!c/15d"
+                optnl: true
+                fld_nb: "48"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "QtyTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Qty"
+                  frmt: "15d"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity)"
+                sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(Qty)"
+              }
+              mt_def_fld {
+                tag: "f36C"
+                nm: "Quantity of Financial Instrument"
+                frmt: ":4!c//4!c"
+                optnl: true
+                fld_nb: "48"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "QtyCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Quantity Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(QtyCd)"
+              }
+              mt_def_fld {
+                tag: "f36D"
+                nm: "Quantity of Financial Instrument"
+                frmt: ":4!c//4!c/30d"
+                optnl: true
+                fld_nb: "48"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "QtyTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "QtyDgtlTkns"
+                  frmt: "30d"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity of Digital Tokens)"
+                sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(QtyDgtlTkns)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r13a_D"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o13a_D"
+              nm: "Coupon Number"
+              optnl: true
+              fld_nb: "49"
+              mt_def_fld {
+                tag: "f13A"
+                nm: "Coupon Number"
+                frmt: ":4!c//3!c"
+                optnl: true
+                fld_nb: "49"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Id"
+                  frmt: "3!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Number Id)"
+                sub_fld_nms_gnrc: "(Qlfr)(Id)"
+              }
+              mt_def_fld {
+                tag: "f13B"
+                nm: "Coupon Number"
+                frmt: ":4!c/[8c]/30x"
+                optnl: true
+                fld_nb: "49"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Nb"
+                  frmt: "30x"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Number)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(Nb)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r17B"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            fld {
+              tag: "f17B"
+              nm: "Flag"
+              frmt: ":4!c//1!a"
+              qlfr: "4!c"
+              optnl: true
+              cntt: ":4!c//1!a"
+              fld_nb: "50"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Flg"
+                frmt: "1!a"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Flag)"
+              sub_fld_nms_gnrc: "(Qlfr)(Flg)"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r22F"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            fld {
+              tag: "f22F"
+              nm: "Indicator"
+              frmt: ":4!c/[8c]/4!c"
+              qlfr: "4!c"
+              optnl: true
+              cntt: ":4!c/[8c]/4!c"
+              fld_nb: "51"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Dss"
+                frmt: "8c"
+                optnl: true
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Id"
+                frmt: "4!c"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Data Source Scheme)(Indicator)"
+              sub_fld_nms_gnrc: "(Qlfr)(Dss)(Id)"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r94E"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            fld {
+              tag: "f94E"
+              nm: "Place"
+              frmt: ":4!c//10*35x"
+              qlfr: "4!c"
+              optnl: true
+              cntt: ":4!c//10*35x"
+              fld_nb: "52"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Adr"
+                frmt: "10*35x"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Address)"
+              sub_fld_nms_gnrc: "(Qlfr)(Adr)"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r70a_D"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o70a_D"
+              nm: "Narrative"
+              optnl: true
+              fld_nb: "53"
+              mt_def_fld {
+                tag: "f70E"
+                nm: "Narrative"
+                frmt: ":4!c//10*35x"
+                optnl: true
+                fld_nb: "53"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Nrrtv"
+                  frmt: "10*35x"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Narrative)"
+                sub_fld_nms_gnrc: "(Qlfr)(Nrrtv)"
+              }
+              mt_def_fld {
+                tag: "f70G"
+                nm: "Narrative"
+                frmt: ":4!c//10*35z"
+                optnl: true
+                fld_nb: "53"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Nrrtv"
+                  frmt: "10*35z"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Narrative)"
+                sub_fld_nms_gnrc: "(Qlfr)(Nrrtv)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f16S"
+          nm: "End of Block"
+          frmt: "16c"
+          cntt: "CADETL"
+          fld_nb: "54"
+        }
+      }
+    }
+  }
+  mt_def_obj {
+    seq {
+      tag: "sE"
+      nm: "Sequence E Corporate Action Options"
+      id: "E"
+      cntt_start: "-----> Optional Repetitive Sequence E Corporate Action Options"
+      cntt_end: "-----| End of Sequence E Corporate Action Options"
+      optnl: true
+      rpttv: true
+      mt_def_obj {
+        fld {
+          tag: "f16R"
+          nm: "Start of Block"
+          frmt: "16c"
+          cntt: "CAOPTN"
+          fld_nb: "55"
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f13A"
+          nm: "CA Option Number"
+          frmt: ":4!c//3!c"
+          qlfr: "CAON"
+          cntt: ":4!c//3!c"
+          fld_nb: "56"
+          mt_def_sub_fld {
+            nm_gnrc: "Qlfr"
+            frmt: "4!c"
+            sep_prfx: ":"
+            sep_pstfx: "/"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Id"
+            frmt: "3!c"
+            sep_prfx: "/"
+          }
+          sub_fld_nms: "(Qualifier)(Number Id)"
+          sub_fld_nms_gnrc: "(Qlfr)(Id)"
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r22F"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            fld {
+              tag: "f22F"
+              nm: "Indicator"
+              frmt: ":4!c/[8c]/4!c"
+              qlfr: "4!c"
+              cntt: ":4!c/[8c]/4!c"
+              fld_nb: "57"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Dss"
+                frmt: "8c"
+                optnl: true
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Id"
+                frmt: "4!c"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Data Source Scheme)(Indicator)"
+              sub_fld_nms_gnrc: "(Qlfr)(Dss)(Id)"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r94C"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            fld {
+              tag: "f94C"
+              nm: "Place"
+              frmt: ":4!c//2!a"
+              qlfr: "4!c"
+              optnl: true
+              cntt: ":4!c//2!a"
+              fld_nb: "58"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Ctry"
+                frmt: "2!a"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Country Code)"
+              sub_fld_nms_gnrc: "(Qlfr)(Ctry)"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f11A"
+          nm: "Currency Option"
+          frmt: ":4!c//3!a"
+          qlfr: "OPTN"
+          optnl: true
+          cntt: ":4!c//3!a"
+          fld_nb: "59"
+          mt_def_sub_fld {
+            nm_gnrc: "Qlfr"
+            frmt: "4!c"
+            sep_prfx: ":"
+            sep_pstfx: "/"
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Ccy"
+            frmt: "3!a"
+            sep_prfx: "/"
+          }
+          sub_fld_nms: "(Qualifier)(Currency Code)"
+          sub_fld_nms_gnrc: "(Qlfr)(Ccy)"
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r17B"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            fld {
+              tag: "f17B"
+              nm: "Flag"
+              frmt: ":4!c//1!a"
+              qlfr: "4!c"
+              cntt: ":4!c//1!a"
+              fld_nb: "60"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Flg"
+                frmt: "1!a"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Flag)"
+              sub_fld_nms_gnrc: "(Qlfr)(Flg)"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f35B"
+          nm: "Identification of the Financial Instrument"
+          frmt: "[ISIN1!e12!c]<crlf>[4*35x]"
+          optnl: true
+          cntt: "[ISIN1!e12!c]<crlf>[4*35x]"
+          fld_nb: "61"
+          mt_def_sub_fld {
+            nm_gnrc: "Scty"
+            frmt: "ISIN1!e12!c"
+            optnl: true
+          }
+          mt_def_sub_fld {
+            nm_gnrc: "Desc"
+            frmt: "4*35x"
+            optnl: true
+            sep_prfx: "<crlf>"
+          }
+          sub_fld_nms: "(Identification of Security)<crlf>(Description of Security)"
+          sub_fld_nms_gnrc: "(Scty)(Desc)"
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r98a_E"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o98a_E"
+              nm: "Date/Time"
+              optnl: true
+              fld_nb: "62"
+              mt_def_fld {
+                tag: "f98A"
+                nm: "Date/Time"
+                frmt: ":4!c//8!n"
+                optnl: true
+                fld_nb: "62"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)"
+              }
+              mt_def_fld {
+                tag: "f98B"
+                nm: "Date/Time"
+                frmt: ":4!c/[8c]/4!c"
+                optnl: true
+                fld_nb: "62"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(DtCd)"
+              }
+              mt_def_fld {
+                tag: "f98C"
+                nm: "Date/Time"
+                frmt: ":4!c//8!n6!n"
+                optnl: true
+                fld_nb: "62"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Time)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)"
+              }
+              mt_def_fld {
+                tag: "f98E"
+                nm: "Date/Time"
+                frmt: ":4!c//8!n6!n[,3n][/[N]2!n[2!n]]"
+                optnl: true
+                fld_nb: "62"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  optnl: true
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dcmls"
+                  frmt: "3n"
+                  optnl: true
+                  sep_prfx: ","
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Utc"
+                  frmt: "[N]2!n[2!n]"
+                  optnl: true
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Time)(Decimals)(UTC Indicator)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)(Dcmls)(Utc)"
+              }
+              mt_def_fld {
+                tag: "f98F"
+                nm: "Date/Time"
+                frmt: ":4!c/[8c]/4!c6!n"
+                optnl: true
+                fld_nb: "62"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Date Code)(Time)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(DtCd)(Tm)"
+              }
+              mt_def_fld {
+                tag: "f98J"
+                nm: "Date/Time"
+                frmt: ":4!c//8!n6!n/4!a2!a2!c[3!c]"
+                optnl: true
+                fld_nb: "62"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "IdrCd"
+                  frmt: "4!a2!a2!c[3!c]"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Time)(Identifier Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)(IdrCd)"
+              }
+              mt_def_fld {
+                tag: "f98K"
+                nm: "Date/Time"
+                frmt: ":4!c/8c/8!n6!n/34x"
+                optnl: true
+                fld_nb: "62"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "PrtryCd"
+                  frmt: "34x"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Date)(Time)(Proprietary Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(Dt)(Tm)(PrtryCd)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r69a_E"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o69a_E"
+              nm: "Period"
+              optnl: true
+              fld_nb: "63"
+              mt_def_fld {
+                tag: "f69A"
+                nm: "Period"
+                frmt: ":4!c//8!n/8!n"
+                optnl: true
+                fld_nb: "63"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Date)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Dt)"
+              }
+              mt_def_fld {
+                tag: "f69B"
+                nm: "Period"
+                frmt: ":4!c//8!n6!n/8!n6!n"
+                optnl: true
+                fld_nb: "63"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Time)(Date)(Time)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)(Dt)(Tm)"
+              }
+              mt_def_fld {
+                tag: "f69C"
+                nm: "Period"
+                frmt: ":4!c//8!n/4!c"
+                optnl: true
+                fld_nb: "63"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(DtCd)"
+              }
+              mt_def_fld {
+                tag: "f69D"
+                nm: "Period"
+                frmt: ":4!c//8!n6!n/4!c"
+                optnl: true
+                fld_nb: "63"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Time)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)(DtCd)"
+              }
+              mt_def_fld {
+                tag: "f69E"
+                nm: "Period"
+                frmt: ":4!c//4!c/8!n"
+                optnl: true
+                fld_nb: "63"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date Code)(Date)"
+                sub_fld_nms_gnrc: "(Qlfr)(DtCd)(Dt)"
+              }
+              mt_def_fld {
+                tag: "f69F"
+                nm: "Period"
+                frmt: ":4!c//4!c/8!n6!n"
+                optnl: true
+                fld_nb: "63"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                sub_fld_nms: "(Qualifier)(Date Code)(Date)(Time)"
+                sub_fld_nms_gnrc: "(Qlfr)(DtCd)(Dt)(Tm)"
+              }
+              mt_def_fld {
+                tag: "f69J"
+                nm: "Period"
+                frmt: ":4!c//4!c"
+                optnl: true
+                fld_nb: "63"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(DtCd)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r92a_E"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o92a_E"
+              nm: "Rate"
+              optnl: true
+              fld_nb: "64"
+              mt_def_fld {
+                tag: "f92A"
+                nm: "Rate"
+                frmt: ":4!c//[N]15d"
+                optnl: true
+                fld_nb: "64"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "//"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Sgn"
+                  frmt: "N"
+                  optnl: true
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Rate"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Sign)(Rate)"
+                sub_fld_nms_gnrc: "(Qlfr)(Sgn)(Rate)"
+              }
+              mt_def_fld {
+                tag: "f92B"
+                nm: "Rate"
+                frmt: ":4!c//3!a/3!a/15d"
+                optnl: true
+                fld_nb: "64"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Ccy1"
+                  frmt: "3!a"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Ccy2"
+                  frmt: "3!a"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Rate"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(First Currency Code)(Second Currency Code)(Rate)"
+                sub_fld_nms_gnrc: "(Qlfr)(Ccy1)(Ccy2)(Rate)"
+              }
+              mt_def_fld {
+                tag: "f92F"
+                nm: "Rate"
+                frmt: ":4!c//3!a15d"
+                optnl: true
+                fld_nb: "64"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Ccy"
+                  frmt: "3!a"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Amt"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Currency Code)(Amount)"
+                sub_fld_nms_gnrc: "(Qlfr)(Ccy)(Amt)"
+              }
+              mt_def_fld {
+                tag: "f92H"
+                nm: "Rate"
+                frmt: ":4!c//3!a15d/4!c"
+                optnl: true
+                fld_nb: "64"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Ccy"
+                  frmt: "3!a"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Amt"
+                  frmt: "15d"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "RateSts"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Currency Code)(Amount)(Rate Status)"
+                sub_fld_nms_gnrc: "(Qlfr)(Ccy)(Amt)(RateSts)"
+              }
+              mt_def_fld {
+                tag: "f92J"
+                nm: "Rate"
+                frmt: ":4!c/[8c]/4!c/3!a15d[/4!c]"
+                optnl: true
+                fld_nb: "64"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "RateTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Ccy"
+                  frmt: "3!a"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Amt"
+                  frmt: "15d"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "RateSts"
+                  frmt: "4!c"
+                  optnl: true
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Rate Type Code)(Currency Code)(Amount)(Rate Status)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(RateTpCd)(Ccy)(Amt)(RateSts)"
+              }
+              mt_def_fld {
+                tag: "f92K"
+                nm: "Rate"
+                frmt: ":4!c//4!c"
+                optnl: true
+                fld_nb: "64"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "RateTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Rate Type Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(RateTpCd)"
+              }
+              mt_def_fld {
+                tag: "f92P"
+                nm: "Rate"
+                frmt: ":4!c//15d"
+                optnl: true
+                fld_nb: "64"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "IndxPts"
+                  frmt: "15d"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Index Points)"
+                sub_fld_nms_gnrc: "(Qlfr)(IndxPts)"
+              }
+              mt_def_fld {
+                tag: "f92R"
+                nm: "Rate"
+                frmt: ":4!c/[8c]/4!c/15d"
+                optnl: true
+                fld_nb: "64"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "RateTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Rate"
+                  frmt: "15d"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Rate Type Code)(Rate)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(RateTpCd)(Rate)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r90a_E"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o90a_E"
+              nm: "Price"
+              optnl: true
+              fld_nb: "65"
+              mt_def_fld {
+                tag: "f90A"
+                nm: "Price"
+                frmt: ":4!c//4!c/[N]15d"
+                optnl: true
+                fld_nb: "65"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "//"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Cd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Sgn"
+                  frmt: "N"
+                  optnl: true
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Pric"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Percentage Type Code)(Sign)(Price)"
+                sub_fld_nms_gnrc: "(Qlfr)(Cd)(Sgn)(Pric)"
+              }
+              mt_def_fld {
+                tag: "f90B"
+                nm: "Price"
+                frmt: ":4!c//4!c/3!a15d"
+                optnl: true
+                fld_nb: "65"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "AmtTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Ccy"
+                  frmt: "3a"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Pric"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Price)"
+                sub_fld_nms_gnrc: "(Qlfr)(AmtTpCd)(Ccy)(Pric)"
+              }
+              mt_def_fld {
+                tag: "f90E"
+                nm: "Price"
+                frmt: ":4!c//4!c"
+                optnl: true
+                fld_nb: "65"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "PricCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Price Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(PricCd)"
+              }
+              mt_def_fld {
+                tag: "f90L"
+                nm: "Price"
+                frmt: ":4!c//[N]15d"
+                optnl: true
+                fld_nb: "65"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "//"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Sgn"
+                  frmt: "N"
+                  optnl: true
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "IndxPts"
+                  frmt: "15d"
+                }
+                sub_fld_nms: "(Qualifier)(Sign)(Index Points)"
+                sub_fld_nms_gnrc: "(Qlfr)(Sgn)(IndxPts)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r36a_E"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o36a_E"
+              nm: "Quantity of Financial Instrument"
+              optnl: true
+              fld_nb: "66"
+              mt_def_fld {
+                tag: "f36B"
+                nm: "Quantity of Financial Instrument"
+                frmt: ":4!c//4!c/15d"
+                optnl: true
+                fld_nb: "66"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "QtyTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Qty"
+                  frmt: "15d"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity)"
+                sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(Qty)"
+              }
+              mt_def_fld {
+                tag: "f36C"
+                nm: "Quantity of Financial Instrument"
+                frmt: ":4!c//4!c"
+                optnl: true
+                fld_nb: "66"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "QtyCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Quantity Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(QtyCd)"
+              }
+              mt_def_fld {
+                tag: "f36D"
+                nm: "Quantity of Financial Instrument"
+                frmt: ":4!c//4!c/30d"
+                optnl: true
+                fld_nb: "66"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "QtyTpCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "QtyDgtlTkns"
+                  frmt: "30d"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity of Digital Tokens)"
+                sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(QtyDgtlTkns)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        seq {
+          tag: "sE1"
+          nm: "Subsequence E1 Securities Movement"
+          id: "E1"
+          cntt_start: "-----> Optional Repetitive Subsequence E1 Securities Movement"
+          cntt_end: "-----| End of Subsequence E1 Securities Movement"
+          optnl: true
+          rpttv: true
+          mt_def_obj {
+            fld {
+              tag: "f16R"
+              nm: "Start of Block"
+              frmt: "16c"
+              cntt: "SECMOVE"
+              fld_nb: "67"
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r22a_E1"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o22a_E1"
+                  nm: "Indicator"
+                  fld_nb: "68"
+                  mt_def_fld {
+                    tag: "f22F"
+                    nm: "Indicator"
+                    frmt: ":4!c/[8c]/4!c"
+                    fld_nb: "68"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dss"
+                      frmt: "8c"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Id"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Data Source Scheme)(Indicator)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dss)(Id)"
+                  }
+                  mt_def_fld {
+                    tag: "f22H"
+                    nm: "Indicator"
+                    frmt: ":4!c//4!c"
+                    fld_nb: "68"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Id"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Indicator)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Id)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f35B"
+              nm: "Identification of the Financial Instrument"
+              frmt: "[ISIN1!e12!c]<crlf>[4*35x]"
+              cntt: "[ISIN1!e12!c]<crlf>[4*35x]"
+              fld_nb: "69"
+              mt_def_sub_fld {
+                nm_gnrc: "Scty"
+                frmt: "ISIN1!e12!c"
+                optnl: true
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Desc"
+                frmt: "4*35x"
+                optnl: true
+                sep_prfx: "<crlf>"
+              }
+              sub_fld_nms: "(Identification of Security)<crlf>(Description of Security)"
+              sub_fld_nms_gnrc: "(Scty)(Desc)"
+            }
+          }
+          mt_def_obj {
+            seq {
+              tag: "sE1a"
+              nm: "Subsequence E1a Financial Instrument Attributes"
+              id: "E1a"
+              cntt_start: "Optional Subsequence E1a Financial Instrument Attributes"
+              cntt_end: "End of Subsequence E1a Financial Instrument Attributes"
+              optnl: true
+              mt_def_obj {
+                fld {
+                  tag: "f16R"
+                  nm: "Start of Block"
+                  frmt: "16c"
+                  cntt: "FIA"
+                  fld_nb: "70"
+                }
+              }
+              mt_def_obj {
+                fld {
+                  tag: "f94B"
+                  nm: "Place of Listing"
+                  frmt: ":4!c/[8c]/4!c[/30x]"
+                  qlfr: "PLIS"
+                  optnl: true
+                  cntt: ":4!c/[8c]/4!c[/30x]"
+                  fld_nb: "71"
+                  mt_def_sub_fld {
+                    nm_gnrc: "Qlfr"
+                    frmt: "4!c"
+                    sep_prfx: ":"
+                    sep_pstfx: "/"
+                  }
+                  mt_def_sub_fld {
+                    nm_gnrc: "Dss"
+                    frmt: "8c"
+                    optnl: true
+                  }
+                  mt_def_sub_fld {
+                    nm_gnrc: "PlcCd"
+                    frmt: "4!c"
+                    sep_prfx: "/"
+                  }
+                  mt_def_sub_fld {
+                    nm_gnrc: "Nrrtv"
+                    frmt: "30x"
+                    optnl: true
+                    sep_prfx: "/"
+                  }
+                  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Place Code)(Narrative)"
+                  sub_fld_nms_gnrc: "(Qlfr)(Dss)(PlcCd)(Nrrtv)"
+                }
+              }
+              mt_def_obj {
+                fld {
+                  tag: "f22F"
+                  nm: "Method of Interest Computation Indicator"
+                  frmt: ":4!c/[8c]/4!c"
+                  qlfr: "MICO"
+                  optnl: true
+                  cntt: ":4!c/[8c]/4!c"
+                  fld_nb: "72"
+                  mt_def_sub_fld {
+                    nm_gnrc: "Qlfr"
+                    frmt: "4!c"
+                    sep_prfx: ":"
+                    sep_pstfx: "/"
+                  }
+                  mt_def_sub_fld {
+                    nm_gnrc: "Dss"
+                    frmt: "8c"
+                    optnl: true
+                  }
+                  mt_def_sub_fld {
+                    nm_gnrc: "Id"
+                    frmt: "4!c"
+                    sep_prfx: "/"
+                  }
+                  sub_fld_nms: "(Qualifier)(Data Source Scheme)(Indicator)"
+                  sub_fld_nms_gnrc: "(Qlfr)(Dss)(Id)"
+                }
+              }
+              mt_def_obj {
+                rptn {
+                  tag: "r12a_E1a"
+                  cntt_start: "----->"
+                  cntt_end: "-----|"
+                  mt_def_rptn_obj {
+                    optn {
+                      tag: "o12a_E1a"
+                      nm: "Type of Financial Instrument"
+                      optnl: true
+                      fld_nb: "73"
+                      mt_def_fld {
+                        tag: "f12A"
+                        nm: "Type of Financial Instrument"
+                        frmt: ":4!c/[8c]/30x"
+                        optnl: true
+                        fld_nb: "73"
+                        mt_def_sub_fld {
+                          nm_gnrc: "Qlfr"
+                          frmt: "4!c"
+                          sep_prfx: ":"
+                          sep_pstfx: "/"
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "Dss"
+                          frmt: "8c"
+                          optnl: true
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "Desc"
+                          frmt: "30x"
+                          sep_prfx: "/"
+                        }
+                        sub_fld_nms: "(Qualifier)(Data Source Scheme)(Instrument Code or Description)"
+                        sub_fld_nms_gnrc: "(Qlfr)(Dss)(Desc)"
+                      }
+                      mt_def_fld {
+                        tag: "f12B"
+                        nm: "Type of Financial Instrument"
+                        frmt: ":4!c/[8c]/4!c"
+                        optnl: true
+                        fld_nb: "73"
+                        mt_def_sub_fld {
+                          nm_gnrc: "Qlfr"
+                          frmt: "4!c"
+                          sep_prfx: ":"
+                          sep_pstfx: "/"
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "Dss"
+                          frmt: "8c"
+                          optnl: true
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "Cd"
+                          frmt: "4!c"
+                          sep_prfx: "/"
+                        }
+                        sub_fld_nms: "(Qualifier)(Data Source Scheme)(Instrument Type Code)"
+                        sub_fld_nms_gnrc: "(Qlfr)(Dss)(Cd)"
+                      }
+                      mt_def_fld {
+                        tag: "f12C"
+                        nm: "Type of Financial Instrument"
+                        frmt: ":4!c//6!c"
+                        optnl: true
+                        fld_nb: "73"
+                        mt_def_sub_fld {
+                          nm_gnrc: "Qlfr"
+                          frmt: "4!c"
+                          sep_prfx: ":"
+                          sep_pstfx: "/"
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "Cd"
+                          frmt: "6!c"
+                          sep_prfx: "/"
+                        }
+                        sub_fld_nms: "(Qualifier)(CFI Code)"
+                        sub_fld_nms_gnrc: "(Qlfr)(Cd)"
+                      }
+                    }
+                  }
+                }
+              }
+              mt_def_obj {
+                fld {
+                  tag: "f11A"
+                  nm: "Currency of Denomination"
+                  frmt: ":4!c//3!a"
+                  qlfr: "DENO"
+                  optnl: true
+                  cntt: ":4!c//3!a"
+                  fld_nb: "74"
+                  mt_def_sub_fld {
+                    nm_gnrc: "Qlfr"
+                    frmt: "4!c"
+                    sep_prfx: ":"
+                    sep_pstfx: "/"
+                  }
+                  mt_def_sub_fld {
+                    nm_gnrc: "Ccy"
+                    frmt: "3!a"
+                    sep_prfx: "/"
+                  }
+                  sub_fld_nms: "(Qualifier)(Currency Code)"
+                  sub_fld_nms_gnrc: "(Qlfr)(Ccy)"
+                }
+              }
+              mt_def_obj {
+                rptn {
+                  tag: "r98A"
+                  cntt_start: "----->"
+                  cntt_end: "-----|"
+                  mt_def_rptn_obj {
+                    fld {
+                      tag: "f98A"
+                      nm: "Date/Time"
+                      frmt: ":4!c//8!n"
+                      qlfr: "4!c"
+                      optnl: true
+                      cntt: ":4!c//8!n"
+                      fld_nb: "75"
+                      mt_def_sub_fld {
+                        nm_gnrc: "Qlfr"
+                        frmt: "4!c"
+                        sep_prfx: ":"
+                        sep_pstfx: "/"
+                      }
+                      mt_def_sub_fld {
+                        nm_gnrc: "Dt"
+                        frmt: "8!n"
+                        sep_prfx: "/"
+                      }
+                      sub_fld_nms: "(Qualifier)(Date)"
+                      sub_fld_nms_gnrc: "(Qlfr)(Dt)"
+                    }
+                  }
+                }
+              }
+              mt_def_obj {
+                optn {
+                  tag: "o90a_E1a"
+                  nm: "Issue Price"
+                  optnl: true
+                  fld_nb: "76"
+                  mt_def_fld {
+                    tag: "f90A"
+                    nm: "Issue Price"
+                    frmt: ":4!c//4!c/[N]15d"
+                    optnl: true
+                    fld_nb: "76"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "//"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Cd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Pric"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Percentage Type Code)(Sign)(Price)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Cd)(Sgn)(Pric)"
+                  }
+                  mt_def_fld {
+                    tag: "f90B"
+                    nm: "Issue Price"
+                    frmt: ":4!c//4!c/3!a15d"
+                    optnl: true
+                    fld_nb: "76"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "AmtTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Pric"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Price)"
+                    sub_fld_nms_gnrc: "(Qlfr)(AmtTpCd)(Ccy)(Pric)"
+                  }
+                  mt_def_fld {
+                    tag: "f90E"
+                    nm: "Issue Price"
+                    frmt: ":4!c//4!c"
+                    optnl: true
+                    fld_nb: "76"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "PricCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Price Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(PricCd)"
+                  }
+                }
+              }
+              mt_def_obj {
+                rptn {
+                  tag: "r92a_E1a"
+                  cntt_start: "----->"
+                  cntt_end: "-----|"
+                  mt_def_rptn_obj {
+                    optn {
+                      tag: "o92a_E1a"
+                      nm: "Rate"
+                      optnl: true
+                      fld_nb: "77"
+                      mt_def_fld {
+                        tag: "f92A"
+                        nm: "Rate"
+                        frmt: ":4!c//[N]15d"
+                        optnl: true
+                        fld_nb: "77"
+                        mt_def_sub_fld {
+                          nm_gnrc: "Qlfr"
+                          frmt: "4!c"
+                          sep_prfx: ":"
+                          sep_pstfx: "//"
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "Sgn"
+                          frmt: "N"
+                          optnl: true
+                          sep_prfx: "/"
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "Rate"
+                          frmt: "15d"
+                        }
+                        sub_fld_nms: "(Qualifier)(Sign)(Rate)"
+                        sub_fld_nms_gnrc: "(Qlfr)(Sgn)(Rate)"
+                      }
+                      mt_def_fld {
+                        tag: "f92K"
+                        nm: "Rate"
+                        frmt: ":4!c//4!c"
+                        optnl: true
+                        fld_nb: "77"
+                        mt_def_sub_fld {
+                          nm_gnrc: "Qlfr"
+                          frmt: "4!c"
+                          sep_prfx: ":"
+                          sep_pstfx: "/"
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "RateTpCd"
+                          frmt: "4!c"
+                          sep_prfx: "/"
+                        }
+                        sub_fld_nms: "(Qualifier)(Rate Type Code)"
+                        sub_fld_nms_gnrc: "(Qlfr)(RateTpCd)"
+                      }
+                    }
+                  }
+                }
+              }
+              mt_def_obj {
+                rptn {
+                  tag: "r36a_E1a"
+                  cntt_start: "----->"
+                  cntt_end: "-----|"
+                  mt_def_rptn_obj {
+                    optn {
+                      tag: "o36a_E1a"
+                      nm: "Quantity of Financial Instrument"
+                      optnl: true
+                      fld_nb: "78"
+                      mt_def_fld {
+                        tag: "f36B"
+                        nm: "Quantity of Financial Instrument"
+                        frmt: ":4!c//4!c/15d"
+                        optnl: true
+                        fld_nb: "78"
+                        mt_def_sub_fld {
+                          nm_gnrc: "Qlfr"
+                          frmt: "4!c"
+                          sep_prfx: ":"
+                          sep_pstfx: "/"
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "QtyTpCd"
+                          frmt: "4!c"
+                          sep_prfx: "/"
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "Qty"
+                          frmt: "15d"
+                          sep_prfx: "/"
+                        }
+                        sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity)"
+                        sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(Qty)"
+                      }
+                      mt_def_fld {
+                        tag: "f36D"
+                        nm: "Quantity of Financial Instrument"
+                        frmt: ":4!c//4!c/30d"
+                        optnl: true
+                        fld_nb: "78"
+                        mt_def_sub_fld {
+                          nm_gnrc: "Qlfr"
+                          frmt: "4!c"
+                          sep_prfx: ":"
+                          sep_pstfx: "/"
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "QtyTpCd"
+                          frmt: "4!c"
+                          sep_prfx: "/"
+                        }
+                        mt_def_sub_fld {
+                          nm_gnrc: "QtyDgtlTkns"
+                          frmt: "30d"
+                          sep_prfx: "/"
+                        }
+                        sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity of Digital Tokens)"
+                        sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(QtyDgtlTkns)"
+                      }
+                    }
+                  }
+                }
+              }
+              mt_def_obj {
+                fld {
+                  tag: "f16S"
+                  nm: "End of Block"
+                  frmt: "16c"
+                  cntt: "FIA"
+                  fld_nb: "79"
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r36a_E1"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o36a_E1"
+                  nm: "Entitled Quantity"
+                  optnl: true
+                  fld_nb: "80"
+                  mt_def_fld {
+                    tag: "f36B"
+                    nm: "Entitled Quantity"
+                    frmt: ":4!c//4!c/15d"
+                    optnl: true
+                    fld_nb: "80"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qty"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity)"
+                    sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(Qty)"
+                  }
+                  mt_def_fld {
+                    tag: "f36D"
+                    nm: "Entitled Quantity"
+                    frmt: ":4!c//4!c/30d"
+                    optnl: true
+                    fld_nb: "80"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyDgtlTkns"
+                      frmt: "30d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Quantity Type Code)(Quantity of Digital Tokens)"
+                    sub_fld_nms_gnrc: "(Qlfr)(QtyTpCd)(QtyDgtlTkns)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r94a_E1"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o94a_E1"
+                  nm: "Place"
+                  optnl: true
+                  fld_nb: "81"
+                  mt_def_fld {
+                    tag: "f94B"
+                    nm: "Place"
+                    frmt: ":4!c/[8c]/4!c[/30x]"
+                    optnl: true
+                    fld_nb: "81"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dss"
+                      frmt: "8c"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "PlcCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Nrrtv"
+                      frmt: "30x"
+                      optnl: true
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Data Source Scheme)(Place Code)(Narrative)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dss)(PlcCd)(Nrrtv)"
+                  }
+                  mt_def_fld {
+                    tag: "f94C"
+                    nm: "Place"
+                    frmt: ":4!c//2!a"
+                    optnl: true
+                    fld_nb: "81"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ctry"
+                      frmt: "2!a"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Country Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Ctry)"
+                  }
+                  mt_def_fld {
+                    tag: "f94F"
+                    nm: "Place"
+                    frmt: ":4!c//4!c/4!a2!a2!c[3!c]"
+                    optnl: true
+                    fld_nb: "81"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "PlcCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "IdrCd"
+                      frmt: "4!a2!a2!c[3!c]"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Place Code)(Identifier Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(PlcCd)(IdrCd)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f22F"
+              nm: "Disposition of Fractions"
+              frmt: ":4!c/[8c]/4!c"
+              qlfr: "DISF"
+              optnl: true
+              cntt: ":4!c/[8c]/4!c"
+              fld_nb: "82"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Dss"
+                frmt: "8c"
+                optnl: true
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Id"
+                frmt: "4!c"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Data Source Scheme)(Indicator)"
+              sub_fld_nms_gnrc: "(Qlfr)(Dss)(Id)"
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f11A"
+              nm: "Currency Option"
+              frmt: ":4!c//3!a"
+              qlfr: "OPTN"
+              optnl: true
+              cntt: ":4!c//3!a"
+              fld_nb: "83"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Ccy"
+                frmt: "3!a"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Currency Code)"
+              sub_fld_nms_gnrc: "(Qlfr)(Ccy)"
+            }
+          }
+          mt_def_obj {
+            optn {
+              tag: "o69a_E1"
+              nm: "Trading Period"
+              optnl: true
+              fld_nb: "84"
+              mt_def_fld {
+                tag: "f69A"
+                nm: "Trading Period"
+                frmt: ":4!c//8!n/8!n"
+                optnl: true
+                fld_nb: "84"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Date)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Dt)"
+              }
+              mt_def_fld {
+                tag: "f69B"
+                nm: "Trading Period"
+                frmt: ":4!c//8!n6!n/8!n6!n"
+                optnl: true
+                fld_nb: "84"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Time)(Date)(Time)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)(Dt)(Tm)"
+              }
+              mt_def_fld {
+                tag: "f69C"
+                nm: "Trading Period"
+                frmt: ":4!c//8!n/4!c"
+                optnl: true
+                fld_nb: "84"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(DtCd)"
+              }
+              mt_def_fld {
+                tag: "f69D"
+                nm: "Trading Period"
+                frmt: ":4!c//8!n6!n/4!c"
+                optnl: true
+                fld_nb: "84"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date)(Time)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)(DtCd)"
+              }
+              mt_def_fld {
+                tag: "f69E"
+                nm: "Trading Period"
+                frmt: ":4!c//4!c/8!n"
+                optnl: true
+                fld_nb: "84"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date Code)(Date)"
+                sub_fld_nms_gnrc: "(Qlfr)(DtCd)(Dt)"
+              }
+              mt_def_fld {
+                tag: "f69F"
+                nm: "Trading Period"
+                frmt: ":4!c//4!c/8!n6!n"
+                optnl: true
+                fld_nb: "84"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dt"
+                  frmt: "8!n"
+                  sep_prfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Tm"
+                  frmt: "6!n"
+                }
+                sub_fld_nms: "(Qualifier)(Date Code)(Date)(Time)"
+                sub_fld_nms_gnrc: "(Qlfr)(DtCd)(Dt)(Tm)"
+              }
+              mt_def_fld {
+                tag: "f69J"
+                nm: "Trading Period"
+                frmt: ":4!c//4!c"
+                optnl: true
+                fld_nb: "84"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "DtCd"
+                  frmt: "4!c"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Date Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(DtCd)"
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r90a_E1"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o90a_E1"
+                  nm: "Price"
+                  optnl: true
+                  fld_nb: "85"
+                  mt_def_fld {
+                    tag: "f90A"
+                    nm: "Price"
+                    frmt: ":4!c//4!c/[N]15d"
+                    optnl: true
+                    fld_nb: "85"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "//"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Cd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Pric"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Percentage Type Code)(Sign)(Price)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Cd)(Sgn)(Pric)"
+                  }
+                  mt_def_fld {
+                    tag: "f90B"
+                    nm: "Price"
+                    frmt: ":4!c//4!c/3!a15d"
+                    optnl: true
+                    fld_nb: "85"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "AmtTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Pric"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Price)"
+                    sub_fld_nms_gnrc: "(Qlfr)(AmtTpCd)(Ccy)(Pric)"
+                  }
+                  mt_def_fld {
+                    tag: "f90E"
+                    nm: "Price"
+                    frmt: ":4!c//4!c"
+                    optnl: true
+                    fld_nb: "85"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "PricCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Price Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(PricCd)"
+                  }
+                  mt_def_fld {
+                    tag: "f90F"
+                    nm: "Price"
+                    frmt: ":4!c//4!c/3!a15d/4!c/15d"
+                    optnl: true
+                    fld_nb: "85"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "AmtTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt"
+                      frmt: "15d"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qty"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Amount)(Quantity Type Code)(Quantity)"
+                    sub_fld_nms_gnrc: "(Qlfr)(AmtTpCd)(Ccy)(Amt)(QtyTpCd)(Qty)"
+                  }
+                  mt_def_fld {
+                    tag: "f90J"
+                    nm: "Price"
+                    frmt: ":4!c//4!c/3!a15d/3!a15d"
+                    optnl: true
+                    fld_nb: "85"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "AmtTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy1"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt1"
+                      frmt: "15d"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy2"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt2"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Amount)(Currency Code)(Amount)"
+                    sub_fld_nms_gnrc: "(Qlfr)(AmtTpCd)(Ccy)(Amt)(Ccy)(Amt)"
+                  }
+                  mt_def_fld {
+                    tag: "f90K"
+                    nm: "Price"
+                    frmt: ":4!c//15d"
+                    optnl: true
+                    fld_nb: "85"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "IndxPts"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Index Points)"
+                    sub_fld_nms_gnrc: "(Qlfr)(IndxPts)"
+                  }
+                  mt_def_fld {
+                    tag: "f90L"
+                    nm: "Price"
+                    frmt: ":4!c//[N]15d"
+                    optnl: true
+                    fld_nb: "85"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "//"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "IndxPts"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Sign)(Index Points)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Sgn)(IndxPts)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r92a_E1"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o92a_E1"
+                  nm: "Rate"
+                  optnl: true
+                  fld_nb: "86"
+                  mt_def_fld {
+                    tag: "f92A"
+                    nm: "Rate"
+                    frmt: ":4!c//[N]15d"
+                    optnl: true
+                    fld_nb: "86"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "//"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Rate"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Sign)(Rate)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Sgn)(Rate)"
+                  }
+                  mt_def_fld {
+                    tag: "f92D"
+                    nm: "Rate"
+                    frmt: ":4!c//15d/15d"
+                    optnl: true
+                    fld_nb: "86"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qty1"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qty2"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Quantity)(Quantity)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Qty)(Qty)"
+                  }
+                  mt_def_fld {
+                    tag: "f92F"
+                    nm: "Rate"
+                    frmt: ":4!c//3!a15d"
+                    optnl: true
+                    fld_nb: "86"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Currency Code)(Amount)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Ccy)(Amt)"
+                  }
+                  mt_def_fld {
+                    tag: "f92K"
+                    nm: "Rate"
+                    frmt: ":4!c//4!c"
+                    optnl: true
+                    fld_nb: "86"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "RateTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Rate Type Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(RateTpCd)"
+                  }
+                  mt_def_fld {
+                    tag: "f92L"
+                    nm: "Rate"
+                    frmt: ":4!c//3!a15d/3!a15d"
+                    optnl: true
+                    fld_nb: "86"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy1"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt1"
+                      frmt: "15d"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy2"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt2"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(First Currency Code)(Amount)(Second Currency Code)(Amount)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Ccy1)(Amt)(Ccy2)(Amt)"
+                  }
+                  mt_def_fld {
+                    tag: "f92M"
+                    nm: "Rate"
+                    frmt: ":4!c//3!a15d/15d"
+                    optnl: true
+                    fld_nb: "86"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt"
+                      frmt: "15d"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qty"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Currency Code)(Amount)(Quantity)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Ccy)(Amt)(Qty)"
+                  }
+                  mt_def_fld {
+                    tag: "f92N"
+                    nm: "Rate"
+                    frmt: ":4!c//15d/3!a15d"
+                    optnl: true
+                    fld_nb: "86"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qty"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Quantity)(Currency Code)(Amount)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Qty)(Ccy)(Amt)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r98a_E1"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o98a_E1"
+                  nm: "Date/Time"
+                  fld_nb: "87"
+                  mt_def_fld {
+                    tag: "f98A"
+                    nm: "Date/Time"
+                    frmt: ":4!c//8!n"
+                    fld_nb: "87"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dt"
+                      frmt: "8!n"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Date)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dt)"
+                  }
+                  mt_def_fld {
+                    tag: "f98B"
+                    nm: "Date/Time"
+                    frmt: ":4!c/[8c]/4!c"
+                    fld_nb: "87"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dss"
+                      frmt: "8c"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "DtCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Data Source Scheme)(Date Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dss)(DtCd)"
+                  }
+                  mt_def_fld {
+                    tag: "f98C"
+                    nm: "Date/Time"
+                    frmt: ":4!c//8!n6!n"
+                    fld_nb: "87"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dt"
+                      frmt: "8!n"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Tm"
+                      frmt: "6!n"
+                    }
+                    sub_fld_nms: "(Qualifier)(Date)(Time)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f16S"
+              nm: "End of Block"
+              frmt: "16c"
+              cntt: "SECMOVE"
+              fld_nb: "88"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        seq {
+          tag: "sE2"
+          nm: "Subsequence E2 Cash Movement"
+          id: "E2"
+          cntt_start: "-----> Optional Repetitive Subsequence E2 Cash Movement"
+          cntt_end: "-----| End of Subsequence E2 Cash Movement"
+          optnl: true
+          rpttv: true
+          mt_def_obj {
+            fld {
+              tag: "f16R"
+              nm: "Start of Block"
+              frmt: "16c"
+              cntt: "CASHMOVE"
+              fld_nb: "89"
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r22a_E2"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o22a_E2"
+                  nm: "Indicator"
+                  fld_nb: "90"
+                  mt_def_fld {
+                    tag: "f22F"
+                    nm: "Indicator"
+                    frmt: ":4!c/[8c]/4!c"
+                    fld_nb: "90"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dss"
+                      frmt: "8c"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Id"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Data Source Scheme)(Indicator)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dss)(Id)"
+                  }
+                  mt_def_fld {
+                    tag: "f22H"
+                    nm: "Indicator"
+                    frmt: ":4!c//4!c"
+                    fld_nb: "90"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Id"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Indicator)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Id)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f94C"
+              nm: "Country of Income Source"
+              frmt: ":4!c//2!a"
+              qlfr: "COIN"
+              optnl: true
+              cntt: ":4!c//2!a"
+              fld_nb: "91"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Ctry"
+                frmt: "2!a"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Country Code)"
+              sub_fld_nms_gnrc: "(Qlfr)(Ctry)"
+            }
+          }
+          mt_def_obj {
+            optn {
+              tag: "o97a_E2"
+              nm: "Cash Account"
+              optnl: true
+              fld_nb: "92"
+              mt_def_fld {
+                tag: "f97A"
+                nm: "Cash Account"
+                frmt: ":4!c//35x"
+                optnl: true
+                fld_nb: "92"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Acct"
+                  frmt: "35x"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Account Number)"
+                sub_fld_nms_gnrc: "(Qlfr)(Acct)"
+              }
+              mt_def_fld {
+                tag: "f97E"
+                nm: "Cash Account"
+                frmt: ":4!c//34x"
+                optnl: true
+                fld_nb: "92"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Acct"
+                  frmt: "34x"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(International Bank Account Number)"
+                sub_fld_nms_gnrc: "(Qlfr)(Acct)"
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r19B"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                fld {
+                  tag: "f19B"
+                  nm: "Amount"
+                  frmt: ":4!c//3!a15d"
+                  qlfr: "4!c"
+                  optnl: true
+                  cntt: ":4!c//3!a15d"
+                  fld_nb: "93"
+                  mt_def_sub_fld {
+                    nm_gnrc: "Qlfr"
+                    frmt: "4!c"
+                    sep_prfx: ":"
+                    sep_pstfx: "/"
+                  }
+                  mt_def_sub_fld {
+                    nm_gnrc: "Ccy"
+                    frmt: "3!a"
+                    sep_prfx: "/"
+                  }
+                  mt_def_sub_fld {
+                    nm_gnrc: "Amt"
+                    frmt: "15d"
+                  }
+                  sub_fld_nms: "(Qualifier)(Currency Code)(Amount)"
+                  sub_fld_nms_gnrc: "(Qlfr)(Ccy)(Amt)"
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r98a_E2"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o98a_E2"
+                  nm: "Date/Time"
+                  fld_nb: "94"
+                  mt_def_fld {
+                    tag: "f98A"
+                    nm: "Date/Time"
+                    frmt: ":4!c//8!n"
+                    fld_nb: "94"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dt"
+                      frmt: "8!n"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Date)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dt)"
+                  }
+                  mt_def_fld {
+                    tag: "f98B"
+                    nm: "Date/Time"
+                    frmt: ":4!c/[8c]/4!c"
+                    fld_nb: "94"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dss"
+                      frmt: "8c"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "DtCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Data Source Scheme)(Date Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dss)(DtCd)"
+                  }
+                  mt_def_fld {
+                    tag: "f98C"
+                    nm: "Date/Time"
+                    frmt: ":4!c//8!n6!n"
+                    fld_nb: "94"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dt"
+                      frmt: "8!n"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Tm"
+                      frmt: "6!n"
+                    }
+                    sub_fld_nms: "(Qualifier)(Date)(Time)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dt)(Tm)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r92a_E2"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o92a_E2"
+                  nm: "Rate"
+                  optnl: true
+                  fld_nb: "95"
+                  mt_def_fld {
+                    tag: "f92A"
+                    nm: "Rate"
+                    frmt: ":4!c//[N]15d"
+                    optnl: true
+                    fld_nb: "95"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "//"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Rate"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Sign)(Rate)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Sgn)(Rate)"
+                  }
+                  mt_def_fld {
+                    tag: "f92B"
+                    nm: "Rate"
+                    frmt: ":4!c//3!a/3!a/15d"
+                    optnl: true
+                    fld_nb: "95"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy1"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy2"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Rate"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(First Currency Code)(Second Currency Code)(Rate)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Ccy1)(Ccy2)(Rate)"
+                  }
+                  mt_def_fld {
+                    tag: "f92F"
+                    nm: "Rate"
+                    frmt: ":4!c//3!a15d"
+                    optnl: true
+                    fld_nb: "95"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Currency Code)(Amount)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Ccy)(Amt)"
+                  }
+                  mt_def_fld {
+                    tag: "f92H"
+                    nm: "Rate"
+                    frmt: ":4!c//3!a15d/4!c"
+                    optnl: true
+                    fld_nb: "95"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt"
+                      frmt: "15d"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "RateSts"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Currency Code)(Amount)(Rate Status)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Ccy)(Amt)(RateSts)"
+                  }
+                  mt_def_fld {
+                    tag: "f92J"
+                    nm: "Rate"
+                    frmt: ":4!c/[8c]/4!c/3!a15d[/4!c]"
+                    optnl: true
+                    fld_nb: "95"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dss"
+                      frmt: "8c"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "RateTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt"
+                      frmt: "15d"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "RateSts"
+                      frmt: "4!c"
+                      optnl: true
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Data Source Scheme)(Rate Type Code)(Currency Code)(Amount)(Rate Status)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dss)(RateTpCd)(Ccy)(Amt)(RateSts)"
+                  }
+                  mt_def_fld {
+                    tag: "f92K"
+                    nm: "Rate"
+                    frmt: ":4!c//4!c"
+                    optnl: true
+                    fld_nb: "95"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "RateTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Rate Type Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(RateTpCd)"
+                  }
+                  mt_def_fld {
+                    tag: "f92M"
+                    nm: "Rate"
+                    frmt: ":4!c//3!a15d/15d"
+                    optnl: true
+                    fld_nb: "95"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt"
+                      frmt: "15d"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qty"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Currency Code)(Amount)(Quantity)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Ccy)(Amt)(Qty)"
+                  }
+                  mt_def_fld {
+                    tag: "f92R"
+                    nm: "Rate"
+                    frmt: ":4!c/[8c]/4!c/15d"
+                    optnl: true
+                    fld_nb: "95"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Dss"
+                      frmt: "8c"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "RateTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Rate"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Data Source Scheme)(Rate Type Code)(Rate)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Dss)(RateTpCd)(Rate)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            rptn {
+              tag: "r90a_E2"
+              cntt_start: "----->"
+              cntt_end: "-----|"
+              mt_def_rptn_obj {
+                optn {
+                  tag: "o90a_E2"
+                  nm: "Price"
+                  optnl: true
+                  fld_nb: "96"
+                  mt_def_fld {
+                    tag: "f90A"
+                    nm: "Price"
+                    frmt: ":4!c//4!c/[N]15d"
+                    optnl: true
+                    fld_nb: "96"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "//"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Cd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Pric"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Percentage Type Code)(Sign)(Price)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Cd)(Sgn)(Pric)"
+                  }
+                  mt_def_fld {
+                    tag: "f90B"
+                    nm: "Price"
+                    frmt: ":4!c//4!c/3!a15d"
+                    optnl: true
+                    fld_nb: "96"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "AmtTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Pric"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Price)"
+                    sub_fld_nms_gnrc: "(Qlfr)(AmtTpCd)(Ccy)(Pric)"
+                  }
+                  mt_def_fld {
+                    tag: "f90E"
+                    nm: "Price"
+                    frmt: ":4!c//4!c"
+                    optnl: true
+                    fld_nb: "96"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "PricCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Price Code)"
+                    sub_fld_nms_gnrc: "(Qlfr)(PricCd)"
+                  }
+                  mt_def_fld {
+                    tag: "f90F"
+                    nm: "Price"
+                    frmt: ":4!c//4!c/3!a15d/4!c/15d"
+                    optnl: true
+                    fld_nb: "96"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "AmtTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt"
+                      frmt: "15d"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "QtyTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qty"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Amount)(Quantity Type Code)(Quantity)"
+                    sub_fld_nms_gnrc: "(Qlfr)(AmtTpCd)(Ccy)(Amt)(QtyTpCd)(Qty)"
+                  }
+                  mt_def_fld {
+                    tag: "f90J"
+                    nm: "Price"
+                    frmt: ":4!c//4!c/3!a15d/3!a15d"
+                    optnl: true
+                    fld_nb: "96"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "AmtTpCd"
+                      frmt: "4!c"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy1"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt1"
+                      frmt: "15d"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Ccy2"
+                      frmt: "3!a"
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Amt2"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Amount Type Code)(Currency Code)(Amount)(Currency Code)(Amount)"
+                    sub_fld_nms_gnrc: "(Qlfr)(AmtTpCd)(Ccy)(Amt)(Ccy)(Amt)"
+                  }
+                  mt_def_fld {
+                    tag: "f90K"
+                    nm: "Price"
+                    frmt: ":4!c//15d"
+                    optnl: true
+                    fld_nb: "96"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "IndxPts"
+                      frmt: "15d"
+                      sep_prfx: "/"
+                    }
+                    sub_fld_nms: "(Qualifier)(Index Points)"
+                    sub_fld_nms_gnrc: "(Qlfr)(IndxPts)"
+                  }
+                  mt_def_fld {
+                    tag: "f90L"
+                    nm: "Price"
+                    frmt: ":4!c//[N]15d"
+                    optnl: true
+                    fld_nb: "96"
+                    mt_def_sub_fld {
+                      nm_gnrc: "Qlfr"
+                      frmt: "4!c"
+                      sep_prfx: ":"
+                      sep_pstfx: "//"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "Sgn"
+                      frmt: "N"
+                      optnl: true
+                      sep_prfx: "/"
+                    }
+                    mt_def_sub_fld {
+                      nm_gnrc: "IndxPts"
+                      frmt: "15d"
+                    }
+                    sub_fld_nms: "(Qualifier)(Sign)(Index Points)"
+                    sub_fld_nms_gnrc: "(Qlfr)(Sgn)(IndxPts)"
+                  }
+                }
+              }
+            }
+          }
+          mt_def_obj {
+            fld {
+              tag: "f16S"
+              nm: "End of Block"
+              frmt: "16c"
+              cntt: "CASHMOVE"
+              fld_nb: "97"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r70E"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            fld {
+              tag: "f70E"
+              nm: "Narrative"
+              frmt: ":4!c//10*35x"
+              qlfr: "4!c"
+              optnl: true
+              cntt: ":4!c//10*35x"
+              fld_nb: "98"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Nrrtv"
+                frmt: "10*35x"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Narrative)"
+              sub_fld_nms_gnrc: "(Qlfr)(Nrrtv)"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f16S"
+          nm: "End of Block"
+          frmt: "16c"
+          cntt: "CAOPTN"
+          fld_nb: "99"
+        }
+      }
+    }
+  }
+  mt_def_obj {
+    seq {
+      tag: "sF"
+      nm: "Sequence F Additional Information"
+      id: "F"
+      cntt_start: "Optional Sequence F Additional Information"
+      cntt_end: "End of Sequence F Additional Information"
+      optnl: true
+      mt_def_obj {
+        fld {
+          tag: "f16R"
+          nm: "Start of Block"
+          frmt: "16c"
+          cntt: "ADDINFO"
+          fld_nb: "100"
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r70E"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            fld {
+              tag: "f70E"
+              nm: "Narrative"
+              frmt: ":4!c//10*35x"
+              qlfr: "4!c"
+              optnl: true
+              cntt: ":4!c//10*35x"
+              fld_nb: "101"
+              mt_def_sub_fld {
+                nm_gnrc: "Qlfr"
+                frmt: "4!c"
+                sep_prfx: ":"
+                sep_pstfx: "/"
+              }
+              mt_def_sub_fld {
+                nm_gnrc: "Nrrtv"
+                frmt: "10*35x"
+                sep_prfx: "/"
+              }
+              sub_fld_nms: "(Qualifier)(Narrative)"
+              sub_fld_nms_gnrc: "(Qlfr)(Nrrtv)"
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        rptn {
+          tag: "r95a_F"
+          cntt_start: "----->"
+          cntt_end: "-----|"
+          mt_def_rptn_obj {
+            optn {
+              tag: "o95a_F"
+              nm: "Party"
+              optnl: true
+              fld_nb: "102"
+              mt_def_fld {
+                tag: "f95L"
+                nm: "Party"
+                frmt: ":4!c//18!c2!n"
+                optnl: true
+                fld_nb: "102"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "LglNttyIdr"
+                  frmt: "18!c2!n"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Legal Entity Identifier)"
+                sub_fld_nms_gnrc: "(Qlfr)(LglNttyIdr)"
+              }
+              mt_def_fld {
+                tag: "f95P"
+                nm: "Party"
+                frmt: ":4!c//4!a2!a2!c[3!c]"
+                optnl: true
+                fld_nb: "102"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "IdrCd"
+                  frmt: "4!a2!a2!c[3!c]"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Identifier Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(IdrCd)"
+              }
+              mt_def_fld {
+                tag: "f95Q"
+                nm: "Party"
+                frmt: ":4!c//4*35x"
+                optnl: true
+                fld_nb: "102"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "NmAdr"
+                  frmt: "4*35x"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Name and Address)"
+                sub_fld_nms_gnrc: "(Qlfr)(NmAdr)"
+              }
+              mt_def_fld {
+                tag: "f95R"
+                nm: "Party"
+                frmt: ":4!c/8c/34x"
+                optnl: true
+                fld_nb: "102"
+                mt_def_sub_fld {
+                  nm_gnrc: "Qlfr"
+                  frmt: "4!c"
+                  sep_prfx: ":"
+                  sep_pstfx: "/"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "Dss"
+                  frmt: "8c"
+                }
+                mt_def_sub_fld {
+                  nm_gnrc: "PrtryCd"
+                  frmt: "34x"
+                  sep_prfx: "/"
+                }
+                sub_fld_nms: "(Qualifier)(Data Source Scheme)(Proprietary Code)"
+                sub_fld_nms_gnrc: "(Qlfr)(Dss)(PrtryCd)"
+              }
+            }
+          }
+        }
+      }
+      mt_def_obj {
+        fld {
+          tag: "f16S"
+          nm: "End of Block"
+          frmt: "16c"
+          cntt: "ADDINFO"
+          fld_nb: "103"
+        }
+      }
+    }
+  }
+}

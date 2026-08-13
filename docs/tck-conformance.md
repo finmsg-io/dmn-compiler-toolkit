@@ -55,14 +55,15 @@ ensuring all claims are backed by executable evidence.
 <a id="contents-section-4"></a>
 ## Exclusions
 
-No test cases are excluded or skipped at the assertion level. The suite
-runs all 150 XML test files found under `tck-official/TestCases/` and
-asserts every individual test case result.
+No test cases are intentionally excluded or skipped at the assertion level. However, the current
+discovery path does not yet produce a terminal classification for every catalogue entry: an XML
+entry without a matching `.dmn` model can be omitted before assertions are created. Consequently,
+the executed count above is authoritative for what ran, but it is not yet proof of complete
+catalogue accounting.
 
-If a model file is missing for a given XML test file (i.e. no `.dmn` file
-found in the same directory), that entry is silently skipped by the
-file-discovery loop. This is an upstream TCK repository structural issue
-and does not represent a toolkit deficiency.
+TCK-ACC-001 in the [development plan](development-plan.md) closes this evidence gap by requiring an
+explicit discovery manifest, terminal classifications, and a count-reduction gate. Until that work
+is complete, conformance claims must remain scoped to the executed set.
 
 <a id="contents-section-5"></a>
 ## Terminology

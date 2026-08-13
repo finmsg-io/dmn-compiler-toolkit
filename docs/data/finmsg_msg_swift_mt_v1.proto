@@ -1,0 +1,213 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+option java_multiple_files = true;
+option java_package = "io.finmsg.proto.msg.swift.mt.v1";
+option java_outer_classname = "FinMsgProtoMsgSwiftMtV1";
+
+message SwiftMtMsg {
+  oneof swift_mt_msg {
+    SwiftSvcMsg swift_svc_msg = 1;
+    SwiftSysMsg swift_sys_msg = 2;
+    SwiftFinMsg swift_fin_msg = 3;
+    SwiftFinGncMsg swift_fin_gnc_msg = 4;
+  }
+}
+
+message SwiftSvcMsg {
+  Bh bh = 1;
+  MtSvc mt_svc = 4;
+}
+
+message SwiftSysMsg {
+  Bh bh = 1;
+  Ah ah = 2;
+  MtSys mt_svc = 4;
+  Tr tr = 5;
+}
+
+message SwiftFinMsg {
+  Bh bh = 1;
+  Ah ah = 2;
+  Uh uh = 3;
+  MtStd mt_std = 4;
+  Tr tr = 5;
+}
+
+message Bh {
+  string appl_id = 1;
+  string svc_id = 2;
+  string lt = 3;
+  string ssn_nb = 4;
+  string seq_nb = 5;
+
+}
+
+message Ah {
+  oneof ah_oneof {
+    AhFin ah_fin = 1;
+    AhGpa ah_gpa = 2;
+  }
+}
+
+message AhFin {
+  oneof ah_fin_oneof {
+    AhFinIncmg ah_fin_incmg = 1;
+    AhFinOutgng ah_fin_outgng = 2;
+  }
+}
+
+message AhGpa {
+  oneof ah_gpa_oneof {
+    AhGpaIncmg ah_gpa_incmg = 1;
+    AhGpaOutgng ah_gpa_outgng = 2;
+  }
+}
+
+message AhFinIncmg {
+  string incmg_id = 1;
+  string msg_tp = 2;
+  string dstn = 3;
+  string msg_prty = 4;
+  string dlvry_mntrg = 5;
+  string obs_prd = 6;
+}
+
+message AhFinOutgng {
+  string outgng_id = 1;
+  string msg_tp = 2;
+  string incmg_tm = 3;
+  Mir mir = 4;
+  string outgng_dt = 5;
+  string outgng_tm = 6;
+  string msg_prty = 7;
+}
+
+message AhGpaIncmg {
+  string incmg_id = 1;
+  string msg_tp = 2;
+  string rcpt = 3;
+}
+
+message AhGpaOutgng {
+  string outgng_id = 1;
+  string msg_tp = 2;
+  string incmg_tm = 3;
+  Mir mir = 4;
+  string outgng_dt = 5;
+  string outgng_tm = 6;
+}
+
+message Mir {
+  string incmg_dt = 1;
+  string sndr = 2;
+  string ssn_nb = 3;
+  string isn = 4;
+}
+
+message Uh {
+  repeated Fld fld = 1;
+}
+
+message MtSvc {
+  string msg_tp = 1;
+  string urn = 4;
+  repeated Fld fld = 5;
+}
+
+message MtSys {
+  string msg_tp = 1;
+  string urn = 4;
+  repeated Fld fld = 5;
+}
+
+message MtStd {
+  string msg_tp = 1;
+  string sr = 2;
+  string flvr = 3;
+  string urn = 4;
+  repeated Obj obj = 5;
+}
+
+message Tr {
+  repeated Fld fld = 1;
+}
+
+message Obj {
+  oneof obj_oneof {
+    Seq seq = 1;
+    Fld fld = 2;
+    Optn optn = 3;
+    Rptn rptn = 4;
+    NoTagFld no_tag_fld = 6;
+  }
+}
+
+message Seq {
+  string tag = 1;
+  repeated Obj obj = 2;
+}
+
+message Optn {
+  string tag = 1;
+  Fld fld = 2;
+}
+
+message Rptn {
+  string tag = 1;
+  repeated RptnObj rptn_obj = 2;
+}
+
+message Fld {
+  string tag = 1;
+  repeated SubFld sub_fld = 2;
+}
+
+message RptnObj {
+  oneof rptn_fld_oneof {
+    Optn optn = 1;
+    Rptn rptn = 2;
+    Fld fld = 3;
+  }
+}
+
+message NoTagFld {
+  string tag = 1;
+  // repeated Fld fld = 2;
+  string cntt = 2;
+}
+
+message SubFld {
+  string nm = 1;
+  string val = 2;
+}
+
+message SwiftFinGncMsg {
+  Bh bh = 1;
+  Ah ah = 2;
+  UhGnc uh_gnc = 3;
+  MtGnc mt_gnc = 4;
+  TrGnc tr_gnc = 5;
+}
+
+message MtGnc {
+  string msg_tp = 1;
+  string sr = 2;
+  string flvr = 3;
+  string urn = 4;
+  repeated GncFld gnc_fld = 5;
+}
+
+message UhGnc {
+  repeated GncFld gnc_fld = 1;
+}
+
+message TrGnc {
+  repeated GncFld gnc_fld = 1;
+}
+
+message GncFld {
+  string tag = 1;
+  string cntt = 2;
+}

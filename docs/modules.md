@@ -182,7 +182,7 @@ Provides a conformance runner for OMG DMN Technology Compatibility Kit (TCK) tes
 Embeds the official vendor-neutral [OMG DMN TCK repository](https://dmn-tck.github.io/tck/) (`https://github.com/dmn-tck/tck.git`) as a submodule:
 - **Compliance Level 3 (CL3)**: 3,467 `<testCase>` items across 118 XML test files.
 - **Compliance Level 2 (CL2)**: 144 `<testCase>` items across 28 XML test files.
-- **Total Test Suite**: 3,657 test cases (3,611 compliant) evaluated across both interpreter and generated Java bytecode engines (`OfficialTckSuiteTest`).
+- **Current executed set**: self-verified cases evaluated across both interpreter and generated Java engines (`OfficialTckSuiteTest`). The authoritative revision, counts, terminology, and known catalogue-accounting limitation are maintained in the [TCK conformance record](tck-conformance.md).
 
 Assessments: [implementation](audits/assessment-implementation-dmn-tck-runner.md) ·
 [architecture](audits/assessment-architecture-dmn-tck-runner.md)
@@ -192,7 +192,11 @@ Assessments: [implementation](audits/assessment-implementation-dmn-tck-runner.md
 
 Provides JMH microbenchmarks and reference model workloads comparing `DmnRuntime` vs `dmn-generator-java`. Uses DataFaker (`net.datafaker:datafaker`) to generate realistic input payloads and includes `ReferenceModelRegistry` for pluggable DMN model discovery (`credit-approval.dmn`, `traffic-violation.dmn`, `dq-field-validation.dmn`, `dq-cross-field-consistency.dmn`, `dq-scoring.dmn`).
 
-### Published Performance Results (JDK 25 LTS)
+### Historical benchmark snapshot (JDK 25)
+
+The figures below are retained as a development snapshot, not as release-grade scalability or
+comparative-performance evidence. The current harness limitations and corrective work are recorded
+in the [benchmark evidence plan](improvements/benchmark-evidence-and-scalability.md).
 
 - **Traffic Violation Decision Table**: `dmn-generator-java` achieves **6.16M ops/sec** (173 ns/op) vs `DmnRuntime` interpreter **736k ops/sec** (1.25 µs/op) — **~7.2x speedup**.
 - **Credit Approval DRG Graph**: `dmn-generator-java` achieves **1.14M ops/sec** (471 ns/op) vs `DmnRuntime` interpreter **199k ops/sec** (2.12 µs/op) — **~4.5x speedup**.

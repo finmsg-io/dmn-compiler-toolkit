@@ -19,20 +19,10 @@ Start with the [architecture overview](architecture.md), explore our [toolkit as
 <a id="contents-section-1"></a>
 ## Current implementation
 
-The repository currently contains twelve active Maven modules:
-
-- `dmn-protobuf` — canonical semantic model, replaceable FEEL text/parsed nodes, and FEEL AST
-- `dmn-frontend-xml` — namespace-aware VTD-XML reader and writer for the current protobuf-supported DMN subset
-- `dmn-feel-parser` — ANTLR4 grammar, AST builder, complete DMN FEEL parsing pass, and model-aware diagnostics
-- `dmn-semantic-analysis` — reference resolution, type analysis, DMN validation, and deterministic dependency ordering
-- `dmn-runtime-ir` — immutable Runtime IR with deterministic structure, constants, and bound value references
-- `dmn-runtime` — deterministic process-local interpreter for executable Runtime IR
-- `dmn-compiler` — public facade, resolver-independent model-source contracts, and bounded transitive load boundary
-- `dmn-generator-java` — high-performance Java source code generator from Runtime IR
-- `dmn-tck-runner` — DMN Technology Compatibility Kit (TCK) test suite runner and conformance adapter
-- `dmn-benchmarks` — JMH microbenchmarks and DataFaker reference model workloads
-- `dmn-optimizer` — static constant folding, algebraic simplification, and rule pruning passes
-- `dmn-grpc` — ultra-lean transport-neutral gRPC service adapter generator and Proto value converters
+The repository contains an active multi-module Maven reactor. The canonical inventory and
+module-specific limitations are maintained on the [modules page](modules.md); the
+[capability maturity page](capabilities.md) distinguishes established, incubating, and planned
+functionality. This page intentionally does not duplicate that inventory.
 
 The implemented pipeline is:
 
@@ -63,7 +53,12 @@ Process-local Interpreter   Java Generator           JMH Benchmarks
 (dmn-runtime)               (dmn-generator-java)     (dmn-benchmarks)
 ```
 
-Cross-model semantic linking, QName-safe XML type references, linked model-set Runtime IR lowering, all protobuf FEEL AST expression variants, all modeled decision logic, executable BKM functions, persisted lexical frame layouts, expression-derived runtime dependencies, indexed context-field access, initial optimization, process-local interpretation, high-performance Java code generation, 100% OMG DMN 1.5 TCK conformance testing across Compliance Level 2 and Compliance Level 3 (3,611 compliant test cases), and JMH microbenchmarks with DataFaker payloads (`dmn-benchmarks`) are fully implemented. Further data quality corpora, gRPC adapters, Spark SQL generation, and multi-language backends (Rust, Go) are active next steps.
+Cross-model compilation, Runtime IR lowering, optimization, process-local interpretation, Java
+generation, gRPC adapters, Spark SQL generation, multi-file model ingestion, the data-quality
+corpus, TCK execution, and JMH benchmarks are implemented. Implementation does not by itself imply
+public-production maturity or identical backend coverage; consult the
+[capability maturity page](capabilities.md), [TCK conformance record](tck-conformance.md), and
+[development plan](development-plan.md) for the verified boundaries and current work.
 
 <a id="contents-section-2"></a>
 ## Design goals

@@ -646,11 +646,23 @@ P17 executes and records P16 gates; it must not replace them with weaker workflo
 <a id="contents-section-23"></a>
 ## P18 — Documentation and Positioning
 
-**State:** `ready`, with trust corrections performed earlier where claims are unsafe
+**State:** `in progress`; initial trust and documentation-CI corrections completed
 
 **Goal:** complete the [documentation and positioning proposal](improvements/documentation-and-positioning.md)
 using canonical release, conformance, capability, MT564, and benchmark evidence. Provide focused
 architect, developer, and DMN-user views while eliminating manually synchronized facts.
+
+Completed trust baseline:
+
+- corrected the primary module inventory and removed stale “next feature” statements;
+- established a canonical capability-maturity summary and canonical TCK count ownership;
+- repaired the MkDocs architecture navigation and broken document links;
+- added strict MkDocs CI and a reactor-to-documentation fact check;
+- qualified historical benchmark and external-certification claims.
+
+Remaining P18 work includes the audience-specific architect, developer, and DMN-user views,
+generated conformance/benchmark projections, broader duplication reduction and historical archival,
+and deterministic ownership of any retained generated page TOCs.
 
 <a id="contents-section-24"></a>
 ## P19 — Capability Maturity and Evidence Graduation

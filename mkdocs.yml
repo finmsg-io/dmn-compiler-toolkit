@@ -21,6 +21,8 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Capability Maturity: capabilities.md
+  - TCK Conformance: tck-conformance.md
   - Glossary: glossary.md
 
   - Architecture:
@@ -48,34 +50,35 @@ nav:
       - Chapters:
           - Vision: "architecture/chapters/01-Vision.md"
           - Architecture Principles: "architecture/chapters/02-Architecture Principles.md"
-          - Overall Architecture: "architecture/chapters/03-Overall Architecture.md"
-          - Logical Component Architecture: "architecture/chapters/04-Logical Component Architecture.md"
-          - Maven Modules: "architecture/chapters/05-Maven Modules.md"
-          - Package Layout: "architecture/chapters/06-Package Layout.md"
-          - Semantic Model: "architecture/chapters/07-Semantic Model.md"
-          - FEEL AST: "architecture/chapters/08-FEEL AST.md"
-          - Runtime IR: "architecture/chapters/09-Runtime IR.md"
-          - Compiler Passes: "architecture/chapters/10-Compiler Passes.md"
-          - XML Frontend: "architecture/chapters/11-XML Frontend.md"
-          - FEEL Parser: "architecture/chapters/12-FEEL Parser.md"
-          - Java Generator: "architecture/chapters/13-Java Generator.md"
-          - Future Generators: "architecture/chapters/14-Future Generators.md"
-          - Testing Strategy: "architecture/chapters/15-Testing Strategy.md"
-          - Performance: "architecture/chapters/16-Performance.md"
-          - Public API: "architecture/chapters/17-Public API.md"
-          - Roadmap: "architecture/chapters/18-Roadmap.md"
-          - Internal Compiler Architecture: "architecture/chapters/19-Internal Compiler Architecture.md"
-          - Reference Material: "architecture/chapters/20-Appendices.md"
-          - Stakeholders and Quality Attributes: "architecture/chapters/21-Stakeholders and Quality Attributes.md"
-          - System Context and External Interfaces: "architecture/chapters/22-System Context and External Interfaces.md"
-          - Deployment and Operational Architecture: "architecture/chapters/23-Deployment and Operational Architecture.md"
-          - Security and Trust Boundaries: "architecture/chapters/24-Security and Trust Boundaries.md"
-          - Failure Model and Resilience: "architecture/chapters/25-Failure Model and Resilience.md"
-          - Data Lifecycle, Caching, and Compatibility: "architecture/chapters/26-Data Lifecycle Caching and Compatibility.md"
-          - Observability and Supportability: "architecture/chapters/27-Observability and Supportability.md"
-          - Build, Release, and Supply Chain: "architecture/chapters/28-Build Release and Supply Chain.md"
-          - Architecture Traceability and Conformance: "architecture/chapters/29-Architecture Traceability and Conformance.md"
-          - Architecture Risks and Technical Debt: "architecture/chapters/30-Architecture Risks and Technical Debt.md"
+          - Stakeholders and Quality Attributes: "architecture/chapters/03-Stakeholders and Quality Attributes.md"
+          - System Context and External Interfaces: "architecture/chapters/04-System Context and External Interfaces.md"
+          - Overall Architecture: "architecture/chapters/05-Overall Architecture.md"
+          - Logical Component Architecture: "architecture/chapters/06-Logical Component Architecture.md"
+          - Maven Modules: "architecture/chapters/07-Maven Modules.md"
+          - Package Layout: "architecture/chapters/08-Package Layout.md"
+          - Public API: "architecture/chapters/09-Public API.md"
+          - Semantic Model: "architecture/chapters/10-Semantic Model.md"
+          - FEEL AST: "architecture/chapters/11-FEEL AST.md"
+          - Runtime IR: "architecture/chapters/12-Runtime IR.md"
+          - XML Frontend: "architecture/chapters/13-XML Frontend.md"
+          - FEEL Parser: "architecture/chapters/14-FEEL Parser.md"
+          - Semantic Analysis: "architecture/chapters/15-Semantic Analysis.md"
+          - Compiler Passes: "architecture/chapters/16-Compiler Passes.md"
+          - Internal Compiler Architecture: "architecture/chapters/17-Internal Compiler Architecture.md"
+          - Java Generator: "architecture/chapters/18-Java Generator.md"
+          - Future Generators: "architecture/chapters/19-Future Generators.md"
+          - Testing Strategy: "architecture/chapters/20-Testing Strategy.md"
+          - Performance: "architecture/chapters/21-Performance.md"
+          - Deployment and Operational Architecture: "architecture/chapters/22-Deployment and Operational Architecture.md"
+          - Security and Trust Boundaries: "architecture/chapters/23-Security and Trust Boundaries.md"
+          - Failure Model and Resilience: "architecture/chapters/24-Failure Model and Resilience.md"
+          - Data Lifecycle, Caching, and Compatibility: "architecture/chapters/25-Data Lifecycle Caching and Compatibility.md"
+          - Observability and Supportability: "architecture/chapters/26-Observability and Supportability.md"
+          - Build, Release, and Supply Chain: "architecture/chapters/27-Build Release and Supply Chain.md"
+          - Architecture Traceability and Conformance: "architecture/chapters/28-Architecture Traceability and Conformance.md"
+          - Architecture Risks and Technical Debt: "architecture/chapters/29-Architecture Risks and Technical Debt.md"
+          - Roadmap: "architecture/chapters/30-Roadmap.md"
+          - Reference Material: "architecture/chapters/31-Appendices.md"
 
   - Modules: modules.md
   - Development:

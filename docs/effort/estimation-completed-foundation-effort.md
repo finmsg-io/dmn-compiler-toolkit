@@ -5,7 +5,7 @@ Prepared: 2026-08-02
 Estimate class: retrospective engineering-equivalent range  
 Confidence: low-to-medium  
 Estimated boundary: repository foundation through P1.7 at commit `6f8f55f`  
-Related forward estimate: [EST-001 — P2–P3 completion effort](estimazion-P2-P3-completion-effort.md)
+Related forward estimate: [EST-001 — P2–P3 completion effort](estimation-P2-P3-completion-effort.md)
 
 ## Executive estimate
 

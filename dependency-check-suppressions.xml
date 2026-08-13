@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes><![CDATA[
+            CVE-2026-0994 affects google.protobuf.json_format.ParseDict() in the Python
+            runtime. This project depends on the Java runtime, which does not contain
+            the affected API.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.google\.protobuf/protobuf-java@.*$</packageUrl>
+        <cve>CVE-2026-0994</cve>
+    </suppress>
+</suppressions>
