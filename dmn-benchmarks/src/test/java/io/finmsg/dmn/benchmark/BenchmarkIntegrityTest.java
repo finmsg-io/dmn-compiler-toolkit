@@ -77,6 +77,25 @@ class BenchmarkIntegrityTest {
 	}
 
 	@Test
+	void testMt564ScenariosAndBackendParity() throws Exception {
+		Map<String, Integer> expectedViolations = Map.of("validBaseline", 0, "singleViolation", 1, "multipleViolations",
+				3, "largeStructure", 0);
+		for (var entry : expectedViolations.entrySet()) {
+			Mt564DataQualityBenchmark benchmark = new Mt564DataQualityBenchmark();
+			benchmark.scenario = entry.getKey();
+			benchmark.setup();
+			for (int payloadIndex = 0; payloadIndex < 64; payloadIndex++) {
+				Object interpreter = benchmark.evaluateInterpreterAt(payloadIndex).value(benchmark.qualityReportSlot());
+				Object generated = benchmark.evaluateGeneratedAt(payloadIndex)[benchmark.qualityReportSlot()];
+				assertThat(generated).isEqualTo(interpreter);
+				assertThat((List<?>) generated).hasSize(entry.getValue());
+			}
+			assertThat(benchmark.interpreterEndToEnd_Mt564(new BenchmarkCursor()))
+					.isEqualTo(benchmark.generatedEndToEnd_Mt564(new BenchmarkCursor()));
+		}
+	}
+
+	@Test
 	void sharedRuntimeModelAndGeneratedEngineAreConcurrencySafe() throws Exception {
 		OriginationsBenchmark benchmark = new OriginationsBenchmark();
 		benchmark.setup();
@@ -90,6 +109,24 @@ class BenchmarkIntegrityTest {
 				assertThat(generated).containsExactlyElementsOf(expected.get(payloadIndex));
 				assertThat(benchmark.evaluateInterpreterAt(payloadIndex).slotValues())
 						.containsExactlyElementsOf(expected.get(payloadIndex));
+			})).toList();
+			for (var future : futures) {
+				future.get(30, TimeUnit.SECONDS);
+			}
+		}
+	}
+
+	@Test
+	void mt564RuntimeAndGeneratedEngineAreConcurrencySafe() throws Exception {
+		Mt564DataQualityBenchmark benchmark = new Mt564DataQualityBenchmark();
+		benchmark.scenario = "multipleViolations";
+		benchmark.setup();
+		try (var executor = Executors.newFixedThreadPool(8)) {
+			var futures = IntStream.range(0, 800).mapToObj(invocation -> executor.submit(() -> {
+				int payloadIndex = invocation % 64;
+				Object interpreter = benchmark.evaluateInterpreterAt(payloadIndex).value(benchmark.qualityReportSlot());
+				Object generated = benchmark.evaluateGeneratedAt(payloadIndex)[benchmark.qualityReportSlot()];
+				assertThat(generated).isEqualTo(interpreter);
 			})).toList();
 			for (var future : futures) {
 				future.get(30, TimeUnit.SECONDS);
