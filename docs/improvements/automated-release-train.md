@@ -292,10 +292,14 @@ evidence. A badge failure should link directly to the workflow or report that ex
 
 ### R0 — Make current release safe
 
-- Split verification from publication authority.
-- Make tagged releases run the full clean verification before deployment.
-- Add source and Javadoc artifacts.
-- Correct `docs/ci-and-publishing.md` to match reality.
+- **Implemented:** split read-only verification from protected publication authority.
+- **Implemented:** make tagged releases validate tag/POM/main agreement and run full clean
+  verification before deployment.
+- **Implemented:** add source and Javadoc artifacts plus deploy-at-end behavior.
+- **Implemented:** correct `docs/ci-and-publishing.md` to describe the actual authority and recovery
+  model.
+- **External setup:** configure required reviewers and protected-tag rules on the GitHub `release`
+  environment before the first controlled release.
 
 ### R1 — Automate version and notes
 
