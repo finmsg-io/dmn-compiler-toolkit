@@ -598,7 +598,7 @@ Work items:
 | P15.6 | Add valid, invalid, boundary, multi-violation, unsupported-scope, and representative-size scenario fixtures | `in progress` | Scenario structure may start now; authoritative field fixtures require P15.2/P15.5 |
 | P15.7 | Prove interpreter and generated-Java structural parity through the public compiler path | `ready` | P15.5-P15.6 |
 | P15.8 | Correct relevant benchmark harness state/invocation issues | `done` | [BENCH-001](improvements/examples/benchmark-evidence/refine-execution-benchmarks-spec.md) |
-| P15.9 | Add valid, single-violation, multi-violation, and large-structure JMH cases with retained reference evidence | `ready` | P15.7-P15.8, [DQ-004](improvements/examples/data-quality/swift-mt564-benchmark-spec.md) |
+| P15.9 | Add valid, single-violation, multi-violation, and large-structure JMH cases with retained reference evidence | `in progress`; implementation complete, accepted reference run pending | P15.7-P15.8, [DQ-004](improvements/examples/data-quality/swift-mt564-benchmark-spec.md) |
 | P15.10 | Publish reference-showcase documentation, supported scope, limitations, rule traceability, and runnable example | `ready` | P15.5-P15.9 |
 | P15.11 | Review the authoring friction log and decide whether DQ-003 earned implementation | `conditional` | Completed showcase dogfooding evidence |
 

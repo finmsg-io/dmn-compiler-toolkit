@@ -33,7 +33,8 @@ public final class ReferenceModelRegistry {
 	private static final AtomicInteger COUNTER = new AtomicInteger(1);
 
 	public record CompiledModelHolder(String modelName, DmnCompilationResult compilationResult,
-			GeneratedDecisionEngine generatedEngine, Method evaluateMethod, Map<String, Integer> inputSlotMapping) {
+			GeneratedDecisionEngine generatedEngine, Method evaluateMethod, Map<String, Integer> inputSlotMapping,
+			Map<String, Integer> decisionSlotMapping) {
 
 		public Object[] evaluateDirect(Object[] slots) {
 			return generatedEngine.evaluate(slots);
@@ -87,18 +88,22 @@ public final class ReferenceModelRegistry {
 		Method evalMethod = genClass.getMethod("evaluate", Object[].class);
 
 		Map<String, Integer> inputSlots = new LinkedHashMap<>();
+		Map<String, Integer> decisionSlots = new LinkedHashMap<>();
 		int slot = 0;
 		for (DmnSemanticModel model : compilation.semanticResult().models()) {
 			for (DrgElement element : model.model().getDrgElementsList()) {
 				if (element.hasInputData()) {
 					inputSlots.put(element.getInputData().getNode().getName(), slot++);
-				} else if (element.hasDecision() || element.hasBusinessKnowledgeModel()) {
+				} else if (element.hasDecision()) {
+					decisionSlots.put(element.getDecision().getNode().getName(), slot++);
+				} else if (element.hasBusinessKnowledgeModel()) {
 					slot++;
 				}
 			}
 		}
 
-		return new CompiledModelHolder(modelName, compilation, engineInstance, evalMethod, inputSlots);
+		return new CompiledModelHolder(modelName, compilation, engineInstance, evalMethod, Map.copyOf(inputSlots),
+				Map.copyOf(decisionSlots));
 	}
 
 	public static Map<Integer, Object> buildInterpreterSlotMap(CompiledModelHolder holder, Map<String, Object> inputs) {

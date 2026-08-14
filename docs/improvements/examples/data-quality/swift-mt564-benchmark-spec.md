@@ -1,6 +1,6 @@
 # DQ-004 - SWIFT MT564 reference benchmark
 
-Status: example - proposed
+Status: implementation complete; accepted reference run pending
 
 Profile: reference-showcase performance evidence
 
@@ -105,3 +105,11 @@ separate benchmark.
 - environment and Git metadata;
 - interpreter/generated-Java correctness link for every fixture;
 - documented evidence-retention and refresh policy.
+
+## Implementation status
+
+The benchmark source, four deterministic fixtures, interpreter/generated direct and end-to-end
+paths, structural parity tests, eight-worker concurrency test, cross-platform reference-run scripts,
+matrix validation, deterministic summary generation, and retention policy are implemented. A full
+controlled 1/2/4/8-thread run remains required before this package can be marked `done`; smoke output
+is verification evidence and must not be presented as the accepted performance baseline.
