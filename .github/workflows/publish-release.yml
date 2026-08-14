@@ -1,0 +1,116 @@
+name: Publish Maven release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing SemVer tag to retry after a pre-publication failure
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify-release:
+    runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.authority.outputs.commit }}
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Checkout exact release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Set up Python for release validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install documentation dependencies
+        run: python -m pip install --requirement requirements-docs.txt
+
+      - name: Verify tag, Maven version, and main ancestry
+        id: authority
+        shell: bash
+        run: |
+          python tools/verify_release.py --tag "$RELEASE_TAG"
+          git fetch --no-tags origin main
+          TAG_COMMIT="$(git rev-parse "${RELEASE_TAG}^{commit}")"
+          test "$(git rev-parse HEAD)" = "$TAG_COMMIT"
+          git merge-base --is-ancestor "$TAG_COMMIT" origin/main
+          echo "commit=$TAG_COMMIT" >> "$GITHUB_OUTPUT"
+
+      - name: Verify canonical documentation facts
+        run: python tools/verify_documentation.py
+
+      - name: Build documentation strictly
+        run: mkdocs build --strict
+
+      - name: Clean release verification
+        run: mvn --batch-mode -Pformat,release clean verify
+
+      - name: Verify release artifacts and clean checkout
+        run: |
+          python tools/verify_release.py --tag "$RELEASE_TAG" --artifacts
+          git diff --check
+          git diff --exit-code
+
+  publish-release:
+    needs: verify-release
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      packages: write
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout verified release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up JDK 25 and Maven publication credentials
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+
+      - name: Reconfirm immutable publication authority
+        shell: bash
+        run: |
+          python tools/verify_release.py --tag "$RELEASE_TAG"
+          test "$(git rev-parse HEAD)" = "${{ needs.verify-release.outputs.commit }}"
+
+      - name: Publish immutable Maven artifacts
+        run: mvn --batch-mode -Prelease -DskipTests deploy

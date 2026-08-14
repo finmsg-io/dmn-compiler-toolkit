@@ -66,7 +66,7 @@ gates are complete.
 | 0A | Prepare the MT564 DQM contracts while the protobuf input is pending | `completed` | [DQ-001](improvements/examples/data-quality/reusable-bkm-library-spec.md), [DQ-002](improvements/examples/data-quality/swift-mt564-showcase-spec.md) | Violation/report contract, candidate BKM signatures, rule traceability structure, scenario format, and implementation skeleton ready |
 | 0B | Integrate the supplied protobuf contract and deliver the full working MT564 DQM model | `completed` | [DQ-002](improvements/examples/data-quality/swift-mt564-showcase-spec.md) | Reviewed protobuf-to-DMN mapping, reusable imported BKMs, selected-scope MT564 rules, valid/invalid/boundary fixtures, and executable quality report |
 | 0C | Prove parity and establish the MT564 reference benchmark | `in progress`; BENCH-001 completed | [DQ-004](improvements/examples/data-quality/swift-mt564-benchmark-spec.md), [BENCH-001](improvements/examples/benchmark-evidence/refine-execution-benchmarks-spec.md) | Interpreter/generated-Java correctness parity plus trustworthy latency, throughput, allocation, and retained benchmark evidence |
-| 1 | Restore claim and release trust | `ready` after Phase 0 | [Conformance closure](improvements/dmn-conformance-accelerator-closure.md), [release train](improvements/automated-release-train.md), [documentation](improvements/documentation-and-positioning.md) | Safe release controls, strict TCK catalogue accounting, corrected public claims, and initial maturity labels |
+| 1 | Restore claim and release trust | `in progress`; Release R0 implementation complete | [Conformance closure](improvements/dmn-conformance-accelerator-closure.md), [release train](improvements/automated-release-train.md), [documentation](improvements/documentation-and-positioning.md) | Safe release controls, strict TCK catalogue accounting, corrected public claims, and initial maturity labels |
 | 2 | Establish the production and security baseline | `ready` after Phase 1 | [Production readiness graduation](improvements/production-readiness-graduation.md) | Controlled release-candidate gates, public compatibility boundaries, security/dependency checks, and external-consumer verification |
 | 3 | Make conformance and benchmark evidence reusable | `ready` after Phase 2 | [TCK-ACC-002](improvements/examples/conformance-accelerator/actionable-evidence-spec.md), [BENCH-002](improvements/examples/benchmark-evidence/scalability-study-spec.md) | Focused reproduction, structured reports, baseline diffs, corrected scalability matrix, and durable CI evidence |
 | 4 | Automate frequent releases | `ready` after Phase 3 | [Automated release train](improvements/automated-release-train.md) | Automated versions, notes, evidence, publication, provenance, and released-artifact consumer test |
@@ -642,6 +642,13 @@ starting with safe publication and then automating versions, categorized release
 signing/checksums/provenance, publication, and verification from released artifacts.
 
 P17 executes and records P16 gates; it must not replace them with weaker workflow success criteria.
+
+Release R0 is implemented: ordinary CI is read-only, publication is isolated in a tag-authorized
+workflow, tag/POM/main ancestry is validated before a clean release build, default Maven deployment
+is disabled, sources and Javadocs are attached by the release profile, and deploy-at-end prevents
+reactor build failures from publishing early modules. Repository administrators must still configure
+required reviewers and tag restrictions on the external GitHub `release` environment before the
+first controlled release. Version and release-note automation remains R1 work.
 
 <a id="contents-section-23"></a>
 ## P18 — Documentation and Positioning

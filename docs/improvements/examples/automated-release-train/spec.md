@@ -3,6 +3,8 @@
 Status: example — proposed  
 Source proposal: [Pragmatic automated release train](../../automated-release-train.md)
 
+R0 safety boundary: implemented. R1-R3 automation and the first controlled release remain pending.
+
 ## Outcome
 
 Maintainers can publish a verified patch or feature release through one reviewed release pull
