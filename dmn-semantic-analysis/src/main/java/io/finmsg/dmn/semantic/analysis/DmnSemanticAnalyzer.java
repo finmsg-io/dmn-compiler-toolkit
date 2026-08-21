@@ -22,13 +22,13 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 			"boolean", "context", "list", "range", "any", "null", "flatten", "concatenate", "distinct values",
 			"index of", "reverse", "sublist", "substring", "substring before", "substring after", "string length",
 			"upper case", "lower case", "contains", "starts with", "ends with", "matches", "replace", "split", "floor",
-			"ceiling", "decimal", "round half up", "round half down", "round half even", "min", "max", "sum", "mean", "count", "all",
-			"not", "is", "median", "mode", "stddev", "sqrt", "exp", "log", "modulo", "even", "odd", "product",
-			"insert before", "remove", "append", "union", "list contains", "sort", "string join", "get entries",
-			"get value", "round up", "round down", "abs", "day of year", "day of week", "week of year", "month of year",
-			"context put", "context merge", "list replace", "now", "today",
-			"during", "before", "after", "meets", "met by", "overlaps", "overlaps before", "overlaps after",
-			"finishes", "finished by", "includes", "starts", "started by", "coincides");
+			"ceiling", "decimal", "round half up", "round half down", "round half even", "min", "max", "sum", "mean",
+			"count", "all", "not", "is", "median", "mode", "stddev", "sqrt", "exp", "log", "modulo", "even", "odd",
+			"product", "insert before", "remove", "append", "union", "list contains", "sort", "string join",
+			"get entries", "get value", "round up", "round down", "abs", "day of year", "day of week", "week of year",
+			"month of year", "context put", "context merge", "list replace", "now", "today", "during", "before",
+			"after", "meets", "met by", "overlaps", "overlaps before", "overlaps after", "finishes", "finished by",
+			"includes", "starts", "started by", "coincides");
 
 	@Override
 	public DmnSemanticAnalysisResult analyze(Definitions parsedModel) {
@@ -304,8 +304,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 			}
 			for (int i = 0; i < decision.getKnowledgeRequirementsCount(); i++) {
 				addRequired(scope, decision.getKnowledgeRequirements(i).getRequiredKnowledge(),
-						Set.of(SymbolKind.BKM, SymbolKind.DECISION_SERVICE),
-						path + "/knowledgeRequirement[" + i + "]", decision.getNode().getSourceLocation());
+						Set.of(SymbolKind.BKM, SymbolKind.DECISION_SERVICE), path + "/knowledgeRequirement[" + i + "]",
+						decision.getNode().getSourceLocation());
 			}
 			analyzeAuthorityRequirements(decision.getAuthorityRequirementsList(), path,
 					decision.getNode().getSourceLocation());
@@ -322,8 +322,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 			Scope scope = new Scope(null);
 			for (int i = 0; i < bkm.getKnowledgeRequirementsCount(); i++) {
 				addRequired(scope, bkm.getKnowledgeRequirements(i).getRequiredKnowledge(),
-						Set.of(SymbolKind.BKM, SymbolKind.DECISION_SERVICE),
-						path + "/knowledgeRequirement[" + i + "]", bkm.getNode().getSourceLocation());
+						Set.of(SymbolKind.BKM, SymbolKind.DECISION_SERVICE), path + "/knowledgeRequirement[" + i + "]",
+						bkm.getNode().getSourceLocation());
 			}
 			analyzeAuthorityRequirements(bkm.getAuthorityRequirementsList(), path, bkm.getNode().getSourceLocation());
 			if (!bkm.hasFunction()) {
@@ -886,7 +886,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				return source.getList().getElementType();
 			}
 			if (source.hasNamed()) {
-				List<DmnModelRepository.ResolvedItemDefinition> resolved = repository.resolveType(model, source.getNamed());
+				List<DmnModelRepository.ResolvedItemDefinition> resolved = repository.resolveType(model,
+						source.getNamed());
 				if (!resolved.isEmpty()) {
 					ItemDefinition item = resolved.getFirst().item();
 					if (item.getIsCollection()) {
@@ -916,8 +917,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				if (iteration.hasEnd()) {
 					analyzeExpression(iteration.getEnd(), scope, path + "/iteration[" + i + "]/end", location);
 				}
-				define(scope, iteration.getVariable(), iterationElementType(type), SymbolKind.LOCAL, path + "/iteration[" + i + "]",
-						location);
+				define(scope, iteration.getVariable(), iterationElementType(type), SymbolKind.LOCAL,
+						path + "/iteration[" + i + "]", location);
 			}
 			define(scope, "partial", TypeReference.getDefaultInstance(), SymbolKind.LOCAL, path + "/partial", location);
 			return analyzeExpression(value.getReturnExpression(), scope, path + "/return", location);
@@ -936,7 +937,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				IterationBinding binding = value.getBindings(i);
 				TypeReference type = analyzeExpression(binding.getIn(), scope, path + "/binding[" + i + "]/in",
 						location);
-				define(scope, binding.getVariable(), iterationElementType(type), SymbolKind.LOCAL, path + "/binding[" + i + "]", location);
+				define(scope, binding.getVariable(), iterationElementType(type), SymbolKind.LOCAL,
+						path + "/binding[" + i + "]", location);
 			}
 			analyzeExpression(value.getSatisfies(), scope, path + "/satisfies", location);
 			return TypeReference.getDefaultInstance();
@@ -1053,7 +1055,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				if (source.hasList()) {
 					TypeReference elem = source.getList().getElementType();
 					TypeReference prop = resolveMember(elem, member, path, location);
-					return TypeReference.newBuilder().setList(io.finmsg.dmn.model.ListTypeReference.newBuilder().setElementType(prop)).build();
+					return TypeReference.newBuilder()
+							.setList(io.finmsg.dmn.model.ListTypeReference.newBuilder().setElementType(prop)).build();
 				}
 				return TypeReference.getDefaultInstance();
 			}
@@ -1070,7 +1073,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 			ItemDefinition item = resolvedTypes.getFirst().item();
 			if (item.getIsCollection() && item.hasType()) {
 				TypeReference prop = resolveMember(item.getType(), member, path, location);
-				return TypeReference.newBuilder().setList(io.finmsg.dmn.model.ListTypeReference.newBuilder().setElementType(prop)).build();
+				return TypeReference.newBuilder()
+						.setList(io.finmsg.dmn.model.ListTypeReference.newBuilder().setElementType(prop)).build();
 			}
 			List<ItemComponent> matches = item.getComponentsList().stream()
 					.filter(component -> component.getNode().getName().equals(member)).toList();

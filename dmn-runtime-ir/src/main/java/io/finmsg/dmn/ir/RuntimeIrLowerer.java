@@ -78,8 +78,8 @@ public final class RuntimeIrLowerer {
 						RuntimeFunctionDefinition function = lowerDecisionServiceFunction(ds, model,
 								analysis.bindings(), modelSlots, itemTypes);
 						bkms.add(new RuntimeBkm(runtimeId, runtimeId,
-								RuntimeTypeLowerer.lower(ds.getVariable().getType(), itemTypes),
-								List.of(), RuntimeFunctionKind.FEEL, Optional.of(function)));
+								RuntimeTypeLowerer.lower(ds.getVariable().getType(), itemTypes), List.of(),
+								RuntimeFunctionKind.FEEL, Optional.of(function)));
 						runtimeId++;
 					}
 					default -> {
@@ -118,8 +118,8 @@ public final class RuntimeIrLowerer {
 			int localSlot = nextLocalSlot[0]++;
 			localSlots.put(path + "/parameter[" + index + "]", new LocalSlotAddress(0, localSlot));
 			localSlots.put(targetId, new LocalSlotAddress(0, localSlot));
-			parameters.add(new RuntimeFunctionParameter(paramName, localSlot,
-					RuntimeTypeLowerer.lower(paramType, itemTypes)));
+			parameters.add(
+					new RuntimeFunctionParameter(paramName, localSlot, RuntimeTypeLowerer.lower(paramType, itemTypes)));
 		}
 		RuntimeExpression body = null;
 		if (ds.getOutputDecisionsCount() > 0) {

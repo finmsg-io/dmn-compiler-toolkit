@@ -102,7 +102,8 @@ public final class DmnFeelParser {
 			for (DrgElement value : semanticModel.getDrgElementsList()) {
 				String name = switch (value.getElementCase()) {
 					case DECISION -> {
-						if (value.getDecision().hasVariable() && !value.getDecision().getVariable().getNode().getName().isBlank()
+						if (value.getDecision().hasVariable()
+								&& !value.getDecision().getVariable().getNode().getName().isBlank()
 								&& !value.getDecision().getVariable().getNode().getName().contains(".")) {
 							session.declaredNames.add(value.getDecision().getVariable().getNode().getName());
 						}
@@ -110,7 +111,8 @@ public final class DmnFeelParser {
 					}
 					case BUSINESS_KNOWLEDGE_MODEL -> {
 						if (value.getBusinessKnowledgeModel().hasFunction()) {
-							for (io.finmsg.dmn.model.InformationItem param : value.getBusinessKnowledgeModel().getFunction().getFormalParametersList()) {
+							for (io.finmsg.dmn.model.InformationItem param : value.getBusinessKnowledgeModel()
+									.getFunction().getFormalParametersList()) {
 								if (!param.getNode().getName().isBlank() && !param.getNode().getName().contains(".")) {
 									session.declaredNames.add(param.getNode().getName());
 								}
@@ -119,7 +121,8 @@ public final class DmnFeelParser {
 						yield value.getBusinessKnowledgeModel().getNode().getName();
 					}
 					case INPUT_DATA -> {
-						if (value.getInputData().hasVariable() && !value.getInputData().getVariable().getNode().getName().isBlank()
+						if (value.getInputData().hasVariable()
+								&& !value.getInputData().getVariable().getNode().getName().isBlank()
 								&& !value.getInputData().getVariable().getNode().getName().contains(".")) {
 							session.declaredNames.add(value.getInputData().getVariable().getNode().getName());
 						}
@@ -521,8 +524,7 @@ public final class DmnFeelParser {
 			ParseSession session = currentSession.get();
 			if (session != null && session.declaredNames.contains(trimmed)) {
 				FeelParsed parsed = FeelParsed.newBuilder()
-						.setAst(Expression.newBuilder().setName(NameExpression.newBuilder().setName(trimmed)))
-						.build();
+						.setAst(Expression.newBuilder().setName(NameExpression.newBuilder().setName(trimmed))).build();
 				return ExpressionParsed.newBuilder().setFeel(parsed).build();
 			}
 		}

@@ -67,8 +67,7 @@ class OfficialTckSuiteTest {
 		String filter = System.getProperty("tck.filter", System.getProperty("tck.suite", "")).trim();
 		if (!filter.isEmpty()) {
 			List<TckCatalogueEntry> filtered = inventory.entries().stream()
-					.filter(e -> e.id().contains(filter) || e.testXml().toString().contains(filter))
-					.toList();
+					.filter(e -> e.id().contains(filter) || e.testXml().toString().contains(filter)).toList();
 			int cases = filtered.stream().mapToInt(e -> e.testCases().size()).sum();
 			int dmns = filtered.stream().mapToInt(e -> e.dmnFiles().size()).sum();
 			inventory = new TckCatalogueInventory(inventory.directoryCount(), filtered.size(), dmns, cases, filtered);
@@ -127,10 +126,9 @@ class OfficialTckSuiteTest {
 							.invoke(engineInstance, (Object) slots);
 					assertExpected(testName, testCase, extractDecisionValues(compilation, evaluated), "Generated code");
 				};
-				dynamicTests
-						.add(recordedTest(testName + " @interpreter", entry, testCase, "interpreter", interpreter));
-				dynamicTests.add(recordedTest(testName + " @generated-java", entry, testCase, "generated-java",
-						generatedJava));
+				dynamicTests.add(recordedTest(testName + " @interpreter", entry, testCase, "interpreter", interpreter));
+				dynamicTests.add(
+						recordedTest(testName + " @generated-java", entry, testCase, "generated-java", generatedJava));
 			}
 		}
 		return dynamicTests.stream();
@@ -245,7 +243,8 @@ class OfficialTckSuiteTest {
 								expected.getKey(), testName, normalizedExpected)
 						.isNotNull();
 			if (normalizedExpected instanceof BigDecimal expBd && normalizedActual instanceof BigDecimal actBd) {
-				if (expBd.compareTo(actBd) == 0 || expBd.subtract(actBd).abs().compareTo(new BigDecimal("0.0001")) <= 0) {
+				if (expBd.compareTo(actBd) == 0
+						|| expBd.subtract(actBd).abs().compareTo(new BigDecimal("0.0001")) <= 0) {
 					continue;
 				}
 			}

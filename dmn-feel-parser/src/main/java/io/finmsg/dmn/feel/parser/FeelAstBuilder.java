@@ -196,8 +196,8 @@ public final class FeelAstBuilder {
 				if (left.hasName() && right.hasName()) {
 					String candidate = left.getName().getName() + "-" + right.getName().getName();
 					if (declaredNames.contains(candidate)) {
-						exprs.set(i, Expression.newBuilder()
-								.setName(NameExpression.newBuilder().setName(candidate)).build());
+						exprs.set(i, Expression.newBuilder().setName(NameExpression.newBuilder().setName(candidate))
+								.build());
 						exprs.remove(i + 1);
 						ops.remove(i);
 						continue;
@@ -205,9 +205,13 @@ public final class FeelAstBuilder {
 				} else if (left.hasName() && right.hasPath() && right.getPath().getSource().hasName()) {
 					String candidate = left.getName().getName() + "-" + right.getPath().getSource().getName().getName();
 					if (declaredNames.contains(candidate)) {
-						exprs.set(i, Expression.newBuilder().setPath(PathExpression.newBuilder()
-								.setSource(Expression.newBuilder().setName(NameExpression.newBuilder().setName(candidate)))
-								.setMember(right.getPath().getMember())).build());
+						exprs.set(i,
+								Expression.newBuilder()
+										.setPath(PathExpression.newBuilder()
+												.setSource(Expression.newBuilder()
+														.setName(NameExpression.newBuilder().setName(candidate)))
+												.setMember(right.getPath().getMember()))
+										.build());
 						exprs.remove(i + 1);
 						ops.remove(i);
 						continue;
@@ -457,15 +461,11 @@ public final class FeelAstBuilder {
 	}
 
 	private RangeBoundary startBoundary(String delimiter) {
-		return "[".equals(delimiter)
-				? RangeBoundary.RANGE_BOUNDARY_CLOSED
-				: RangeBoundary.RANGE_BOUNDARY_OPEN;
+		return "[".equals(delimiter) ? RangeBoundary.RANGE_BOUNDARY_CLOSED : RangeBoundary.RANGE_BOUNDARY_OPEN;
 	}
 
 	private RangeBoundary endBoundary(String delimiter) {
-		return "]".equals(delimiter)
-				? RangeBoundary.RANGE_BOUNDARY_CLOSED
-				: RangeBoundary.RANGE_BOUNDARY_OPEN;
+		return "]".equals(delimiter) ? RangeBoundary.RANGE_BOUNDARY_CLOSED : RangeBoundary.RANGE_BOUNDARY_OPEN;
 	}
 
 	private UnaryTestsExpression unaryTests(FeelParser.UnaryTestsContext context) {
@@ -633,8 +633,7 @@ public final class FeelAstBuilder {
 
 	private static String name(FeelParser.NameContext context) {
 		return context.nameSegment().stream().map(org.antlr.v4.runtime.RuleContext::getText)
-				.map(s -> s.replaceAll("\\s+", " "))
-				.collect(java.util.stream.Collectors.joining(" "));
+				.map(s -> s.replaceAll("\\s+", " ")).collect(java.util.stream.Collectors.joining(" "));
 	}
 
 	private static String key(FeelParser.KeyContext context) {

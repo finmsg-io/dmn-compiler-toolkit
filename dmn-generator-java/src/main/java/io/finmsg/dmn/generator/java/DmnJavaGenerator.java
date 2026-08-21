@@ -128,8 +128,7 @@ public final class DmnJavaGenerator {
 
 		boolean isMultiMatch = table.hitPolicy() == RuntimeHitPolicy.COLLECT
 				|| table.hitPolicy() == RuntimeHitPolicy.RULE_ORDER
-				|| table.hitPolicy() == RuntimeHitPolicy.OUTPUT_ORDER
-				|| table.hitPolicy() == RuntimeHitPolicy.PRIORITY;
+				|| table.hitPolicy() == RuntimeHitPolicy.OUTPUT_ORDER || table.hitPolicy() == RuntimeHitPolicy.PRIORITY;
 		if (isMultiMatch) {
 			sb.append("    List<Object> matches = new ArrayList<>();\n");
 		}
@@ -186,8 +185,7 @@ public final class DmnJavaGenerator {
 					ctxSb.append(", ");
 				String name = table.outputs().get(o).name().orElse("output" + (o + 1));
 				String valCode = table.outputs().get(o).defaultValue()
-						.map(d -> JavaExpressionEmitter.emitWithBkms(d, bkmBySlot))
-						.orElse("null");
+						.map(d -> JavaExpressionEmitter.emitWithBkms(d, bkmBySlot)).orElse("null");
 				ctxSb.append("{\"").append(name).append("\", ").append(valCode).append("}");
 			}
 			ctxSb.append("})");
@@ -203,7 +201,8 @@ public final class DmnJavaGenerator {
 			} else if (table.hitPolicy() == RuntimeHitPolicy.OUTPUT_ORDER) {
 				sb.append("    return sortOutputOrder(matches, ").append(emitAllowedValuesList(table)).append(");\n");
 			} else if (table.hitPolicy() == RuntimeHitPolicy.PRIORITY) {
-				sb.append("    List<Object> sorted = sortOutputOrder(matches, ").append(emitAllowedValuesList(table)).append(");\n");
+				sb.append("    List<Object> sorted = sortOutputOrder(matches, ").append(emitAllowedValuesList(table))
+						.append(");\n");
 				sb.append("    return sorted.isEmpty() ? null : sorted.get(0);\n");
 			} else {
 				sb.append("    return Collections.unmodifiableList(new ArrayList<>(matches));\n");
@@ -262,15 +261,18 @@ public final class DmnJavaGenerator {
 	private static String emitUnaryTest(String inputVar, RuntimeUnaryTest test) {
 		return switch (test) {
 			case RuntimeComparisonUnaryTest comparison -> switch (comparison.operator()) {
-				case EQUAL -> "Boolean.TRUE.equals(equal(" + inputVar + ", " + JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
-				case NOT_EQUAL -> "Boolean.TRUE.equals(notEqual(" + inputVar + ", " + JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
-				case LESS -> "Boolean.TRUE.equals(less(" + inputVar + ", " + JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
-				case LESS_EQUAL ->
-					"Boolean.TRUE.equals(lessEqual(" + inputVar + ", " + JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
-				case GREATER ->
-					"Boolean.TRUE.equals(greater(" + inputVar + ", " + JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
-				case GREATER_EQUAL ->
-					"Boolean.TRUE.equals(greaterEqual(" + inputVar + ", " + JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
+				case EQUAL -> "Boolean.TRUE.equals(equal(" + inputVar + ", "
+						+ JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
+				case NOT_EQUAL -> "Boolean.TRUE.equals(notEqual(" + inputVar + ", "
+						+ JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
+				case LESS -> "Boolean.TRUE.equals(less(" + inputVar + ", "
+						+ JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
+				case LESS_EQUAL -> "Boolean.TRUE.equals(lessEqual(" + inputVar + ", "
+						+ JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
+				case GREATER -> "Boolean.TRUE.equals(greater(" + inputVar + ", "
+						+ JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
+				case GREATER_EQUAL -> "Boolean.TRUE.equals(greaterEqual(" + inputVar + ", "
+						+ JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
 			};
 			case RuntimeRangeUnaryTest rangeTest -> emitRangeUnaryTest(inputVar, rangeTest);
 			case RuntimeExpressionUnaryTest expr -> {
@@ -291,12 +293,14 @@ public final class DmnJavaGenerator {
 		if (range.lower().isPresent()) {
 			String lowerExpr = JavaExpressionEmitter.emit(range.lower().get());
 			String op = range.lowerBoundary() == RuntimeRangeBoundary.CLOSED ? "lessEqual(" : "less(";
-			sb.append(" && ((").append(lowerExpr).append(") == null || Boolean.TRUE.equals(").append(op).append(lowerExpr).append(", ").append(inputVar).append(")))");
+			sb.append(" && ((").append(lowerExpr).append(") == null || Boolean.TRUE.equals(").append(op)
+					.append(lowerExpr).append(", ").append(inputVar).append(")))");
 		}
 		if (range.upper().isPresent()) {
 			String upperExpr = JavaExpressionEmitter.emit(range.upper().get());
 			String op = range.upperBoundary() == RuntimeRangeBoundary.CLOSED ? "lessEqual(" : "less(";
-			sb.append(" && ((").append(upperExpr).append(") == null || Boolean.TRUE.equals(").append(op).append(inputVar).append(", ").append(upperExpr).append(")))");
+			sb.append(" && ((").append(upperExpr).append(") == null || Boolean.TRUE.equals(").append(op)
+					.append(inputVar).append(", ").append(upperExpr).append(")))");
 		}
 		sb.append(")");
 		return sb.toString();

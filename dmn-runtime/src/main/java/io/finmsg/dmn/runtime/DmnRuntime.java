@@ -69,7 +69,8 @@ public final class DmnRuntime {
 					List<Object> coercedList = new ArrayList<>();
 					for (Object item : list) {
 						Object c = coerce(item, elemType);
-						if (c == null && item != null) return null;
+						if (c == null && item != null)
+							return null;
 						coercedList.add(c);
 					}
 					return Collections.unmodifiableList(coercedList);
@@ -78,7 +79,8 @@ public final class DmnRuntime {
 			}
 			if (targetType.elementType() != null && targetType.elementType().kind() != RuntimeTypeKind.ANY) {
 				Object coerced = coerce(value, targetType.elementType());
-				if (coerced == null && value != null) return null;
+				if (coerced == null && value != null)
+					return null;
 				return List.of(coerced);
 			}
 			return List.of(value);
@@ -93,18 +95,24 @@ public final class DmnRuntime {
 			return null;
 		}
 		if (targetType.kind() == RuntimeTypeKind.CONTEXT && !targetType.fieldLayout().isEmpty()) {
-			Map<?, ?> map = value instanceof RuntimeContextValue ctx ? ctx.namedFields() : value instanceof Map<?, ?> m ? m : null;
-			if (map == null) return null;
+			Map<?, ?> map = value instanceof RuntimeContextValue ctx
+					? ctx.namedFields()
+					: value instanceof Map<?, ?> m ? m : null;
+			if (map == null)
+				return null;
 			List<RuntimeField> fields = targetType.fieldLayout();
 			for (Map.Entry<?, ?> entry : map.entrySet()) {
 				String key = String.valueOf(entry.getKey());
-				if (fields.stream().noneMatch(f -> f.name().equals(key))) return null;
+				if (fields.stream().noneMatch(f -> f.name().equals(key)))
+					return null;
 			}
 			for (RuntimeField field : fields) {
-				if (!map.containsKey(field.name())) return null;
+				if (!map.containsKey(field.name()))
+					return null;
 				Object fieldVal = map.get(field.name());
 				Object coercedField = coerce(fieldVal, field.type());
-				if (coercedField == null && fieldVal != null) return null;
+				if (coercedField == null && fieldVal != null)
+					return null;
 			}
 		}
 		return value;
@@ -112,7 +120,9 @@ public final class DmnRuntime {
 
 	private interface CallableValue {
 		Object call(List<Object> positional, Map<String, Object> named);
-		default int parameterCount() { return -1; }
+		default int parameterCount() {
+			return -1;
+		}
 	}
 
 	private static final class Frame {
@@ -170,31 +180,38 @@ public final class DmnRuntime {
 					boolean lowerAbsent = it.lower().isEmpty();
 					if (!lowerAbsent) {
 						low = expression(it.lower().get(), frame);
-						if (low == null) yield null;
+						if (low == null)
+							yield null;
 					}
 					Object up = null;
 					boolean upperAbsent = it.upper().isEmpty();
 					if (!upperAbsent) {
 						up = expression(it.upper().get(), frame);
-						if (up == null) yield null;
+						if (up == null)
+							yield null;
 					}
 					if (low != null && up != null) {
 						Integer c = compare(low, up);
-						if (c == null || c > 0) yield null;
+						if (c == null || c > 0)
+							yield null;
 					}
-					yield new RuntimeRangeValue(low, up, it.lowerBoundary(), it.upperBoundary(), lowerAbsent, upperAbsent);
+					yield new RuntimeRangeValue(low, up, it.lowerBoundary(), it.upperBoundary(), lowerAbsent,
+							upperAbsent);
 				}
 				case RuntimeBetweenExpression it ->
 					compare(expression(it.value(), frame), expression(it.lower(), frame)) >= 0
 							&& compare(expression(it.value(), frame), expression(it.upper(), frame)) <= 0;
 				case RuntimeInExpression it -> {
 					Object val = expression(it.value(), frame);
-					if (val == null) yield null;
+					if (val == null)
+						yield null;
 					Boolean res = false;
 					for (RuntimeUnaryTest t : it.tests().tests()) {
 						Object match = test(val, t, frame);
-						if (Boolean.TRUE.equals(match)) yield it.tests().negated() ? false : true;
-						if (match == null) res = null;
+						if (Boolean.TRUE.equals(match))
+							yield it.tests().negated() ? false : true;
+						if (match == null)
+							res = null;
 					}
 					yield res == null ? null : (it.tests().negated() ? !res : res);
 				}
@@ -232,9 +249,12 @@ public final class DmnRuntime {
 			return switch (operator) {
 				case POSITIVE -> operand;
 				case NEGATE -> {
-					if (operand == null) yield null;
-					if (operand instanceof Duration dur) yield dur.negated();
-					if (operand instanceof Period p) yield p.negated();
+					if (operand == null)
+						yield null;
+					if (operand instanceof Duration dur)
+						yield dur.negated();
+					if (operand instanceof Period p)
+						yield p.negated();
 					yield number(operand).negate();
 				}
 				case NOT -> not(operand);
@@ -399,7 +419,8 @@ public final class DmnRuntime {
 					case "hour" -> BigDecimal.valueOf(nzdt.value().getHour());
 					case "minute" -> BigDecimal.valueOf(nzdt.value().getMinute());
 					case "second" -> BigDecimal.valueOf(nzdt.value().getSecond());
-					case "time offset" -> Duration.ofSeconds(nzdt.zone().getRules().getOffset(nzdt.value()).getTotalSeconds());
+					case "time offset" ->
+						Duration.ofSeconds(nzdt.zone().getRules().getOffset(nzdt.value()).getTotalSeconds());
 					case "timezone" -> nzdt.zone().getId();
 					default -> null;
 				};
@@ -489,23 +510,28 @@ public final class DmnRuntime {
 			}
 			RuntimeIteration iteration = iterations.get(index);
 			List<Object> values = iterationValues(iteration, frame);
-			if (values == null) return null;
+			if (values == null)
+				return null;
 			for (Object item : values) {
 				frame.set(iteration.localSlot(), item);
-				if (iterate(forExpr, iterations, index + 1, frame, output) == null) return null;
+				if (iterate(forExpr, iterations, index + 1, frame, output) == null)
+					return null;
 			}
 			return List.copyOf(output);
 		}
 
 		private List<Object> iterationValues(RuntimeIteration iteration, Frame frame) {
 			Object start = expression(iteration.source(), frame);
-			if (start == null) return null;
+			if (start == null)
+				return null;
 			if (iteration.end().isEmpty()) {
-				if (start instanceof RuntimeRangeValue) return null;
+				if (start instanceof RuntimeRangeValue)
+					return null;
 				return list(start);
 			}
 			Object end = expression(iteration.end().orElseThrow(), frame);
-			if (end == null) return null;
+			if (end == null)
+				return null;
 			if (start instanceof LocalDate ldStart && end instanceof LocalDate ldEnd) {
 				List<Object> result = new ArrayList<>();
 				if (ldStart.isBefore(ldEnd) || ldStart.isEqual(ldEnd)) {
@@ -577,9 +603,12 @@ public final class DmnRuntime {
 					Frame call = new Frame(closure, definition.localSlotCount());
 					for (int index = 0; index < definition.parameters().size(); index++) {
 						RuntimeFunctionParameter parameter = definition.parameters().get(index);
-						Object argument = index < positional.size() ? positional.get(index) : named.get(parameter.name());
+						Object argument = index < positional.size()
+								? positional.get(index)
+								: named.get(parameter.name());
 						Object coercedArg = coerce(argument, parameter.type());
-						if (coercedArg == null && argument != null) return null;
+						if (coercedArg == null && argument != null)
+							return null;
 						call.set(parameter.localSlot(), coercedArg);
 					}
 					Object bodyVal = expression(definition.body().orElseThrow(), call);
@@ -605,7 +634,8 @@ public final class DmnRuntime {
 			if (invocation.function().isPresent()) {
 				String fnName = invocation.function().orElseThrow();
 				if (!named.isEmpty()) {
-					if (!positional.isEmpty()) return null;
+					if (!positional.isEmpty())
+						return null;
 					return invokeBuiltinNamed(fnName, named);
 				}
 				return builtin(fnName, positional);
@@ -660,7 +690,8 @@ public final class DmnRuntime {
 				}
 				case ANY -> {
 					Object first = output(matches.getFirst(), table.outputs());
-					if (matches.stream().map(row -> output(row, table.outputs())).anyMatch(row -> !Boolean.TRUE.equals(equal(first, row))))
+					if (matches.stream().map(row -> output(row, table.outputs()))
+							.anyMatch(row -> !Boolean.TRUE.equals(equal(first, row))))
 						throw new DmnEvaluationException("ANY table produced different outputs");
 					yield first;
 				}
@@ -703,7 +734,8 @@ public final class DmnRuntime {
 				if (out.allowedValues().isPresent()) {
 					List<Object> domain = extractAllowedValues(out.allowedValues().get());
 					domains.add(domain);
-					if (!domain.isEmpty()) hasAnyDomain = true;
+					if (!domain.isEmpty())
+						hasAnyDomain = true;
 				} else {
 					domains.add(List.of());
 				}
@@ -715,14 +747,20 @@ public final class DmnRuntime {
 			sorted.sort((a, b) -> {
 				for (int i = 0; i < outputs.size(); i++) {
 					List<Object> domain = domains.get(i);
-					if (domain.isEmpty()) continue;
-					Object valA = (a instanceof RuntimeContextValue ctxA) ? ctxA.field(i) : (outputs.size() == 1 ? a : null);
-					Object valB = (b instanceof RuntimeContextValue ctxB) ? ctxB.field(i) : (outputs.size() == 1 ? b : null);
+					if (domain.isEmpty())
+						continue;
+					Object valA = (a instanceof RuntimeContextValue ctxA)
+							? ctxA.field(i)
+							: (outputs.size() == 1 ? a : null);
+					Object valB = (b instanceof RuntimeContextValue ctxB)
+							? ctxB.field(i)
+							: (outputs.size() == 1 ? b : null);
 					int idxA = domain.indexOf(valA);
 					int idxB = domain.indexOf(valB);
 					int posA = idxA < 0 ? Integer.MAX_VALUE : idxA;
 					int posB = idxB < 0 ? Integer.MAX_VALUE : idxB;
-					if (posA != posB) return Integer.compare(posA, posB);
+					if (posA != posB)
+						return Integer.compare(posA, posB);
 				}
 				return 0;
 			});
@@ -746,7 +784,8 @@ public final class DmnRuntime {
 		}
 
 		private boolean tests(Object candidate, RuntimeUnaryTests tests, Frame frame) {
-			boolean match = tests.wildcard() || tests.tests().stream().anyMatch(test -> Boolean.TRUE.equals(test(candidate, test, frame)));
+			boolean match = tests.wildcard()
+					|| tests.tests().stream().anyMatch(test -> Boolean.TRUE.equals(test(candidate, test, frame)));
 			return tests.negated() ? !match : match;
 		}
 		private Object test(Object candidate, RuntimeUnaryTest test, Frame frame) {
@@ -774,7 +813,8 @@ public final class DmnRuntime {
 
 		private Object invokeBuiltinNamed(String fnName, Map<String, Object> namedArgs) {
 			List<Object> args = bindNamedBuiltinArguments(fnName, namedArgs);
-			if (args == null) return null;
+			if (args == null)
+				return null;
 			return builtin(fnName, args);
 		}
 
@@ -788,58 +828,91 @@ public final class DmnRuntime {
 				case NUMBER -> {
 					if (arguments.size() == 1) {
 						Object a = arguments.get(0);
-						if (a == null) yield null;
-						try { yield new BigDecimal(String.valueOf(a).trim()); } catch (Exception e) { yield null; }
+						if (a == null)
+							yield null;
+						try {
+							yield new BigDecimal(String.valueOf(a).trim());
+						} catch (Exception e) {
+							yield null;
+						}
 					}
 					Object fromObj = arguments.get(0);
 					Object groupSepObj = arguments.size() > 1 ? arguments.get(1) : null;
 					Object decSepObj = arguments.size() > 2 ? arguments.get(2) : null;
-					if (fromObj == null) yield null;
+					if (fromObj == null)
+						yield null;
 					String from = String.valueOf(fromObj);
 					String groupSep = groupSepObj == null ? null : String.valueOf(groupSepObj);
 					String decSep = decSepObj == null ? null : String.valueOf(decSepObj);
 					try {
 						String cleaned = from;
-						if (groupSep != null && !groupSep.isEmpty()) cleaned = cleaned.replace(groupSep, "");
-						if (decSep != null && !decSep.isEmpty() && !".".equals(decSep)) cleaned = cleaned.replace(decSep, ".");
+						if (groupSep != null && !groupSep.isEmpty())
+							cleaned = cleaned.replace(groupSep, "");
+						if (decSep != null && !decSep.isEmpty() && !".".equals(decSep))
+							cleaned = cleaned.replace(decSep, ".");
 						yield new BigDecimal(cleaned.trim());
-					} catch (Exception e) { yield null; }
+					} catch (Exception e) {
+						yield null;
+					}
 				}
 				case DATE -> {
 					if (arguments.size() == 1) {
 						Object a = argument(arguments, 0);
-						if (a == null) yield null;
-						if (a instanceof LocalDate ld) yield ld;
-						if (a instanceof LocalDateTime ldt) yield ldt.toLocalDate();
-						if (a instanceof OffsetDateTime odt) yield odt.toLocalDate();
-						if (a instanceof ZonedDateTime zdt) yield zdt.toLocalDate();
-						try { yield LocalDate.parse(String.valueOf(a)); } catch (Exception e) { yield null; }
+						if (a == null)
+							yield null;
+						if (a instanceof LocalDate ld)
+							yield ld;
+						if (a instanceof LocalDateTime ldt)
+							yield ldt.toLocalDate();
+						if (a instanceof OffsetDateTime odt)
+							yield odt.toLocalDate();
+						if (a instanceof ZonedDateTime zdt)
+							yield zdt.toLocalDate();
+						try {
+							yield LocalDate.parse(String.valueOf(a));
+						} catch (Exception e) {
+							yield null;
+						}
 					}
 					if (arguments.size() == 3) {
 						Number y = number(arguments.get(0)), m = number(arguments.get(1)), d = number(arguments.get(2));
-						if (y == null || m == null || d == null) yield null;
-						try { yield LocalDate.of(y.intValue(), m.intValue(), d.intValue()); } catch (Exception e) { yield null; }
+						if (y == null || m == null || d == null)
+							yield null;
+						try {
+							yield LocalDate.of(y.intValue(), m.intValue(), d.intValue());
+						} catch (Exception e) {
+							yield null;
+						}
 					}
 					yield null;
 				}
 				case TIME -> {
-					if (arguments.isEmpty()) yield null;
+					if (arguments.isEmpty())
+						yield null;
 					if (arguments.size() == 1) {
 						Object a = arguments.get(0);
-						if (a == null) yield null;
-						if (a instanceof LocalTime lt) yield lt;
-						if (a instanceof OffsetTime ot) yield ot;
-						if (a instanceof LocalDateTime ldt) yield ldt.toLocalTime();
-						if (a instanceof OffsetDateTime odt) yield odt.toOffsetTime();
-						if (a instanceof ZonedDateTime zdt) yield zdt.toOffsetDateTime().toOffsetTime();
+						if (a == null)
+							yield null;
+						if (a instanceof LocalTime lt)
+							yield lt;
+						if (a instanceof OffsetTime ot)
+							yield ot;
+						if (a instanceof LocalDateTime ldt)
+							yield ldt.toLocalTime();
+						if (a instanceof OffsetDateTime odt)
+							yield odt.toOffsetTime();
+						if (a instanceof ZonedDateTime zdt)
+							yield zdt.toOffsetDateTime().toOffsetTime();
 						yield parseTime(String.valueOf(a));
 					}
-					if (arguments.size() < 3) yield null;
+					if (arguments.size() < 3)
+						yield null;
 					try {
 						Number hour = number(arguments.get(0));
 						Number minute = number(arguments.get(1));
 						Number second = number(arguments.get(2));
-						if (hour == null || minute == null || second == null) yield null;
+						if (hour == null || minute == null || second == null)
+							yield null;
 						int h = hour.intValue(), m = minute.intValue();
 						BigDecimal sec = number(arguments.get(2));
 						int s = sec.intValue();
@@ -871,20 +944,29 @@ public final class DmnRuntime {
 					if (arguments.size() == 2) {
 						Object dateArg = arguments.get(0);
 						Object timeArg = arguments.get(1);
-						LocalDate date = dateArg instanceof LocalDate d ? d
-								: dateArg instanceof LocalDateTime dt ? dt.toLocalDate()
-								: dateArg instanceof OffsetDateTime odt ? odt.toLocalDate()
-								: null;
+						LocalDate date = dateArg instanceof LocalDate d
+								? d
+								: dateArg instanceof LocalDateTime dt
+										? dt.toLocalDate()
+										: dateArg instanceof OffsetDateTime odt ? odt.toLocalDate() : null;
 						if (date == null && dateArg instanceof String s) {
-							try { date = LocalDate.parse(s); } catch (Exception e) {}
+							try {
+								date = LocalDate.parse(s);
+							} catch (Exception e) {
+							}
 						}
-						if (date == null) yield null;
-						if (timeArg instanceof OffsetTime ot) yield OffsetDateTime.of(date, ot.toLocalTime(), ot.getOffset());
-						if (timeArg instanceof LocalTime lt) yield LocalDateTime.of(date, lt);
+						if (date == null)
+							yield null;
+						if (timeArg instanceof OffsetTime ot)
+							yield OffsetDateTime.of(date, ot.toLocalTime(), ot.getOffset());
+						if (timeArg instanceof LocalTime lt)
+							yield LocalDateTime.of(date, lt);
 						if (timeArg instanceof String ts) {
 							Object parsed = parseTime(ts);
-							if (parsed instanceof OffsetTime ot) yield OffsetDateTime.of(date, ot.toLocalTime(), ot.getOffset());
-							if (parsed instanceof LocalTime lt) yield LocalDateTime.of(date, lt);
+							if (parsed instanceof OffsetTime ot)
+								yield OffsetDateTime.of(date, ot.toLocalTime(), ot.getOffset());
+							if (parsed instanceof LocalTime lt)
+								yield LocalDateTime.of(date, lt);
 						}
 						yield null;
 					}
@@ -900,10 +982,14 @@ public final class DmnRuntime {
 				case MAX -> listArgument(arguments).stream().max(DmnRuntime::compare).orElse(null);
 				case ABS -> {
 					Object a = argument(arguments, 0);
-					if (a == null) yield null;
-					if (a instanceof Number) yield number(a).abs();
-					if (a instanceof Duration d) yield d.abs();
-					if (a instanceof Period p) yield p.toTotalMonths() < 0 ? p.negated() : p;
+					if (a == null)
+						yield null;
+					if (a instanceof Number)
+						yield number(a).abs();
+					if (a instanceof Duration d)
+						yield d.abs();
+					if (a instanceof Period p)
+						yield p.toTotalMonths() < 0 ? p.negated() : p;
 					yield null;
 				}
 				case SUBSTRING -> substring(arguments);
@@ -927,20 +1013,29 @@ public final class DmnRuntime {
 				case MATCHES -> {
 					Object inputArg = argument(arguments, 0);
 					Object patternArg = argument(arguments, 1);
-					if (inputArg == null || patternArg == null) yield null;
+					if (inputArg == null || patternArg == null)
+						yield null;
 					String input = stringValue(inputArg);
 					String pattern = stringValue(patternArg);
-					String flags = arguments.size() >= 3 && argument(arguments, 2) != null ? String.valueOf(argument(arguments, 2)) : null;
+					String flags = arguments.size() >= 3 && argument(arguments, 2) != null
+							? String.valueOf(argument(arguments, 2))
+							: null;
 					try {
 						int f = 0;
 						if (flags != null) {
 							for (char c : flags.toCharArray()) {
-								if (c == 'i') f |= java.util.regex.Pattern.CASE_INSENSITIVE;
-								else if (c == 's') f |= java.util.regex.Pattern.DOTALL;
-								else if (c == 'm') f |= java.util.regex.Pattern.MULTILINE;
-								else if (c == 'x') f |= java.util.regex.Pattern.COMMENTS;
-								else if (c == 'q') f |= java.util.regex.Pattern.LITERAL;
-								else yield null;
+								if (c == 'i')
+									f |= java.util.regex.Pattern.CASE_INSENSITIVE;
+								else if (c == 's')
+									f |= java.util.regex.Pattern.DOTALL;
+								else if (c == 'm')
+									f |= java.util.regex.Pattern.MULTILINE;
+								else if (c == 'x')
+									f |= java.util.regex.Pattern.COMMENTS;
+								else if (c == 'q')
+									f |= java.util.regex.Pattern.LITERAL;
+								else
+									yield null;
 							}
 						}
 						yield java.util.regex.Pattern.compile(pattern, f).matcher(input).find();
@@ -967,58 +1062,73 @@ public final class DmnRuntime {
 				case YEARS_AND_MONTHS_DURATION -> yearsAndMonthsDuration(arguments);
 				case MEAN -> {
 					List<Object> list = listArgument(arguments);
-					if (list.isEmpty()) yield null;
+					if (list.isEmpty())
+						yield null;
 					BigDecimal sum = BigDecimal.ZERO;
 					for (Object o : list) {
-						if (o == null) yield null;
+						if (o == null)
+							yield null;
 						BigDecimal n = number(o);
-						if (n == null) yield null;
+						if (n == null)
+							yield null;
 						sum = sum.add(n);
 					}
 					yield sum.divide(BigDecimal.valueOf(list.size()), MathContext.DECIMAL128);
 				}
 				case MEDIAN -> {
 					List<Object> list = listArgument(arguments);
-					if (list.isEmpty()) yield null;
+					if (list.isEmpty())
+						yield null;
 					List<BigDecimal> nums = new ArrayList<>();
 					for (Object o : list) {
-						if (o == null) yield null;
+						if (o == null)
+							yield null;
 						BigDecimal n = number(o);
-						if (n == null) yield null;
+						if (n == null)
+							yield null;
 						nums.add(n);
 					}
 					Collections.sort(nums);
 					int size = nums.size();
-					if (size % 2 == 1) yield nums.get(size / 2);
-					yield nums.get(size / 2 - 1).add(nums.get(size / 2)).divide(BigDecimal.valueOf(2), MathContext.DECIMAL128);
+					if (size % 2 == 1)
+						yield nums.get(size / 2);
+					yield nums.get(size / 2 - 1).add(nums.get(size / 2)).divide(BigDecimal.valueOf(2),
+							MathContext.DECIMAL128);
 				}
 				case MODE -> {
 					List<Object> list = listArgument(arguments);
-					if (list.isEmpty()) yield List.of();
+					if (list.isEmpty())
+						yield List.of();
 					Map<Object, Integer> counts = new HashMap<>();
 					for (Object o : list) {
-						if (o == null) yield null;
+						if (o == null)
+							yield null;
 						BigDecimal n = number(o);
-						if (n == null) yield null;
+						if (n == null)
+							yield null;
 						counts.put(n, counts.getOrDefault(n, 0) + 1);
 					}
 					int max = Collections.max(counts.values());
 					List<Object> result = new ArrayList<>();
 					for (Map.Entry<Object, Integer> e : counts.entrySet()) {
-						if (e.getValue() == max) result.add(e.getKey());
+						if (e.getValue() == max)
+							result.add(e.getKey());
 					}
 					result.sort(DmnRuntime::compare);
 					yield result;
 				}
 				case STDDEV -> {
 					List<Object> list = listArgument(arguments);
-					if (list.size() < 2) yield null;
+					if (list.size() < 2)
+						yield null;
 					BigDecimal sum = BigDecimal.ZERO;
 					List<BigDecimal> nums = new ArrayList<>();
 					for (Object o : list) {
-						if (o == null) yield null;
+						if (o == null)
+							yield null;
 						BigDecimal n = number(o);
-						if (n == null) yield null;
+						if (n == null)
+							yield null;
 						sum = sum.add(n);
 						nums.add(n);
 					}
@@ -1033,99 +1143,124 @@ public final class DmnRuntime {
 				}
 				case SQRT -> {
 					Object a = argument(arguments, 0);
-					if (!(a instanceof Number)) yield null;
+					if (!(a instanceof Number))
+						yield null;
 					double d = number(a).doubleValue();
-					if (d < 0) yield null;
+					if (d < 0)
+						yield null;
 					yield BigDecimal.valueOf(Math.sqrt(d));
 				}
 				case EXP -> {
 					Object a = argument(arguments, 0);
-					if (!(a instanceof Number)) yield null;
+					if (!(a instanceof Number))
+						yield null;
 					yield BigDecimal.valueOf(Math.exp(number(a).doubleValue()));
 				}
 				case LOG -> {
 					Object a = argument(arguments, 0);
-					if (!(a instanceof Number)) yield null;
+					if (!(a instanceof Number))
+						yield null;
 					double d = number(a).doubleValue();
-					if (d <= 0) yield null;
+					if (d <= 0)
+						yield null;
 					yield BigDecimal.valueOf(Math.log(d));
 				}
 				case MODULO -> {
 					Object aObj = argument(arguments, 0);
 					Object bObj = argument(arguments, 1);
-					if (!(aObj instanceof Number) || !(bObj instanceof Number)) yield null;
+					if (!(aObj instanceof Number) || !(bObj instanceof Number))
+						yield null;
 					BigDecimal a = number(aObj);
 					BigDecimal b = number(bObj);
-					if (b.compareTo(BigDecimal.ZERO) == 0) yield null;
+					if (b.compareTo(BigDecimal.ZERO) == 0)
+						yield null;
 					BigDecimal q = a.divide(b, MathContext.DECIMAL128);
 					BigDecimal floorQ = q.setScale(0, java.math.RoundingMode.FLOOR);
 					yield a.subtract(floorQ.multiply(b));
 				}
 				case EVEN -> {
 					Object a = argument(arguments, 0);
-					if (!(a instanceof Number)) yield null;
+					if (!(a instanceof Number))
+						yield null;
 					yield number(a).intValue() % 2 == 0;
 				}
 				case ODD -> {
 					Object a = argument(arguments, 0);
-					if (!(a instanceof Number)) yield null;
+					if (!(a instanceof Number))
+						yield null;
 					yield number(a).intValue() % 2 != 0;
 				}
 				case PRODUCT -> {
 					List<Object> list = listArgument(arguments);
-					if (list.isEmpty()) yield null;
+					if (list.isEmpty())
+						yield null;
 					BigDecimal prod = BigDecimal.ONE;
 					for (Object o : list) {
-						if (!(o instanceof Number)) yield null;
+						if (!(o instanceof Number))
+							yield null;
 						prod = prod.multiply(number(o));
 					}
 					yield prod;
 				}
 				case ALL -> {
 					List<Object> list = listArgument(arguments);
-					if (list.isEmpty()) yield true;
+					if (list.isEmpty())
+						yield true;
 					boolean hasNull = false;
 					for (Object o : list) {
-						if (Boolean.FALSE.equals(o)) yield false;
-						if (o == null) hasNull = true;
+						if (Boolean.FALSE.equals(o))
+							yield false;
+						if (o == null)
+							hasNull = true;
 					}
 					yield hasNull ? null : true;
 				}
 				case ANY -> {
 					List<Object> list = listArgument(arguments);
-					if (list.isEmpty()) yield false;
+					if (list.isEmpty())
+						yield false;
 					boolean hasNull = false;
 					for (Object o : list) {
-						if (Boolean.TRUE.equals(o)) yield true;
-						if (o == null) hasNull = true;
+						if (Boolean.TRUE.equals(o))
+							yield true;
+						if (o == null)
+							hasNull = true;
 					}
 					yield hasNull ? null : false;
 				}
 				case INSERT_BEFORE -> {
-					if (argument(arguments, 0) == null || argument(arguments, 1) == null || argument(arguments, 2) == null) yield null;
+					if (argument(arguments, 0) == null || argument(arguments, 1) == null
+							|| argument(arguments, 2) == null)
+						yield null;
 					List<Object> list = new ArrayList<>((List<?>) argument(arguments, 0));
 					int pos = number(argument(arguments, 1)).intValue();
 					Object newItem = argument(arguments, 2);
 					int idx = pos > 0 ? pos - 1 : list.size() + pos;
-					if (idx < 0 || idx > list.size()) yield null;
+					if (idx < 0 || idx > list.size())
+						yield null;
 					list.add(idx, newItem);
 					yield List.copyOf(list);
 				}
 				case REMOVE -> {
-					if (argument(arguments, 0) == null || argument(arguments, 1) == null) yield null;
+					if (argument(arguments, 0) == null || argument(arguments, 1) == null)
+						yield null;
 					List<Object> list = new ArrayList<>((List<?>) argument(arguments, 0));
 					int pos = number(argument(arguments, 1)).intValue();
 					int idx = pos > 0 ? pos - 1 : list.size() + pos;
-					if (idx >= 0 && idx < list.size()) list.remove(idx);
+					if (idx >= 0 && idx < list.size())
+						list.remove(idx);
 					yield List.copyOf(list);
 				}
 				case APPEND -> {
-					if (argument(arguments, 0) == null) yield null;
+					if (argument(arguments, 0) == null)
+						yield null;
 					List<Object> list = new ArrayList<>((List<?>) argument(arguments, 0));
 					for (int i = 1; i < arguments.size(); i++) {
 						Object item = arguments.get(i);
-						if (item instanceof List<?> l) list.addAll(l);
-						else list.add(item);
+						if (item instanceof List<?> l)
+							list.addAll(l);
+						else
+							list.add(item);
 					}
 					yield List.copyOf(list);
 				}
@@ -1134,29 +1269,35 @@ public final class DmnRuntime {
 					for (Object arg : arguments) {
 						if (arg instanceof List<?> l) {
 							for (Object item : l) {
-								if (result.stream().noneMatch(existing -> Boolean.TRUE.equals(equal(existing, item)))) result.add(item);
+								if (result.stream().noneMatch(existing -> Boolean.TRUE.equals(equal(existing, item))))
+									result.add(item);
 							}
 						} else {
-							if (result.stream().noneMatch(existing -> Boolean.TRUE.equals(equal(existing, arg)))) result.add(arg);
+							if (result.stream().noneMatch(existing -> Boolean.TRUE.equals(equal(existing, arg))))
+								result.add(arg);
 						}
 					}
 					yield List.copyOf(result);
 				}
 				case LIST_CONTAINS -> {
-					if (argument(arguments, 0) == null) yield null;
+					if (argument(arguments, 0) == null)
+						yield null;
 					List<?> list = (List<?>) argument(arguments, 0);
 					Object match = argument(arguments, 1);
 					for (Object o : list) {
-						if (Boolean.TRUE.equals(equal(o, match))) yield true;
+						if (Boolean.TRUE.equals(equal(o, match)))
+							yield true;
 					}
 					yield false;
 				}
 				case ROUND_UP -> rounded(arguments, java.math.RoundingMode.UP);
 				case ROUND_DOWN -> rounded(arguments, java.math.RoundingMode.DOWN);
 				case STRING_JOIN -> {
-					if (arguments.isEmpty() || arguments.size() > 2) yield null;
+					if (arguments.isEmpty() || arguments.size() > 2)
+						yield null;
 					Object firstArg = arguments.get(0);
-					if (firstArg == null) yield null;
+					if (firstArg == null)
+						yield null;
 					List<?> items;
 					if (firstArg instanceof List<?> l) {
 						items = l;
@@ -1169,47 +1310,63 @@ public final class DmnRuntime {
 					if (arguments.size() > 1) {
 						Object delimArg = arguments.get(1);
 						if (delimArg != null) {
-							if (!(delimArg instanceof String)) yield null;
+							if (!(delimArg instanceof String))
+								yield null;
 							delimiter = (String) delimArg;
 						}
 					}
 					StringBuilder sb = new StringBuilder();
 					boolean first = true;
 					for (Object o : items) {
-						if (o == null) continue;
-						if (!(o instanceof String s)) yield null;
-						if (!first) sb.append(delimiter);
+						if (o == null)
+							continue;
+						if (!(o instanceof String s))
+							yield null;
+						if (!first)
+							sb.append(delimiter);
 						sb.append(s);
 						first = false;
 					}
 					yield sb.toString();
 				}
 				case DAY_AND_TIME_DURATION -> {
-					if (argument(arguments, 0) == null || argument(arguments, 1) == null) yield null;
+					if (argument(arguments, 0) == null || argument(arguments, 1) == null)
+						yield null;
 					Object o1 = argument(arguments, 0);
 					Object o2 = argument(arguments, 1);
 					java.time.temporal.Temporal t1 = null;
-					if (o1 instanceof java.time.temporal.Temporal t) t1 = t;
-					else if (o1 instanceof NamedZoneDateTime nzd) t1 = ZonedDateTime.of(nzd.value(), nzd.zone());
+					if (o1 instanceof java.time.temporal.Temporal t)
+						t1 = t;
+					else if (o1 instanceof NamedZoneDateTime nzd)
+						t1 = ZonedDateTime.of(nzd.value(), nzd.zone());
 					else {
 						Object p1 = parseDateTime(String.valueOf(o1));
-						if (p1 instanceof java.time.temporal.Temporal t) t1 = t;
-						else if (p1 instanceof NamedZoneDateTime nzd) t1 = ZonedDateTime.of(nzd.value(), nzd.zone());
+						if (p1 instanceof java.time.temporal.Temporal t)
+							t1 = t;
+						else if (p1 instanceof NamedZoneDateTime nzd)
+							t1 = ZonedDateTime.of(nzd.value(), nzd.zone());
 					}
 					java.time.temporal.Temporal t2 = null;
-					if (o2 instanceof java.time.temporal.Temporal t) t2 = t;
-					else if (o2 instanceof NamedZoneDateTime nzd) t2 = ZonedDateTime.of(nzd.value(), nzd.zone());
+					if (o2 instanceof java.time.temporal.Temporal t)
+						t2 = t;
+					else if (o2 instanceof NamedZoneDateTime nzd)
+						t2 = ZonedDateTime.of(nzd.value(), nzd.zone());
 					else {
 						Object p2 = parseDateTime(String.valueOf(o2));
-						if (p2 instanceof java.time.temporal.Temporal t) t2 = t;
-						else if (p2 instanceof NamedZoneDateTime nzd) t2 = ZonedDateTime.of(nzd.value(), nzd.zone());
+						if (p2 instanceof java.time.temporal.Temporal t)
+							t2 = t;
+						else if (p2 instanceof NamedZoneDateTime nzd)
+							t2 = ZonedDateTime.of(nzd.value(), nzd.zone());
 					}
-					if (t1 == null || t2 == null) yield null;
+					if (t1 == null || t2 == null)
+						yield null;
 					yield Duration.between(t1, t2);
 				}
 				case GET_ENTRIES -> {
-					if (argument(arguments, 0) == null) yield null;
-					if (!(argument(arguments, 0) instanceof Map<?, ?> m)) yield null;
+					if (argument(arguments, 0) == null)
+						yield null;
+					if (!(argument(arguments, 0) instanceof Map<?, ?> m))
+						yield null;
 					List<Map<String, Object>> result = new ArrayList<>();
 					for (Map.Entry<?, ?> e : m.entrySet()) {
 						Map<String, Object> entry = new HashMap<>();
@@ -1220,12 +1377,15 @@ public final class DmnRuntime {
 					yield result;
 				}
 				case GET_VALUE -> {
-					if (argument(arguments, 0) == null || argument(arguments, 1) == null) yield null;
-					if (!(argument(arguments, 0) instanceof Map<?, ?> m)) yield null;
+					if (argument(arguments, 0) == null || argument(arguments, 1) == null)
+						yield null;
+					if (!(argument(arguments, 0) instanceof Map<?, ?> m))
+						yield null;
 					yield m.get(String.valueOf(argument(arguments, 1)));
 				}
 				case RANGE -> {
-					if (arguments.size() != 1 || argument(arguments, 0) == null) yield null;
+					if (arguments.size() != 1 || argument(arguments, 0) == null)
+						yield null;
 					String s = String.valueOf(argument(arguments, 0)).trim();
 					boolean lowClosed = s.startsWith("[");
 					boolean upClosed = s.endsWith("]");
@@ -1239,13 +1399,18 @@ public final class DmnRuntime {
 							String p1 = parts[1].trim();
 							Object low = p0.isEmpty() ? null : parseLiteralValue(p0);
 							Object up = p1.isEmpty() ? null : parseLiteralValue(p1);
-							if (!p0.isEmpty() && low == null) yield null;
-							if (!p1.isEmpty() && up == null) yield null;
-							if (low == null && up == null) yield null;
+							if (!p0.isEmpty() && low == null)
+								yield null;
+							if (!p1.isEmpty() && up == null)
+								yield null;
+							if (low == null && up == null)
+								yield null;
 							if (low != null && up != null) {
-								if (low.getClass() != up.getClass() && !(low instanceof Number && up instanceof Number)) yield null;
+								if (low.getClass() != up.getClass() && !(low instanceof Number && up instanceof Number))
+									yield null;
 								Integer c = compare(low, up);
-								if (c == null || c > 0) yield null;
+								if (c == null || c > 0)
+									yield null;
 							}
 							yield new RuntimeRangeValue(low, up,
 									lowClosed ? RuntimeRangeBoundary.CLOSED : RuntimeRangeBoundary.OPEN,
@@ -1256,25 +1421,47 @@ public final class DmnRuntime {
 				}
 				case DAY_OF_YEAR -> {
 					Object arg = argument(arguments, 0);
-					if (arg instanceof LocalDate d) yield BigDecimal.valueOf(d.getDayOfYear());
-					if (arg instanceof LocalDateTime dt) yield BigDecimal.valueOf(dt.getDayOfYear());
-					if (arg instanceof OffsetDateTime odt) yield BigDecimal.valueOf(odt.getDayOfYear());
+					if (arg instanceof LocalDate d)
+						yield BigDecimal.valueOf(d.getDayOfYear());
+					if (arg instanceof LocalDateTime dt)
+						yield BigDecimal.valueOf(dt.getDayOfYear());
+					if (arg instanceof OffsetDateTime odt)
+						yield BigDecimal.valueOf(odt.getDayOfYear());
 					yield null;
 				}
 				case DAY_OF_WEEK -> {
 					Object arg = argument(arguments, 0);
-					LocalDate d = arg instanceof LocalDate ld ? ld : arg instanceof LocalDateTime dt ? dt.toLocalDate() : arg instanceof OffsetDateTime odt ? odt.toLocalDate() : null;
-					yield d == null ? null : d.getDayOfWeek().name().substring(0, 1) + d.getDayOfWeek().name().substring(1).toLowerCase();
+					LocalDate d = arg instanceof LocalDate ld
+							? ld
+							: arg instanceof LocalDateTime dt
+									? dt.toLocalDate()
+									: arg instanceof OffsetDateTime odt ? odt.toLocalDate() : null;
+					yield d == null
+							? null
+							: d.getDayOfWeek().name().substring(0, 1)
+									+ d.getDayOfWeek().name().substring(1).toLowerCase();
 				}
 				case WEEK_OF_YEAR -> {
 					Object arg = argument(arguments, 0);
-					LocalDate d = arg instanceof LocalDate ld ? ld : arg instanceof LocalDateTime dt ? dt.toLocalDate() : arg instanceof OffsetDateTime odt ? odt.toLocalDate() : null;
-					yield d == null ? null : BigDecimal.valueOf(d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR));
+					LocalDate d = arg instanceof LocalDate ld
+							? ld
+							: arg instanceof LocalDateTime dt
+									? dt.toLocalDate()
+									: arg instanceof OffsetDateTime odt ? odt.toLocalDate() : null;
+					yield d == null
+							? null
+							: BigDecimal.valueOf(d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR));
 				}
 				case MONTH_OF_YEAR -> {
 					Object arg = argument(arguments, 0);
-					LocalDate d = arg instanceof LocalDate ld ? ld : arg instanceof LocalDateTime dt ? dt.toLocalDate() : arg instanceof OffsetDateTime odt ? odt.toLocalDate() : null;
-					yield d == null ? null : d.getMonth().name().substring(0, 1) + d.getMonth().name().substring(1).toLowerCase();
+					LocalDate d = arg instanceof LocalDate ld
+							? ld
+							: arg instanceof LocalDateTime dt
+									? dt.toLocalDate()
+									: arg instanceof OffsetDateTime odt ? odt.toLocalDate() : null;
+					yield d == null
+							? null
+							: d.getMonth().name().substring(0, 1) + d.getMonth().name().substring(1).toLowerCase();
 				}
 				case CONTEXT -> {
 					List<Object> list = listArgument(arguments);
@@ -1287,7 +1474,8 @@ public final class DmnRuntime {
 					yield map;
 				}
 				case CONTEXT_PUT -> {
-					if (arguments.size() < 3) yield null;
+					if (arguments.size() < 3)
+						yield null;
 					yield contextPut(argument(arguments, 0), argument(arguments, 1), argument(arguments, 2));
 				}
 				case CONTEXT_MERGE -> {
@@ -1303,13 +1491,16 @@ public final class DmnRuntime {
 					yield merged;
 				}
 				case PMT, PMT2 -> {
-					if (arguments.size() < 3) yield null;
+					if (arguments.size() < 3)
+						yield null;
 					BigDecimal r = number(argument(arguments, 0));
 					BigDecimal n = number(argument(arguments, 1));
 					BigDecimal p = number(argument(arguments, 2));
-					if (r == null || n == null || p == null) yield null;
+					if (r == null || n == null || p == null)
+						yield null;
 					double rd = r.doubleValue(), nd = n.doubleValue(), pd = p.doubleValue();
-					if (rd == 0) yield BigDecimal.valueOf(-pd / nd);
+					if (rd == 0)
+						yield BigDecimal.valueOf(-pd / nd);
 					double pmt = (pd * rd) / (1.0 - Math.pow(1.0 + rd, -nd));
 					yield BigDecimal.valueOf(pmt);
 				}
@@ -1419,16 +1610,19 @@ public final class DmnRuntime {
 			if (args.size() < 2 || args.get(0) == null || args.get(1) == null)
 				return null;
 			List<Object> list = list(args.get(0));
-			if (list == null) return null;
+			if (list == null)
+				return null;
 			BigDecimal sNum = number(args.get(1));
-			if (sNum == null) return null;
+			if (sNum == null)
+				return null;
 			int start = sNum.intValueExact();
 			int idx = start > 0 ? start - 1 : list.size() + start;
 			if (idx < 0 || idx >= list.size())
 				return List.of();
 			if (args.size() > 2 && args.get(2) != null) {
 				BigDecimal lNum = number(args.get(2));
-				if (lNum == null) return null;
+				if (lNum == null)
+					return null;
 				int len = lNum.intValueExact();
 				int end = Math.min(list.size(), idx + len);
 				return list.subList(idx, end);
@@ -1437,7 +1631,8 @@ public final class DmnRuntime {
 		}
 
 		private Object contextPut(Object ctx, Object keyOrKeys, Object val) {
-			if (!(ctx instanceof Map<?, ?> || ctx instanceof RuntimeContextValue)) return null;
+			if (!(ctx instanceof Map<?, ?> || ctx instanceof RuntimeContextValue))
+				return null;
 			Map<String, Object> copy = new LinkedHashMap<>();
 			if (ctx instanceof Map<?, ?> m) {
 				m.forEach((k, v) -> copy.put(String.valueOf(k), v));
@@ -1445,7 +1640,8 @@ public final class DmnRuntime {
 				copy.putAll(rcv.namedFields());
 			}
 			if (keyOrKeys instanceof List<?> keys) {
-				if (keys.isEmpty()) return copy;
+				if (keys.isEmpty())
+					return copy;
 				if (keys.size() == 1) {
 					copy.put(String.valueOf(keys.get(0)), val);
 					return copy;
@@ -1578,12 +1774,21 @@ public final class DmnRuntime {
 		}
 
 		private static LocalDate toLocalDate(Object obj) {
-			if (obj == null) return null;
-			if (obj instanceof LocalDate ld) return ld;
-			if (obj instanceof LocalDateTime ldt) return ldt.toLocalDate();
-			if (obj instanceof OffsetDateTime odt) return odt.toLocalDate();
-			if (obj instanceof ZonedDateTime zdt) return zdt.toLocalDate();
-			try { return LocalDate.parse(String.valueOf(obj)); } catch (Exception e) { return null; }
+			if (obj == null)
+				return null;
+			if (obj instanceof LocalDate ld)
+				return ld;
+			if (obj instanceof LocalDateTime ldt)
+				return ldt.toLocalDate();
+			if (obj instanceof OffsetDateTime odt)
+				return odt.toLocalDate();
+			if (obj instanceof ZonedDateTime zdt)
+				return zdt.toLocalDate();
+			try {
+				return LocalDate.parse(String.valueOf(obj));
+			} catch (Exception e) {
+				return null;
+			}
 		}
 
 		private List<Object> listArgument(List<Object> arguments) {
@@ -1594,7 +1799,8 @@ public final class DmnRuntime {
 	}
 
 	public static TemporalAmount parseDuration(String value) {
-		if (value == null) return null;
+		if (value == null)
+			return null;
 		try {
 			String s = value.trim();
 			boolean isYm = s.contains("Y") || (s.contains("M") && !s.contains("T") && !s.contains("D"));
@@ -1640,9 +1846,11 @@ public final class DmnRuntime {
 		return Boolean.TRUE.equals(value);
 	}
 	public static String formatFeelString(Object value) {
-		if (value == null) return null;
+		if (value == null)
+			return null;
 		if (value instanceof List<?> list) {
-			if (list.size() == 1) return formatFeelString(list.get(0));
+			if (list.size() == 1)
+				return formatFeelString(list.get(0));
 			return null;
 		}
 		String s = String.valueOf(value);
@@ -1655,9 +1863,11 @@ public final class DmnRuntime {
 		return formatFeelString(value);
 	}
 	private static BigDecimal number(Object value) {
-		if (value == null) return null;
+		if (value == null)
+			return null;
 		if (value instanceof List<?> list) {
-			if (list.size() == 1) return number(list.get(0));
+			if (list.size() == 1)
+				return number(list.get(0));
 			return null;
 		}
 		if (value instanceof BigDecimal decimal)
@@ -1667,9 +1877,12 @@ public final class DmnRuntime {
 		return null;
 	}
 	public static java.time.Instant toInstant(Object dt) {
-		if (dt instanceof OffsetDateTime odt) return odt.toInstant();
-		if (dt instanceof ZonedDateTime zdt) return zdt.toInstant();
-		if (dt instanceof NamedZoneDateTime nzdt) return nzdt.value().atZone(nzdt.zone()).toInstant();
+		if (dt instanceof OffsetDateTime odt)
+			return odt.toInstant();
+		if (dt instanceof ZonedDateTime zdt)
+			return zdt.toInstant();
+		if (dt instanceof NamedZoneDateTime nzdt)
+			return nzdt.value().atZone(nzdt.zone()).toInstant();
 		return null;
 	}
 
@@ -1719,18 +1932,19 @@ public final class DmnRuntime {
 		if (left instanceof LocalDate dl && right instanceof LocalDate dr)
 			return dl.equals(dr);
 		if (left instanceof LocalTime tl && right instanceof LocalTime tr)
-			// FEEL spec: time precision is at most milliseconds; truncate nanoseconds below that
+			// FEEL spec: time precision is at most milliseconds; truncate nanoseconds below
+			// that
 			return tl.truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
 					.equals(tr.truncatedTo(java.time.temporal.ChronoUnit.MILLIS));
 		if (left instanceof OffsetTime ot1 && right instanceof OffsetTime ot2)
-			return (ot1.toLocalTime().toSecondOfDay() - ot1.getOffset().getTotalSeconds()) ==
-					(ot2.toLocalTime().toSecondOfDay() - ot2.getOffset().getTotalSeconds()) &&
-					(ot1.toLocalTime().get(java.time.temporal.ChronoField.MILLI_OF_SECOND)) ==
-					(ot2.toLocalTime().get(java.time.temporal.ChronoField.MILLI_OF_SECOND));
+			return (ot1.toLocalTime().toSecondOfDay()
+					- ot1.getOffset().getTotalSeconds()) == (ot2.toLocalTime().toSecondOfDay()
+							- ot2.getOffset().getTotalSeconds())
+					&& (ot1.toLocalTime().get(java.time.temporal.ChronoField.MILLI_OF_SECOND)) == (ot2.toLocalTime()
+							.get(java.time.temporal.ChronoField.MILLI_OF_SECOND));
 		if (left instanceof NamedZoneTime nzt1 && right instanceof NamedZoneTime nzt2)
-			return nzt1.value().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
-					.equals(nzt2.value().truncatedTo(java.time.temporal.ChronoUnit.MILLIS))
-					&& nzt1.zone().equals(nzt2.zone());
+			return nzt1.value().truncatedTo(java.time.temporal.ChronoUnit.MILLIS).equals(
+					nzt2.value().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)) && nzt1.zone().equals(nzt2.zone());
 		if (left instanceof LocalDateTime dtl && right instanceof LocalDateTime dtr)
 			return dtl.truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
 					.equals(dtr.truncatedTo(java.time.temporal.ChronoUnit.MILLIS));
@@ -1744,35 +1958,48 @@ public final class DmnRuntime {
 		if (left instanceof Period pl && right instanceof Period pr)
 			return pl.toTotalMonths() == pr.toTotalMonths();
 		if (left instanceof RuntimeRangeValue r1 && right instanceof RuntimeRangeValue r2) {
-			// Absent endpoints (shorthand like (< 10)) are NOT equal to explicit-null endpoints (null..10)
+			// Absent endpoints (shorthand like (< 10)) are NOT equal to explicit-null
+			// endpoints (null..10)
 			if (r1.lowerAbsent() != r2.lowerAbsent() || r1.upperAbsent() != r2.upperAbsent())
 				return false;
 			if (r1.lowerBoundary() != r2.lowerBoundary() || r1.upperBoundary() != r2.upperBoundary())
 				return false;
 			Boolean lowEq = equal(r1.lower(), r2.lower());
 			Boolean upEq = equal(r1.upper(), r2.upper());
-			if (lowEq == null || upEq == null) return null;
+			if (lowEq == null || upEq == null)
+				return null;
 			return lowEq && upEq;
 		}
-		Map<?, ?> m1 = left instanceof RuntimeContextValue ctx ? ctx.namedFields() : left instanceof Map<?, ?> m ? m : null;
-		Map<?, ?> m2 = right instanceof RuntimeContextValue ctx ? ctx.namedFields() : right instanceof Map<?, ?> m ? m : null;
+		Map<?, ?> m1 = left instanceof RuntimeContextValue ctx
+				? ctx.namedFields()
+				: left instanceof Map<?, ?> m ? m : null;
+		Map<?, ?> m2 = right instanceof RuntimeContextValue ctx
+				? ctx.namedFields()
+				: right instanceof Map<?, ?> m ? m : null;
 		if (m1 != null && m2 != null) {
-			if (m1.size() != m2.size()) return false;
+			if (m1.size() != m2.size())
+				return false;
 			for (Map.Entry<?, ?> entry : m1.entrySet()) {
 				String key = String.valueOf(entry.getKey());
-				if (!m2.containsKey(key)) return false;
+				if (!m2.containsKey(key))
+					return false;
 				Boolean vEq = equal(entry.getValue(), m2.get(key));
-				if (vEq == null) return null;
-				if (!vEq) return false;
+				if (vEq == null)
+					return null;
+				if (!vEq)
+					return false;
 			}
 			return true;
 		}
 		if (left instanceof List<?> l1 && right instanceof List<?> l2) {
-			if (l1.size() != l2.size()) return false;
+			if (l1.size() != l2.size())
+				return false;
 			for (int i = 0; i < l1.size(); i++) {
 				Boolean vEq = equal(l1.get(i), l2.get(i));
-				if (vEq == null) return null;
-				if (!vEq) return false;
+				if (vEq == null)
+					return null;
+				if (!vEq)
+					return false;
 			}
 			return true;
 		}
@@ -1780,11 +2007,14 @@ public final class DmnRuntime {
 	}
 
 	public static Boolean isValues(Object a, Object b) {
-		if (a == null && b == null) return true;
-		if (a == null || b == null) return false;
+		if (a == null && b == null)
+			return true;
+		if (a == null || b == null)
+			return false;
 		if (a instanceof Number && b instanceof Number) {
 			BigDecimal da = number(a), db = number(b);
-			if (da == null || db == null) return false;
+			if (da == null || db == null)
+				return false;
 			return da.compareTo(db) == 0;
 		}
 		if (a instanceof NamedZoneDateTime nz1 && b instanceof NamedZoneDateTime nz2) {
@@ -1806,21 +2036,27 @@ public final class DmnRuntime {
 			return d1.equals(d2);
 		}
 		if (a instanceof List<?> l1 && b instanceof List<?> l2) {
-			if (l1.size() != l2.size()) return false;
+			if (l1.size() != l2.size())
+				return false;
 			for (int i = 0; i < l1.size(); i++) {
-				if (!Boolean.TRUE.equals(isValues(l1.get(i), l2.get(i)))) return false;
+				if (!Boolean.TRUE.equals(isValues(l1.get(i), l2.get(i))))
+					return false;
 			}
 			return true;
 		}
 		if (a instanceof Map<?, ?> m1 && b instanceof Map<?, ?> m2) {
-			if (m1.size() != m2.size()) return false;
+			if (m1.size() != m2.size())
+				return false;
 			for (Map.Entry<?, ?> entry : m1.entrySet()) {
-				if (!m2.containsKey(entry.getKey())) return false;
-				if (!Boolean.TRUE.equals(isValues(entry.getValue(), m2.get(entry.getKey())))) return false;
+				if (!m2.containsKey(entry.getKey()))
+					return false;
+				if (!Boolean.TRUE.equals(isValues(entry.getValue(), m2.get(entry.getKey()))))
+					return false;
 			}
 			return true;
 		}
-		if (a.getClass() != b.getClass()) return false;
+		if (a.getClass() != b.getClass())
+			return false;
 		return Boolean.TRUE.equals(equal(a, b));
 	}
 
@@ -1858,15 +2094,19 @@ public final class DmnRuntime {
 			return null;
 		if (range.lower() != null) {
 			Integer lowC = compare(value, range.lower());
-			if (lowC == null) return null;
+			if (lowC == null)
+				return null;
 			boolean lower = range.lowerBoundary() == RuntimeRangeBoundary.CLOSED ? lowC >= 0 : lowC > 0;
-			if (!lower) return false;
+			if (!lower)
+				return false;
 		}
 		if (range.upper() != null) {
 			Integer upC = compare(value, range.upper());
-			if (upC == null) return null;
+			if (upC == null)
+				return null;
 			boolean upper = range.upperBoundary() == RuntimeRangeBoundary.CLOSED ? upC <= 0 : upC < 0;
-			if (!upper) return false;
+			if (!upper)
+				return false;
 		}
 		return true;
 	}
@@ -1886,13 +2126,16 @@ public final class DmnRuntime {
 			case STRING -> value instanceof String;
 			case DATE -> value instanceof LocalDate;
 			case TIME -> value instanceof LocalTime || value instanceof OffsetTime || value instanceof NamedZoneTime;
-			case DATE_TIME ->
-				value instanceof LocalDateTime || value instanceof OffsetDateTime || value instanceof ZonedDateTime || value instanceof NamedZoneDateTime;
+			case DATE_TIME -> value instanceof LocalDateTime || value instanceof OffsetDateTime
+					|| value instanceof ZonedDateTime || value instanceof NamedZoneDateTime;
 			case DURATION -> value instanceof TemporalAmount;
 			case YEARS_MONTHS_DURATION -> value instanceof Period;
 			case DAYS_TIME_DURATION -> value instanceof Duration;
-			case LIST -> value instanceof List<?> list && (type.elementType() == null || list.stream().allMatch(e -> instanceOf(e, type.elementType())));
-			case RANGE -> value instanceof RuntimeRangeValue range && (type.elementType() == null || ((range.lower() == null || instanceOf(range.lower(), type.elementType())) && (range.upper() == null || instanceOf(range.upper(), type.elementType()))));
+			case LIST -> value instanceof List<?> list
+					&& (type.elementType() == null || list.stream().allMatch(e -> instanceOf(e, type.elementType())));
+			case RANGE -> value instanceof RuntimeRangeValue range && (type.elementType() == null
+					|| ((range.lower() == null || instanceOf(range.lower(), type.elementType()))
+							&& (range.upper() == null || instanceOf(range.upper(), type.elementType()))));
 			case CONTEXT -> value instanceof RuntimeContextValue || value instanceof Map<?, ?>;
 			case FUNCTION -> value instanceof CallableValue;
 			case ANY -> true;
@@ -1907,109 +2150,179 @@ public final class DmnRuntime {
 	}
 
 	private static Object addValues(Object left, Object right) {
-		if (left == null || right == null) return null;
-		if (left instanceof String sl && right instanceof String sr) return sl + sr;
-		if (left instanceof Number && right instanceof Number) return number(left).add(number(right));
-		if (left instanceof LocalDate d && right instanceof Period p) return d.plus(p);
-		if (left instanceof Period p && right instanceof LocalDate d) return d.plus(p);
-		if (left instanceof LocalDate d && right instanceof Duration dur) return d.atStartOfDay().plus(dur).toLocalDate();
-		if (left instanceof Duration dur && right instanceof LocalDate d) return d.atStartOfDay().plus(dur).toLocalDate();
-		if (left instanceof LocalTime t && right instanceof Duration dur) return t.plus(dur);
-		if (left instanceof Duration dur && right instanceof LocalTime t) return t.plus(dur);
-		if (left instanceof OffsetTime ot && right instanceof Duration dur) return ot.plus(dur);
-		if (left instanceof Duration dur && right instanceof OffsetTime ot) return ot.plus(dur);
-		if (left instanceof NamedZoneTime nzt && right instanceof Duration dur) return new NamedZoneTime(nzt.value().plus(dur), nzt.zone());
-		if (left instanceof Duration dur && right instanceof NamedZoneTime nzt) return new NamedZoneTime(nzt.value().plus(dur), nzt.zone());
-		if (left instanceof LocalDateTime dt && right instanceof Period p) return dt.plus(p);
-		if (left instanceof Period p && right instanceof LocalDateTime dt) return dt.plus(p);
-		if (left instanceof LocalDateTime dt && right instanceof Duration dur) return dt.plus(dur);
-		if (left instanceof Duration dur && right instanceof LocalDateTime dt) return dt.plus(dur);
-		if (left instanceof OffsetDateTime odt && right instanceof Period p) return odt.plus(p);
-		if (left instanceof Period p && right instanceof OffsetDateTime odt) return odt.plus(p);
-		if (left instanceof OffsetDateTime odt && right instanceof Duration dur) return odt.plus(dur);
-		if (left instanceof Duration dur && right instanceof OffsetDateTime odt) return odt.plus(dur);
-		if (left instanceof ZonedDateTime zdt && right instanceof Period p) return zdt.plus(p);
-		if (left instanceof Period p && right instanceof ZonedDateTime zdt) return zdt.plus(p);
-		if (left instanceof ZonedDateTime zdt && right instanceof Duration dur) return zdt.plus(dur);
-		if (left instanceof Duration dur && right instanceof ZonedDateTime zdt) return zdt.plus(dur);
-		if (left instanceof NamedZoneDateTime nzdt && right instanceof Period p) return new NamedZoneDateTime(nzdt.value().plus(p), nzdt.zone());
-		if (left instanceof Period p && right instanceof NamedZoneDateTime nzdt) return new NamedZoneDateTime(nzdt.value().plus(p), nzdt.zone());
-		if (left instanceof NamedZoneDateTime nzdt && right instanceof Duration dur) return new NamedZoneDateTime(nzdt.value().plus(dur), nzdt.zone());
-		if (left instanceof Duration dur && right instanceof NamedZoneDateTime nzdt) return new NamedZoneDateTime(nzdt.value().plus(dur), nzdt.zone());
-		if (left instanceof Period p1 && right instanceof Period p2) return periodFromMonths(p1.toTotalMonths() + p2.toTotalMonths());
-		if (left instanceof Duration d1 && right instanceof Duration d2) return d1.plus(d2);
+		if (left == null || right == null)
+			return null;
+		if (left instanceof String sl && right instanceof String sr)
+			return sl + sr;
+		if (left instanceof Number && right instanceof Number)
+			return number(left).add(number(right));
+		if (left instanceof LocalDate d && right instanceof Period p)
+			return d.plus(p);
+		if (left instanceof Period p && right instanceof LocalDate d)
+			return d.plus(p);
+		if (left instanceof LocalDate d && right instanceof Duration dur)
+			return d.atStartOfDay().plus(dur).toLocalDate();
+		if (left instanceof Duration dur && right instanceof LocalDate d)
+			return d.atStartOfDay().plus(dur).toLocalDate();
+		if (left instanceof LocalTime t && right instanceof Duration dur)
+			return t.plus(dur);
+		if (left instanceof Duration dur && right instanceof LocalTime t)
+			return t.plus(dur);
+		if (left instanceof OffsetTime ot && right instanceof Duration dur)
+			return ot.plus(dur);
+		if (left instanceof Duration dur && right instanceof OffsetTime ot)
+			return ot.plus(dur);
+		if (left instanceof NamedZoneTime nzt && right instanceof Duration dur)
+			return new NamedZoneTime(nzt.value().plus(dur), nzt.zone());
+		if (left instanceof Duration dur && right instanceof NamedZoneTime nzt)
+			return new NamedZoneTime(nzt.value().plus(dur), nzt.zone());
+		if (left instanceof LocalDateTime dt && right instanceof Period p)
+			return dt.plus(p);
+		if (left instanceof Period p && right instanceof LocalDateTime dt)
+			return dt.plus(p);
+		if (left instanceof LocalDateTime dt && right instanceof Duration dur)
+			return dt.plus(dur);
+		if (left instanceof Duration dur && right instanceof LocalDateTime dt)
+			return dt.plus(dur);
+		if (left instanceof OffsetDateTime odt && right instanceof Period p)
+			return odt.plus(p);
+		if (left instanceof Period p && right instanceof OffsetDateTime odt)
+			return odt.plus(p);
+		if (left instanceof OffsetDateTime odt && right instanceof Duration dur)
+			return odt.plus(dur);
+		if (left instanceof Duration dur && right instanceof OffsetDateTime odt)
+			return odt.plus(dur);
+		if (left instanceof ZonedDateTime zdt && right instanceof Period p)
+			return zdt.plus(p);
+		if (left instanceof Period p && right instanceof ZonedDateTime zdt)
+			return zdt.plus(p);
+		if (left instanceof ZonedDateTime zdt && right instanceof Duration dur)
+			return zdt.plus(dur);
+		if (left instanceof Duration dur && right instanceof ZonedDateTime zdt)
+			return zdt.plus(dur);
+		if (left instanceof NamedZoneDateTime nzdt && right instanceof Period p)
+			return new NamedZoneDateTime(nzdt.value().plus(p), nzdt.zone());
+		if (left instanceof Period p && right instanceof NamedZoneDateTime nzdt)
+			return new NamedZoneDateTime(nzdt.value().plus(p), nzdt.zone());
+		if (left instanceof NamedZoneDateTime nzdt && right instanceof Duration dur)
+			return new NamedZoneDateTime(nzdt.value().plus(dur), nzdt.zone());
+		if (left instanceof Duration dur && right instanceof NamedZoneDateTime nzdt)
+			return new NamedZoneDateTime(nzdt.value().plus(dur), nzdt.zone());
+		if (left instanceof Period p1 && right instanceof Period p2)
+			return periodFromMonths(p1.toTotalMonths() + p2.toTotalMonths());
+		if (left instanceof Duration d1 && right instanceof Duration d2)
+			return d1.plus(d2);
 		return null;
 	}
 
 	private static Object subtractValues(Object left, Object right) {
-		if (left == null || right == null) return null;
-		if (left instanceof Number && right instanceof Number) return number(left).subtract(number(right));
-		if (left instanceof LocalDate d1 && right instanceof LocalDate d2) return Duration.ofDays(java.time.temporal.ChronoUnit.DAYS.between(d2, d1));
-		if (left instanceof LocalDate d && right instanceof Period p) return d.minus(p);
-		if (left instanceof LocalDate d && right instanceof Duration dur) return d.atStartOfDay().minus(dur).toLocalDate();
-		if (left instanceof LocalTime t1 && right instanceof LocalTime t2) return Duration.between(t2, t1);
-		if (left instanceof LocalTime t && right instanceof Duration dur) return t.minus(dur);
-		if (left instanceof OffsetTime ot1 && right instanceof OffsetTime ot2) return Duration.between(ot2, ot1);
-		if (left instanceof OffsetTime ot && right instanceof Duration dur) return ot.minus(dur);
-		if (left instanceof NamedZoneTime nzt && right instanceof Duration dur) return new NamedZoneTime(nzt.value().minus(dur), nzt.zone());
-		if (left instanceof NamedZoneTime nzt1 && right instanceof NamedZoneTime nzt2) return Duration.between(nzt2.value(), nzt1.value());
-		if (left instanceof LocalDateTime dt1 && right instanceof LocalDateTime dt2) return Duration.between(dt2, dt1);
-		if (left instanceof LocalDateTime dt && right instanceof Period p) return dt.minus(p);
-		if (left instanceof LocalDateTime dt && right instanceof Duration dur) return dt.minus(dur);
-		if (left instanceof OffsetDateTime odt && right instanceof Duration dur) return odt.minus(dur);
-		if (left instanceof OffsetDateTime odt && right instanceof Period p) return odt.minus(p);
-		if (left instanceof NamedZoneDateTime nzdt && right instanceof Duration dur) return new NamedZoneDateTime(nzdt.value().minus(dur), nzdt.zone());
-		if (left instanceof NamedZoneDateTime nzdt && right instanceof Period p) return new NamedZoneDateTime(nzdt.value().minus(p), nzdt.zone());
-		if (left instanceof ZonedDateTime zdt && right instanceof Duration dur) return zdt.minus(dur);
-		if (left instanceof ZonedDateTime zdt && right instanceof Period p) return zdt.minus(p);
+		if (left == null || right == null)
+			return null;
+		if (left instanceof Number && right instanceof Number)
+			return number(left).subtract(number(right));
+		if (left instanceof LocalDate d1 && right instanceof LocalDate d2)
+			return Duration.ofDays(java.time.temporal.ChronoUnit.DAYS.between(d2, d1));
+		if (left instanceof LocalDate d && right instanceof Period p)
+			return d.minus(p);
+		if (left instanceof LocalDate d && right instanceof Duration dur)
+			return d.atStartOfDay().minus(dur).toLocalDate();
+		if (left instanceof LocalTime t1 && right instanceof LocalTime t2)
+			return Duration.between(t2, t1);
+		if (left instanceof LocalTime t && right instanceof Duration dur)
+			return t.minus(dur);
+		if (left instanceof OffsetTime ot1 && right instanceof OffsetTime ot2)
+			return Duration.between(ot2, ot1);
+		if (left instanceof OffsetTime ot && right instanceof Duration dur)
+			return ot.minus(dur);
+		if (left instanceof NamedZoneTime nzt && right instanceof Duration dur)
+			return new NamedZoneTime(nzt.value().minus(dur), nzt.zone());
+		if (left instanceof NamedZoneTime nzt1 && right instanceof NamedZoneTime nzt2)
+			return Duration.between(nzt2.value(), nzt1.value());
+		if (left instanceof LocalDateTime dt1 && right instanceof LocalDateTime dt2)
+			return Duration.between(dt2, dt1);
+		if (left instanceof LocalDateTime dt && right instanceof Period p)
+			return dt.minus(p);
+		if (left instanceof LocalDateTime dt && right instanceof Duration dur)
+			return dt.minus(dur);
+		if (left instanceof OffsetDateTime odt && right instanceof Duration dur)
+			return odt.minus(dur);
+		if (left instanceof OffsetDateTime odt && right instanceof Period p)
+			return odt.minus(p);
+		if (left instanceof NamedZoneDateTime nzdt && right instanceof Duration dur)
+			return new NamedZoneDateTime(nzdt.value().minus(dur), nzdt.zone());
+		if (left instanceof NamedZoneDateTime nzdt && right instanceof Period p)
+			return new NamedZoneDateTime(nzdt.value().minus(p), nzdt.zone());
+		if (left instanceof ZonedDateTime zdt && right instanceof Duration dur)
+			return zdt.minus(dur);
+		if (left instanceof ZonedDateTime zdt && right instanceof Period p)
+			return zdt.minus(p);
 		Instant inst1 = toInstant(left);
 		Instant inst2 = toInstant(right);
-		if (inst1 != null && inst2 != null) return Duration.between(inst2, inst1);
-		if (inst1 != null && right instanceof LocalDate d) return Duration.between(d.atStartOfDay(ZoneOffset.UTC).toInstant(), inst1);
-		if (left instanceof LocalDate d && inst2 != null) return Duration.between(inst2, d.atStartOfDay(ZoneOffset.UTC).toInstant());
-		if (left instanceof Period p1 && right instanceof Period p2) return periodFromMonths(p1.toTotalMonths() - p2.toTotalMonths());
-		if (left instanceof Duration d1 && right instanceof Duration d2) return d1.minus(d2);
+		if (inst1 != null && inst2 != null)
+			return Duration.between(inst2, inst1);
+		if (inst1 != null && right instanceof LocalDate d)
+			return Duration.between(d.atStartOfDay(ZoneOffset.UTC).toInstant(), inst1);
+		if (left instanceof LocalDate d && inst2 != null)
+			return Duration.between(inst2, d.atStartOfDay(ZoneOffset.UTC).toInstant());
+		if (left instanceof Period p1 && right instanceof Period p2)
+			return periodFromMonths(p1.toTotalMonths() - p2.toTotalMonths());
+		if (left instanceof Duration d1 && right instanceof Duration d2)
+			return d1.minus(d2);
 		return null;
 	}
 
 	private static Object multiplyValues(Object left, Object right) {
-		if (left == null || right == null) return null;
-		if (left instanceof Number && right instanceof Number) return number(left).multiply(number(right));
-		if (left instanceof Duration dur && right instanceof Number n) return Duration.ofNanos((long) (dur.toNanos() * n.doubleValue()));
-		if (left instanceof Number n && right instanceof Duration dur) return Duration.ofNanos((long) (dur.toNanos() * n.doubleValue()));
-		if (left instanceof Period p && right instanceof Number n) return periodFromMonths((long) (p.toTotalMonths() * n.doubleValue()));
-		if (left instanceof Number n && right instanceof Period p) return periodFromMonths((long) (p.toTotalMonths() * n.doubleValue()));
+		if (left == null || right == null)
+			return null;
+		if (left instanceof Number && right instanceof Number)
+			return number(left).multiply(number(right));
+		if (left instanceof Duration dur && right instanceof Number n)
+			return Duration.ofNanos((long) (dur.toNanos() * n.doubleValue()));
+		if (left instanceof Number n && right instanceof Duration dur)
+			return Duration.ofNanos((long) (dur.toNanos() * n.doubleValue()));
+		if (left instanceof Period p && right instanceof Number n)
+			return periodFromMonths((long) (p.toTotalMonths() * n.doubleValue()));
+		if (left instanceof Number n && right instanceof Period p)
+			return periodFromMonths((long) (p.toTotalMonths() * n.doubleValue()));
 		return null;
 	}
 
 	private static Object divideValues(Object left, Object right) {
-		if (left == null || right == null) return null;
+		if (left == null || right == null)
+			return null;
 		if (left instanceof Number && right instanceof Number) {
 			BigDecimal denom = number(right);
-			if (denom.compareTo(BigDecimal.ZERO) == 0) return null;
+			if (denom.compareTo(BigDecimal.ZERO) == 0)
+				return null;
 			return number(left).divide(denom, MathContext.DECIMAL128);
 		}
 		if (left instanceof Duration dur && right instanceof Number n) {
-			if (n.doubleValue() == 0) return null;
+			if (n.doubleValue() == 0)
+				return null;
 			return Duration.ofNanos((long) (dur.toNanos() / n.doubleValue()));
 		}
 		if (left instanceof Duration d1 && right instanceof Duration d2) {
-			if (d2.toNanos() == 0) return null;
+			if (d2.toNanos() == 0)
+				return null;
 			return BigDecimal.valueOf(d1.toNanos()).divide(BigDecimal.valueOf(d2.toNanos()), MathContext.DECIMAL128);
 		}
 		if (left instanceof Period p && right instanceof Number n) {
-			if (n.doubleValue() == 0) return null;
+			if (n.doubleValue() == 0)
+				return null;
 			return periodFromMonths((long) (p.toTotalMonths() / n.doubleValue()));
 		}
 		if (left instanceof Period p1 && right instanceof Period p2) {
-			if (p2.toTotalMonths() == 0) return null;
-			return BigDecimal.valueOf(p1.toTotalMonths()).divide(BigDecimal.valueOf(p2.toTotalMonths()), MathContext.DECIMAL128);
+			if (p2.toTotalMonths() == 0)
+				return null;
+			return BigDecimal.valueOf(p1.toTotalMonths()).divide(BigDecimal.valueOf(p2.toTotalMonths()),
+					MathContext.DECIMAL128);
 		}
 		return null;
 	}
 
 	private static Object powerValues(Object left, Object right) {
-		if (left == null || right == null) return null;
+		if (left == null || right == null)
+			return null;
 		if (left instanceof Number && right instanceof Number) {
 			return BigDecimal.valueOf(Math.pow(number(left).doubleValue(), number(right).doubleValue()));
 		}
@@ -2017,7 +2330,8 @@ public final class DmnRuntime {
 	}
 
 	public static Object parseTime(String value) {
-		if (value == null) return null;
+		if (value == null)
+			return null;
 		try {
 			String norm = value.replace("24:00:00", "00:00:00").replace("24:00", "00:00");
 			int namedZone = norm.indexOf('@');
@@ -2032,29 +2346,25 @@ public final class DmnRuntime {
 
 	private static final java.time.format.DateTimeFormatter FEEL_DATE_FORMATTER = new java.time.format.DateTimeFormatterBuilder()
 			.appendValue(java.time.temporal.ChronoField.YEAR, 1, 10, java.time.format.SignStyle.NORMAL)
-			.appendPattern("-MM-dd")
-			.toFormatter();
+			.appendPattern("-MM-dd").toFormatter();
 
 	private static final java.time.format.DateTimeFormatter FEEL_DATE_TIME_FORMATTER = new java.time.format.DateTimeFormatterBuilder()
 			.appendValue(java.time.temporal.ChronoField.YEAR, 1, 10, java.time.format.SignStyle.NORMAL)
-			.appendPattern("-MM-dd'T'HH:mm[:ss]")
-			.optionalStart()
-			.appendFraction(java.time.temporal.ChronoField.NANO_OF_SECOND, 1, 9, true)
-			.optionalEnd()
-			.optionalStart()
-			.appendOffsetId()
-			.optionalEnd()
-			.toFormatter();
+			.appendPattern("-MM-dd'T'HH:mm[:ss]").optionalStart()
+			.appendFraction(java.time.temporal.ChronoField.NANO_OF_SECOND, 1, 9, true).optionalEnd().optionalStart()
+			.appendOffsetId().optionalEnd().toFormatter();
 
 	public static Object parseDateTime(String value) {
-		if (value == null) return null;
+		if (value == null)
+			return null;
 		try {
 			int tIdx = value.indexOf('T');
 			if (tIdx < 0) {
 				int at = value.indexOf('@');
 				if (at >= 0) {
 					LocalDate d = LocalDate.parse(value.substring(0, at), FEEL_DATE_FORMATTER);
-					return new NamedZoneDateTime(LocalDateTime.of(d, LocalTime.MIDNIGHT), ZoneId.of(value.substring(at + 1)));
+					return new NamedZoneDateTime(LocalDateTime.of(d, LocalTime.MIDNIGHT),
+							ZoneId.of(value.substring(at + 1)));
 				}
 				if (value.endsWith("Z")) {
 					LocalDate d = LocalDate.parse(value.substring(0, value.length() - 1), FEEL_DATE_FORMATTER);
@@ -2078,36 +2388,52 @@ public final class DmnRuntime {
 			}
 			String timePart = value.substring(tIdx + 1);
 			boolean hasOffset = timePart.contains("+") || timePart.contains("-") || timePart.endsWith("Z");
-			return hasOffset ? FEEL_DATE_TIME_FORMATTER.parse(value, OffsetDateTime::from) : FEEL_DATE_TIME_FORMATTER.parse(value, LocalDateTime::from);
+			return hasOffset
+					? FEEL_DATE_TIME_FORMATTER.parse(value, OffsetDateTime::from)
+					: FEEL_DATE_TIME_FORMATTER.parse(value, LocalDateTime::from);
 		} catch (Exception e) {
 			return null;
 		}
 	}
 
 	public static boolean intervalBefore(Object a, Object b) {
-		if (a == null || b == null) return false;
+		if (a == null || b == null)
+			return false;
 		if (a instanceof RuntimeRangeValue r1 && b instanceof RuntimeRangeValue r2) {
-			if (r1.upper() == null || r2.lower() == null) return false;
+			if (r1.upper() == null || r2.lower() == null)
+				return false;
 			Integer c = compare(r1.upper(), r2.lower());
-			if (c == null) return false;
-			if (c < 0) return true;
-			if (c == 0) return r1.upperBoundary() == RuntimeRangeBoundary.OPEN || r2.lowerBoundary() == RuntimeRangeBoundary.OPEN;
+			if (c == null)
+				return false;
+			if (c < 0)
+				return true;
+			if (c == 0)
+				return r1.upperBoundary() == RuntimeRangeBoundary.OPEN
+						|| r2.lowerBoundary() == RuntimeRangeBoundary.OPEN;
 			return false;
 		}
 		if (a instanceof RuntimeRangeValue r) {
-			if (r.upper() == null) return false;
+			if (r.upper() == null)
+				return false;
 			Integer c = compare(r.upper(), b);
-			if (c == null) return false;
-			if (c < 0) return true;
-			if (c == 0) return r.upperBoundary() == RuntimeRangeBoundary.OPEN;
+			if (c == null)
+				return false;
+			if (c < 0)
+				return true;
+			if (c == 0)
+				return r.upperBoundary() == RuntimeRangeBoundary.OPEN;
 			return false;
 		}
 		if (b instanceof RuntimeRangeValue r) {
-			if (r.lower() == null) return false;
+			if (r.lower() == null)
+				return false;
 			Integer c = compare(a, r.lower());
-			if (c == null) return false;
-			if (c < 0) return true;
-			if (c == 0) return r.lowerBoundary() == RuntimeRangeBoundary.OPEN;
+			if (c == null)
+				return false;
+			if (c < 0)
+				return true;
+			if (c == 0)
+				return r.lowerBoundary() == RuntimeRangeBoundary.OPEN;
 			return false;
 		}
 		Integer c = compare(a, b);
@@ -2119,9 +2445,12 @@ public final class DmnRuntime {
 	}
 
 	public static boolean intervalMeets(Object a, Object b) {
-		if (!(a instanceof RuntimeRangeValue r1) || !(b instanceof RuntimeRangeValue r2)) return false;
-		if (r1.upper() == null || r2.lower() == null) return false;
-		return Boolean.TRUE.equals(equal(r1.upper(), r2.lower())) && r1.upperBoundary() == RuntimeRangeBoundary.CLOSED && r2.lowerBoundary() == RuntimeRangeBoundary.CLOSED;
+		if (!(a instanceof RuntimeRangeValue r1) || !(b instanceof RuntimeRangeValue r2))
+			return false;
+		if (r1.upper() == null || r2.lower() == null)
+			return false;
+		return Boolean.TRUE.equals(equal(r1.upper(), r2.lower())) && r1.upperBoundary() == RuntimeRangeBoundary.CLOSED
+				&& r2.lowerBoundary() == RuntimeRangeBoundary.CLOSED;
 	}
 
 	public static boolean intervalMetBy(Object a, Object b) {
@@ -2132,17 +2461,26 @@ public final class DmnRuntime {
 		if (b instanceof RuntimeRangeValue r2) {
 			if (a instanceof RuntimeRangeValue r1) {
 				boolean lowerEq = (r1.lower() == null && r2.lower() == null)
-						|| (Boolean.TRUE.equals(equal(r1.lower(), r2.lower())) && r1.lowerBoundary() == r2.lowerBoundary());
-				if (!lowerEq) return false;
-				if (r2.upper() == null) return true;
-				if (r1.upper() == null) return false;
+						|| (Boolean.TRUE.equals(equal(r1.lower(), r2.lower()))
+								&& r1.lowerBoundary() == r2.lowerBoundary());
+				if (!lowerEq)
+					return false;
+				if (r2.upper() == null)
+					return true;
+				if (r1.upper() == null)
+					return false;
 				Integer c = compare(r1.upper(), r2.upper());
-				if (c == null) return false;
-				if (c < 0) return true;
-				if (c == 0) return r1.upperBoundary() == RuntimeRangeBoundary.OPEN || r2.upperBoundary() == RuntimeRangeBoundary.CLOSED;
+				if (c == null)
+					return false;
+				if (c < 0)
+					return true;
+				if (c == 0)
+					return r1.upperBoundary() == RuntimeRangeBoundary.OPEN
+							|| r2.upperBoundary() == RuntimeRangeBoundary.CLOSED;
 				return false;
 			} else {
-				if (r2.lower() == null) return false;
+				if (r2.lower() == null)
+					return false;
 				return Boolean.TRUE.equals(equal(a, r2.lower())) && r2.lowerBoundary() == RuntimeRangeBoundary.CLOSED;
 			}
 		}
@@ -2157,17 +2495,26 @@ public final class DmnRuntime {
 		if (b instanceof RuntimeRangeValue r2) {
 			if (a instanceof RuntimeRangeValue r1) {
 				boolean upperEq = (r1.upper() == null && r2.upper() == null)
-						|| (Boolean.TRUE.equals(equal(r1.upper(), r2.upper())) && r1.upperBoundary() == r2.upperBoundary());
-				if (!upperEq) return false;
-				if (r2.lower() == null) return true;
-				if (r1.lower() == null) return false;
+						|| (Boolean.TRUE.equals(equal(r1.upper(), r2.upper()))
+								&& r1.upperBoundary() == r2.upperBoundary());
+				if (!upperEq)
+					return false;
+				if (r2.lower() == null)
+					return true;
+				if (r1.lower() == null)
+					return false;
 				Integer c = compare(r1.lower(), r2.lower());
-				if (c == null) return false;
-				if (c > 0) return true;
-				if (c == 0) return r1.lowerBoundary() == RuntimeRangeBoundary.OPEN || r2.lowerBoundary() == RuntimeRangeBoundary.CLOSED;
+				if (c == null)
+					return false;
+				if (c > 0)
+					return true;
+				if (c == 0)
+					return r1.lowerBoundary() == RuntimeRangeBoundary.OPEN
+							|| r2.lowerBoundary() == RuntimeRangeBoundary.CLOSED;
 				return false;
 			} else {
-				if (r2.upper() == null) return false;
+				if (r2.upper() == null)
+					return false;
 				return Boolean.TRUE.equals(equal(a, r2.upper())) && r2.upperBoundary() == RuntimeRangeBoundary.CLOSED;
 			}
 		}
@@ -2182,31 +2529,42 @@ public final class DmnRuntime {
 		if (b instanceof RuntimeRangeValue r2) {
 			if (a instanceof RuntimeRangeValue r1) {
 				boolean lowerOk;
-				if (r2.lower() == null) lowerOk = true;
-				else if (r1.lower() == null) lowerOk = false;
+				if (r2.lower() == null)
+					lowerOk = true;
+				else if (r1.lower() == null)
+					lowerOk = false;
 				else {
 					Integer c = compare(r1.lower(), r2.lower());
-					if (c == null) return false;
-					lowerOk = c > 0 || (c == 0 && (r1.lowerBoundary() == RuntimeRangeBoundary.OPEN || r2.lowerBoundary() == RuntimeRangeBoundary.CLOSED));
+					if (c == null)
+						return false;
+					lowerOk = c > 0 || (c == 0 && (r1.lowerBoundary() == RuntimeRangeBoundary.OPEN
+							|| r2.lowerBoundary() == RuntimeRangeBoundary.CLOSED));
 				}
-				if (!lowerOk) return false;
+				if (!lowerOk)
+					return false;
 				boolean upperOk;
-				if (r2.upper() == null) upperOk = true;
-				else if (r1.upper() == null) upperOk = false;
+				if (r2.upper() == null)
+					upperOk = true;
+				else if (r1.upper() == null)
+					upperOk = false;
 				else {
 					Integer c = compare(r1.upper(), r2.upper());
-					if (c == null) return false;
-					upperOk = c < 0 || (c == 0 && (r1.upperBoundary() == RuntimeRangeBoundary.OPEN || r2.upperBoundary() == RuntimeRangeBoundary.CLOSED));
+					if (c == null)
+						return false;
+					upperOk = c < 0 || (c == 0 && (r1.upperBoundary() == RuntimeRangeBoundary.OPEN
+							|| r2.upperBoundary() == RuntimeRangeBoundary.CLOSED));
 				}
 				return upperOk;
 			} else {
 				if (r2.lower() != null) {
 					Integer c = compare(a, r2.lower());
-					if (c == null || c < 0 || (c == 0 && r2.lowerBoundary() == RuntimeRangeBoundary.OPEN)) return false;
+					if (c == null || c < 0 || (c == 0 && r2.lowerBoundary() == RuntimeRangeBoundary.OPEN))
+						return false;
 				}
 				if (r2.upper() != null) {
 					Integer c = compare(a, r2.upper());
-					if (c == null || c > 0 || (c == 0 && r2.upperBoundary() == RuntimeRangeBoundary.OPEN)) return false;
+					if (c == null || c > 0 || (c == 0 && r2.upperBoundary() == RuntimeRangeBoundary.OPEN))
+						return false;
 				}
 				return true;
 			}
@@ -2230,17 +2588,25 @@ public final class DmnRuntime {
 	}
 
 	public static boolean intervalOverlapsBefore(Object a, Object b) {
-		if (!(a instanceof RuntimeRangeValue r1) || !(b instanceof RuntimeRangeValue r2)) return false;
+		if (!(a instanceof RuntimeRangeValue r1) || !(b instanceof RuntimeRangeValue r2))
+			return false;
 		if (r1.lower() != null && r2.lower() != null) {
 			Integer c1 = compare(r1.lower(), r2.lower());
-			if (c1 == null || c1 > 0 || (c1 == 0 && r1.lowerBoundary() == RuntimeRangeBoundary.CLOSED && r2.lowerBoundary() == RuntimeRangeBoundary.OPEN)) return false;
+			if (c1 == null || c1 > 0 || (c1 == 0 && r1.lowerBoundary() == RuntimeRangeBoundary.CLOSED
+					&& r2.lowerBoundary() == RuntimeRangeBoundary.OPEN))
+				return false;
 		}
-		if (r1.upper() == null || r2.lower() == null) return false;
+		if (r1.upper() == null || r2.lower() == null)
+			return false;
 		Integer c2 = compare(r1.upper(), r2.lower());
-		if (c2 == null || c2 < 0 || (c2 == 0 && (r1.upperBoundary() == RuntimeRangeBoundary.OPEN || r2.lowerBoundary() == RuntimeRangeBoundary.OPEN))) return false;
+		if (c2 == null || c2 < 0 || (c2 == 0 && (r1.upperBoundary() == RuntimeRangeBoundary.OPEN
+				|| r2.lowerBoundary() == RuntimeRangeBoundary.OPEN)))
+			return false;
 		if (r1.upper() != null && r2.upper() != null) {
 			Integer c3 = compare(r1.upper(), r2.upper());
-			if (c3 == null || c3 > 0 || (c3 == 0 && r1.upperBoundary() == RuntimeRangeBoundary.CLOSED && r2.upperBoundary() == RuntimeRangeBoundary.OPEN)) return false;
+			if (c3 == null || c3 > 0 || (c3 == 0 && r1.upperBoundary() == RuntimeRangeBoundary.CLOSED
+					&& r2.upperBoundary() == RuntimeRangeBoundary.OPEN))
+				return false;
 		}
 		return true;
 	}
@@ -2250,23 +2616,30 @@ public final class DmnRuntime {
 	}
 
 	public static boolean intervalOverlaps(Object a, Object b) {
-		return intervalOverlapsBefore(a, b) || intervalOverlapsAfter(a, b) || intervalDuring(a, b) || intervalIncludes(a, b) || intervalCoincides(a, b);
+		return intervalOverlapsBefore(a, b) || intervalOverlapsAfter(a, b) || intervalDuring(a, b)
+				|| intervalIncludes(a, b) || intervalCoincides(a, b);
 	}
 
 	public static boolean isExternalJavaDescriptor(Object desc) {
-		if (desc == null) return false;
-		if (desc instanceof RuntimeContextValue rcv) return isExternalJavaDescriptor(rcv.namedFields());
-		if (!(desc instanceof Map<?, ?> m)) return false;
+		if (desc == null)
+			return false;
+		if (desc instanceof RuntimeContextValue rcv)
+			return isExternalJavaDescriptor(rcv.namedFields());
+		if (!(desc instanceof Map<?, ?> m))
+			return false;
 		if (m.containsKey("java")) {
 			Object j = m.get("java");
-			if (j instanceof Map<?, ?> jm) return jm.containsKey("class") && jm.containsKey("method signature");
-			if (j instanceof RuntimeContextValue rcv) return rcv.namedFields().containsKey("class") && rcv.namedFields().containsKey("method signature");
+			if (j instanceof Map<?, ?> jm)
+				return jm.containsKey("class") && jm.containsKey("method signature");
+			if (j instanceof RuntimeContextValue rcv)
+				return rcv.namedFields().containsKey("class") && rcv.namedFields().containsKey("method signature");
 		}
 		return m.containsKey("class") && m.containsKey("method signature");
 	}
 
 	public static Object invokeExternalJava(Object desc, List<Object> args) {
-		if (desc == null) return null;
+		if (desc == null)
+			return null;
 		Map<?, ?> m;
 		if (desc instanceof Map<?, ?> map) {
 			m = map;
@@ -2277,25 +2650,30 @@ public final class DmnRuntime {
 		}
 		if (m.containsKey("java")) {
 			Object j = m.get("java");
-			if (j instanceof Map<?, ?> jm) m = jm;
-			else if (j instanceof RuntimeContextValue rcv) m = rcv.namedFields();
+			if (j instanceof Map<?, ?> jm)
+				m = jm;
+			else if (j instanceof RuntimeContextValue rcv)
+				m = rcv.namedFields();
 		}
 		Object clsObj = m.get("class");
 		Object sigObj = m.get("method signature");
-		if (clsObj == null || sigObj == null) return null;
+		if (clsObj == null || sigObj == null)
+			return null;
 		String className = String.valueOf(clsObj).trim();
 		String signature = String.valueOf(sigObj).trim();
 		try {
 			int pOpen = signature.indexOf('(');
 			int pClose = signature.lastIndexOf(')');
-			if (pOpen < 0 || pClose < pOpen) return null;
+			if (pOpen < 0 || pClose < pOpen)
+				return null;
 			String methodName = signature.substring(0, pOpen).trim();
 			String paramsStr = signature.substring(pOpen + 1, pClose).trim();
 			String[] paramTypeNames = paramsStr.isEmpty() ? new String[0] : paramsStr.split(",");
 			Class<?>[] paramClasses = new Class<?>[paramTypeNames.length];
 			for (int i = 0; i < paramTypeNames.length; i++) {
 				paramClasses[i] = resolveJavaClass(paramTypeNames[i].trim());
-				if (paramClasses[i] == null) return null;
+				if (paramClasses[i] == null)
+					return null;
 			}
 			Class<?> targetClass = Class.forName(className);
 			java.lang.reflect.Method targetMethod = targetClass.getMethod(methodName, paramClasses);
@@ -2339,14 +2717,22 @@ public final class DmnRuntime {
 	private static Object convertToJavaType(Object arg, Class<?> target) {
 		if (arg == null) {
 			if (target.isPrimitive()) {
-				if (target == boolean.class) return false;
-				if (target == char.class) return (char) 0;
-				if (target == byte.class) return (byte) 0;
-				if (target == short.class) return (short) 0;
-				if (target == int.class) return 0;
-				if (target == long.class) return 0L;
-				if (target == float.class) return 0.0f;
-				if (target == double.class) return 0.0d;
+				if (target == boolean.class)
+					return false;
+				if (target == char.class)
+					return (char) 0;
+				if (target == byte.class)
+					return (byte) 0;
+				if (target == short.class)
+					return (short) 0;
+				if (target == int.class)
+					return 0;
+				if (target == long.class)
+					return 0L;
+				if (target == float.class)
+					return 0.0f;
+				if (target == double.class)
+					return 0.0d;
 			}
 			return null;
 		}
@@ -2375,35 +2761,51 @@ public final class DmnRuntime {
 	}
 
 	private static Object convertFromJavaType(Object result) {
-		if (result == null) return null;
+		if (result == null)
+			return null;
 		if (result instanceof Double d) {
-			if (d.isNaN() || d.isInfinite()) return null;
+			if (d.isNaN() || d.isInfinite())
+				return null;
 			return new BigDecimal(Double.toString(d));
 		}
 		if (result instanceof Float f) {
-			if (f.isNaN() || f.isInfinite()) return null;
+			if (f.isNaN() || f.isInfinite())
+				return null;
 			return new BigDecimal(Float.toString(f));
 		}
-		if (result instanceof Integer i) return BigDecimal.valueOf(i);
-		if (result instanceof Long l) return BigDecimal.valueOf(l);
-		if (result instanceof Short s) return BigDecimal.valueOf(s);
-		if (result instanceof Byte b) return BigDecimal.valueOf(b);
+		if (result instanceof Integer i)
+			return BigDecimal.valueOf(i);
+		if (result instanceof Long l)
+			return BigDecimal.valueOf(l);
+		if (result instanceof Short s)
+			return BigDecimal.valueOf(s);
+		if (result instanceof Byte b)
+			return BigDecimal.valueOf(b);
 		return result;
 	}
 
 	public static Object parseLiteralValue(String text) {
-		if (text == null || text.isBlank() || "null".equals(text)) return null;
-		if ("true".equalsIgnoreCase(text)) return Boolean.TRUE;
-		if ("false".equalsIgnoreCase(text)) return Boolean.FALSE;
+		if (text == null || text.isBlank() || "null".equals(text))
+			return null;
+		if ("true".equalsIgnoreCase(text))
+			return Boolean.TRUE;
+		if ("false".equalsIgnoreCase(text))
+			return Boolean.FALSE;
 		if (text.startsWith("@\"") && text.endsWith("\"") && text.length() >= 3) {
 			String raw = text.substring(2, text.length() - 1);
 			Object dt = parseDateTime(raw);
-			if (dt != null) return dt;
+			if (dt != null)
+				return dt;
 			Object t = parseTime(raw);
-			if (t != null) return t;
+			if (t != null)
+				return t;
 			Object d = parseDuration(raw);
-			if (d != null) return d;
-			try { return LocalDate.parse(raw); } catch (Exception ignored) {}
+			if (d != null)
+				return d;
+			try {
+				return LocalDate.parse(raw);
+			} catch (Exception ignored) {
+			}
 			return null;
 		} else if (text.startsWith("\"") && text.endsWith("\"") && text.length() >= 2) {
 			return text.substring(1, text.length() - 1);
@@ -2412,7 +2814,11 @@ public final class DmnRuntime {
 			return parseTime(text.substring(6, text.length() - 2));
 		}
 		if (text.startsWith("date(\"") && text.endsWith("\")")) {
-			try { return LocalDate.parse(text.substring(6, text.length() - 2)); } catch (Exception e) { return null; }
+			try {
+				return LocalDate.parse(text.substring(6, text.length() - 2));
+			} catch (Exception e) {
+				return null;
+			}
 		}
 		if ((text.startsWith("date and time(\"") || text.startsWith("dateTime(\"")) && text.endsWith("\")")) {
 			int pIdx = text.indexOf('\"');
@@ -2424,88 +2830,95 @@ public final class DmnRuntime {
 		if (text.startsWith("years and months duration(\"") && text.endsWith("\")")) {
 			return parseDuration(text.substring(27, text.length() - 2));
 		}
-		try { return new BigDecimal(text); } catch (Exception ignored) {}
+		try {
+			return new BigDecimal(text);
+		} catch (Exception ignored) {
+		}
 		if (text.length() == 10 && text.charAt(4) == '-' && text.charAt(7) == '-') {
-			try { return LocalDate.parse(text); } catch (Exception ignored) {}
+			try {
+				return LocalDate.parse(text);
+			} catch (Exception ignored) {
+			}
 		}
 		try {
 			Object dt = parseDateTime(text);
-			if (dt != null) return dt;
-		} catch (Exception ignored) {}
+			if (dt != null)
+				return dt;
+		} catch (Exception ignored) {
+		}
 		try {
 			Object t = parseTime(text);
-			if (t != null) return t;
-		} catch (Exception ignored) {}
+			if (t != null)
+				return t;
+		} catch (Exception ignored) {
+		}
 		try {
 			Object d = parseDuration(text);
-			if (d != null) return d;
-		} catch (Exception ignored) {}
+			if (d != null)
+				return d;
+		} catch (Exception ignored) {
+		}
 		return null;
 	}
 
 	private static final Map<String, List<List<String>>> BUILTIN_PARAM_SPECS = Map.ofEntries(
-		Map.entry("range", List.of(List.of("from"))),
-		Map.entry("not", List.of(List.of("negand"))),
-		Map.entry("substring", List.of(List.of("string", "start position"), List.of("string", "start position", "length"))),
-		Map.entry("string length", List.of(List.of("string"))),
-		Map.entry("upper case", List.of(List.of("string"))),
-		Map.entry("lower case", List.of(List.of("string"))),
-		Map.entry("contains", List.of(List.of("string", "match"))),
-		Map.entry("starts with", List.of(List.of("string", "match"))),
-		Map.entry("ends with", List.of(List.of("string", "match"))),
-		Map.entry("matches", List.of(List.of("input", "pattern"), List.of("input", "pattern", "flags"))),
-		Map.entry("replace", List.of(List.of("input", "pattern", "replacement"), List.of("input", "pattern", "replacement", "flags"))),
-		Map.entry("split", List.of(List.of("string", "delimiter"))),
-		Map.entry("date", List.of(List.of("from"), List.of("year", "month", "day"))),
-		Map.entry("date and time", List.of(List.of("from"), List.of("date", "time"))),
-		Map.entry("time", List.of(List.of("from"), List.of("hour", "minute", "second"), List.of("hour", "minute", "second", "offset"))),
-		Map.entry("duration", List.of(List.of("from"))),
-		Map.entry("years and months duration", List.of(List.of("from", "to"))),
-		Map.entry("day and time duration", List.of(List.of("from", "to"))),
-		Map.entry("number", List.of(List.of("from"), List.of("from", "grouping separator", "decimal separator"))),
-		Map.entry("decimal", List.of(List.of("n", "scale"))),
-		Map.entry("floor", List.of(List.of("n"), List.of("n", "scale"))),
-		Map.entry("ceiling", List.of(List.of("n"), List.of("n", "scale"))),
-		Map.entry("round up", List.of(List.of("n", "scale"))),
-		Map.entry("round down", List.of(List.of("n", "scale"))),
-		Map.entry("round half up", List.of(List.of("n", "scale"))),
-		Map.entry("round half down", List.of(List.of("n", "scale"))),
-		Map.entry("abs", List.of(List.of("n"))),
-		Map.entry("sqrt", List.of(List.of("number"))),
-		Map.entry("log", List.of(List.of("number"))),
-		Map.entry("exp", List.of(List.of("number"))),
-		Map.entry("modulo", List.of(List.of("dividend", "divisor"))),
-		Map.entry("even", List.of(List.of("number"))),
-		Map.entry("odd", List.of(List.of("number"))),
-		Map.entry("list contains", List.of(List.of("list", "element"))),
-		Map.entry("insert before", List.of(List.of("list", "position", "newItem"))),
-		Map.entry("remove", List.of(List.of("list", "position"))),
-		Map.entry("sublist", List.of(List.of("list", "start position"), List.of("list", "start position", "length"))),
-		Map.entry("append", List.of(List.of("list", "item"))),
-		Map.entry("union", List.of(List.of("list"))),
-		Map.entry("distinct values", List.of(List.of("list"))),
-		Map.entry("flatten", List.of(List.of("list"))),
-		Map.entry("get value", List.of(List.of("m", "key"))),
-		Map.entry("get entries", List.of(List.of("m"))),
-		Map.entry("sort", List.of(List.of("list", "precedes"), List.of("list"))),
-		Map.entry("string join", List.of(List.of("list"), List.of("list", "delimiter"), List.of("list", "delimiter", "prefix", "suffix"))),
-		Map.entry("all", List.of(List.of("list"))),
-		Map.entry("any", List.of(List.of("list"))),
-		Map.entry("sum", List.of(List.of("list"))),
-		Map.entry("mean", List.of(List.of("list"))),
-		Map.entry("median", List.of(List.of("list"))),
-		Map.entry("mode", List.of(List.of("list"))),
-		Map.entry("stddev", List.of(List.of("list"))),
-		Map.entry("product", List.of(List.of("list"))),
-		Map.entry("min", List.of(List.of("list"))),
-		Map.entry("max", List.of(List.of("list"))),
-		Map.entry("count", List.of(List.of("list")))
-	);
+			Map.entry("range", List.of(List.of("from"))), Map.entry("not", List.of(List.of("negand"))),
+			Map.entry("substring",
+					List.of(List.of("string", "start position"), List.of("string", "start position", "length"))),
+			Map.entry("string length", List.of(List.of("string"))), Map.entry("upper case", List.of(List.of("string"))),
+			Map.entry("lower case", List.of(List.of("string"))),
+			Map.entry("contains", List.of(List.of("string", "match"))),
+			Map.entry("starts with", List.of(List.of("string", "match"))),
+			Map.entry("ends with", List.of(List.of("string", "match"))),
+			Map.entry("matches", List.of(List.of("input", "pattern"), List.of("input", "pattern", "flags"))),
+			Map.entry("replace",
+					List.of(List.of("input", "pattern", "replacement"),
+							List.of("input", "pattern", "replacement", "flags"))),
+			Map.entry("split", List.of(List.of("string", "delimiter"))),
+			Map.entry("date", List.of(List.of("from"), List.of("year", "month", "day"))),
+			Map.entry("date and time", List.of(List.of("from"), List.of("date", "time"))),
+			Map.entry("time",
+					List.of(List.of("from"), List.of("hour", "minute", "second"),
+							List.of("hour", "minute", "second", "offset"))),
+			Map.entry("duration", List.of(List.of("from"))),
+			Map.entry("years and months duration", List.of(List.of("from", "to"))),
+			Map.entry("day and time duration", List.of(List.of("from", "to"))),
+			Map.entry("number", List.of(List.of("from"), List.of("from", "grouping separator", "decimal separator"))),
+			Map.entry("decimal", List.of(List.of("n", "scale"))),
+			Map.entry("floor", List.of(List.of("n"), List.of("n", "scale"))),
+			Map.entry("ceiling", List.of(List.of("n"), List.of("n", "scale"))),
+			Map.entry("round up", List.of(List.of("n", "scale"))),
+			Map.entry("round down", List.of(List.of("n", "scale"))),
+			Map.entry("round half up", List.of(List.of("n", "scale"))),
+			Map.entry("round half down", List.of(List.of("n", "scale"))), Map.entry("abs", List.of(List.of("n"))),
+			Map.entry("sqrt", List.of(List.of("number"))), Map.entry("log", List.of(List.of("number"))),
+			Map.entry("exp", List.of(List.of("number"))), Map.entry("modulo", List.of(List.of("dividend", "divisor"))),
+			Map.entry("even", List.of(List.of("number"))), Map.entry("odd", List.of(List.of("number"))),
+			Map.entry("list contains", List.of(List.of("list", "element"))),
+			Map.entry("insert before", List.of(List.of("list", "position", "newItem"))),
+			Map.entry("remove", List.of(List.of("list", "position"))),
+			Map.entry("sublist",
+					List.of(List.of("list", "start position"), List.of("list", "start position", "length"))),
+			Map.entry("append", List.of(List.of("list", "item"))), Map.entry("union", List.of(List.of("list"))),
+			Map.entry("distinct values", List.of(List.of("list"))), Map.entry("flatten", List.of(List.of("list"))),
+			Map.entry("get value", List.of(List.of("m", "key"))), Map.entry("get entries", List.of(List.of("m"))),
+			Map.entry("sort", List.of(List.of("list", "precedes"), List.of("list"))),
+			Map.entry("string join",
+					List.of(List.of("list"), List.of("list", "delimiter"),
+							List.of("list", "delimiter", "prefix", "suffix"))),
+			Map.entry("all", List.of(List.of("list"))), Map.entry("any", List.of(List.of("list"))),
+			Map.entry("sum", List.of(List.of("list"))), Map.entry("mean", List.of(List.of("list"))),
+			Map.entry("median", List.of(List.of("list"))), Map.entry("mode", List.of(List.of("list"))),
+			Map.entry("stddev", List.of(List.of("list"))), Map.entry("product", List.of(List.of("list"))),
+			Map.entry("min", List.of(List.of("list"))), Map.entry("max", List.of(List.of("list"))),
+			Map.entry("count", List.of(List.of("list"))));
 
 	public static List<Object> bindNamedBuiltinArguments(String fnName, Map<String, Object> namedArgs) {
-		if (namedArgs == null || namedArgs.isEmpty()) return List.of();
+		if (namedArgs == null || namedArgs.isEmpty())
+			return List.of();
 		List<List<String>> overloads = BUILTIN_PARAM_SPECS.get(fnName);
-		if (overloads == null) return null;
+		if (overloads == null)
+			return null;
 		for (List<String> spec : overloads) {
 			if (spec.size() == namedArgs.size() && namedArgs.keySet().containsAll(spec)) {
 				List<Object> args = new ArrayList<>(spec.size());

@@ -219,7 +219,8 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 					}
 					case DECISION_SERVICE -> {
 						name = element.getDecisionService().getNode().getName();
-						type = TypeReference.newBuilder().setFunction(FunctionTypeReference.getDefaultInstance()).build();
+						type = TypeReference.newBuilder().setFunction(FunctionTypeReference.getDefaultInstance())
+								.build();
 					}
 					default -> {
 					}
@@ -662,8 +663,7 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 				}
 				if (!hasAny && table.getOutputsCount() > 0) {
 					diagnostic("MISSING_OUTPUT_VALUES", path + "/output[0]",
-							policy.name().replace("HIT_POLICY_", "") + " requires ordered output values.",
-							location);
+							policy.name().replace("HIT_POLICY_", "") + " requires ordered output values.", location);
 				}
 			}
 		}
@@ -770,7 +770,8 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 					if (parsed.getContext().getEntriesCount() == 0) {
 						yield TypeReference.getDefaultInstance();
 					}
-					ContextEntryParsed lastEntry = parsed.getContext().getEntries(parsed.getContext().getEntriesCount() - 1);
+					ContextEntryParsed lastEntry = parsed.getContext()
+							.getEntries(parsed.getContext().getEntriesCount() - 1);
 					if (!lastEntry.hasVariable() || lastEntry.getVariable().getNode().getName().isBlank()) {
 						yield expressionParsedType(lastEntry.getExpression());
 					}
@@ -782,8 +783,7 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 								entryType = expressionParsedType(entry.getExpression());
 							}
 							context.addEntries(ContextEntryTypeReference.newBuilder()
-									.setName(entry.getVariable().getNode().getName())
-									.setType(entryType));
+									.setName(entry.getVariable().getNode().getName()).setType(entryType));
 						}
 					}
 					yield TypeReference.newBuilder().setContext(context).build();
@@ -933,10 +933,10 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 		}
 
 		private static boolean isDuration(TypeReference t) {
-			if (t == null || !t.hasBuiltin()) return false;
+			if (t == null || !t.hasBuiltin())
+				return false;
 			BuiltinType b = t.getBuiltin();
-			return b == BuiltinType.BUILTIN_TYPE_DURATION
-					|| b == BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION
+			return b == BuiltinType.BUILTIN_TYPE_DURATION || b == BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION
 					|| b == BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION;
 		}
 

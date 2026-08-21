@@ -107,9 +107,12 @@ public final class FeelTypeAnalyzer {
 			TypedExpression operand = infer(unary.getExpression(), path + "/operand");
 			TypeReference result = switch (unary.getOperator()) {
 				case UNARY_OPERATOR_PLUS, UNARY_OPERATOR_MINUS -> {
-					if (is(operand.type, NUMBER)) yield NUMBER;
-					if (isDuration(operand.type)) yield operand.type;
-					if (isAny(operand.type)) yield ANY;
+					if (is(operand.type, NUMBER))
+						yield NUMBER;
+					if (isDuration(operand.type))
+						yield operand.type;
+					if (isAny(operand.type))
+						yield ANY;
 					require(operand.type, NUMBER, path, "Unary numeric operator requires number.");
 					yield NUMBER;
 				}
@@ -234,7 +237,8 @@ public final class FeelTypeAnalyzer {
 		}
 
 		private TypeReference logical(BinaryOperator operator, TypeReference left, TypeReference right, String path) {
-			// FEEL 1.5 three-valued logic: and/or with non-boolean operands yields null at runtime.
+			// FEEL 1.5 three-valued logic: and/or with non-boolean operands yields null at
+			// runtime.
 			return BOOLEAN;
 		}
 
@@ -277,8 +281,7 @@ public final class FeelTypeAnalyzer {
 		private TypedExpression inferPath(Expression input, String path) {
 			String qualified = toQualifiedName(input);
 			if (qualified != null && lookup(qualified) != null) {
-				Expression nameExpr = Expression.newBuilder()
-						.setName(NameExpression.newBuilder().setName(qualified))
+				Expression nameExpr = Expression.newBuilder().setName(NameExpression.newBuilder().setName(qualified))
 						.build();
 				return inferName(nameExpr, path);
 			}
@@ -333,7 +336,8 @@ public final class FeelTypeAnalyzer {
 			if (source.hasBuiltin()) {
 				BuiltinType b = source.getBuiltin();
 				if (b == BuiltinType.BUILTIN_TYPE_DATE) {
-					if (member.equals("year") || member.equals("month") || member.equals("day") || member.equals("weekday"))
+					if (member.equals("year") || member.equals("month") || member.equals("day")
+							|| member.equals("weekday"))
 						return NUMBER;
 				} else if (b == BuiltinType.BUILTIN_TYPE_TIME) {
 					if (member.equals("hour") || member.equals("minute") || member.equals("second"))
@@ -343,8 +347,9 @@ public final class FeelTypeAnalyzer {
 					if (member.equals("timezone"))
 						return STRING;
 				} else if (b == BuiltinType.BUILTIN_TYPE_DATE_AND_TIME) {
-					if (member.equals("year") || member.equals("month") || member.equals("day") || member.equals("weekday")
-							|| member.equals("hour") || member.equals("minute") || member.equals("second"))
+					if (member.equals("year") || member.equals("month") || member.equals("day")
+							|| member.equals("weekday") || member.equals("hour") || member.equals("minute")
+							|| member.equals("second"))
 						return NUMBER;
 					if (member.equals("time offset"))
 						return DURATION;
@@ -353,9 +358,10 @@ public final class FeelTypeAnalyzer {
 				} else if (b == BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION) {
 					if (member.equals("years") || member.equals("months"))
 						return NUMBER;
-				} else if (b == BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION || b == BuiltinType.BUILTIN_TYPE_DURATION) {
-					if (member.equals("days") || member.equals("hours") || member.equals("minutes") || member.equals("seconds")
-							|| member.equals("years") || member.equals("months"))
+				} else if (b == BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION
+						|| b == BuiltinType.BUILTIN_TYPE_DURATION) {
+					if (member.equals("days") || member.equals("hours") || member.equals("minutes")
+							|| member.equals("seconds") || member.equals("years") || member.equals("months"))
 						return NUMBER;
 				}
 			}
@@ -697,7 +703,8 @@ public final class FeelTypeAnalyzer {
 					|| !isAny(upper) && !is(upper, NULL) && !isOrderable(upper)) {
 				error("INVALID_RANGE_ENDPOINT", path, "Range endpoints must be orderable values.");
 			}
-			TypeReference elementType = isAny(lower) || is(lower, NULL) ? upper
+			TypeReference elementType = isAny(lower) || is(lower, NULL)
+					? upper
 					: isAny(upper) || is(upper, NULL) ? lower : commonType(lower, upper);
 			return typed(input.toBuilder().setRange(builder).build(), range(elementType));
 		}
@@ -1046,10 +1053,13 @@ public final class FeelTypeAnalyzer {
 			case "boolean" -> BOOLEAN;
 			case "date" -> builtin(BuiltinType.BUILTIN_TYPE_DATE);
 			case "time" -> builtin(BuiltinType.BUILTIN_TYPE_TIME);
-			case "date and time", "datetime", "dateandtime", "date-and-time" -> builtin(BuiltinType.BUILTIN_TYPE_DATE_AND_TIME);
+			case "date and time", "datetime", "dateandtime", "date-and-time" ->
+				builtin(BuiltinType.BUILTIN_TYPE_DATE_AND_TIME);
 			case "duration" -> builtin(BuiltinType.BUILTIN_TYPE_DURATION);
-			case "years and months duration", "yearmonthduration", "year-month-duration", "year and month duration" -> builtin(BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION);
-			case "days and time duration", "daytimeduration", "day-time-duration", "day and time duration" -> builtin(BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION);
+			case "years and months duration", "yearmonthduration", "year-month-duration", "year and month duration" ->
+				builtin(BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION);
+			case "days and time duration", "daytimeduration", "day-time-duration", "day and time duration" ->
+				builtin(BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION);
 			default -> TypeReference.newBuilder().setNamed(NamedTypeReference.newBuilder().setName(name)).build();
 		};
 	}
@@ -1112,7 +1122,8 @@ public final class FeelTypeAnalyzer {
 				}
 			}
 			for (java.util.Map.Entry<String, TypeReference> entry : map.entrySet()) {
-				builder.addEntries(ContextEntryTypeReference.newBuilder().setName(entry.getKey()).setType(entry.getValue()));
+				builder.addEntries(
+						ContextEntryTypeReference.newBuilder().setName(entry.getKey()).setType(entry.getValue()));
 			}
 			return TypeReference.newBuilder().setContext(builder).build();
 		}

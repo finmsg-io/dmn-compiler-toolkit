@@ -30,7 +30,8 @@ public final class ItemComponentReader {
 
 					case "functionItem" -> {
 						if (cursor.hasAttribute("outputTypeRef")) {
-							builder.setType(typeReferenceReader.read(cursor.requiredAttribute("outputTypeRef"), cursor));
+							builder.setType(
+									typeReferenceReader.read(cursor.requiredAttribute("outputTypeRef"), cursor));
 						}
 					}
 

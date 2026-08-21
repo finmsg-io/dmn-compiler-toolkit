@@ -157,9 +157,12 @@ public final class FeelReader {
 					conds.add("(" + inExpr + " in (" + entry + "))");
 				}
 				String ruleCond = conds.isEmpty() ? "true" : String.join(" and ", conds);
-				String outExpr = outEntries.isEmpty() ? "null" : (outEntries.size() == 1 ? outEntries.get(0) : "{" + String.join(", ", outEntries) + "}");
+				String outExpr = outEntries.isEmpty()
+						? "null"
+						: (outEntries.size() == 1 ? outEntries.get(0) : "{" + String.join(", ", outEntries) + "}");
 				if (isCollect) {
-					if (r > 0) sb.append(", ");
+					if (r > 0)
+						sb.append(", ");
 					sb.append("(if ").append(ruleCond).append(" then [").append(outExpr).append("] else [])");
 				} else {
 					sb.append("if ").append(ruleCond).append(" then ").append(outExpr).append(" else ");
@@ -277,8 +280,7 @@ public final class FeelReader {
 							|| "relation".equals(cursor.documentLocalName())
 							|| "list".equals(cursor.documentLocalName())
 							|| "invocation".equals(cursor.documentLocalName())
-							|| "some".equals(cursor.documentLocalName())
-							|| "every".equals(cursor.documentLocalName())
+							|| "some".equals(cursor.documentLocalName()) || "every".equals(cursor.documentLocalName())
 							|| "filter".equals(cursor.documentLocalName())) {
 						elements.add(readText(cursor).getText());
 					}

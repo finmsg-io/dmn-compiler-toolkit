@@ -205,7 +205,8 @@ final class RuntimeExpressionLowerer {
 	static RuntimeInvocationExpression lowerInvocation(InvocationExpression value, RuntimeType type, String path,
 			List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings, Map<String, Integer> slots,
 			Map<String, ItemDefinition> itemTypes, Map<String, LocalSlotAddress> localSlots, int[] nextLocalSlot) {
-		boolean isBuiltin = value.getTarget().hasName() && io.finmsg.dmn.ir.RuntimeBuiltinOperation.find(value.getTarget().getName().getName()).isPresent();
+		boolean isBuiltin = value.getTarget().hasName()
+				&& io.finmsg.dmn.ir.RuntimeBuiltinOperation.find(value.getTarget().getName().getName()).isPresent();
 		boolean boundTarget = bindings.stream().anyMatch(binding -> binding.referencePath().equals(path + "/target"));
 		Optional<String> function = value.getTarget().hasName() && isBuiltin && !boundTarget
 				? Optional.of(value.getTarget().getName().getName())

@@ -69,9 +69,11 @@ public final class JavaExpressionEmitter {
 	}
 
 	private static String emitTypeLiteral(RuntimeType type) {
-		if (type == null) return "null";
+		if (type == null)
+			return "null";
 		if (type.elementType() != null) {
-			return "io.finmsg.dmn.ir.RuntimeType.element(io.finmsg.dmn.ir.RuntimeTypeKind." + type.kind().name() + ", " + emitTypeLiteral(type.elementType()) + ")";
+			return "io.finmsg.dmn.ir.RuntimeType.element(io.finmsg.dmn.ir.RuntimeTypeKind." + type.kind().name() + ", "
+					+ emitTypeLiteral(type.elementType()) + ")";
 		}
 		return "io.finmsg.dmn.ir.RuntimeType.scalar(io.finmsg.dmn.ir.RuntimeTypeKind." + type.kind().name() + ")";
 	}
@@ -105,9 +107,11 @@ public final class JavaExpressionEmitter {
 				case EQUAL -> "equal(" + inputVar + ", " + emitWithBkms(comparison.endpoint(), bkmBySlot) + ")";
 				case NOT_EQUAL -> "notEqual(" + inputVar + ", " + emitWithBkms(comparison.endpoint(), bkmBySlot) + ")";
 				case LESS -> "less(" + inputVar + ", " + emitWithBkms(comparison.endpoint(), bkmBySlot) + ")";
-				case LESS_EQUAL -> "lessEqual(" + inputVar + ", " + emitWithBkms(comparison.endpoint(), bkmBySlot) + ")";
+				case LESS_EQUAL ->
+					"lessEqual(" + inputVar + ", " + emitWithBkms(comparison.endpoint(), bkmBySlot) + ")";
 				case GREATER -> "greater(" + inputVar + ", " + emitWithBkms(comparison.endpoint(), bkmBySlot) + ")";
-				case GREATER_EQUAL -> "greaterEqual(" + inputVar + ", " + emitWithBkms(comparison.endpoint(), bkmBySlot) + ")";
+				case GREATER_EQUAL ->
+					"greaterEqual(" + inputVar + ", " + emitWithBkms(comparison.endpoint(), bkmBySlot) + ")";
 			};
 			case RuntimeRangeUnaryTest rangeTest -> {
 				RuntimeRangeExpression range = rangeTest.range();
@@ -116,14 +120,16 @@ public final class JavaExpressionEmitter {
 					String lowerExpr = emitWithBkms(range.lower().get(), bkmBySlot);
 					String op = range.lowerBoundary() == RuntimeRangeBoundary.CLOSED ? "lessEqual(" : "less(";
 					sb.append("Object _l = ").append(lowerExpr).append("; if (_l == null) return null; ");
-					sb.append("Boolean _cL = ").append(op).append("_l, ").append(inputVar).append("); if (_cL == null) return null; ");
+					sb.append("Boolean _cL = ").append(op).append("_l, ").append(inputVar)
+							.append("); if (_cL == null) return null; ");
 					sb.append("if (!Boolean.TRUE.equals(_cL)) return false; ");
 				}
 				if (range.upper().isPresent()) {
 					String upperExpr = emitWithBkms(range.upper().get(), bkmBySlot);
 					String op = range.upperBoundary() == RuntimeRangeBoundary.CLOSED ? "lessEqual(" : "less(";
 					sb.append("Object _u = ").append(upperExpr).append("; if (_u == null) return null; ");
-					sb.append("Boolean _cU = ").append(op).append(inputVar).append(", _u); if (_cU == null) return null; ");
+					sb.append("Boolean _cU = ").append(op).append(inputVar)
+							.append(", _u); if (_cU == null) return null; ");
 					sb.append("if (!Boolean.TRUE.equals(_cU)) return false; ");
 				}
 				sb.append("return true; }).get()");
@@ -203,7 +209,8 @@ public final class JavaExpressionEmitter {
 		StringBuilder sb = new StringBuilder("((FeelCallable) (_args) -> { ");
 		for (int i = 0; i < fnDef.parameters().size(); i++) {
 			sb.append("Object ").append(slotName(fnDef.parameters().get(i).localSlot()))
-					.append(" = _args != null && _args.size() > ").append(i).append(" ? _args.get(").append(i).append(") : null; ");
+					.append(" = _args != null && _args.size() > ").append(i).append(" ? _args.get(").append(i)
+					.append(") : null; ");
 		}
 		sb.append("return ").append(body).append("; })");
 		return sb.toString();
@@ -213,8 +220,7 @@ public final class JavaExpressionEmitter {
 		if (fn.arguments().isEmpty()) {
 			return "builtin(\"" + escapeString(fn.function()) + "\", Collections.emptyList())";
 		}
-		StringBuilder sb = new StringBuilder("builtin(\"").append(escapeString(fn.function()))
-				.append("\", asList(");
+		StringBuilder sb = new StringBuilder("builtin(\"").append(escapeString(fn.function())).append("\", asList(");
 		for (int i = 0; i < fn.arguments().size(); i++) {
 			if (i > 0)
 				sb.append(", ");
@@ -228,7 +234,8 @@ public final class JavaExpressionEmitter {
 		if (inv.function().isPresent()) {
 			String fnName = inv.function().get();
 			if (!inv.namedArguments().isEmpty()) {
-				if (!inv.positionalArguments().isEmpty()) return "null";
+				if (!inv.positionalArguments().isEmpty())
+					return "null";
 				StringBuilder sb = new StringBuilder("builtinNamed(\"").append(escapeString(fnName))
 						.append("\", asMap(");
 				boolean first = true;
@@ -245,8 +252,7 @@ public final class JavaExpressionEmitter {
 			if (inv.positionalArguments().isEmpty()) {
 				return "builtin(\"" + escapeString(fnName) + "\", Collections.emptyList())";
 			}
-			StringBuilder sb = new StringBuilder("builtin(\"").append(escapeString(fnName))
-					.append("\", asList(");
+			StringBuilder sb = new StringBuilder("builtin(\"").append(escapeString(fnName)).append("\", asList(");
 			boolean first = true;
 			for (RuntimeExpression arg : inv.positionalArguments()) {
 				if (!first)
@@ -295,12 +301,14 @@ public final class JavaExpressionEmitter {
 			StringBuilder args = new StringBuilder("asList(");
 			boolean first = true;
 			for (RuntimeExpression arg : inv.positionalArguments()) {
-				if (!first) args.append(", ");
+				if (!first)
+					args.append(", ");
 				args.append(emitWithBkms(arg, bkmBySlot));
 				first = false;
 			}
 			for (RuntimeNamedArgument arg : inv.namedArguments()) {
-				if (!first) args.append(", ");
+				if (!first)
+					args.append(", ");
 				args.append(emitWithBkms(arg.expression(), bkmBySlot));
 				first = false;
 			}
@@ -350,7 +358,8 @@ public final class JavaExpressionEmitter {
 		}
 		RuntimeIteration iter = iterations.get(index);
 		String src = iter.end().isPresent()
-				? "rangeList(" + emitWithBkms(iter.source(), bkmBySlot) + ", " + emitWithBkms(iter.end().get(), bkmBySlot) + ")"
+				? "rangeList(" + emitWithBkms(iter.source(), bkmBySlot) + ", "
+						+ emitWithBkms(iter.end().get(), bkmBySlot) + ")"
 				: emitWithBkms(iter.source(), bkmBySlot);
 		String slot = slotName(iter.localSlot());
 		String pSlot = index == 0 ? partialSlot : partialSlot + "_" + index;
@@ -365,8 +374,8 @@ public final class JavaExpressionEmitter {
 		boolean upperAbsent = range.upper().isEmpty();
 		return "new io.finmsg.dmn.runtime.RuntimeRangeValue(" + low + ", " + up
 				+ ", io.finmsg.dmn.ir.RuntimeRangeBoundary." + range.lowerBoundary()
-				+ ", io.finmsg.dmn.ir.RuntimeRangeBoundary." + range.upperBoundary()
-				+ ", " + lowerAbsent + ", " + upperAbsent + ")";
+				+ ", io.finmsg.dmn.ir.RuntimeRangeBoundary." + range.upperBoundary() + ", " + lowerAbsent + ", "
+				+ upperAbsent + ")";
 	}
 
 	private static String emitContextB(RuntimeContextExpression ctx, Map<Integer, RuntimeBkm> bkmBySlot) {
@@ -382,7 +391,8 @@ public final class JavaExpressionEmitter {
 			String varName = slotName(entry.localSlot());
 			sb.append("Object ").append(varName).append(" = ").append(exprCode).append("; ");
 			if (entry.localSlot() >= 0) {
-				sb.append(ctxVar).append(".put(\"").append(escapeString(entry.name())).append("\", ").append(varName).append("); ");
+				sb.append(ctxVar).append(".put(\"").append(escapeString(entry.name())).append("\", ").append(varName)
+						.append("); ");
 			}
 			if (i == ctx.entries().size() - 1 && entry.localSlot() == -1) {
 				sb.append("return ").append(varName).append("; ");
@@ -428,7 +438,8 @@ public final class JavaExpressionEmitter {
 				if (c > 0)
 					sb.append(", ");
 				String colName = c < rel.columns().size() ? rel.columns().get(c).name() : "col" + c;
-				sb.append("{\"").append(escapeString(colName)).append("\", ").append(emitWithBkms(row.get(c), bkmBySlot)).append("}");
+				sb.append("{\"").append(escapeString(colName)).append("\", ")
+						.append(emitWithBkms(row.get(c), bkmBySlot)).append("}");
 			}
 			sb.append("})");
 		}

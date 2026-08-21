@@ -38,26 +38,109 @@ public enum RuntimeBuiltinOperation {
 																																											37,
 																																											"list replace"), IS(
 																																													38,
-																																													"is"), MEAN(39, "mean"), MEDIAN(40, "median"), MODE(41, "mode"), STDDEV(42, "stddev"),
-SQRT(43, "sqrt"), EXP(44, "exp"), LOG(45, "log"), MODULO(46, "modulo"),
-EVEN(47, "even"), ODD(48, "odd"), PRODUCT(49, "product"),
-ALL(50, "all"), ANY(51, "any"),
-INSERT_BEFORE(52, "insert before"), REMOVE(53, "remove"), APPEND(54, "append"),
-UNION(55, "union"), LIST_CONTAINS(56, "list contains"),
-ROUND_UP(57, "round up"), ROUND_DOWN(58, "round down"),
-STRING_JOIN(59, "string join"),
-DAY_AND_TIME_DURATION(60, "day and time duration"),
-GET_ENTRIES(61, "get entries"), GET_VALUE(62, "get value"),
-RANGE(63, "range"), DAY_OF_YEAR(64, "day of year"), DAY_OF_WEEK(65, "day of week"),
-WEEK_OF_YEAR(66, "week of year"), MONTH_OF_YEAR(67, "month of year"),
-CONTEXT(68, "context"), CONTEXT_PUT(69, "context put"), CONTEXT_MERGE(70, "context merge"),
-PMT(71, "pmt"), PMT2(72, "pmt2"), NOW(73, "now"), TODAY(74, "today"), ROUND_HALF_DOWN(75, "round half down"),
-DURING(76, "during"), BEFORE(77, "before"), AFTER(78, "after"),
-MEETS(79, "meets"), MET_BY(80, "met by"), OVERLAPS(81, "overlaps"),
-OVERLAPS_BEFORE(82, "overlaps before"), OVERLAPS_AFTER(83, "overlaps after"),
-FINISHES(84, "finishes"), FINISHED_BY(85, "finished by"),
-INCLUDES(86, "includes"), STARTS(87, "starts"), STARTED_BY(88, "started by"),
-COINCIDES(89, "coincides");
+																																													"is"), MEAN(
+																																															39,
+																																															"mean"), MEDIAN(
+																																																	40,
+																																																	"median"), MODE(
+																																																			41,
+																																																			"mode"), STDDEV(
+																																																					42,
+																																																					"stddev"), SQRT(
+																																																							43,
+																																																							"sqrt"), EXP(
+																																																									44,
+																																																									"exp"), LOG(
+																																																											45,
+																																																											"log"), MODULO(
+																																																													46,
+																																																													"modulo"), EVEN(
+																																																															47,
+																																																															"even"), ODD(
+																																																																	48,
+																																																																	"odd"), PRODUCT(
+																																																																			49,
+																																																																			"product"), ALL(
+																																																																					50,
+																																																																					"all"), ANY(
+																																																																							51,
+																																																																							"any"), INSERT_BEFORE(
+																																																																									52,
+																																																																									"insert before"), REMOVE(
+																																																																											53,
+																																																																											"remove"), APPEND(
+																																																																													54,
+																																																																													"append"), UNION(
+																																																																															55,
+																																																																															"union"), LIST_CONTAINS(
+																																																																																	56,
+																																																																																	"list contains"), ROUND_UP(
+																																																																																			57,
+																																																																																			"round up"), ROUND_DOWN(
+																																																																																					58,
+																																																																																					"round down"), STRING_JOIN(
+																																																																																							59,
+																																																																																							"string join"), DAY_AND_TIME_DURATION(
+																																																																																									60,
+																																																																																									"day and time duration"), GET_ENTRIES(
+																																																																																											61,
+																																																																																											"get entries"), GET_VALUE(
+																																																																																													62,
+																																																																																													"get value"), RANGE(
+																																																																																															63,
+																																																																																															"range"), DAY_OF_YEAR(
+																																																																																																	64,
+																																																																																																	"day of year"), DAY_OF_WEEK(
+																																																																																																			65,
+																																																																																																			"day of week"), WEEK_OF_YEAR(
+																																																																																																					66,
+																																																																																																					"week of year"), MONTH_OF_YEAR(
+																																																																																																							67,
+																																																																																																							"month of year"), CONTEXT(
+																																																																																																									68,
+																																																																																																									"context"), CONTEXT_PUT(
+																																																																																																											69,
+																																																																																																											"context put"), CONTEXT_MERGE(
+																																																																																																													70,
+																																																																																																													"context merge"), PMT(
+																																																																																																															71,
+																																																																																																															"pmt"), PMT2(
+																																																																																																																	72,
+																																																																																																																	"pmt2"), NOW(
+																																																																																																																			73,
+																																																																																																																			"now"), TODAY(
+																																																																																																																					74,
+																																																																																																																					"today"), ROUND_HALF_DOWN(
+																																																																																																																							75,
+																																																																																																																							"round half down"), DURING(
+																																																																																																																									76,
+																																																																																																																									"during"), BEFORE(
+																																																																																																																											77,
+																																																																																																																											"before"), AFTER(
+																																																																																																																													78,
+																																																																																																																													"after"), MEETS(
+																																																																																																																															79,
+																																																																																																																															"meets"), MET_BY(
+																																																																																																																																	80,
+																																																																																																																																	"met by"), OVERLAPS(
+																																																																																																																																			81,
+																																																																																																																																			"overlaps"), OVERLAPS_BEFORE(
+																																																																																																																																					82,
+																																																																																																																																					"overlaps before"), OVERLAPS_AFTER(
+																																																																																																																																							83,
+																																																																																																																																							"overlaps after"), FINISHES(
+																																																																																																																																									84,
+																																																																																																																																									"finishes"), FINISHED_BY(
+																																																																																																																																											85,
+																																																																																																																																											"finished by"), INCLUDES(
+																																																																																																																																													86,
+																																																																																																																																													"includes"), STARTS(
+																																																																																																																																															87,
+																																																																																																																																															"starts"), STARTED_BY(
+																																																																																																																																																	88,
+																																																																																																																																																	"started by"), COINCIDES(
+																																																																																																																																																			89,
+																																																																																																																																																			"coincides");
 	private final int id;
 	private final String feelName;
 

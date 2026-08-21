@@ -298,34 +298,26 @@ class DmnSemanticAnalyzerTest {
 
 	@Test
 	void resolvesPropertiesOnImportedItemDefinition() {
-		ItemDefinition importedType = ItemDefinition.newBuilder()
-				.setNode(Node.newBuilder().setName("tPerson"))
-				.addComponents(ItemComponent.newBuilder().setNode(Node.newBuilder().setName("age")).setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+		ItemDefinition importedType = ItemDefinition
+				.newBuilder().setNode(Node.newBuilder().setName("tPerson")).addComponents(ItemComponent.newBuilder()
+						.setNode(Node.newBuilder().setName("age")).setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
 				.build();
-		Definitions importedModel = Definitions.newBuilder()
-				.setNamespace("http://imported.ns")
-				.setNode(Node.newBuilder().setName("Imported"))
-				.addItemDefinitions(importedType)
-				.build();
+		Definitions importedModel = Definitions.newBuilder().setNamespace("http://imported.ns")
+				.setNode(Node.newBuilder().setName("Imported")).addItemDefinitions(importedType).build();
 
-		InputData input = InputData.newBuilder()
-				.setNode(Node.newBuilder().setId("person-id").setName("A Person"))
-				.setVariable(InformationItem.newBuilder().setType(namedType("myimport.tPerson")))
-				.build();
+		InputData input = InputData.newBuilder().setNode(Node.newBuilder().setId("person-id").setName("A Person"))
+				.setVariable(InformationItem.newBuilder().setType(namedType("myimport.tPerson"))).build();
 
-		Decision decision = Decision.newBuilder()
-				.setNode(Node.newBuilder().setId("dec-id").setName("Dec"))
+		Decision decision = Decision.newBuilder().setNode(Node.newBuilder().setId("dec-id").setName("Dec"))
 				.addInformationRequirements(InformationRequirement.newBuilder().setInput(reference("#person-id")))
-				.setLogic(DecisionLogic.newBuilder().setLiteralExpression(parsedFeel("A Person.age <= 30")))
-				.build();
+				.setLogic(DecisionLogic.newBuilder().setLiteralExpression(parsedFeel("A Person.age <= 30"))).build();
 
-		Definitions rootModel = Definitions.newBuilder()
-				.setNamespace("http://root.ns")
+		Definitions rootModel = Definitions.newBuilder().setNamespace("http://root.ns")
 				.setNode(Node.newBuilder().setName("Root"))
-				.addImports(io.finmsg.dmn.model.Import.newBuilder().setNamespace("http://imported.ns").setName("myimport"))
+				.addImports(
+						io.finmsg.dmn.model.Import.newBuilder().setNamespace("http://imported.ns").setName("myimport"))
 				.addDrgElements(DrgElement.newBuilder().setInputData(input))
-				.addDrgElements(DrgElement.newBuilder().setDecision(decision))
-				.build();
+				.addDrgElements(DrgElement.newBuilder().setDecision(decision)).build();
 
 		DmnSemanticPipelineResult result = new DmnSemanticPipeline().analyze(rootModel, List.of(importedModel));
 		assertThat(result.diagnostics()).isEmpty();

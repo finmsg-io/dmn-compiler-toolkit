@@ -108,16 +108,36 @@ final class RuntimeTypeLowerer {
 		if (item == null) {
 			String name = named.getName();
 			switch (name.toLowerCase()) {
-				case "any", "anysimpletype" -> { return RuntimeType.scalar(RuntimeTypeKind.ANY); }
-				case "string" -> { return RuntimeType.scalar(RuntimeTypeKind.STRING); }
-				case "number", "integer", "int", "long", "double", "float", "short", "byte", "decimal" -> { return RuntimeType.scalar(RuntimeTypeKind.NUMBER); }
-				case "boolean" -> { return RuntimeType.scalar(RuntimeTypeKind.BOOLEAN); }
-				case "date" -> { return RuntimeType.scalar(RuntimeTypeKind.DATE); }
-				case "time" -> { return RuntimeType.scalar(RuntimeTypeKind.TIME); }
-				case "date and time", "datetime", "dateandtime", "date-and-time" -> { return RuntimeType.scalar(RuntimeTypeKind.DATE_TIME); }
-				case "duration" -> { return RuntimeType.scalar(RuntimeTypeKind.DURATION); }
-				case "years and months duration", "yearmonthduration", "year-month-duration" -> { return RuntimeType.scalar(RuntimeTypeKind.YEARS_MONTHS_DURATION); }
-				case "days and time duration", "daytimeduration", "day-time-duration" -> { return RuntimeType.scalar(RuntimeTypeKind.DAYS_TIME_DURATION); }
+				case "any", "anysimpletype" -> {
+					return RuntimeType.scalar(RuntimeTypeKind.ANY);
+				}
+				case "string" -> {
+					return RuntimeType.scalar(RuntimeTypeKind.STRING);
+				}
+				case "number", "integer", "int", "long", "double", "float", "short", "byte", "decimal" -> {
+					return RuntimeType.scalar(RuntimeTypeKind.NUMBER);
+				}
+				case "boolean" -> {
+					return RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+				}
+				case "date" -> {
+					return RuntimeType.scalar(RuntimeTypeKind.DATE);
+				}
+				case "time" -> {
+					return RuntimeType.scalar(RuntimeTypeKind.TIME);
+				}
+				case "date and time", "datetime", "dateandtime", "date-and-time" -> {
+					return RuntimeType.scalar(RuntimeTypeKind.DATE_TIME);
+				}
+				case "duration" -> {
+					return RuntimeType.scalar(RuntimeTypeKind.DURATION);
+				}
+				case "years and months duration", "yearmonthduration", "year-month-duration" -> {
+					return RuntimeType.scalar(RuntimeTypeKind.YEARS_MONTHS_DURATION);
+				}
+				case "days and time duration", "daytimeduration", "day-time-duration" -> {
+					return RuntimeType.scalar(RuntimeTypeKind.DAYS_TIME_DURATION);
+				}
 			}
 		}
 		if (item == null || !resolving.add(key)) {
