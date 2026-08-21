@@ -146,7 +146,7 @@ class DmnXmlReaderTest {
 		String xml = """
 				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
 				    namespace="https://example.com/model">
-				  <decision id="decision-1"><conditional/></decision>
+				  <decision id="decision-1"><unsupportedDecisionLogic/></decision>
 				</definitions>
 				""";
 
@@ -155,7 +155,7 @@ class DmnXmlReaderTest {
 
 		assertTrue(result.model().isEmpty());
 		assertEquals("DMN-XML-004", result.diagnostics().get(0).getCode());
-		assertTrue(result.diagnostics().get(0).getMessage().contains("conditional"));
+		assertTrue(result.diagnostics().get(0).getMessage().contains("unsupportedDecisionLogic"));
 	}
 
 	@Test
