@@ -58,7 +58,7 @@ public final class DecisionReader {
 					//
 					//
 					case "literalExpression", "decisionTable", "invocation", "context", "relation", "list",
-							"functionDefinition" ->
+							"functionDefinition", "some", "every", "filter", "conditional", "for" ->
 						builder.setLogic(decisionLogicReader.read(cursor));
 
 					//

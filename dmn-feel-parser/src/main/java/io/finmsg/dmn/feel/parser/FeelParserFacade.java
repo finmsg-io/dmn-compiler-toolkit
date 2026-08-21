@@ -46,7 +46,11 @@ public final class FeelParserFacade {
 	}
 
 	public FeelParsed parseExpressionAst(String source) {
-		return new FeelAstBuilder().build(requireExpression(source));
+		return parseExpressionAst(source, java.util.Set.of());
+	}
+
+	public FeelParsed parseExpressionAst(String source, java.util.Set<String> declaredNames) {
+		return new FeelAstBuilder(declaredNames).build(requireExpression(source));
 	}
 
 	public UnaryTestParsed parseUnaryTestsAst(String source) {

@@ -9,11 +9,8 @@ import java.util.Objects;
 public record RuntimeContextEntry(String name, int localSlot, RuntimeExpression expression) {
 	public RuntimeContextEntry {
 		Objects.requireNonNull(name, "name");
-		if (name.isBlank() && localSlot != -1) {
-			throw new IllegalArgumentException("Unnamed result entries must use localSlot -1.");
-		}
-		if (!name.isBlank() && localSlot < 0) {
-			throw new IllegalArgumentException("Named entries require a non-negative localSlot.");
+		if (localSlot < -1) {
+			throw new IllegalArgumentException("localSlot must be >= -1.");
 		}
 		Objects.requireNonNull(expression, "expression");
 	}

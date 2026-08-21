@@ -33,6 +33,12 @@ public final class ItemDefinitionReader {
 
 					case "allowedValues", "typeConstraint" -> builder.setConstraint(typeConstraintReader.read(cursor));
 
+					case "functionItem" -> {
+						if (cursor.hasAttribute("outputTypeRef")) {
+							builder.setType(typeReferenceReader.read(cursor.requiredAttribute("outputTypeRef"), cursor));
+						}
+					}
+
 					case "documentation", "description", "extensionElements" -> {
 					}
 					default -> UnsupportedContent.rejectDmnChild(cursor, "itemDefinition");

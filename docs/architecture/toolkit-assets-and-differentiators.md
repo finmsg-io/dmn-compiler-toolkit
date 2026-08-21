@@ -15,10 +15,10 @@ The toolkit is organized into 10 decoupled, single-responsibility Maven modules:
 | **`dmn-feel-parser`** | Expression Parser | ANTLR4-based parser converting raw FEEL text into immutable Protobuf FEEL AST nodes with rich multi-error diagnostics. |
 | **`dmn-semantic-analysis`** | Semantic Compiler | Symbol table management, type inference, constraint checking, reference resolution, and deterministic DRG dependency ordering (cycle detection, execution topological sorting). |
 | **`dmn-runtime-ir`** | Intermediate Representation | Low-level, execution-focused Runtime IR with typed constant canonicalization, lexically scoped frame indexing, and IR optimization passes. |
-| **`dmn-runtime`** | Reference Engine | Deterministic, zero-reflection AST interpreter for Runtime IR. Serves as a 100% specification-correct reference oracle. |
+| **`dmn-runtime`** | Interpreter | Deterministic, zero-reflection interpreter for Runtime IR; full specification correctness is not established. |
 | **`dmn-compiler`** | Orchestration Facade | Public facade (`DmnCompiler`) and loader (`DmnModelLoader`) supporting resolver-independent multi-file DMN compilation (`DmnModelResolver`). |
 | **`dmn-generator-java`** | Ahead-Of-Time (AOT) Code Generator | Generates readable, pure Java source code (`DmnJavaGenerator`) directly from Runtime IR for ultra-low-latency execution. |
-| **`dmn-tck-runner`** | Compliance Suite | Automated runner ingesting official OMG DMN TCK test suites and verifying 100% dual-engine value parity (`DmnInterpreter` vs `dmn-generator-java`). |
+| **`dmn-tck-runner`** | Conformance evidence | Strict runner for official CL2/CL3 cases; current verified case pass rate is 51.19%. |
 | **`dmn-toolkit-parent`** | Build Infrastructure | Maven parent POM managing Java 21+ toolchain, dependencies, compiler options, and multi-module build lifecycle. |
 
 ---
@@ -45,9 +45,10 @@ Below are the 5 core technical differentiators:
 * **Legacy Engines**: Require importing hundreds of megabytes of legacy dependencies (`kie-api`, `drools-core`, `mvel`, `ecj` compiler, OSGi bundles), leading to slow application cold-starts and complex dependency conflicts.
 * **`dmn-generator-java`**: Zero provider dependencies. Generated Java code depends only on standard Java standard library types (`java.math.BigDecimal`, `java.util.List`, `java.util.Map`). It can be embedded directly into microservices, AWS Lambda/Knative serverless functions, or compiled into native binaries via GraalVM `native-image`.
 
-### 5. Certified 100% Specification Conformance & Dual-Engine Parity
-* **Legacy Engines**: Often implement partial or non-standard subsets of FEEL/DMN with vendor-specific extensions and unverified compliance edge cases.
-* **`dmn-generator-java`**: Verified against **100% of the official OMG DMN 1.5 TCK suite** across both Compliance Level 2 and Compliance Level 3 (72/72 official models, 621 test cases). Guaranteed 100% bit-for-bit value parity with the reference interpreter.
+### 5. Conformance recovery and dual-backend evidence
+* **`dmn-generator-java`**: The generator architecture exists, but strict evidence currently proves only
+  **1,736/3,391 official CL2/CL3 cases** pass across both backends. No certification or full-parity claim
+  is made.
 
 ---
 
@@ -60,4 +61,4 @@ Below are the 5 core technical differentiators:
 | **Memory / GC Footprint** | High (creates temporary HashMaps per rule/node) | Extremely Low (zero-allocation array indexing) |
 | **Dependencies** | Heavy (100MB+ Kie/Drools/MVEL/ECJ jars) | Lightweight (zero runtime framework dependencies) |
 | **GraalVM Native Compatibility** | Difficult (requires extensive reflection configs) | Flawless (100% static Java code, zero reflection) |
-| **OMG DMN 1.5 Conformance** | Partial / Custom vendor dialect | 100% Official OMG TCK Certified (CL2 & CL3) |
+| **OMG DMN conformance** | Product-specific | 1,736/3,391 CL2/CL3 cases currently pass (51.19%); not certified |

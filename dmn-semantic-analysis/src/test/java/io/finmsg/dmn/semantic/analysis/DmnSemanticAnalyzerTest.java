@@ -2,6 +2,7 @@ package io.finmsg.dmn.semantic.analysis;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import io.finmsg.dmn.feel.parser.FeelParserFacade;
 import io.finmsg.dmn.model.Decision;
 import io.finmsg.dmn.model.DecisionLogic;
@@ -293,6 +294,41 @@ class DmnSemanticAnalyzerTest {
 				Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm)).build())
 				.diagnostics()).extracting(DmnSemanticDiagnostic::code)
 				.containsExactly("DUPLICATE_PARAMETER_NAME", "BKM_SIGNATURE_PARAMETER_TYPE_MISMATCH");
+	}
+
+	@Test
+	void resolvesPropertiesOnImportedItemDefinition() {
+		ItemDefinition importedType = ItemDefinition.newBuilder()
+				.setNode(Node.newBuilder().setName("tPerson"))
+				.addComponents(ItemComponent.newBuilder().setNode(Node.newBuilder().setName("age")).setType(builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+				.build();
+		Definitions importedModel = Definitions.newBuilder()
+				.setNamespace("http://imported.ns")
+				.setNode(Node.newBuilder().setName("Imported"))
+				.addItemDefinitions(importedType)
+				.build();
+
+		InputData input = InputData.newBuilder()
+				.setNode(Node.newBuilder().setId("person-id").setName("A Person"))
+				.setVariable(InformationItem.newBuilder().setType(namedType("myimport.tPerson")))
+				.build();
+
+		Decision decision = Decision.newBuilder()
+				.setNode(Node.newBuilder().setId("dec-id").setName("Dec"))
+				.addInformationRequirements(InformationRequirement.newBuilder().setInput(reference("#person-id")))
+				.setLogic(DecisionLogic.newBuilder().setLiteralExpression(parsedFeel("A Person.age <= 30")))
+				.build();
+
+		Definitions rootModel = Definitions.newBuilder()
+				.setNamespace("http://root.ns")
+				.setNode(Node.newBuilder().setName("Root"))
+				.addImports(io.finmsg.dmn.model.Import.newBuilder().setNamespace("http://imported.ns").setName("myimport"))
+				.addDrgElements(DrgElement.newBuilder().setInputData(input))
+				.addDrgElements(DrgElement.newBuilder().setDecision(decision))
+				.build();
+
+		DmnSemanticPipelineResult result = new DmnSemanticPipeline().analyze(rootModel, List.of(importedModel));
+		assertThat(result.diagnostics()).isEmpty();
 	}
 
 	private Feel parsedFeel(String source) {

@@ -25,5 +25,3 @@ The XML frontend has completed its stabilization gate: VTD-XML reader (`DmnXmlRe
 ## Deferred model scope
 
 DMNDI, artifacts/associations, organization units, performance indicators, decision questions/allowed answers, and deeper arbitrary extension trees require semantic model decisions before frontend implementation.
-
-Historical context: [frontend assessment](../audits/assessment-implementation-dmn-frontend-xml.md) and [completeness audit](../audits/dmn-frontend-xml-completeness.md).

@@ -42,8 +42,6 @@ model.proto
 
 `feel.proto` defines replaceable nodes whose `oneof` representation is either textual or parsed. This includes `Feel`, `ExpressionNode`, and `BoxedExpression`. Decision-table `UnaryTest` and model `TypeConstraint` use the same text/parsed pattern.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-protobuf.md) ·
-[architecture](audits/assessment-architecture-dmn-protobuf.md)
 
 <a id="contents-section-2"></a>
 ## `dmn-frontend-xml`
@@ -64,10 +62,8 @@ io.finmsg.dmn.frontend.xml.dmn.writer
 
 Reader and writer coverage is symmetric for the XML-representable portion of the current protobuf model. This includes imports, item definitions and constraints, all modeled DRG elements, decision tables, invocations, boxed expressions, documentation, structured extensions, namespace/version preservation, and prefixed-DMN output.
 
-QName `typeRef` values are resolved in element scope, stored by namespace URI, and written using an existing or collision-free declared prefix. DMNDI, artifacts, business-context metadata, and deeper arbitrary extension trees require protobuf model extensions and are not part of the current round-trip claim. See the [completeness audit](audits/dmn-frontend-xml-completeness.md).
+QName `typeRef` values are resolved in element scope, stored by namespace URI, and written using an existing or collision-free declared prefix. DMNDI, artifacts, business-context metadata, and deeper arbitrary extension trees require protobuf model extensions and are not part of the current round-trip claim.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-frontend-xml.md) ·
-[architecture](audits/assessment-architecture-dmn-frontend-xml.md)
 
 <a id="contents-section-3"></a>
 ## `dmn-feel-parser`
@@ -85,8 +81,6 @@ Contains:
 
 The pass returns a copied `Definitions` message. The input semantic model remains unchanged.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-feel-parser.md) ·
-[architecture](audits/assessment-architecture-dmn-feel-parser.md)
 
 <a id="contents-section-4"></a>
 ## `dmn-semantic-analysis`
@@ -110,16 +104,12 @@ Contains the semantic-analysis pipeline:
 
 These linked semantic results now feed combined model-set Runtime IR lowering.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-semantic-analysis.md) ·
-[architecture](audits/assessment-architecture-dmn-semantic-analysis.md)
 
 <a id="contents-section-5"></a>
 ## `dmn-runtime-ir`
 
 Contains the immutable, protobuf-free runtime contracts and the semantic-to-runtime lowering boundary. The implemented baseline assigns deterministic integer IDs and slots across linked model namespaces, lowers structural types and every protobuf FEEL AST expression variant, and rejects unsuccessful semantic results. Decisions and functions persist lexical frames. Declared and expression-derived global references are merged into dependencies and a deterministic runtime topological order. Context types preserve stable indexed field layouts, and statically known path and descendant access carries resolved field indices. A separate optimizer produces typed constant pools and stable built-in operation bindings while preserving lossless IR.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-runtime-ir.md) ·
-[architecture](audits/assessment-architecture-dmn-runtime-ir.md)
 
 <a id="contents-section-6"></a>
 ## `dmn-runtime`
@@ -128,8 +118,6 @@ Contains the process-local interpreter for executable Runtime IR. It evaluates d
 schedules, global and lexical slots, contexts, functions and closures, core FEEL operations,
 unary tests, and decision tables without depending on XML, ANTLR, or semantic protobuf models.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-runtime.md) ·
-[architecture](audits/assessment-architecture-dmn-runtime.md)
 
 <a id="contents-section-7"></a>
 ## `dmn-compiler`
@@ -152,8 +140,6 @@ compilation result retains loaded and semantic stage evidence, authoritative dia
 optional optimized linked Runtime IR model. Error diagnostics gate later phases, and expected
 lowering failures are normalized at the compiler boundary.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-compiler.md) ·
-[architecture](audits/assessment-architecture-dmn-compiler.md)
 
 <a id="contents-section-8"></a>
 ## `dmn-generator-java`
@@ -170,8 +156,6 @@ String javaSource = generator.generate(runtimeModel);
 
 Options (`DmnJavaGeneratorOptions`) allow customizing the generated package name, class name, and execution optimization strategies.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-generator-java.md) ·
-[architecture](audits/assessment-architecture-dmn-generator-java.md)
 
 <a id="contents-section-9"></a>
 ## `dmn-tck-runner`
@@ -184,8 +168,6 @@ Embeds the official vendor-neutral [OMG DMN TCK repository](https://dmn-tck.gith
 - **Compliance Level 2 (CL2)**: 144 `<testCase>` items across 28 XML test files.
 - **Current executed set**: self-verified cases evaluated across both interpreter and generated Java engines (`OfficialTckSuiteTest`). The authoritative revision, counts, terminology, and known catalogue-accounting limitation are maintained in the [TCK conformance record](tck-conformance.md).
 
-Assessments: [implementation](audits/assessment-implementation-dmn-tck-runner.md) ·
-[architecture](audits/assessment-architecture-dmn-tck-runner.md)
 
 <a id="contents-section-10"></a>
 ## `dmn-benchmarks`
@@ -202,40 +184,30 @@ in the [benchmark evidence plan](improvements/benchmark-evidence-and-scalability
 - **Credit Approval DRG Graph**: `dmn-generator-java` achieves **1.14M ops/sec** (471 ns/op) vs `DmnRuntime` interpreter **199k ops/sec** (2.12 µs/op) — **~4.5x speedup**.
 - **Scalar Arithmetic**: `dmn-generator-java` achieves **12.0M ops/sec** (124.5 ns/op) vs `DmnRuntime` interpreter **3.88M ops/sec** (258 ns/op) — **~2.1x speedup**.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-benchmarks.md) ·
-[architecture](audits/assessment-architecture-dmn-benchmarks.md)
 
 <a id="contents-section-11"></a>
 ## `dmn-optimizer`
 
 Provides constant folding (`ConstantFoldingPass`), algebraic identity simplification (`AlgebraicSimplificationPass`), and decision table rule pruning (`DecisionTableOptimizationPass`) for Runtime IR models. Operates on `RuntimeModel` IR before process-local evaluation in `DmnRuntime` or AOT code generation in `dmn-generator-java`.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-optimizer.md) ·
-[architecture](audits/assessment-architecture-dmn-optimizer.md)
 
 <a id="contents-section-12"></a>
 ## `dmn-grpc`
 
 Provides transport-neutral gRPC service contract definitions (`evaluation.proto`), Java gRPC service adapter generators (`DmnGrpcGenerator`), and bidirectional Proto-to-Java value converters (`DmnGrpcValueConverter`) backed by compiled Java decision engines (`dmn-generator-java`). Built using pure `grpc-java` without framework overhead.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-grpc.md) ·
-[architecture](audits/assessment-architecture-dmn-grpc.md)
 
 <a id="contents-section-13"></a>
 ## `dmn-generator-sparksql`
 
 Provides pure native Spark / Databricks SQL query generation directly from Runtime IR models without UDF overhead. `DmnSparkSqlGenerator` lowers FEEL expressions and decision tables into standard Common Table Expression (CTE) query files (`<decision-name>.sql`) and native Spark `StructType` input schemas (`SparkSqlSchemaGenerator`), delegating query optimization and execution tuning entirely to Spark's Catalyst engine and Databricks Photon. Includes an optional zero-dependency Java runner (`DmnSparkSqlRunner`) for direct integration with `SparkSession` and `Dataset<Row>`.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-generator-sparksql.md) ·
-[architecture](audits/assessment-architecture-dmn-generator-sparksql.md)
 
 <a id="contents-section-14"></a>
 ## `dmn-models`
 
 Provides structured multi-file DMN model directory suites (`loan-approval`, `order-fulfillment`, `discount-calculation`) and an in-memory Java streaming ingestion/resolution API (`DmnStreamBundle`, `DmnStreamResolver`) for streaming multi-file DMN models from ZIP archives, directory trees, classpath resources, and input stream maps without disk unpacking.
 
-Assessments: [implementation](audits/assessment-implementation-dmn-models.md) ·
-[architecture](audits/assessment-architecture-dmn-models.md)
 
 <a id="contents-section-15"></a>
 ## Planned modules

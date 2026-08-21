@@ -15,7 +15,8 @@ public final class DecisionLogicReader {
 		DecisionLogic.Builder builder = DecisionLogic.newBuilder();
 
 		switch (cursor.documentLocalName()) {
-			case "literalExpression" -> builder.setLiteralExpression(ReaderRegistry.shared().feelReader().read(cursor));
+			case "literalExpression", "some", "every", "filter", "conditional", "for" ->
+				builder.setLiteralExpression(ReaderRegistry.shared().feelReader().read(cursor));
 
 			case "decisionTable" -> builder.setDecisionTable(decisionTableReader.read(cursor));
 

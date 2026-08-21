@@ -136,7 +136,7 @@ public final class DmnDependencyAnalyzer implements DmnSemanticPass<DmnDependenc
 		}
 
 		private void registerRequirement(GraphNode owner, Set<String> seen, String category, String href, String path) {
-			String target = referenceId(href);
+			String target = href.isBlank() ? "" : href.trim();
 			if (!target.isBlank() && !seen.add(category + target)) {
 				diagnostics.add(new DmnSemanticDiagnostic("DUPLICATE_REQUIREMENT", path,
 						"Element '" + owner.name + "' requires '" + href + "' more than once.",

@@ -18,11 +18,17 @@ import java.util.Set;
 public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAnalysisResult> {
 
 	private static final Set<String> BUILTIN_NAMES = Set.of("date", "time", "date and time", "duration",
-			"years and months duration", "days and time duration", "string", "number", "boolean", "context", "list",
-			"range", "any", "null", "flatten", "concatenate", "distinct values", "index of", "reverse", "sublist",
-			"substring", "substring before", "substring after", "string length", "upper case", "lower case", "contains",
-			"starts with", "ends with", "matches", "replace", "split", "floor", "ceiling", "decimal", "round half up",
-			"round half even", "min", "max", "sum", "mean", "count", "all", "not");
+			"years and months duration", "days and time duration", "day and time duration", "string", "number",
+			"boolean", "context", "list", "range", "any", "null", "flatten", "concatenate", "distinct values",
+			"index of", "reverse", "sublist", "substring", "substring before", "substring after", "string length",
+			"upper case", "lower case", "contains", "starts with", "ends with", "matches", "replace", "split", "floor",
+			"ceiling", "decimal", "round half up", "round half down", "round half even", "min", "max", "sum", "mean", "count", "all",
+			"not", "is", "median", "mode", "stddev", "sqrt", "exp", "log", "modulo", "even", "odd", "product",
+			"insert before", "remove", "append", "union", "list contains", "sort", "string join", "get entries",
+			"get value", "round up", "round down", "abs", "day of year", "day of week", "week of year", "month of year",
+			"context put", "context merge", "list replace", "now", "today",
+			"during", "before", "after", "meets", "met by", "overlaps", "overlaps before", "overlaps after",
+			"finishes", "finished by", "includes", "starts", "started by", "coincides");
 
 	@Override
 	public DmnSemanticAnalysisResult analyze(Definitions parsedModel) {
@@ -297,7 +303,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				}
 			}
 			for (int i = 0; i < decision.getKnowledgeRequirementsCount(); i++) {
-				addRequired(scope, decision.getKnowledgeRequirements(i).getRequiredKnowledge(), Set.of(SymbolKind.BKM),
+				addRequired(scope, decision.getKnowledgeRequirements(i).getRequiredKnowledge(),
+						Set.of(SymbolKind.BKM, SymbolKind.DECISION_SERVICE),
 						path + "/knowledgeRequirement[" + i + "]", decision.getNode().getSourceLocation());
 			}
 			analyzeAuthorityRequirements(decision.getAuthorityRequirementsList(), path,
@@ -314,7 +321,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 					bkm.getNode().getSourceLocation());
 			Scope scope = new Scope(null);
 			for (int i = 0; i < bkm.getKnowledgeRequirementsCount(); i++) {
-				addRequired(scope, bkm.getKnowledgeRequirements(i).getRequiredKnowledge(), Set.of(SymbolKind.BKM),
+				addRequired(scope, bkm.getKnowledgeRequirements(i).getRequiredKnowledge(),
+						Set.of(SymbolKind.BKM, SymbolKind.DECISION_SERVICE),
 						path + "/knowledgeRequirement[" + i + "]", bkm.getNode().getSourceLocation());
 			}
 			analyzeAuthorityRequirements(bkm.getAuthorityRequirementsList(), path, bkm.getNode().getSourceLocation());
@@ -386,6 +394,13 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 			Symbol symbol = resolveReference(reference, expected, path, location);
 			if (symbol != null) {
 				scope.define(symbol);
+				for (Import imported : model.getImportsList()) {
+					if (!imported.getName().isBlank() && imported.getNamespace().equals(symbol.namespace)) {
+						String qualifiedName = imported.getName() + "." + symbol.name;
+						scope.define(new Symbol(qualifiedName, symbol.id, symbol.type, symbol.kind, symbol.location,
+								symbol.parameters, symbol.declarationPath, symbol.namespace));
+					}
+				}
 			}
 		}
 
@@ -776,6 +791,11 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 					yield TypeReference.getDefaultInstance();
 				}
 				case FUNCTION_CALL -> {
+					String functionName = expression.getFunctionCall().getFunction();
+					List<Symbol> resolved = scope.resolve(functionName);
+					if (resolved != null && !resolved.isEmpty()) {
+						bind(path, resolved.getFirst());
+					}
 					for (int i = 0; i < expression.getFunctionCall().getArgumentsCount(); i++) {
 						analyzeExpression(expression.getFunctionCall().getArguments(i), scope,
 								path + "/argument[" + i + "]", location);
@@ -802,8 +822,13 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				case FOR_EXPRESSION -> analyzeFor(expression.getForExpression(), scope, path, location);
 				case QUANTIFIED -> analyzeQuantified(expression.getQuantified(), scope, path, location);
 				case FILTER -> {
-					analyzeExpression(expression.getFilter().getSource(), scope, path + "/source", location);
-					analyzeExpression(expression.getFilter().getFilter(), scope, path + "/filter", location);
+					TypeReference sourceType = analyzeExpression(expression.getFilter().getSource(), scope,
+							path + "/source", location);
+					Scope filterScope = new Scope(scope);
+					define(filterScope, "item", TypeReference.getDefaultInstance(), SymbolKind.LOCAL,
+							path + "/filter/item", location);
+					exposeFilterItemComponents(sourceType, filterScope, path + "/filter", location);
+					analyzeExpression(expression.getFilter().getFilter(), filterScope, path + "/filter", location);
 					yield TypeReference.getDefaultInstance();
 				}
 				case PATH -> analyzePath(expression.getPath(), scope, path, location);
@@ -853,11 +878,35 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 			return TypeReference.getDefaultInstance();
 		}
 
+		private TypeReference iterationElementType(TypeReference source) {
+			if (source == null) {
+				return TypeReference.getDefaultInstance();
+			}
+			if (source.hasList()) {
+				return source.getList().getElementType();
+			}
+			if (source.hasNamed()) {
+				List<DmnModelRepository.ResolvedItemDefinition> resolved = repository.resolveType(model, source.getNamed());
+				if (!resolved.isEmpty()) {
+					ItemDefinition item = resolved.getFirst().item();
+					if (item.getIsCollection()) {
+						if (item.hasType()) {
+							return item.getType();
+						}
+						return source;
+					}
+				}
+			}
+			return source;
+		}
+
 		private TypeReference analyzeFor(ForExpression value, Scope parent, String path, SourceLocation location) {
 			Scope scope = new Scope(parent);
 			if (value.getIterationsCount() == 0 && !value.getVariable().isBlank()) {
 				TypeReference type = analyzeExpression(value.getIn(), scope, path + "/in", location);
-				define(scope, value.getVariable(), type, SymbolKind.LOCAL, path, location);
+				define(scope, value.getVariable(), iterationElementType(type), SymbolKind.LOCAL, path, location);
+				define(scope, "partial", TypeReference.getDefaultInstance(), SymbolKind.LOCAL, path + "/partial",
+						location);
 				return analyzeExpression(value.getReturnExpression(), scope, path + "/return", location);
 			}
 			for (int i = 0; i < value.getIterationsCount(); i++) {
@@ -867,9 +916,10 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				if (iteration.hasEnd()) {
 					analyzeExpression(iteration.getEnd(), scope, path + "/iteration[" + i + "]/end", location);
 				}
-				define(scope, iteration.getVariable(), type, SymbolKind.LOCAL, path + "/iteration[" + i + "]",
+				define(scope, iteration.getVariable(), iterationElementType(type), SymbolKind.LOCAL, path + "/iteration[" + i + "]",
 						location);
 			}
+			define(scope, "partial", TypeReference.getDefaultInstance(), SymbolKind.LOCAL, path + "/partial", location);
 			return analyzeExpression(value.getReturnExpression(), scope, path + "/return", location);
 		}
 
@@ -878,7 +928,7 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 			Scope scope = new Scope(parent);
 			if (value.getBindingsCount() == 0 && !value.getVariable().isBlank()) {
 				TypeReference type = analyzeExpression(value.getIn(), scope, path + "/in", location);
-				define(scope, value.getVariable(), type, SymbolKind.LOCAL, path, location);
+				define(scope, value.getVariable(), iterationElementType(type), SymbolKind.LOCAL, path, location);
 				analyzeExpression(value.getSatisfies(), scope, path + "/satisfies", location);
 				return TypeReference.getDefaultInstance();
 			}
@@ -886,15 +936,30 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				IterationBinding binding = value.getBindings(i);
 				TypeReference type = analyzeExpression(binding.getIn(), scope, path + "/binding[" + i + "]/in",
 						location);
-				define(scope, binding.getVariable(), type, SymbolKind.LOCAL, path + "/binding[" + i + "]", location);
+				define(scope, binding.getVariable(), iterationElementType(type), SymbolKind.LOCAL, path + "/binding[" + i + "]", location);
 			}
 			analyzeExpression(value.getSatisfies(), scope, path + "/satisfies", location);
 			return TypeReference.getDefaultInstance();
 		}
 
 		private TypeReference analyzePath(PathExpression value, Scope scope, String path, SourceLocation location) {
+			String qualified = toQualifiedName(value);
+			if (qualified != null && scope.resolve(qualified) != null) {
+				return resolveName(qualified, scope, path, location);
+			}
 			TypeReference source = analyzeExpression(value.getSource(), scope, path + "/source", location);
 			return resolveMember(source, value.getMember(), path, location);
+		}
+
+		private static String toQualifiedName(PathExpression path) {
+			if (path.getSource().hasName()) {
+				return path.getSource().getName().getName() + "." + path.getMember();
+			}
+			if (path.getSource().hasPath()) {
+				String prefix = toQualifiedName(path.getSource().getPath());
+				return prefix != null ? prefix + "." + path.getMember() : null;
+			}
+			return null;
 		}
 
 		private TypeReference analyzeDescendant(DescendantExpression value, Scope scope, String path,
@@ -963,6 +1028,17 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				bind(path, symbol);
 				return symbol.type;
 			}
+			if (scope.resolve("item") != null) {
+				Symbol itemSymbol = scope.resolve("item").getFirst();
+				Symbol memberSymbol = new Symbol(name, itemSymbol.id(), TypeReference.getDefaultInstance(),
+						SymbolKind.LOCAL, location, List.of(), itemSymbol.declarationPath() + "/" + name,
+						itemSymbol.namespace());
+				bind(path, memberSymbol);
+				return TypeReference.getDefaultInstance();
+			}
+			if (BUILTIN_NAMES.contains(name)) {
+				return TypeReference.getDefaultInstance();
+			}
 			if (globalsByName.containsKey(name)) {
 				error("UNAVAILABLE_NAME", path,
 						"Name '" + name + "' exists but is not available through a requirement.", location);
@@ -974,6 +1050,11 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 
 		private TypeReference resolveMember(TypeReference source, String member, String path, SourceLocation location) {
 			if (!source.hasNamed()) {
+				if (source.hasList()) {
+					TypeReference elem = source.getList().getElementType();
+					TypeReference prop = resolveMember(elem, member, path, location);
+					return TypeReference.newBuilder().setList(io.finmsg.dmn.model.ListTypeReference.newBuilder().setElementType(prop)).build();
+				}
 				return TypeReference.getDefaultInstance();
 			}
 			List<DmnModelRepository.ResolvedItemDefinition> resolvedTypes = repository.resolveType(model,
@@ -987,6 +1068,10 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				return TypeReference.getDefaultInstance();
 			}
 			ItemDefinition item = resolvedTypes.getFirst().item();
+			if (item.getIsCollection() && item.hasType()) {
+				TypeReference prop = resolveMember(item.getType(), member, path, location);
+				return TypeReference.newBuilder().setList(io.finmsg.dmn.model.ListTypeReference.newBuilder().setElementType(prop)).build();
+			}
 			List<ItemComponent> matches = item.getComponentsList().stream()
 					.filter(component -> component.getNode().getName().equals(member)).toList();
 			if (matches.isEmpty()) {
@@ -1001,6 +1086,24 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				return TypeReference.getDefaultInstance();
 			}
 			return matches.getFirst().getType();
+		}
+
+		private void exposeFilterItemComponents(TypeReference sourceType, Scope filterScope, String path,
+				SourceLocation location) {
+			if (sourceType == null || !sourceType.hasNamed()) {
+				return;
+			}
+			List<DmnModelRepository.ResolvedItemDefinition> resolvedTypes = repository.resolveType(model,
+					sourceType.getNamed());
+			if (resolvedTypes.isEmpty()) {
+				return;
+			}
+			ItemDefinition item = resolvedTypes.getFirst().item();
+			for (ItemComponent component : item.getComponentsList()) {
+				String compName = component.getNode().getName();
+				define(filterScope, compName, component.getType(), SymbolKind.LOCAL, path + "/item/" + compName,
+						location);
+			}
 		}
 
 		private void define(Scope scope, String name, TypeReference type, SymbolKind kind, String path,

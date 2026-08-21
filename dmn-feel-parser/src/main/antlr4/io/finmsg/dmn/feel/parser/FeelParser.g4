@@ -160,7 +160,7 @@ formalParameter
     ;
 
 parameterName
-    : name
+    : qualifiedName
     ;
 
 list
@@ -176,8 +176,17 @@ contextEntry
     ;
 
 key
-    : name
+    : keySegment+
     | STRING_LITERAL
+    ;
+
+keySegment
+    : nameSegment
+    | PLUS
+    | MINUS
+    | STAR
+    | SLASH
+    | DOT
     ;
 
 unaryTests
@@ -244,6 +253,7 @@ rangeLiteral
     : intervalStart endpoint DOT_DOT endpoint intervalEnd
     | intervalStart DOT_DOT endpoint intervalEnd
     | intervalStart endpoint DOT_DOT openIntervalEnd
+    | LPAREN comparisonOperator endpoint RPAREN
     ;
 
 endpoint
@@ -264,8 +274,22 @@ atLiteral
     ;
 
 name
-    : IDENTIFIER+
+    : nameSegment+
     ;
+
+nameSegment
+    : IDENTIFIER
+    | NUMBER_LITERAL
+    | LIST
+    | RANGE
+    | CONTEXT
+    | OF
+    | DATE_AND_TIME
+    | YEARS_AND_MONTHS_DURATION
+    | DAY_AND_TIME_DURATION
+    | DAYS_AND_TIME_DURATION
+    ;
+
 
 qualifiedName
     : name (DOT name)*

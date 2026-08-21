@@ -3,6 +3,7 @@ package io.finmsg.dmn.feel.parser;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.finmsg.dmn.model.BinaryOperator;
+import io.finmsg.dmn.model.LiteralKind;
 import io.finmsg.dmn.model.Quantifier;
 import io.finmsg.dmn.model.RangeBoundary;
 import io.finmsg.dmn.model.UnaryTestOperator;
@@ -73,6 +74,23 @@ class FeelAstBuilderTest {
 		assertThat(path.getPath().getSource().hasFilter()).isTrue();
 		assertThat(descendant.hasDescendant()).isTrue();
 		assertThat(descendant.getDescendant().getMember()).isEqualTo("age");
+	}
+
+	@Test
+	void preservesWhitespaceInMultiWordNames() {
+		var expression = parser.parseExpressionAst("\"Hello \" + Full Name").getAst().getBinary();
+		var path = parser.parseExpressionAst("Applicant Data.full name").getAst().getPath();
+
+		assertThat(expression.getRight().getName().getName()).isEqualTo("Full Name");
+		assertThat(path.getSource().getName().getName()).isEqualTo("Applicant Data");
+		assertThat(path.getMember()).isEqualTo("full name");
+	}
+
+	@Test
+	void classifiesNamedZoneTimeWithoutTreatingZoneLettersAsDateTimeSeparator() {
+		var literal = parser.parseExpressionAst("@\"23:00:50@Etc/GMT\"").getAst().getLiteral();
+
+		assertThat(literal.getKind()).isEqualTo(LiteralKind.LITERAL_KIND_TIME);
 	}
 
 	@Test

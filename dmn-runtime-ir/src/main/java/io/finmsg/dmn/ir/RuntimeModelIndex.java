@@ -114,6 +114,17 @@ final class RuntimeModelIndex {
 			});
 		}
 		local.getItemDefinitionsList().forEach(item -> result.put(item.getNode().getName(), item));
+		for (io.finmsg.dmn.model.Import imported : local.getImportsList()) {
+			if (!imported.getName().isBlank()) {
+				for (DmnSemanticPipelineResult analysis : analyses) {
+					if (analysis.model().getNamespace().equals(imported.getNamespace())) {
+						analysis.model().getItemDefinitionsList().forEach(item -> {
+							result.put(imported.getName() + "." + item.getNode().getName(), item);
+						});
+					}
+				}
+			}
+		}
 		return Map.copyOf(result);
 	}
 
@@ -122,6 +133,7 @@ final class RuntimeModelIndex {
 			case INPUT_DATA -> element.getInputData().getNode();
 			case DECISION -> element.getDecision().getNode();
 			case BUSINESS_KNOWLEDGE_MODEL -> element.getBusinessKnowledgeModel().getNode();
+			case DECISION_SERVICE -> element.getDecisionService().getNode();
 			default -> null;
 		};
 	}

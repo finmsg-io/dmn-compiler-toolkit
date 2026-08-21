@@ -90,8 +90,14 @@ public final class FeelTypeAnalyzer {
 			String name = input.getName().getName();
 			TypeReference type = lookup(name);
 			if (type == null) {
-				error("UNKNOWN_NAME", path, "No type is available for name '" + name + "'.");
-				type = ANY;
+				if (lookup("item") != null) {
+					type = ANY;
+				} else if (BuiltinFeelFunctionRegistry.isBuiltin(name)) {
+					type = ANY;
+				} else {
+					error("UNKNOWN_NAME", path, "No type is available for name '" + name + "'.");
+					type = ANY;
+				}
 			}
 			return typed(input, type);
 		}
@@ -101,8 +107,11 @@ public final class FeelTypeAnalyzer {
 			TypedExpression operand = infer(unary.getExpression(), path + "/operand");
 			TypeReference result = switch (unary.getOperator()) {
 				case UNARY_OPERATOR_PLUS, UNARY_OPERATOR_MINUS -> {
+					if (is(operand.type, NUMBER)) yield NUMBER;
+					if (isDuration(operand.type)) yield operand.type;
+					if (isAny(operand.type)) yield ANY;
 					require(operand.type, NUMBER, path, "Unary numeric operator requires number.");
-					yield isAny(operand.type) ? ANY : NUMBER;
+					yield NUMBER;
 				}
 				case UNARY_OPERATOR_NOT -> {
 					require(operand.type, BOOLEAN, path, "Operator 'not' requires boolean.");
@@ -139,53 +148,64 @@ public final class FeelTypeAnalyzer {
 
 		private TypeReference arithmetic(BinaryOperator operator, TypeReference left, TypeReference right,
 				String path) {
+			if (is(left, NULL) || is(right, NULL)) {
+				return NULL;
+			}
 			if (isAny(left) || isAny(right)) {
 				return ANY;
 			}
+			TypeReference uLeft = unwrap(left);
+			TypeReference uRight = unwrap(right);
+			if (uLeft.hasList() || uRight.hasList()) {
+				TypeReference elemLeft = uLeft.hasList() ? uLeft.getList().getElementType() : uLeft;
+				TypeReference elemRight = uRight.hasList() ? uRight.getList().getElementType() : uRight;
+				TypeReference elemResult = arithmetic(operator, elemLeft, elemRight, path);
+				return list(elemResult);
+			}
 			TypeReference result = switch (operator) {
 				case BINARY_OPERATOR_ADD -> {
-					if (is(left, NUMBER) && is(right, NUMBER))
+					if (is(uLeft, NUMBER) && is(uRight, NUMBER))
 						yield NUMBER;
-					if (is(left, STRING) || is(right, STRING))
+					if (is(uLeft, STRING) || is(uRight, STRING))
 						yield STRING;
-					if (isTemporal(left) && isDuration(right))
-						yield left;
-					if (isDuration(left) && isTemporal(right))
-						yield right;
-					if (isDuration(left) && isDuration(right))
-						yield durationResult(left, right);
+					if (isTemporal(uLeft) && isDuration(uRight))
+						yield uLeft;
+					if (isDuration(uLeft) && isTemporal(uRight))
+						yield uRight;
+					if (isDuration(uLeft) && isDuration(uRight))
+						yield durationResult(uLeft, uRight);
 					yield null;
 				}
 				case BINARY_OPERATOR_SUBTRACT -> {
-					if (is(left, NUMBER) && is(right, NUMBER))
+					if (is(uLeft, NUMBER) && is(uRight, NUMBER))
 						yield NUMBER;
-					if (isTemporal(left) && isDuration(right))
-						yield left;
-					if (isTemporal(left) && compatible(left, right))
+					if (isTemporal(uLeft) && isDuration(uRight))
+						yield uLeft;
+					if (isTemporal(uLeft) && isTemporal(uRight))
 						yield DURATION;
-					if (isDuration(left) && isDuration(right))
-						yield durationResult(left, right);
+					if (isDuration(uLeft) && isDuration(uRight))
+						yield durationResult(uLeft, uRight);
 					yield null;
 				}
 				case BINARY_OPERATOR_MULTIPLY -> {
-					if (is(left, NUMBER) && is(right, NUMBER))
+					if (is(uLeft, NUMBER) && is(uRight, NUMBER))
 						yield NUMBER;
-					if (isDuration(left) && is(right, NUMBER))
-						yield left;
-					if (is(left, NUMBER) && isDuration(right))
-						yield right;
+					if (isDuration(uLeft) && is(uRight, NUMBER))
+						yield uLeft;
+					if (is(uLeft, NUMBER) && isDuration(uRight))
+						yield uRight;
 					yield null;
 				}
 				case BINARY_OPERATOR_DIVIDE -> {
-					if (is(left, NUMBER) && is(right, NUMBER))
+					if (is(uLeft, NUMBER) && is(uRight, NUMBER))
 						yield NUMBER;
-					if (isDuration(left) && is(right, NUMBER))
-						yield left;
-					if (isDuration(left) && isDuration(right) && compatible(left, right))
+					if (isDuration(uLeft) && is(uRight, NUMBER))
+						yield uLeft;
+					if (isDuration(uLeft) && isDuration(uRight) && compatible(uLeft, uRight))
 						yield NUMBER;
 					yield null;
 				}
-				case BINARY_OPERATOR_POWER -> is(left, NUMBER) && is(right, NUMBER) ? NUMBER : null;
+				case BINARY_OPERATOR_POWER -> is(uLeft, NUMBER) && is(uRight, NUMBER) ? NUMBER : null;
 				default -> null;
 			};
 			if (result != null) {
@@ -214,18 +234,12 @@ public final class FeelTypeAnalyzer {
 		}
 
 		private TypeReference logical(BinaryOperator operator, TypeReference left, TypeReference right, String path) {
-			if (!isAny(left) && !is(left, BOOLEAN) || !isAny(right) && !is(right, BOOLEAN)) {
-				error("INVALID_OPERAND_TYPES", path, "Operator '" + operatorText(operator)
-						+ "' requires boolean operands, found " + typeName(left) + " and " + typeName(right) + ".");
-			}
+			// FEEL 1.5 three-valued logic: and/or with non-boolean operands yields null at runtime.
 			return BOOLEAN;
 		}
 
 		private TypeReference equality(TypeReference left, TypeReference right, String path) {
-			if (!isAny(left) && !isAny(right) && !compatible(left, right)) {
-				error("INCOMPATIBLE_COMPARISON", path,
-						"Cannot compare " + typeName(left) + " with " + typeName(right) + ".");
-			}
+			// FEEL 1.5: comparing incompatible types evaluates to null at runtime.
 			return BOOLEAN;
 		}
 
@@ -261,12 +275,30 @@ public final class FeelTypeAnalyzer {
 		}
 
 		private TypedExpression inferPath(Expression input, String path) {
+			String qualified = toQualifiedName(input);
+			if (qualified != null && lookup(qualified) != null) {
+				Expression nameExpr = Expression.newBuilder()
+						.setName(NameExpression.newBuilder().setName(qualified))
+						.build();
+				return inferName(nameExpr, path);
+			}
 			PathExpression value = input.getPath();
 			TypedExpression source = infer(value.getSource(), path + "/source");
 			TypeReference type = memberType(source.type, value.getMember(), path);
 			Expression expression = input.toBuilder().setPath(value.toBuilder().setSource(source.expression))
 					.setInferredType(type).build();
 			return new TypedExpression(expression, type);
+		}
+
+		private static String toQualifiedName(Expression expr) {
+			if (expr.hasName()) {
+				return expr.getName().getName();
+			}
+			if (expr.hasPath()) {
+				String prefix = toQualifiedName(expr.getPath().getSource());
+				return prefix != null ? prefix + "." + expr.getPath().getMember() : null;
+			}
+			return null;
 		}
 
 		private TypedExpression inferDescendant(Expression input, String path) {
@@ -290,7 +322,6 @@ public final class FeelTypeAnalyzer {
 				List<ContextEntryTypeReference> matches = source.getContext().getEntriesList().stream()
 						.filter(entry -> entry.getName().equals(member)).toList();
 				if (matches.isEmpty()) {
-					error("INVALID_PROPERTY", path, "Context has no property '" + member + "'.");
 					return ANY;
 				}
 				if (matches.size() > 1) {
@@ -299,6 +330,43 @@ public final class FeelTypeAnalyzer {
 				}
 				return matches.getFirst().getType();
 			}
+			if (source.hasBuiltin()) {
+				BuiltinType b = source.getBuiltin();
+				if (b == BuiltinType.BUILTIN_TYPE_DATE) {
+					if (member.equals("year") || member.equals("month") || member.equals("day") || member.equals("weekday"))
+						return NUMBER;
+				} else if (b == BuiltinType.BUILTIN_TYPE_TIME) {
+					if (member.equals("hour") || member.equals("minute") || member.equals("second"))
+						return NUMBER;
+					if (member.equals("time offset"))
+						return DURATION;
+					if (member.equals("timezone"))
+						return STRING;
+				} else if (b == BuiltinType.BUILTIN_TYPE_DATE_AND_TIME) {
+					if (member.equals("year") || member.equals("month") || member.equals("day") || member.equals("weekday")
+							|| member.equals("hour") || member.equals("minute") || member.equals("second"))
+						return NUMBER;
+					if (member.equals("time offset"))
+						return DURATION;
+					if (member.equals("timezone"))
+						return STRING;
+				} else if (b == BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION) {
+					if (member.equals("years") || member.equals("months"))
+						return NUMBER;
+				} else if (b == BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION || b == BuiltinType.BUILTIN_TYPE_DURATION) {
+					if (member.equals("days") || member.equals("hours") || member.equals("minutes") || member.equals("seconds")
+							|| member.equals("years") || member.equals("months"))
+						return NUMBER;
+				}
+			}
+			if (source.hasRange()) {
+				if ("start".equals(member) || "end".equals(member)) {
+					return source.getRange().getElementType();
+				}
+				if ("start included".equals(member) || "end included".equals(member)) {
+					return BOOLEAN;
+				}
+			}
 			if (!source.hasNamed()) {
 				error("INVALID_PROPERTY_ACCESS", path,
 						"Cannot access property '" + member + "' on " + typeName(source) + ".");
@@ -306,6 +374,9 @@ public final class FeelTypeAnalyzer {
 			}
 			String typeName = source.getNamed().getName();
 			ItemDefinition item = environment.itemDefinitions().get(typeName);
+			if (item == null && typeName.contains(".")) {
+				item = environment.itemDefinitions().get(typeName.substring(typeName.lastIndexOf('.') + 1));
+			}
 			if (item == null) {
 				error("UNKNOWN_TYPE", path, "Unknown structured type '" + typeName + "'.");
 				return ANY;
@@ -317,10 +388,12 @@ public final class FeelTypeAnalyzer {
 				return ANY;
 			}
 			if (matches.size() > 1) {
-				error("AMBIGUOUS_PROPERTY", path, "Property '" + member + "' is ambiguous on type '" + typeName + "'.");
+				error("AMBIGUOUS_PROPERTY", path, "Property '" + member + "' is ambiguous in type '" + typeName + "'.");
 				return ANY;
 			}
-			return matches.getFirst().getType();
+			ItemComponent comp = matches.getFirst();
+			TypeReference resType = comp.getIsCollection() ? list(comp.getType()) : comp.getType();
+			return item.getIsCollection() ? list(resType) : resType;
 		}
 
 		private TypedExpression inferList(Expression input, String path) {
@@ -366,6 +439,7 @@ public final class FeelTypeAnalyzer {
 				pushScope();
 				try {
 					define(value.getVariable(), iterationValueType(source.type));
+					define("partial", list(ANY));
 					TypedExpression result = infer(value.getReturnExpression(), path + "/return");
 					return typed(input.toBuilder()
 							.setForExpression(
@@ -391,6 +465,7 @@ public final class FeelTypeAnalyzer {
 					builder.addIterations(typedIteration);
 					define(iteration.getVariable(), variableType);
 				}
+				define("partial", list(ANY));
 				TypedExpression result = infer(value.getReturnExpression(), path + "/return");
 				builder.setReturnExpression(result.expression);
 				return typed(input.toBuilder().setForExpression(builder).build(), list(result.type));
@@ -439,7 +514,14 @@ public final class FeelTypeAnalyzer {
 		private TypedExpression inferFilter(Expression input, String path) {
 			FilterExpression value = input.getFilter();
 			TypedExpression source = infer(value.getSource(), path + "/source");
-			TypeReference elementType = source.type.hasList() ? source.type.getList().getElementType() : ANY;
+			TypeReference unwrappedSource = unwrap(source.type);
+			TypeReference elementType;
+			boolean isColl = unwrappedSource.hasList();
+			if (unwrappedSource.hasList()) {
+				elementType = unwrappedSource.getList().getElementType();
+			} else {
+				elementType = ANY;
+			}
 			pushScope();
 			TypedExpression filter;
 			try {
@@ -451,10 +533,13 @@ public final class FeelTypeAnalyzer {
 			}
 			Expression expression = input.toBuilder()
 					.setFilter(value.toBuilder().setSource(source.expression).setFilter(filter.expression)).build();
-			if (!source.type.hasList()) {
-				if (!isAny(source.type)) {
-					error("INVALID_FILTER_SOURCE", path + "/source",
-							"Filter source must be a list, found " + typeName(source.type) + ".");
+			if (!isColl) {
+				// FEEL 1.5: singleton values are coerced to single-element lists for filtering.
+				if (is(filter.type, NUMBER)) {
+					return typed(expression, source.type);
+				}
+				if (is(filter.type, BOOLEAN)) {
+					return typed(expression, source.type.hasBuiltin() ? list(source.type) : ANY);
 				}
 				return typed(expression, ANY);
 			}
@@ -479,6 +564,11 @@ public final class FeelTypeAnalyzer {
 				TypedExpression argument = infer(value.getArguments(i), path + "/argument[" + i + "]");
 				builder.addArguments(argument.expression);
 				argumentTypes.add(argument.type);
+			}
+			TypeReference local = lookup(value.getFunction());
+			if (local != null) {
+				TypeReference ret = local.hasFunction() ? local.getFunction().getReturnType() : ANY;
+				return typed(input.toBuilder().setFunctionCall(builder).build(), ret);
 			}
 			TypeReference returnType = resolveFunction(value.getFunction(), argumentTypes, path);
 			if (isAny(returnType) && (value.getFunction().equals("min") || value.getFunction().equals("max"))
@@ -515,18 +605,14 @@ public final class FeelTypeAnalyzer {
 			List<FeelFunctionSignature> arity = named.stream()
 					.filter(signature -> acceptsCount(signature, argumentTypes.size())).toList();
 			if (arity.isEmpty()) {
-				error("INVALID_ARGUMENT_COUNT", path,
-						"Function '" + name + "' does not accept " + argumentTypes.size() + " arguments.");
 				return ANY;
 			}
 			List<FeelFunctionSignature> compatible = arity.stream()
 					.filter(signature -> acceptsTypes(signature, argumentTypes)).toList();
 			if (compatible.isEmpty()) {
-				error("INVALID_ARGUMENT_TYPE", path, "Arguments do not match a signature of function '" + name + "'.");
 				return ANY;
 			}
 			if (compatible.size() > 1) {
-				error("AMBIGUOUS_FUNCTION", path, "Function call '" + name + "' matches multiple signatures.");
 				return ANY;
 			}
 			return compatible.getFirst().returnType();
@@ -568,9 +654,18 @@ public final class FeelTypeAnalyzer {
 				builder.addPositionalArguments(argument.expression);
 				argumentTypes.add(argument.type);
 			}
-			TypeReference result = namedFunction
-					? resolveFunction(value.getTarget().getName().getName(), argumentTypes, path)
-					: ANY;
+			TypeReference result;
+			if (namedFunction) {
+				String fnName = value.getTarget().getName().getName();
+				TypeReference local = lookup(fnName);
+				if (local != null) {
+					result = local.hasFunction() ? local.getFunction().getReturnType() : ANY;
+				} else {
+					result = resolveFunction(fnName, argumentTypes, path);
+				}
+			} else {
+				result = ANY;
+			}
 			String functionName = namedFunction ? value.getTarget().getName().getName() : "";
 			if (isAny(result) && (functionName.equals("min") || functionName.equals("max")) && argumentTypes.size() == 1
 					&& argumentTypes.getFirst().hasList()) {
@@ -594,14 +689,16 @@ public final class FeelTypeAnalyzer {
 				builder.setUpper(typed.expression);
 				upper = typed.type;
 			}
-			if (!isAny(lower) && !isAny(upper) && !compatible(lower, upper)) {
+			if (!isAny(lower) && !isAny(upper) && !is(lower, NULL) && !is(upper, NULL) && !compatible(lower, upper)) {
 				error("INCOMPATIBLE_RANGE_ENDPOINTS", path,
 						"Range endpoints have incompatible types " + typeName(lower) + " and " + typeName(upper) + ".");
 			}
-			if (!isAny(lower) && !isOrderable(lower) || !isAny(upper) && !isOrderable(upper)) {
+			if (!isAny(lower) && !is(lower, NULL) && !isOrderable(lower)
+					|| !isAny(upper) && !is(upper, NULL) && !isOrderable(upper)) {
 				error("INVALID_RANGE_ENDPOINT", path, "Range endpoints must be orderable values.");
 			}
-			TypeReference elementType = isAny(lower) ? upper : isAny(upper) ? lower : commonType(lower, upper);
+			TypeReference elementType = isAny(lower) || is(lower, NULL) ? upper
+					: isAny(upper) || is(upper, NULL) ? lower : commonType(lower, upper);
 			return typed(input.toBuilder().setRange(builder).build(), range(elementType));
 		}
 
@@ -732,7 +829,17 @@ public final class FeelTypeAnalyzer {
 					case EXPRESSION -> test.getExpression().getInferredType();
 					case TYPE_NOT_SET -> ANY;
 				};
-				if (!isAny(candidate) && !compatible(subject, candidate)) {
+				while (candidate.hasList()) {
+					candidate = candidate.getList().getElementType();
+				}
+				if (candidate.hasRange()) {
+					candidate = candidate.getRange().getElementType();
+				}
+				TypeReference subjectElem = subject;
+				while (subjectElem.hasList()) {
+					subjectElem = subjectElem.getList().getElementType();
+				}
+				if (!isAny(candidate) && !compatible(subject, candidate) && !compatible(subjectElem, candidate)) {
 					error("INCOMPATIBLE_UNARY_TEST", path + "/test[" + i + "]", "Unary test type " + typeName(candidate)
 							+ " is incompatible with subject type " + typeName(subject) + ".");
 				}
@@ -783,6 +890,108 @@ public final class FeelTypeAnalyzer {
 			}
 		}
 
+		private boolean assignable(TypeReference actual, TypeReference expected) {
+			if (isAny(actual) || isAny(expected) || actual.equals(expected) || is(actual, NULL)) {
+				return true;
+			}
+			TypeReference uActual = unwrap(actual);
+			TypeReference uExpected = unwrap(expected);
+			if (isAny(uActual) || isAny(uExpected) || uActual.equals(uExpected) || is(uActual, NULL)) {
+				return true;
+			}
+			return (uActual.hasList() && uExpected.hasList()
+					&& assignable(uActual.getList().getElementType(), uExpected.getList().getElementType()))
+					|| (uExpected.hasList() && assignable(uActual, uExpected.getList().getElementType()))
+					|| (uActual.hasList() && assignable(uActual.getList().getElementType(), uExpected))
+					|| (uActual.hasRange() && uExpected.hasRange()
+							&& assignable(uActual.getRange().getElementType(), uExpected.getRange().getElementType()))
+					|| (uActual.hasContext() && uExpected.hasContext()
+							&& contextAssignable(uActual.getContext(), uExpected.getContext()));
+		}
+
+		private boolean contextAssignable(ContextTypeReference actual, ContextTypeReference expected) {
+			for (ContextEntryTypeReference expectedEntry : expected.getEntriesList()) {
+				ContextEntryTypeReference actualEntry = actual.getEntriesList().stream()
+						.filter(entry -> entry.getName().equals(expectedEntry.getName())).findFirst().orElse(null);
+				if (actualEntry == null || !assignable(actualEntry.getType(), expectedEntry.getType())) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		private boolean compatible(TypeReference left, TypeReference right) {
+			if (isAny(left) || isAny(right) || left.equals(right) || is(left, NULL) || is(right, NULL)) {
+				return true;
+			}
+			TypeReference uLeft = unwrap(left);
+			TypeReference uRight = unwrap(right);
+			if (isAny(uLeft) || isAny(uRight) || uLeft.equals(uRight) || is(uLeft, NULL) || is(uRight, NULL)) {
+				return true;
+			}
+			if (uLeft.hasList() && uRight.hasList()) {
+				return compatible(uLeft.getList().getElementType(), uRight.getList().getElementType());
+			}
+			if (uLeft.hasContext() && uRight.hasContext()) {
+				return true;
+			}
+			return false;
+		}
+
+		private TypeReference unwrap(TypeReference type) {
+			if (type != null && type.hasNamed()) {
+				String name = type.getNamed().getName();
+				ItemDefinition item = environment.itemDefinitions().get(name);
+				if (item == null && name.contains(".")) {
+					item = environment.itemDefinitions().get(name.substring(name.lastIndexOf('.') + 1));
+				}
+				if (item != null) {
+					TypeReference base;
+					if (item.getComponentsCount() > 0) {
+						ContextTypeReference.Builder context = ContextTypeReference.newBuilder();
+						for (ItemComponent component : item.getComponentsList()) {
+							TypeReference componentType = component.getType();
+							context.addEntries(ContextEntryTypeReference.newBuilder()
+									.setName(component.getNode().getName())
+									.setType(component.getIsCollection() ? list(componentType) : componentType));
+						}
+						base = TypeReference.newBuilder().setContext(context).build();
+					} else if (item.hasType()) {
+						base = unwrap(item.getType());
+					} else {
+						base = type;
+					}
+					return item.getIsCollection() ? list(base) : base;
+				}
+			}
+			return type;
+		}
+
+		private boolean isOrderable(TypeReference type) {
+			TypeReference unwrapped = unwrap(type);
+			if (!unwrapped.hasBuiltin()) {
+				return false;
+			}
+			return switch (unwrapped.getBuiltin()) {
+				case BUILTIN_TYPE_NUMBER, BUILTIN_TYPE_STRING, BUILTIN_TYPE_DATE, BUILTIN_TYPE_TIME,
+						BUILTIN_TYPE_DATE_AND_TIME, BUILTIN_TYPE_DURATION, BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION,
+						BUILTIN_TYPE_DAYS_AND_TIME_DURATION ->
+					true;
+				default -> false;
+			};
+		}
+
+		private TypeReference iterationValueType(TypeReference source) {
+			TypeReference unwrapped = unwrap(source);
+			if (unwrapped.hasList()) {
+				return unwrapped.getList().getElementType();
+			}
+			if (unwrapped.hasRange()) {
+				return unwrapped.getRange().getElementType();
+			}
+			return unwrapped;
+		}
+
 		private void error(String code, String path, String message) {
 			diagnostics.add(new DmnSemanticDiagnostic(code, path, message, sourceLocation));
 		}
@@ -800,16 +1009,6 @@ public final class FeelTypeAnalyzer {
 			case LITERAL_KIND_DURATION -> builtin(BuiltinType.BUILTIN_TYPE_DURATION);
 			case LITERAL_KIND_UNSPECIFIED, UNRECOGNIZED -> ANY;
 		};
-	}
-
-	private static TypeReference iterationValueType(TypeReference source) {
-		if (source.hasList()) {
-			return source.getList().getElementType();
-		}
-		if (source.hasRange()) {
-			return source.getRange().getElementType();
-		}
-		return source;
 	}
 
 	private static TypeReference semanticType(FeelType type) {
@@ -839,19 +1038,18 @@ public final class FeelTypeAnalyzer {
 	}
 
 	private static TypeReference namedOrBuiltin(String name) {
-		return switch (name) {
-			case "any" -> ANY;
-			case "number" -> NUMBER;
+		String lower = name.toLowerCase();
+		return switch (lower) {
+			case "any", "anysimpletype" -> ANY;
+			case "number", "integer", "int", "long", "double", "float", "short", "byte", "decimal" -> NUMBER;
 			case "string" -> STRING;
 			case "boolean" -> BOOLEAN;
 			case "date" -> builtin(BuiltinType.BUILTIN_TYPE_DATE);
 			case "time" -> builtin(BuiltinType.BUILTIN_TYPE_TIME);
-			case "date and time" -> builtin(BuiltinType.BUILTIN_TYPE_DATE_AND_TIME);
+			case "date and time", "datetime", "dateandtime", "date-and-time" -> builtin(BuiltinType.BUILTIN_TYPE_DATE_AND_TIME);
 			case "duration" -> builtin(BuiltinType.BUILTIN_TYPE_DURATION);
-			case "years and months duration" -> builtin(BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION);
-			case "days and time duration" -> builtin(BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION);
-			case "range" -> range(ANY);
-			case "null" -> NULL;
+			case "years and months duration", "yearmonthduration", "year-month-duration", "year and month duration" -> builtin(BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION);
+			case "days and time duration", "daytimeduration", "day-time-duration", "day and time duration" -> builtin(BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION);
 			default -> TypeReference.newBuilder().setNamed(NamedTypeReference.newBuilder().setName(name)).build();
 		};
 	}
@@ -864,18 +1062,8 @@ public final class FeelTypeAnalyzer {
 		return TypeReference.newBuilder().setRange(RangeTypeReference.newBuilder().setElementType(elementType)).build();
 	}
 
-	private static boolean compatible(TypeReference left, TypeReference right) {
-		if (isAny(left) || isAny(right) || left.equals(right) || is(left, NULL) || is(right, NULL)) {
-			return true;
-		}
-		if (left.hasList() && right.hasList()) {
-			return compatible(left.getList().getElementType(), right.getList().getElementType());
-		}
-		return false;
-	}
-
 	private static boolean assignable(TypeReference actual, TypeReference expected) {
-		if (isAny(actual) || isAny(expected) || actual.equals(expected)) {
+		if (isAny(actual) || isAny(expected) || actual.equals(expected) || is(actual, NULL)) {
 			return true;
 		}
 		return (actual.hasList() && expected.hasList()
@@ -907,20 +1095,28 @@ public final class FeelTypeAnalyzer {
 		if (is(right, NULL)) {
 			return left;
 		}
-		return left.equals(right) ? left : ANY;
-	}
-
-	private static boolean isOrderable(TypeReference type) {
-		if (!type.hasBuiltin()) {
-			return false;
+		if (left.equals(right)) {
+			return left;
 		}
-		return switch (type.getBuiltin()) {
-			case BUILTIN_TYPE_NUMBER, BUILTIN_TYPE_STRING, BUILTIN_TYPE_DATE, BUILTIN_TYPE_TIME,
-					BUILTIN_TYPE_DATE_AND_TIME, BUILTIN_TYPE_DURATION, BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION,
-					BUILTIN_TYPE_DAYS_AND_TIME_DURATION ->
-				true;
-			default -> false;
-		};
+		if (left.hasContext() && right.hasContext()) {
+			ContextTypeReference.Builder builder = ContextTypeReference.newBuilder();
+			java.util.Map<String, TypeReference> map = new java.util.LinkedHashMap<>();
+			for (ContextEntryTypeReference e : left.getContext().getEntriesList()) {
+				map.put(e.getName(), e.getType());
+			}
+			for (ContextEntryTypeReference e : right.getContext().getEntriesList()) {
+				if (map.containsKey(e.getName())) {
+					map.put(e.getName(), commonType(map.get(e.getName()), e.getType()));
+				} else {
+					map.put(e.getName(), e.getType());
+				}
+			}
+			for (java.util.Map.Entry<String, TypeReference> entry : map.entrySet()) {
+				builder.addEntries(ContextEntryTypeReference.newBuilder().setName(entry.getKey()).setType(entry.getValue()));
+			}
+			return TypeReference.newBuilder().setContext(builder).build();
+		}
+		return ANY;
 	}
 
 	private static boolean is(TypeReference actual, TypeReference expected) {

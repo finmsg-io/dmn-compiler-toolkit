@@ -23,14 +23,12 @@ public final class ExpressionNodeReader {
 
 		switch (cursor.documentLocalName()) {
 			case "literalExpression", "inputExpression", "inputValues", "outputValues", "inputEntry", "outputEntry",
-					"defaultOutputEntry", "expression" ->
+					"defaultOutputEntry", "expression", "some", "every", "filter", "decisionTable", "invocation",
+					"conditional", "for" ->
 				builder.setFeel(readers.feelReader().readText(cursor));
 
 			case "context", "relation", "list", "functionDefinition" ->
 				builder.setBoxed(readers.boxedExpressionReader().readText(cursor));
-
-			case "invocation", "decisionTable" -> {
-			}
 
 			default -> throw new UnsupportedDmnXmlException(
 					"Unsupported expression <" + cursor.localName() + "> at " + cursor.path());

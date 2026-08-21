@@ -115,7 +115,7 @@ Implemented:
 - Runtime IR lowering for expressions, decision tables, boxed context entries,BKMs, and imports
 - Process-local Runtime IR interpreter (`dmn-runtime`)
 - Ahead-Of-Time Java source generator (`dmn-generator-java`)
-- 100% OMG DMN 1.5 TCK conformance test suite across Compliance Level 2 and Compliance Level 3 (`dmn-tck-runner`)
+- strict OMG DMN TCK CL2/CL3 accounting and conformance-recovery suite (`dmn-tck-runner`)
 
 <a id="contents-section-6"></a>
 ## 3.6 Runtime boundary

@@ -40,6 +40,7 @@ import io.finmsg.dmn.model.UnaryOperator;
 import io.finmsg.dmn.model.UnaryTestOperator;
 import io.finmsg.dmn.model.UnaryTestParsed;
 import io.finmsg.dmn.model.UnaryTestsExpression;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -48,6 +49,16 @@ import java.util.Objects;
  * AST.
  */
 public final class FeelAstBuilder {
+
+	private final java.util.Set<String> declaredNames;
+
+	public FeelAstBuilder() {
+		this(java.util.Set.of());
+	}
+
+	public FeelAstBuilder(java.util.Set<String> declaredNames) {
+		this.declaredNames = declaredNames != null ? declaredNames : java.util.Set.of();
+	}
 
 	public FeelParsed build(FeelParser.ExpressionRootContext root) {
 		Objects.requireNonNull(root, "root");
@@ -82,7 +93,7 @@ public final class FeelAstBuilder {
 	private Expression forExpression(FeelParser.ForExpressionContext context) {
 		ForExpression.Builder builder = ForExpression.newBuilder();
 		for (FeelParser.IterationContextContext iteration : context.iterationContext()) {
-			IterationContext.Builder parsed = IterationContext.newBuilder().setVariable(iteration.name().getText())
+			IterationContext.Builder parsed = IterationContext.newBuilder().setVariable(name(iteration.name()))
 					.setStart(expression(iteration.expression(0)));
 			if (iteration.expression().size() == 2) {
 				parsed.setEnd(expression(iteration.expression(1)));
@@ -106,7 +117,7 @@ public final class FeelAstBuilder {
 				.setQuantifier(context.SOME() != null ? Quantifier.QUANTIFIER_SOME : Quantifier.QUANTIFIER_EVERY);
 
 		for (FeelParser.IterationBindingContext binding : context.iterationBinding()) {
-			builder.addBindings(IterationBinding.newBuilder().setVariable(binding.name().getText())
+			builder.addBindings(IterationBinding.newBuilder().setVariable(name(binding.name()))
 					.setIn(expression(binding.expression())));
 		}
 		builder.setSatisfies(expression(context.expression()));
@@ -152,7 +163,14 @@ public final class FeelAstBuilder {
 
 		UnaryTestsExpression.Builder tests = UnaryTestsExpression.newBuilder();
 		if (suffix.positiveUnaryTest() != null) {
-			tests.addTests(positiveUnaryTest(suffix.positiveUnaryTest()));
+			PositiveUnaryTest put = positiveUnaryTest(suffix.positiveUnaryTest());
+			if (value.hasName() && put.hasExpression() && put.getExpression().hasName()) {
+				String candidate = value.getName().getName() + " in " + put.getExpression().getName().getName();
+				if (declaredNames.contains(candidate)) {
+					return Expression.newBuilder().setName(NameExpression.newBuilder().setName(candidate)).build();
+				}
+			}
+			tests.addTests(put);
 		} else {
 			tests.addAllTests(positiveUnaryTests(suffix.positiveUnaryTests()));
 		}
@@ -161,12 +179,51 @@ public final class FeelAstBuilder {
 
 	private Expression additive(FeelParser.AdditiveExpressionContext context) {
 		List<FeelParser.MultiplicativeExpressionContext> operands = context.multiplicativeExpression();
-		Expression result = multiplicative(operands.get(0));
+		List<Expression> exprs = new ArrayList<>();
+		for (FeelParser.MultiplicativeExpressionContext op : operands) {
+			exprs.add(multiplicative(op));
+		}
+		List<String> ops = new ArrayList<>();
 		for (int i = 1; i < operands.size(); i++) {
-			String operator = context.getChild((i * 2) - 1).getText();
+			ops.add(context.getChild((i * 2) - 1).getText());
+		}
+
+		int i = 0;
+		while (i < ops.size()) {
+			if ("-".equals(ops.get(i))) {
+				Expression left = exprs.get(i);
+				Expression right = exprs.get(i + 1);
+				if (left.hasName() && right.hasName()) {
+					String candidate = left.getName().getName() + "-" + right.getName().getName();
+					if (declaredNames.contains(candidate)) {
+						exprs.set(i, Expression.newBuilder()
+								.setName(NameExpression.newBuilder().setName(candidate)).build());
+						exprs.remove(i + 1);
+						ops.remove(i);
+						continue;
+					}
+				} else if (left.hasName() && right.hasPath() && right.getPath().getSource().hasName()) {
+					String candidate = left.getName().getName() + "-" + right.getPath().getSource().getName().getName();
+					if (declaredNames.contains(candidate)) {
+						exprs.set(i, Expression.newBuilder().setPath(PathExpression.newBuilder()
+								.setSource(Expression.newBuilder().setName(NameExpression.newBuilder().setName(candidate)))
+								.setMember(right.getPath().getMember())).build());
+						exprs.remove(i + 1);
+						ops.remove(i);
+						continue;
+					}
+				}
+			}
+			i++;
+		}
+
+		Expression result = exprs.get(0);
+		for (int j = 0; j < ops.size(); j++) {
+			String operator = ops.get(j);
+			Expression right = exprs.get(j + 1);
 			result = binary(
 					"+".equals(operator) ? BinaryOperator.BINARY_OPERATOR_ADD : BinaryOperator.BINARY_OPERATOR_SUBTRACT,
-					result, multiplicative(operands.get(i)));
+					result, right);
 		}
 		return result;
 	}
@@ -223,13 +280,11 @@ public final class FeelAstBuilder {
 						.build();
 			} else if (part.ELLIPSIS() != null) {
 				result = Expression.newBuilder()
-						.setDescendant(
-								DescendantExpression.newBuilder().setSource(result).setMember(part.name().getText()))
+						.setDescendant(DescendantExpression.newBuilder().setSource(result).setMember(name(part.name())))
 						.build();
 			} else {
 				result = Expression.newBuilder()
-						.setPath(PathExpression.newBuilder().setSource(result).setMember(part.name().getText()))
-						.build();
+						.setPath(PathExpression.newBuilder().setSource(result).setMember(name(part.name()))).build();
 			}
 		}
 		return result;
@@ -270,9 +325,7 @@ public final class FeelAstBuilder {
 		if (context.context() != null) {
 			ContextExpression.Builder builder = ContextExpression.newBuilder();
 			for (FeelParser.ContextEntryContext entry : context.context().contextEntry()) {
-				String key = entry.key().STRING_LITERAL() != null
-						? decodeString(entry.key().STRING_LITERAL().getText())
-						: entry.key().name().getText();
+				String key = key(entry.key());
 				builder.addEntries(io.finmsg.dmn.model.ContextEntry.newBuilder().setName(key)
 						.setExpression(expression(entry.expression())));
 			}
@@ -287,7 +340,7 @@ public final class FeelAstBuilder {
 		if (context.expression() != null) {
 			return expression(context.expression());
 		}
-		return Expression.newBuilder().setName(NameExpression.newBuilder().setName(context.name().getText())).build();
+		return Expression.newBuilder().setName(NameExpression.newBuilder().setName(name(context.name()))).build();
 	}
 
 	private Expression literal(FeelParser.LiteralContext context) {
@@ -311,7 +364,8 @@ public final class FeelAstBuilder {
 		if (value.startsWith("P") || value.startsWith("-P")) {
 			return LiteralKind.LITERAL_KIND_DURATION;
 		}
-		if (value.contains("T")) {
+		String temporalValue = value.substring(0, value.indexOf('@') >= 0 ? value.indexOf('@') : value.length());
+		if (temporalValue.contains("T")) {
 			return LiteralKind.LITERAL_KIND_DATE_TIME;
 		}
 		if (value.indexOf(':') >= 0) {
@@ -340,14 +394,53 @@ public final class FeelAstBuilder {
 	private RangeExpression range(FeelParser.IntervalContext context) {
 		return RangeExpression.newBuilder().setLower(expression(context.endpoint(0).expression()))
 				.setUpper(expression(context.endpoint(1).expression()))
-				.setLowerBoundary(boundary(context.intervalStart().getText()))
-				.setUpperBoundary(boundary(context.intervalEnd().getText())).build();
+				.setLowerBoundary(startBoundary(context.intervalStart().getText()))
+				.setUpperBoundary(endBoundary(context.intervalEnd().getText())).build();
 	}
 
 	private RangeExpression range(FeelParser.RangeLiteralContext context) {
+		if (context.LPAREN() != null && context.endpoint().size() == 1) {
+			Expression endExpr = expression(context.endpoint(0).expression());
+			if (context.comparisonOperator() != null) {
+				FeelParser.ComparisonOperatorContext op = context.comparisonOperator();
+				if (op.LT() != null) {
+					return RangeExpression.newBuilder().setUpper(endExpr)
+							.setLowerBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN)
+							.setUpperBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN).build();
+				}
+				if (op.LE() != null) {
+					return RangeExpression.newBuilder().setUpper(endExpr)
+							.setLowerBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN)
+							.setUpperBoundary(RangeBoundary.RANGE_BOUNDARY_CLOSED).build();
+				}
+				if (op.GT() != null) {
+					return RangeExpression.newBuilder().setLower(endExpr)
+							.setLowerBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN)
+							.setUpperBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN).build();
+				}
+				if (op.GE() != null) {
+					return RangeExpression.newBuilder().setLower(endExpr)
+							.setLowerBoundary(RangeBoundary.RANGE_BOUNDARY_CLOSED)
+							.setUpperBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN).build();
+				}
+				if (op.EQ() != null) {
+					return RangeExpression.newBuilder().setLower(endExpr).setUpper(endExpr)
+							.setLowerBoundary(RangeBoundary.RANGE_BOUNDARY_CLOSED)
+							.setUpperBoundary(RangeBoundary.RANGE_BOUNDARY_CLOSED).build();
+				}
+				if (op.NE() != null) {
+					return RangeExpression.newBuilder().setLower(endExpr).setUpper(endExpr)
+							.setLowerBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN)
+							.setUpperBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN).build();
+				}
+			}
+		}
+		if (context.intervalStart() == null) {
+			return RangeExpression.getDefaultInstance();
+		}
 		RangeExpression.Builder builder = RangeExpression.newBuilder()
-				.setLowerBoundary(boundary(context.intervalStart().getText()))
-				.setUpperBoundary(boundary(context.intervalEnd() != null
+				.setLowerBoundary(startBoundary(context.intervalStart().getText()))
+				.setUpperBoundary(endBoundary(context.intervalEnd() != null
 						? context.intervalEnd().getText()
 						: context.openIntervalEnd().getText()));
 		List<FeelParser.EndpointContext> endpoints = context.endpoint();
@@ -363,8 +456,14 @@ public final class FeelAstBuilder {
 		return builder.build();
 	}
 
-	private RangeBoundary boundary(String delimiter) {
-		return "[".equals(delimiter) || "]".equals(delimiter)
+	private RangeBoundary startBoundary(String delimiter) {
+		return "[".equals(delimiter)
+				? RangeBoundary.RANGE_BOUNDARY_CLOSED
+				: RangeBoundary.RANGE_BOUNDARY_OPEN;
+	}
+
+	private RangeBoundary endBoundary(String delimiter) {
+		return "]".equals(delimiter)
 				? RangeBoundary.RANGE_BOUNDARY_CLOSED
 				: RangeBoundary.RANGE_BOUNDARY_OPEN;
 	}
@@ -414,6 +513,13 @@ public final class FeelAstBuilder {
 								.setEndpoint(expression(simple.endpoint().expression())))
 						.build();
 			}
+			if (simple.rangeLiteral() != null && simple.rangeLiteral().comparisonOperator() != null) {
+				return PositiveUnaryTest.newBuilder()
+						.setComparison(ComparisonUnaryTest.newBuilder()
+								.setOperator(unaryTestOperator(simple.rangeLiteral().comparisonOperator()))
+								.setEndpoint(expression(simple.rangeLiteral().endpoint(0).expression())))
+						.build();
+			}
 			return PositiveUnaryTest.newBuilder()
 					.setRange(simple.interval() != null ? range(simple.interval()) : range(simple.rangeLiteral()))
 					.build();
@@ -423,13 +529,19 @@ public final class FeelAstBuilder {
 		if (parsed.hasRange()) {
 			return PositiveUnaryTest.newBuilder().setRange(parsed.getRange()).build();
 		}
+		if (parsed.hasUnaryTests()) {
+			if (parsed.getUnaryTests().getTestsCount() == 1) {
+				return parsed.getUnaryTests().getTests(0);
+			}
+		}
 		return PositiveUnaryTest.newBuilder().setExpression(parsed).build();
 	}
 
 	private FeelType type(FeelParser.TypeContext context) {
 		FeelType.Builder builder = FeelType.newBuilder();
 		if (context.qualifiedName() != null) {
-			return builder.setQualifiedName(context.qualifiedName().getText()).build();
+			return builder.setQualifiedName(context.qualifiedName().name().stream().map(FeelAstBuilder::name)
+					.collect(java.util.stream.Collectors.joining("."))).build();
 		}
 		if (context.RANGE() != null) {
 			return builder.setRange(RangeType.newBuilder().setElementType(type(context.type()))).build();
@@ -441,7 +553,7 @@ public final class FeelAstBuilder {
 			ContextType.Builder parsed = ContextType.newBuilder();
 			for (FeelParser.ContextTypeEntryContext entry : context.contextTypeEntry()) {
 				parsed.addEntries(
-						ContextTypeEntry.newBuilder().setName(entry.name().getText()).setType(type(entry.type())));
+						ContextTypeEntry.newBuilder().setName(name(entry.name())).setType(type(entry.type())));
 			}
 			return builder.setContext(parsed).build();
 		}
@@ -487,7 +599,7 @@ public final class FeelAstBuilder {
 		return new IllegalArgumentException("Unsupported " + kind + ": " + value);
 	}
 
-	private String decodeString(String token) {
+	private static String decodeString(String token) {
 		StringBuilder result = new StringBuilder(token.length() - 2);
 		for (int i = 1; i < token.length() - 1; i++) {
 			char current = token.charAt(i);
@@ -513,9 +625,37 @@ public final class FeelAstBuilder {
 					result.appendCodePoint(codePoint);
 					i += 6;
 				}
-				default -> throw unsupported("string escape", "\\" + escaped);
+				default -> result.append('\\').append(escaped);
 			}
 		}
 		return result.toString();
+	}
+
+	private static String name(FeelParser.NameContext context) {
+		return context.nameSegment().stream().map(org.antlr.v4.runtime.RuleContext::getText)
+				.map(s -> s.replaceAll("\\s+", " "))
+				.collect(java.util.stream.Collectors.joining(" "));
+	}
+
+	private static String key(FeelParser.KeyContext context) {
+		if (context.STRING_LITERAL() != null) {
+			return decodeString(context.STRING_LITERAL().getText());
+		}
+		if (context.keySegment() != null) {
+			StringBuilder sb = new StringBuilder();
+			for (int i = 0; i < context.keySegment().size(); i++) {
+				FeelParser.KeySegmentContext seg = context.keySegment(i);
+				if (i > 0) {
+					org.antlr.v4.runtime.Token prev = context.keySegment(i - 1).getStop();
+					org.antlr.v4.runtime.Token curr = seg.getStart();
+					if (prev != null && curr != null && curr.getStartIndex() > prev.getStopIndex() + 1) {
+						sb.append(" ");
+					}
+				}
+				sb.append(seg.getText());
+			}
+			return sb.toString();
+		}
+		return "";
 	}
 }

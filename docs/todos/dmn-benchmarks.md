@@ -30,5 +30,3 @@ The `dmn-benchmarks` module owns JMH microbenchmarks, reference DMN model provid
 | P7.2 | Complex model JMH benchmarks (`originations`, `ranked-loan-products`) | `ready` | `dmn-benchmarks` |
 | P7.3 | Phase-isolated compiler benchmarks (XML/FEEL Parsing, Semantic Analysis, IR Lowering, Static Optimization) | `ready` | `dmn-benchmarks` |
 | P7.4 | High-cardinality data-driven load generator for realistic stress testing | `ready` | `BenchmarkDataGenerator` |
-
-Historical context: [benchmarks assessment](../audits/assessment-implementation-dmn-benchmarks.md).

@@ -21,7 +21,7 @@ It provides `DmnCompiler` (one-call compiler facade), `DmnModelResolver` / `File
 | P1.2 | Compiler one-call facade (`DmnCompiler`) | `done` | `DmnCompiler.compile(DmnSource, DmnModelResolver)` |
 | P1.3 | Phase-aware diagnostic contract | `done` | `DmnCompilerDiagnostic` aggregates Load, XML, FEEL, Semantic, and IR diagnostics |
 | P1.4 | Immutable whole-model-set compilation result | `done` | `DmnCompilationResult` |
-| P6 | 100% OMG DMN 1.5/1.6 TCK engine & conformance | `done` | `OfficialTckSuiteTest` (3,611 compliant test cases passing across CL2 & CL3) |
+| P6 | Full official CL2/CL3 TCK conformance | `in progress` | Current strict result: 1,736/3,391 cases pass; see TCK-CONF-001 |
 | P13 | Multi-file streaming resolver integration | `done` | `DmnStreamResolver` (in `dmn-models`) |
 | P14 | Fail-fast TCK execution guard & build quality gates | `done` | `OfficialTckSuiteTest` throws `IllegalStateException` if assets missing |
 
@@ -32,5 +32,3 @@ It provides `DmnCompiler` (one-call compiler facade), `DmnModelResolver` / `File
 | --- | --- | --- | --- |
 | P14.11 | Automated FEEL parser fuzzing & XML hostile-identifier stress tests | `proposed` | `dmn-compiler` & `dmn-feel-parser` |
 | P20 | Cross-language decision generators (Rust, Golang, C++) | `deferred` | Reassess native generator SPI backends after the reference showcase and production/evidence milestones |
-
-Historical context: [compiler assessment](../audits/assessment-implementation-dmn-compiler.md).

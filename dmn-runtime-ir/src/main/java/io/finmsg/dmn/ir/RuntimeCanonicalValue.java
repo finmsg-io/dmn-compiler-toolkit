@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneOffset;
 import java.time.temporal.TemporalAmount;
 import java.util.Optional;
 
@@ -23,9 +22,9 @@ public sealed interface RuntimeCanonicalValue {
 	}
 	record DateValue(LocalDate value) implements RuntimeCanonicalValue {
 	}
-	record TimeValue(LocalTime value, Optional<ZoneOffset> offset) implements RuntimeCanonicalValue {
+	record TimeValue(LocalTime value, Optional<String> zone) implements RuntimeCanonicalValue {
 	}
-	record DateTimeValue(LocalDateTime value, Optional<ZoneOffset> offset) implements RuntimeCanonicalValue {
+	record DateTimeValue(LocalDateTime value, Optional<String> zone) implements RuntimeCanonicalValue {
 	}
 	record DurationValue(TemporalAmount value) implements RuntimeCanonicalValue {
 	}

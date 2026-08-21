@@ -66,5 +66,5 @@ Last Reviewed: 2026-08-08
 ## 5. Verification & Parity Enforcement
 
 Backend parity is continuously verified through the following automated test suites:
-- **OMG DMN TCK Engine:** [`OfficialTckSuiteTest`](file:///c:/00-finmsg.io/dmn-compiler-toolkit/dmn-tck-runner/src/test/java/io/finmsg/dmn/tck/OfficialTckSuiteTest.java) executes 3,611 compliant test cases across both `DmnRuntime` and `dmn-generator-java`.
+- **OMG DMN TCK Engine:** `OfficialTckSuiteTest` currently proves only 1,736/3,391 declared CL2/CL3 cases pass across both backends. Full parity is not established.
 - **Spark SQL Integration Suite:** [`SparkSqlDmnIntegrationTest`](file:///c:/00-finmsg.io/dmn-compiler-toolkit/dmn-generator-sparksql/src/test/java/io/finmsg/dmn/generator/sparksql/SparkSqlDmnIntegrationTest.java) asserts SQL CTE result equivalence against the reference interpreter.

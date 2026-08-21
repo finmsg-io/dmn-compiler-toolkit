@@ -14,12 +14,12 @@ import java.util.Set;
 public record RuntimeContextValue(List<Object> fields, Map<String, Object> namedFields) implements Map<String, Object> {
 
 	public RuntimeContextValue {
-		fields = List.copyOf(fields);
-		namedFields = Map.copyOf(new LinkedHashMap<>(namedFields));
+		fields = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(fields));
+		namedFields = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(namedFields));
 	}
 
 	public Object field(int index) {
-		return fields.get(index);
+		return index >= 0 && index < fields.size() ? fields.get(index) : null;
 	}
 	public Object field(String name) {
 		return namedFields.get(Objects.requireNonNull(name));

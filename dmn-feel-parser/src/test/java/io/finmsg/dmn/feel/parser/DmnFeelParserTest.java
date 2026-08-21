@@ -109,6 +109,26 @@ class DmnFeelParserTest {
 				.isTrue();
 	}
 
+	@Test
+	void parsesDeclaredNamesWithAnd() {
+		DecisionTable table = DecisionTable.newBuilder()
+				.addInputs(InputClause.newBuilder().setInputExpression(feel("Another Date and Time")))
+				.build();
+
+		Definitions semanticModel = Definitions.newBuilder()
+				.addDrgElements(DrgElement.newBuilder().setInputData(
+						io.finmsg.dmn.model.InputData.newBuilder().setNode(io.finmsg.dmn.model.Node.newBuilder().setName("Another Date and Time"))))
+				.addDrgElements(DrgElement.newBuilder().setDecision(
+						Decision.newBuilder().setLogic(DecisionLogic.newBuilder().setDecisionTable(table))))
+				.build();
+
+		Definitions parsedModel = parser.parse(semanticModel);
+		Feel parsedFeel = parsedModel.getDrgElements(1).getDecision().getLogic().getDecisionTable().getInputs(0).getInputExpression();
+		assertThat(parsedFeel.hasParsed()).isTrue();
+		assertThat(parsedFeel.getParsed().getAst().hasName()).isTrue();
+		assertThat(parsedFeel.getParsed().getAst().getName().getName()).isEqualTo("Another Date and Time");
+	}
+
 	private static Feel feel(String source) {
 		return Feel.newBuilder().setText(text(source)).build();
 	}

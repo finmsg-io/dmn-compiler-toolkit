@@ -27,5 +27,3 @@ Runtime IR is immutable, protobuf-free, and namespace-free at execution time (`R
 | Priority | Work item | Status |
 | --- | --- | --- |
 | P1 | Constant folding & expression simplification pass (`dmn-optimizer`) | `proposed` |
-
-Historical context: [Runtime IR assessment](../audits/assessment-implementation-dmn-runtime-ir.md).

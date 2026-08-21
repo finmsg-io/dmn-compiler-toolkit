@@ -44,51 +44,80 @@ public final class TypeReferenceReader {
 
 			case "Any" :
 			case "any" :
+			case "ANY" :
+			case "anySimpleType" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_ANY);
 				break;
 
 			case "string" :
+			case "String" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_STRING);
 				break;
 
 			case "number" :
+			case "Number" :
+			case "integer" :
+			case "int" :
+			case "long" :
+			case "double" :
+			case "float" :
+			case "short" :
+			case "byte" :
+			case "decimal" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_NUMBER);
 				break;
 
 			case "boolean" :
+			case "Boolean" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_BOOLEAN);
 				break;
 
 			case "date" :
+			case "Date" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_DATE);
 				break;
 
 			case "time" :
+			case "Time" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_TIME);
 				break;
 
 			case "dateTime" :
+			case "DateTime" :
+			case "dateAndTime" :
 			case "date and time" :
+			case "date-and-time" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_DATE_AND_TIME);
 				break;
 
 			case "duration" :
+			case "Duration" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_DURATION);
 				break;
 
 			case "years and months duration" :
+			case "year and month duration" :
+			case "yearMonthDuration" :
+			case "year-month-duration" :
+			case "YearMonthDuration" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION);
 				break;
 
 			case "days and time duration" :
+			case "day and time duration" :
+			case "dayTimeDuration" :
+			case "day-time-duration" :
+			case "DayTimeDuration" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION);
 				break;
 
 			case "range" :
+			case "Range" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_RANGE);
 				break;
 
 			case "null" :
+			case "Null" :
 				builder.setBuiltin(BuiltinType.BUILTIN_TYPE_NULL);
 				break;
 

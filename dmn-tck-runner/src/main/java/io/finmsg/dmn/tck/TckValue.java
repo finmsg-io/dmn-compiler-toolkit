@@ -43,10 +43,10 @@ public record TckValue(Kind kind, Object value) {
 		return new TckValue(Kind.DURATION, value);
 	}
 	public static TckValue list(List<?> value) {
-		return new TckValue(Kind.LIST, List.copyOf(value));
+		return new TckValue(Kind.LIST, Collections.unmodifiableList(new ArrayList<>(value)));
 	}
 	public static TckValue context(Map<String, ?> value) {
-		return new TckValue(Kind.CONTEXT, Map.copyOf(value));
+		return new TckValue(Kind.CONTEXT, Collections.unmodifiableMap(new LinkedHashMap<>(value)));
 	}
 
 	public Object runtimeValue() {

@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.*;
+import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,8 +41,12 @@ public final class TckTestCaseReader {
 			Element root = factory.newDocumentBuilder().parse(input).getDocumentElement();
 			List<TckTestCase> result = new ArrayList<>();
 			for (Element testCase : children(root, "testCase")) {
+				java.util.Set<String> expectedErrors = new java.util.LinkedHashSet<>();
+				for (Element resultNode : children(testCase, "resultNode"))
+					if ("true".equals(resultNode.getAttribute("errorResult")))
+						expectedErrors.add(requiredAttribute(resultNode, "name"));
 				result.add(new TckTestCase(requiredAttribute(testCase, "id"), testCase.getAttribute("name"),
-						namedValues(testCase, "inputNode"), namedValues(testCase, "resultNode")));
+						namedValues(testCase, "inputNode"), namedValues(testCase, "resultNode"), expectedErrors));
 			}
 			return List.copyOf(result);
 		} catch (ParserConfigurationException | SAXException exception) {
@@ -66,7 +71,7 @@ public final class TckTestCaseReader {
 		if (!components.isEmpty()) {
 			Map<String, Object> map = new LinkedHashMap<>();
 			for (Element comp : components) {
-				String name = requiredAttribute(comp, "name");
+				String name = comp.getAttribute("name");
 				map.put(name, decodeNode(comp).runtimeValue());
 			}
 			return TckValue.context(map);
@@ -105,15 +110,34 @@ public final class TckTestCaseReader {
 			case "boolean" -> booleanValue(text);
 			case "decimal", "integer", "double" -> TckValue.number(text);
 			case "date" -> TckValue.date(LocalDate.parse(text));
-			case "time" -> TckValue
-					.time(text.contains("+") || text.contains("Z") ? OffsetTime.parse(text) : LocalTime.parse(text));
-			case "dateTime", "dateAndTime" -> TckValue.dateTime(
-					text.contains("+") || text.contains("Z") ? OffsetDateTime.parse(text) : LocalDateTime.parse(text));
+			case "time" -> TckValue.time(hasTimeOffset(text) ? OffsetTime.parse(text) : LocalTime.parse(text));
+			case "dateTime",
+					"dateAndTime" ->
+				TckValue.dateTime(hasTimeOffset(text.substring(text.indexOf('T') + 1))
+						? OffsetDateTime.parse(text)
+						: LocalDateTime.parse(text));
 			case "duration", "yearsAndMonthsDuration", "daysAndTimeDuration" ->
-				TckValue.duration(text.contains("T") ? Duration.parse(text) : Period.parse(text));
+				TckValue.duration(parseTckDuration(text, localType));
 			case "string", "" -> TckValue.string(value.getTextContent());
 			default -> TckValue.string(text);
 		};
+	}
+
+	private static TemporalAmount parseTckDuration(String text, String type) {
+		if ("yearsAndMonthsDuration".equals(type)) {
+			return Period.parse(text);
+		}
+		if ("daysAndTimeDuration".equals(type)) {
+			return Duration.parse(text);
+		}
+		if (text.contains("Y") || (text.contains("M") && !text.contains("T"))) {
+			return Period.parse(text);
+		}
+		return Duration.parse(text);
+	}
+
+	private static boolean hasTimeOffset(String text) {
+		return text.endsWith("Z") || text.indexOf('+') > 0 || text.indexOf('-', 1) > 0;
 	}
 
 	private static TckValue booleanValue(String text) throws IOException {

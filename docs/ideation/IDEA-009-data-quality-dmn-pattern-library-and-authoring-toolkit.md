@@ -29,8 +29,6 @@ Detailed breakdown and example specifications:
 
 Related implemented evidence:
 
-- [Production Data Quality corpus implementation assessment](../audits/assessment-implementation-data-quality-corpus.md)
-- [Production Data Quality corpus architecture assessment](../audits/assessment-architecture-data-quality-corpus.md)
 - [P9 development-plan section](../development-plan.md#p9--production-data-quality-dmn-corpus)
 
 ## Summary

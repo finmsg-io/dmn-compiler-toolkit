@@ -42,7 +42,10 @@ public final class DmnToolkitTckEngine {
 			throw new TckExecutionException(
 					"Compilation failed for TCK case " + testCase.id() + ": " + compilation.diagnostics());
 		}
+		return execute(compilation, testCase);
+	}
 
+	public TckExecutionResult execute(DmnCompilationResult compilation, TckTestCase testCase) {
 		RuntimeNames names = runtimeNames(compilation);
 		Map<Integer, Object> inputs = new LinkedHashMap<>();
 		compilation.optimizedRuntimeModel().orElseThrow().model().inputs()
@@ -76,6 +79,8 @@ public final class DmnToolkitTckEngine {
 					putUnique(decisions, element.getDecision().getNode().getName(), slot++);
 				} else if (element.hasBusinessKnowledgeModel()) {
 					slot++;
+				} else if (element.hasDecisionService()) {
+					putUnique(decisions, element.getDecisionService().getNode().getName(), slot++);
 				}
 			}
 		}

@@ -27,7 +27,9 @@ public final class FunctionDefinitionReader {
 				switch (cursor.documentLocalName()) {
 					case "formalParameter" -> builder.addFormalParameters(informationItemReader.read(cursor));
 
-					case "literalExpression" -> builder.setLogic(feelReader.read(cursor));
+					case "literalExpression", "context", "relation", "list", "decisionTable", "invocation", "some",
+							"every", "filter" ->
+						builder.setLogic(feelReader.read(cursor));
 
 					case "functionDefinition" -> {
 						FunctionDefinition inner = read(cursor);
@@ -35,10 +37,8 @@ public final class FunctionDefinitionReader {
 						if (inner.hasLogic())
 							builder.setLogic(inner.getLogic());
 					}
-					case "documentation", "description", "extensionElements", "decisionTable", "invocation", "context",
-							"relation", "list" ->
-						{
-						}
+					case "documentation", "description", "extensionElements" -> {
+					}
 					default -> UnsupportedContent.rejectDmnChild(cursor, "functionDefinition");
 				}
 			} while (cursor.nextSibling());

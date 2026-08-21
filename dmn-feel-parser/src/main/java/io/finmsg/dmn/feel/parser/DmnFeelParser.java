@@ -31,6 +31,7 @@ import io.finmsg.dmn.model.ItemComponent;
 import io.finmsg.dmn.model.ItemDefinition;
 import io.finmsg.dmn.model.ListExpressionParsed;
 import io.finmsg.dmn.model.ListExpressionText;
+import io.finmsg.dmn.model.NameExpression;
 import io.finmsg.dmn.model.OutputClause;
 import io.finmsg.dmn.model.RelationColumnParsed;
 import io.finmsg.dmn.model.RelationParsed;
@@ -41,8 +42,10 @@ import io.finmsg.dmn.model.TypeConstraint;
 import io.finmsg.dmn.model.UnaryTest;
 import io.finmsg.dmn.model.UnaryTestParsed;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -94,6 +97,53 @@ public final class DmnFeelParser {
 	private Definitions parseModel(Definitions semanticModel) {
 
 		Definitions.Builder parsed = semanticModel.toBuilder();
+		ParseSession session = currentSession.get();
+		if (session != null) {
+			for (DrgElement value : semanticModel.getDrgElementsList()) {
+				String name = switch (value.getElementCase()) {
+					case DECISION -> {
+						if (value.getDecision().hasVariable() && !value.getDecision().getVariable().getNode().getName().isBlank()
+								&& !value.getDecision().getVariable().getNode().getName().contains(".")) {
+							session.declaredNames.add(value.getDecision().getVariable().getNode().getName());
+						}
+						yield value.getDecision().getNode().getName();
+					}
+					case BUSINESS_KNOWLEDGE_MODEL -> {
+						if (value.getBusinessKnowledgeModel().hasFunction()) {
+							for (io.finmsg.dmn.model.InformationItem param : value.getBusinessKnowledgeModel().getFunction().getFormalParametersList()) {
+								if (!param.getNode().getName().isBlank() && !param.getNode().getName().contains(".")) {
+									session.declaredNames.add(param.getNode().getName());
+								}
+							}
+						}
+						yield value.getBusinessKnowledgeModel().getNode().getName();
+					}
+					case INPUT_DATA -> {
+						if (value.getInputData().hasVariable() && !value.getInputData().getVariable().getNode().getName().isBlank()
+								&& !value.getInputData().getVariable().getNode().getName().contains(".")) {
+							session.declaredNames.add(value.getInputData().getVariable().getNode().getName());
+						}
+						yield value.getInputData().getNode().getName();
+					}
+					case KNOWLEDGE_SOURCE -> value.getKnowledgeSource().getNode().getName();
+					case DECISION_SERVICE -> value.getDecisionService().getNode().getName();
+					case ELEMENT_NOT_SET -> "";
+				};
+				if (!name.isBlank() && !name.contains(".")) {
+					session.declaredNames.add(name);
+				}
+			}
+			for (ItemDefinition item : semanticModel.getItemDefinitionsList()) {
+				if (!item.getNode().getName().isBlank()) {
+					session.declaredNames.add(item.getNode().getName());
+				}
+				for (ItemComponent comp : item.getComponentsList()) {
+					if (!comp.getNode().getName().isBlank()) {
+						session.declaredNames.add(comp.getNode().getName());
+					}
+				}
+			}
+		}
 
 		for (int i = 0; i < semanticModel.getItemDefinitionsCount(); i++) {
 			ItemDefinition value = semanticModel.getItemDefinitions(i);
@@ -311,8 +361,21 @@ public final class DmnFeelParser {
 	private Feel parseFeel(Feel value) {
 		return switch (value.getRepresentationCase()) {
 			case TEXT -> {
+				String text = value.getText().getText();
+				if (text != null) {
+					String trimmed = text.trim();
+					ParseSession session = currentSession.get();
+					if (session != null && session.declaredNames.contains(trimmed)) {
+						FeelParsed parsed = FeelParsed.newBuilder()
+								.setAst(Expression.newBuilder().setName(NameExpression.newBuilder().setName(trimmed)))
+								.build();
+						yield value.toBuilder().setParsed(parsed).build();
+					}
+				}
+				ParseSession session = currentSession.get();
+				Set<String> declared = session != null ? session.declaredNames : Set.of();
 				FeelParsed parsed = safelyParse(value.getText().getText(),
-						() -> parser.parseExpressionAst(value.getText().getText()));
+						() -> parser.parseExpressionAst(value.getText().getText(), declared));
 				yield parsed == null ? value : value.toBuilder().setParsed(parsed).build();
 			}
 			case PARSED, REPRESENTATION_NOT_SET -> value;
@@ -452,7 +515,20 @@ public final class DmnFeelParser {
 	}
 
 	private ExpressionParsed parseFeelExpressionText(FeelText value) {
-		FeelParsed parsed = safelyParse(value.getText(), () -> parser.parseExpressionAst(value.getText()));
+		String text = value.getText();
+		if (text != null) {
+			String trimmed = text.trim();
+			ParseSession session = currentSession.get();
+			if (session != null && session.declaredNames.contains(trimmed)) {
+				FeelParsed parsed = FeelParsed.newBuilder()
+						.setAst(Expression.newBuilder().setName(NameExpression.newBuilder().setName(trimmed)))
+						.build();
+				return ExpressionParsed.newBuilder().setFeel(parsed).build();
+			}
+		}
+		ParseSession session = currentSession.get();
+		Set<String> declared = session != null ? session.declaredNames : Set.of();
+		FeelParsed parsed = safelyParse(value.getText(), () -> parser.parseExpressionAst(value.getText(), declared));
 		return parsed == null ? null : ExpressionParsed.newBuilder().setFeel(parsed).build();
 	}
 
@@ -511,6 +587,7 @@ public final class DmnFeelParser {
 
 	private static final class ParseSession {
 		private final List<DmnFeelDiagnostic> diagnostics = new ArrayList<>();
+		private final Set<String> declaredNames = new HashSet<>();
 		private String path = "definitions";
 		private SourceLocation location = SourceLocation.getDefaultInstance();
 		private String pendingPath;

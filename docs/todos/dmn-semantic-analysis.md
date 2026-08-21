@@ -20,5 +20,3 @@ Semantic analysis is a compiler-grade middle-end pipeline (`DmnSemanticAnalyzer`
 | P0 | DRG topological ordering & cycle detection | `done` | Deterministic compilation ordering across multi-model DRGs |
 | P1 | Namespace-indexed cross-model import linking | `done` | Resolves imported element references across definitions |
 | P1 | Whole-model-set compilation result | `done` | Integrated into `DmnCompilationResult` |
-
-Historical context: [semantic-analysis assessment](../audits/assessment-implementation-dmn-semantic-analysis.md).

@@ -18,7 +18,5 @@ Last reviewed: 2026-08-07
 | P0 | Process-local Runtime IR interpreter | `done` | `DmnRuntime` |
 | P0 | FEEL null propagation & 3-valued logic | `done` | Evaluates FEEL nulls, overloads, and temporal operations |
 | P0 | Decision table hit policies | `done` | Evaluates `UNIQUE`, `FIRST`, `COLLECT`, `RULE ORDER`, `OUTPUT ORDER` |
-| P1 | 100% OMG DMN 1.5 TCK compliance | `done` | `OfficialTckSuiteTest` (3,611 compliant test cases passing across CL2 & CL3) |
-| P1 | Dual-engine value parity with `dmn-generator-java` | `done` | Bit-for-bit output match across all TCK test cases |
-
-Historical context: [runtime assessment](../audits/assessment-implementation-dmn-runtime.md).
+| P1 | Full official CL2/CL3 TCK compliance | `in progress` | Current strict result: 1,736/3,391 cases pass on both backends |
+| P1 | Dual-engine value parity with `dmn-generator-java` | `in progress` | 3,690/6,782 required backend outcomes currently pass |

@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 
 public record RuntimeForExpression(List<RuntimeIteration> iterations, RuntimeExpression result,
-		RuntimeType type) implements RuntimeExpression {
+		int partialSlot, RuntimeType type) implements RuntimeExpression {
 	public RuntimeForExpression {
 		iterations = List.copyOf(iterations);
 		if (iterations.isEmpty()) {

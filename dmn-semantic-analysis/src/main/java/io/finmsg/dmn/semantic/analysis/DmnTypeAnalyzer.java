@@ -44,6 +44,16 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 			this.repository = repository;
 			repository.visibleModels(input).forEach(model -> model.getItemDefinitionsList()
 					.forEach(item -> itemTypes.putIfAbsent(item.getNode().getName(), item)));
+			for (Import imported : input.getImportsList()) {
+				if (!imported.getName().isBlank()) {
+					for (Definitions visible : repository.visibleModels(input)) {
+						if (visible.getNamespace().equals(imported.getNamespace())) {
+							visible.getItemDefinitionsList().forEach(item -> itemTypes
+									.putIfAbsent(imported.getName() + "." + item.getNode().getName(), item));
+						}
+					}
+				}
+			}
 			repository.visibleModels(input).forEach(this::indexDecisionTables);
 			for (DrgElement element : input.getDrgElementsList()) {
 				switch (element.getElementCase()) {
@@ -190,15 +200,37 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 		private void include(Map<String, TypeReference> scope, String href) {
 			List<DmnModelRepository.ResolvedDrgElement> matches = repository.resolveDrg(input, href);
 			if (matches.size() == 1) {
-				DrgElement element = matches.getFirst().element();
+				DmnModelRepository.ResolvedDrgElement resolved = matches.getFirst();
+				DrgElement element = resolved.element();
+				String name = null;
+				TypeReference type = null;
 				switch (element.getElementCase()) {
-					case INPUT_DATA -> scope.put(element.getInputData().getNode().getName(),
-							element.getInputData().getVariable().getType());
-					case DECISION -> scope.put(element.getDecision().getNode().getName(),
-							element.getDecision().getVariable().getType());
-					case BUSINESS_KNOWLEDGE_MODEL -> scope.put(element.getBusinessKnowledgeModel().getNode().getName(),
-							element.getBusinessKnowledgeModel().getVariable().getType());
+					case INPUT_DATA -> {
+						name = element.getInputData().getNode().getName();
+						type = element.getInputData().getVariable().getType();
+					}
+					case DECISION -> {
+						name = element.getDecision().getNode().getName();
+						type = element.getDecision().getVariable().getType();
+					}
+					case BUSINESS_KNOWLEDGE_MODEL -> {
+						name = element.getBusinessKnowledgeModel().getNode().getName();
+						type = element.getBusinessKnowledgeModel().getVariable().getType();
+					}
+					case DECISION_SERVICE -> {
+						name = element.getDecisionService().getNode().getName();
+						type = TypeReference.newBuilder().setFunction(FunctionTypeReference.getDefaultInstance()).build();
+					}
 					default -> {
+					}
+				}
+				if (name != null && type != null) {
+					scope.put(name, type);
+					for (Import imported : input.getImportsList()) {
+						if (!imported.getName().isBlank()
+								&& imported.getNamespace().equals(resolved.model().getNamespace())) {
+							scope.put(imported.getName() + "." + name, type);
+						}
 					}
 				}
 			}
@@ -571,8 +603,15 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 									path + "/test[" + i + "]/upper", location);
 						}
 					}
-					case EXPRESSION -> validateValueType(test.getExpression().getInferredType(), subject, code,
-							path + "/test[" + i + "]", location);
+					case EXPRESSION -> {
+						TypeReference testType = test.getExpression().getInferredType();
+						TypeReference resolvedTest = resolveNamed(testType);
+						if (resolvedTest.hasList() && assignable(subject, resolvedTest.getList().getElementType())) {
+							// List membership in unary test: subject in list
+						} else {
+							validateValueType(testType, subject, code, path + "/test[" + i + "]", location);
+						}
+					}
 					case TYPE_NOT_SET -> {
 					}
 				}
@@ -614,12 +653,17 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 				}
 			}
 			if (policy == HitPolicy.HIT_POLICY_PRIORITY || policy == HitPolicy.HIT_POLICY_OUTPUT_ORDER) {
+				boolean hasAny = false;
 				for (int i = 0; i < table.getOutputsCount(); i++) {
-					if (!table.getOutputs(i).hasOutputValues()) {
-						diagnostic("MISSING_OUTPUT_VALUES", path + "/output[" + i + "]",
-								policy.name().replace("HIT_POLICY_", "") + " requires ordered output values.",
-								location);
+					if (table.getOutputs(i).hasOutputValues()) {
+						hasAny = true;
+						break;
 					}
+				}
+				if (!hasAny && table.getOutputsCount() > 0) {
+					diagnostic("MISSING_OUTPUT_VALUES", path + "/output[0]",
+							policy.name().replace("HIT_POLICY_", "") + " requires ordered output values.",
+							location);
 				}
 			}
 		}
@@ -722,10 +766,28 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 			}
 			BoxedExpressionParsed parsed = boxed.getParsed();
 			return switch (parsed.getTypeCase()) {
-				case CONTEXT -> parsed.getContext().getEntriesCount() == 0
-						? TypeReference.getDefaultInstance()
-						: expressionParsedType(parsed.getContext().getEntries(parsed.getContext().getEntriesCount() - 1)
-								.getExpression());
+				case CONTEXT -> {
+					if (parsed.getContext().getEntriesCount() == 0) {
+						yield TypeReference.getDefaultInstance();
+					}
+					ContextEntryParsed lastEntry = parsed.getContext().getEntries(parsed.getContext().getEntriesCount() - 1);
+					if (!lastEntry.hasVariable() || lastEntry.getVariable().getNode().getName().isBlank()) {
+						yield expressionParsedType(lastEntry.getExpression());
+					}
+					ContextTypeReference.Builder context = ContextTypeReference.newBuilder();
+					for (ContextEntryParsed entry : parsed.getContext().getEntriesList()) {
+						if (entry.hasVariable() && !entry.getVariable().getNode().getName().isBlank()) {
+							TypeReference entryType = entry.getVariable().getType();
+							if (isUnknown(entryType) && entry.hasExpression()) {
+								entryType = expressionParsedType(entry.getExpression());
+							}
+							context.addEntries(ContextEntryTypeReference.newBuilder()
+									.setName(entry.getVariable().getNode().getName())
+									.setType(entryType));
+						}
+					}
+					yield TypeReference.newBuilder().setContext(context).build();
+				}
 				case LIST -> {
 					TypeReference element = TypeReference.getDefaultInstance();
 					for (ExpressionParsed expression : parsed.getList().getElementsList()) {
@@ -784,8 +846,17 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 				TypeReference resolved = resolveNamed(actual);
 				return !resolved.equals(actual) && assignable(resolved, expected);
 			}
+			if (isDuration(actual) && isDuration(expected)) {
+				return true;
+			}
 			if (actual.hasList() && expected.hasList()) {
 				return assignable(actual.getList().getElementType(), expected.getList().getElementType());
+			}
+			if (expected.hasList() && assignable(actual, expected.getList().getElementType())) {
+				return true;
+			}
+			if (actual.hasList() && assignable(actual.getList().getElementType(), expected)) {
+				return true;
 			}
 			if (actual.hasRange() && expected.hasRange()) {
 				return assignable(actual.getRange().getElementType(), expected.getRange().getElementType());
@@ -859,6 +930,14 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 				return left;
 			}
 			return left.equals(right) ? left : ANY;
+		}
+
+		private static boolean isDuration(TypeReference t) {
+			if (t == null || !t.hasBuiltin()) return false;
+			BuiltinType b = t.getBuiltin();
+			return b == BuiltinType.BUILTIN_TYPE_DURATION
+					|| b == BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION
+					|| b == BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION;
 		}
 
 		private static boolean isUnknown(TypeReference type) {

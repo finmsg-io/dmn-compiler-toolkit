@@ -14,7 +14,7 @@
 - [P3 — Runtime semantic baseline](#contents-section-8)
 - [P4 — Stable compiled-model API](#contents-section-9)
 - [P5 — Java code generation](#contents-section-10)
-- [P6 — 100% OMG DMN 1.5 TCK Compliance (CL2 & CL3)](#contents-section-11)
+- [P6 — Full official CL2/CL3 conformance recovery](#contents-section-11)
 - [P7 — Performance Validation & Load Generation](#contents-section-12)
 - [P8 — Static Optimizer Pass](#contents-section-13)
 - [P9 — Production Data Quality DMN Corpus](#contents-section-14)
@@ -48,15 +48,19 @@ promise. Update it whenever implementation evidence or priorities materially cha
 
 | Field | Value |
 | --- | --- |
-| Last reviewed | 2026-08-09 |
-| Current phase | P15 — SWIFT MT564 Data Quality Reference Showcase (`in progress`) |
-| Overall state | Compiler facade, model resolver, runtime IR, Java generator, 100% OMG DMN 1.5/1.6 TCK engine, JMH benchmarks, optimizer, Data Quality Corpus, gRPC generator, Spark SQL CTE generator, and multi-file streaming models established |
-| Primary objective | Deliver a full working SWIFT MT564 DQM reference showcase using reusable imported BKMs, a protobuf-defined canonical input, executable scenarios, interpreter/generated-Java parity, and a reference benchmark |
-| Next major objective | Resume conformance-evidence, release-safety, production-graduation, and documentation hardening after the MT564 reference outcome |
+| Last reviewed | 2026-08-14 |
+| Current phase | TCK-CONF-001 — full CL2/CL3 conformance recovery (`in progress`, highest priority) |
+| Overall state | Compiler pipeline and two execution backends exist, but strict evidence currently proves only 1,736 of 3,391 official CL2/CL3 cases pass; broad conformance and production-maturity claims are withdrawn |
+| Primary objective | Reach 3,391/3,391 passing cases and 6,782/6,782 passing interpreter/generated-Java outcomes without exclusions or unsupported relabeling |
+| Next major objective | Resume the remaining benchmark, production, and release work after trustworthy full conformance is achieved |
 
 ### Agreed near-term implementation order
 
-The MT564 DQM reference showcase is the deliberate first priority. This is a product-driven exception
+TCK-CONF-001 is the repository's highest priority. Earlier MT564 and release sequencing is suspended
+until the strict official CL2/CL3 result is repaired. The previous plan described the MT564 DQM
+reference showcase as the first priority; that ordering is superseded by the verified conformance gap.
+
+The MT564 DQM reference showcase was the deliberate first priority. This was a product-driven exception
 to the otherwise preferred order of completing release and evidence hardening first. The showcase
 must still avoid unsupported production, certification, or performance claims until the corresponding
 gates are complete.
@@ -252,7 +256,7 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P3 | Runtime semantic baseline | `done` | P2 | Interpreter behavior is a credible correctness oracle |
 | P4 | Stable compiled-model API | `done` | P1, P3 | Callers use model/input/decision names without internal slot knowledge |
 | P5 | Java code generation | `done` | P3, P4 | Generated Java matches the interpreter on the shared corpus |
-| P6 | 100% OMG DMN 1.5 TCK Compliance | `done` | P3, P5 | 100% pass rate on official OMG DMN 1.5 TCK suite for both Interpreter and `dmn-generator-java` |
+| P6 | Full official CL2/CL3 conformance recovery | `in progress` | P3, P5 | 3,391/3,391 cases and 6,782/6,782 backend outcomes pass under strict accounting |
 | P7 | Performance Validation & Load Generation | `in progress` | P5, P6 | JMH microbenchmarks (`dmn-benchmarks`), phase isolation, complex models (`originations`, `ranked-loan-products`), and DataFaker load generation |
 | P8 | Static Optimizer Pass | `done` | P5, P7 | Constant folding, algebraic simplification, and rule pruning passes (`dmn-optimizer`) |
 | P9 | Production Data Quality DMN Corpus | `done` | P2, P5 | Real-world Data Quality DMN model corpus (`dq-field-validation`, `dq-cross-field-consistency`, `dq-scoring`) |
@@ -401,7 +405,7 @@ Acceptance criteria:
 - generator-specific optimizations do not redefine FEEL semantics.
 
 <a id="contents-section-11"></a>
-## P6 — 100% OMG DMN 1.5 TCK Compliance (CL2 & CL3)
+## P6 — Full official CL2/CL3 conformance recovery
 
 **Goal:** achieve 100% pass rate on all official OMG DMN 1.5 TCK test cases across Compliance Level 2 and Compliance Level 3 for both `DmnInterpreter` and `dmn-generator-java`.
 
@@ -413,12 +417,12 @@ Work items:
 | P6.2 | Support all specification decision-table hit policies (`COLLECT +/*/min/max/count`, `FIRST`, `OUTPUT ORDER`, `RULE ORDER`) | `done` | `DmnRuntime`, `DmnJavaGenerator` |
 | P6.3 | Ingest official OMG DMN TCK test suite repository into `dmn-tck-runner` covering Compliance Level 2 and Compliance Level 3 | `done` | `DmnToolkitTckEngine`, `OfficialTckSuiteTest` (72/72 passing models) |
 | P6.4 | Lower multi-variable FEEL `for` loops, quantified expressions, FEEL built-ins (`sort`, `distinct values`, `list replace`), boxed contexts, and BKMs | `done` | `JavaExpressionEmitter`, `DmnRuntime`, `RuntimeBoxedExpressionLowerer` |
-| P6.5 | Assert 100% test case result parity between `DmnRuntime` and `DmnJavaGenerator` | `done` | `OfficialTckSuiteTest` (3,611 compliant test cases across 146 official XML test files) |
+| P6.5 | Assert every case and backend outcome without silent omission | `in progress` | [TCK-CONF-001](improvements/examples/conformance-accelerator/full-tck-conformance-recovery-spec.md); current 1,736/3,391 cases passing |
 
 Acceptance criteria:
 
-- 100% of official OMG DMN 1.5 TCK test cases pass without errors (146/146 XML test files across Compliance Level 2 and Compliance Level 3: 3,467 CL3 + 144 CL2);
-- `DmnRuntime` interpreter and `DmnJavaGenerator` return identical outputs for every test case.
+- 3,391/3,391 cases pass without compilation errors, execution errors, exclusions, or mismatches;
+- all 6,782 interpreter/generated-Java outcomes pass and the accounting report contains no missing outcome.
 
 <a id="contents-section-12"></a>
 ## P7 — Performance Validation & Load Generation
@@ -759,10 +763,9 @@ When work completes:
 4. update `Last reviewed` and the current phase if the milestone boundary moved;
 5. add a change-log entry only when direction, sequencing, or scope changed materially.
 
-During each planning review, compare this document with
-[`docs/roadmap.md`](roadmap.md), current [module TODOs](todos/index.md), dated
-[audits](audits/index.md), and the actual test suite. The code and executable tests remain
-the ultimate source of truth.
+During each planning review, compare this document with [`docs/roadmap.md`](roadmap.md), current
+[module TODOs](todos/index.md), and retained machine-readable test evidence. The code, executable
+tests, and strict accounting output remain the ultimate source of truth.
 
 ---
 

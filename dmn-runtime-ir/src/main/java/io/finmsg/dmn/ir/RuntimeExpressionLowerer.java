@@ -19,13 +19,36 @@ final class RuntimeExpressionLowerer {
 			case LITERAL -> new RuntimeConstant(constantKind(expression.getLiteral().getKind()),
 					expression.getLiteral().getValue(), type);
 			case NAME -> {
-				var binding = bindings.stream().filter(value -> value.referencePath().equals(path)).findFirst()
-						.orElseThrow(() -> new RuntimeIrLoweringException(
-								"Missing semantic binding for decision expression at " + path + "."));
+				var bindingOpt = bindings.stream().filter(value -> value.referencePath().equals(path)).findFirst();
+				if (bindingOpt.isEmpty()) {
+					String name = expression.getName().getName();
+					var builtinOp = RuntimeBuiltinOperation.find(name);
+					if (builtinOp.isPresent()) {
+						yield new RuntimeFunctionDefinition(List.of(),
+								Optional.of(new RuntimeInvocationExpression(Optional.of(builtinOp.get().feelName()),
+										Optional.empty(), List.of(), List.of(), type)),
+								false, type);
+					}
+					throw new RuntimeIrLoweringException(
+							"Missing semantic binding for decision expression at " + path + ".");
+				}
+				var binding = bindingOpt.get();
 				if (binding.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE
 						|| binding.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.PARAMETER) {
 					LocalSlotAddress localSlot = localSlots.get(binding.declarationPath());
 					if (localSlot == null) {
+						if (binding.declarationPath().contains("/filter/item/")) {
+							String prefix = binding.declarationPath().substring(0,
+									binding.declarationPath().indexOf("/filter/item/") + 12);
+							LocalSlotAddress itemSlot = localSlots.get(prefix);
+							if (itemSlot != null) {
+								String memberName = binding.declarationPath()
+										.substring(binding.declarationPath().indexOf("/filter/item/") + 13);
+								yield new RuntimePathExpression(new RuntimeLocalReference(itemSlot.lexicalDepth(),
+										itemSlot.localSlot(), RuntimeType.scalar(RuntimeTypeKind.ANY)), memberName,
+										type);
+							}
+						}
 						throw new RuntimeIrLoweringException(
 								"Local expression binding is not in scope at " + path + ".");
 					}
@@ -74,6 +97,18 @@ final class RuntimeExpressionLowerer {
 					arguments.add(lowerExpression(expression.getFunctionCall().getArguments(index),
 							path + "/argument[" + index + "]", bindings, slots, itemTypes, localSlots, nextLocalSlot));
 				}
+				io.finmsg.dmn.semantic.analysis.DmnSymbolBinding binding = bindings.stream()
+						.filter(b -> b.referencePath().equals(path)).findFirst().orElse(null);
+				if (binding != null) {
+					String slotKey = binding.targetNamespace().isBlank()
+							? binding.symbolId()
+							: binding.targetNamespace() + "#" + binding.symbolId();
+					Integer slot = slots.get(slotKey);
+					if (slot != null) {
+						yield new RuntimeInvocationExpression(Optional.empty(),
+								Optional.of(new RuntimeValueReference(slot, type)), List.of(), arguments, type);
+					}
+				}
 				yield new RuntimeFunctionCall(expression.getFunctionCall().getFunction(), arguments, type);
 			}
 			case CONTEXT -> {
@@ -91,6 +126,17 @@ final class RuntimeExpressionLowerer {
 				yield new RuntimeContextExpression(entries, type);
 			}
 			case PATH -> {
+				var binding = bindings.stream().filter(value -> value.referencePath().equals(path)).findFirst()
+						.orElse(null);
+				if (binding != null) {
+					String slotKey = binding.targetNamespace().isBlank()
+							? binding.symbolId()
+							: binding.targetNamespace() + "#" + binding.symbolId();
+					Integer slot = slots.get(slotKey);
+					if (slot != null) {
+						yield new RuntimeValueReference(slot, type);
+					}
+				}
 				RuntimeExpression source = lowerExpression(expression.getPath().getSource(), path + "/source", bindings,
 						slots, itemTypes, localSlots, nextLocalSlot);
 				yield new RuntimePathExpression(source, expression.getPath().getMember(),
@@ -98,12 +144,16 @@ final class RuntimeExpressionLowerer {
 			}
 			case RANGE ->
 				lowerRange(expression.getRange(), type, path, bindings, slots, itemTypes, localSlots, nextLocalSlot);
-			case FILTER -> new RuntimeFilterExpression(
-					lowerExpression(expression.getFilter().getSource(), path + "/source", bindings, slots, itemTypes,
-							localSlots, nextLocalSlot),
-					lowerExpression(expression.getFilter().getFilter(), path + "/filter", bindings, slots, itemTypes,
-							localSlots, nextLocalSlot),
-					type);
+			case FILTER -> {
+				RuntimeExpression source = lowerExpression(expression.getFilter().getSource(), path + "/source",
+						bindings, slots, itemTypes, localSlots, nextLocalSlot);
+				Map<String, LocalSlotAddress> filterSlots = RuntimeLexicalFrame.childScope(localSlots);
+				int localSlot = nextLocalSlot[0]++;
+				filterSlots.put(path + "/filter/item", new LocalSlotAddress(0, localSlot));
+				RuntimeExpression filter = lowerExpression(expression.getFilter().getFilter(), path + "/filter",
+						bindings, slots, itemTypes, filterSlots, nextLocalSlot);
+				yield new RuntimeFilterExpression(source, localSlot, filter, type);
+			}
 			case BETWEEN -> new RuntimeBetweenExpression(
 					lowerExpression(expression.getBetween().getValue(), path + "/value", bindings, slots, itemTypes,
 							localSlots, nextLocalSlot),
@@ -155,8 +205,9 @@ final class RuntimeExpressionLowerer {
 	static RuntimeInvocationExpression lowerInvocation(InvocationExpression value, RuntimeType type, String path,
 			List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings, Map<String, Integer> slots,
 			Map<String, ItemDefinition> itemTypes, Map<String, LocalSlotAddress> localSlots, int[] nextLocalSlot) {
+		boolean isBuiltin = value.getTarget().hasName() && io.finmsg.dmn.ir.RuntimeBuiltinOperation.find(value.getTarget().getName().getName()).isPresent();
 		boolean boundTarget = bindings.stream().anyMatch(binding -> binding.referencePath().equals(path + "/target"));
-		Optional<String> function = value.getTarget().hasName() && !boundTarget
+		Optional<String> function = value.getTarget().hasName() && isBuiltin && !boundTarget
 				? Optional.of(value.getTarget().getName().getName())
 				: Optional.empty();
 		Optional<RuntimeExpression> target = function.isPresent()
@@ -206,9 +257,11 @@ final class RuntimeExpressionLowerer {
 				iterations.add(new RuntimeIteration(localSlot, source, end));
 			}
 		}
+		int partialSlot = nextLocalSlot[0]++;
+		iterationSlots.put(path + "/partial", new LocalSlotAddress(0, partialSlot));
 		RuntimeExpression result = lowerExpression(value.getReturnExpression(), path + "/return", bindings, slots,
 				itemTypes, iterationSlots, nextLocalSlot);
-		return new RuntimeForExpression(iterations, result, type);
+		return new RuntimeForExpression(iterations, result, partialSlot, type);
 	}
 
 	static RuntimeQuantifiedExpression lowerQuantified(QuantifiedExpression value, RuntimeType type, String path,
@@ -246,11 +299,10 @@ final class RuntimeExpressionLowerer {
 			Map<String, ItemDefinition> itemTypes, Map<String, LocalSlotAddress> localSlots, int[] nextLocalSlot) {
 		List<RuntimeFunctionParameter> parameters = new ArrayList<>();
 		Map<String, LocalSlotAddress> parameterSlots = RuntimeLexicalFrame.capturedScope(localSlots);
-		int[] functionNextLocalSlot = {0};
 		for (int index = 0; index < value.getParametersCount(); index++) {
 			FormalParameter parameter = value.getParameters(index);
 			String parameterPath = path + "/parameter[" + index + "]";
-			int localSlot = functionNextLocalSlot[0]++;
+			int localSlot = nextLocalSlot[0]++;
 			parameterSlots.put(parameterPath, new LocalSlotAddress(0, localSlot));
 			parameters.add(new RuntimeFunctionParameter(parameter.getName(), localSlot,
 					RuntimeTypeLowerer.lower(parameter.getType(), itemTypes)));
@@ -258,8 +310,8 @@ final class RuntimeExpressionLowerer {
 		Optional<RuntimeExpression> body = value.getBody().getNodeCase() == Expression.NodeCase.NODE_NOT_SET
 				? Optional.empty()
 				: Optional.of(lowerExpression(value.getBody(), path + "/body", bindings, slots, itemTypes,
-						parameterSlots, functionNextLocalSlot));
-		return new RuntimeFunctionDefinition(parameters, body, value.getExternal(), functionNextLocalSlot[0], type);
+						parameterSlots, nextLocalSlot));
+		return new RuntimeFunctionDefinition(parameters, body, value.getExternal(), nextLocalSlot[0], type);
 	}
 
 	static RuntimeQuantifier quantifier(Quantifier quantifier) {

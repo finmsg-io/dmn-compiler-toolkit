@@ -73,6 +73,15 @@ public final class RuntimeIrLowerer {
 								Optional.of(function)));
 						runtimeId++;
 					}
+					case DECISION_SERVICE -> {
+						DecisionService ds = element.getDecisionService();
+						RuntimeFunctionDefinition function = lowerDecisionServiceFunction(ds, model,
+								analysis.bindings(), modelSlots, itemTypes);
+						bkms.add(new RuntimeBkm(runtimeId, runtimeId,
+								RuntimeTypeLowerer.lower(ds.getVariable().getType(), itemTypes),
+								List.of(), RuntimeFunctionKind.FEEL, Optional.of(function)));
+						runtimeId++;
+					}
 					default -> {
 					}
 				}
@@ -80,6 +89,54 @@ public final class RuntimeIrLowerer {
 		}
 		List<Integer> order = runtimeEvaluationOrder(decisions, bkms);
 		return new RuntimeModel(inputs, decisions, bkms, order, index.valueCount());
+	}
+
+	private static RuntimeFunctionDefinition lowerDecisionServiceFunction(DecisionService ds, Definitions model,
+			List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings, Map<String, Integer> slots,
+			Map<String, ItemDefinition> itemTypes) {
+		String path = "definitions/decisionService[" + ds.getNode().getName() + "]";
+		Map<String, LocalSlotAddress> localSlots = new HashMap<>();
+		int[] nextLocalSlot = {0};
+		List<RuntimeFunctionParameter> parameters = new ArrayList<>();
+		List<String> inputHrefs = new ArrayList<>();
+		ds.getInputDataList().forEach(id -> inputHrefs.add(id.getHref()));
+		ds.getInputDecisionsList().forEach(id -> inputHrefs.add(id.getHref()));
+		for (int index = 0; index < inputHrefs.size(); index++) {
+			String href = inputHrefs.get(index);
+			String targetId = href.startsWith("#") ? href.substring(1) : href;
+			String paramName = targetId;
+			TypeReference paramType = TypeReference.getDefaultInstance();
+			for (DrgElement el : model.getDrgElementsList()) {
+				if (el.hasInputData() && el.getInputData().getNode().getId().equals(targetId)) {
+					paramName = el.getInputData().getNode().getName();
+					paramType = el.getInputData().getVariable().getType();
+				} else if (el.hasDecision() && el.getDecision().getNode().getId().equals(targetId)) {
+					paramName = el.getDecision().getNode().getName();
+					paramType = el.getDecision().getVariable().getType();
+				}
+			}
+			int localSlot = nextLocalSlot[0]++;
+			localSlots.put(path + "/parameter[" + index + "]", new LocalSlotAddress(0, localSlot));
+			localSlots.put(targetId, new LocalSlotAddress(0, localSlot));
+			parameters.add(new RuntimeFunctionParameter(paramName, localSlot,
+					RuntimeTypeLowerer.lower(paramType, itemTypes)));
+		}
+		RuntimeExpression body = null;
+		if (ds.getOutputDecisionsCount() > 0) {
+			String outputHref = ds.getOutputDecisions(0).getHref();
+			String outputId = outputHref.startsWith("#") ? outputHref.substring(1) : outputHref;
+			for (DrgElement el : model.getDrgElementsList()) {
+				if (el.hasDecision() && el.getDecision().getNode().getId().equals(outputId)) {
+					Optional<RuntimeExpression> expr = lowerDecisionExpression(el.getDecision(), bindings, slots,
+							itemTypes, localSlots, nextLocalSlot);
+					if (expr.isPresent()) {
+						body = expr.get();
+					}
+				}
+			}
+		}
+		RuntimeType type = RuntimeTypeLowerer.lower(ds.getVariable().getType(), itemTypes);
+		return new RuntimeFunctionDefinition(parameters, Optional.ofNullable(body), false, nextLocalSlot[0], type);
 	}
 
 	private static RuntimeFunctionDefinition lowerBkmFunction(BusinessKnowledgeModel bkm,
@@ -327,6 +384,9 @@ public final class RuntimeIrLowerer {
 		int hash = href.lastIndexOf('#');
 		String key = hash > 0 ? href : referenceId(href);
 		Integer id = ids.get(key);
+		if (id == null && hash >= 0) {
+			id = ids.get(referenceId(href));
+		}
 		if (id != null) {
 			result.add(id);
 		}

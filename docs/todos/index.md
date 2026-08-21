@@ -8,7 +8,7 @@
 
 Last reviewed: 2026-08-07
 
-This directory contains the current work list per active Maven module. These documents track module-local gaps; cross-module delivery sequencing belongs in the [development plan](../development-plan.md), and dated findings belong in [`audits`](../audits/index.md).
+This directory contains the current work list per active Maven module. These documents track module-local gaps; cross-module delivery sequencing belongs in the [development plan](../development-plan.md).
 
 | Module | Current Status & Roadmap |
 | --- | --- |

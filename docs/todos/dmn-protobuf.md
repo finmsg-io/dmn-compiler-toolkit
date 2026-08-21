@@ -19,5 +19,3 @@ The protobuf schemas are the stable compiler-facing semantic contracts (`common.
 | P0 | Replaceable text/parsed `oneof` node contracts | `done` | `feel.proto` (`Feel`, `ExpressionNode`, `BoxedExpression`) |
 | P1 | Multi-file import & source identity contracts | `done` | `DmnSourceId`, `Definitions.imports` |
 | P1 | Zero production dependencies on external frameworks | `done` | Pure protobuf contract model |
-
-Historical context: [protobuf assessment](../audits/assessment-implementation-dmn-protobuf.md).

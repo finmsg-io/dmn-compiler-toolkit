@@ -17,7 +17,6 @@ Use the following canonical planning documents:
 - the [living development plan](../../development-plan.md) for milestone sequencing,
   acceptance criteria, and decisions needed;
 - the [module TODOs](../../todos/index.md) for current module-local work;
-- the [audits](../../audits/index.md) for dated implementation assessments.
 
 Architecture chapters define boundaries and intent. Accepted
 [architecture decisions](../adr/generall-adr.md) explain why durable choices were

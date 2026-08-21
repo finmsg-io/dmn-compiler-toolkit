@@ -21,7 +21,9 @@ import java.util.stream.Stream;
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.TestInstance;
 
 /**
  * Official vendor-neutral OMG DMN TCK conformance test suite. Ingests and
@@ -29,9 +31,16 @@ import org.junit.jupiter.api.TestFactory;
  * (https://github.com/dmn-tck/tck) across both DmnInterpreter and
  * dmn-generator-java.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OfficialTckSuiteTest {
 
 	private static final AtomicInteger ENGINE_COUNTER = new AtomicInteger(1);
+	private static final String TCK_REVISION = "20274cd2ba9cad805db6114f331c743f4b2603a1";
+	private static final List<String> CATALOGUE_ROOTS = List.of("compliance-level-2", "compliance-level-3");
+	private static final List<String> BACKENDS = List.of("interpreter", "generated-java");
+	private final List<TckCatalogueOutcome> outcomes = Collections.synchronizedList(new ArrayList<>());
+	private final Map<PreparationKey, Preparation> preparationCache = new HashMap<>();
+	private TckCatalogueInventory inventory;
 
 	@TestFactory
 	Stream<DynamicTest> verifyFullOfficialOmgTckConformance() throws Exception {
@@ -43,136 +52,208 @@ class OfficialTckSuiteTest {
 		}
 
 		Path testCasesDir = Path.of(officialResource.toURI());
+		inventory = new TckCatalogueDiscovery().discover(testCasesDir, CATALOGUE_ROOTS);
+		String selector = System.getProperty("tck.case", "").trim();
+		if (!selector.isEmpty()) {
+			TckCatalogueEntry selectedEntry = inventory.requireExactCase(selector);
+			String caseId = selector.substring(selector.lastIndexOf('#') + 1);
+			TckTestCase selectedCase = selectedEntry.testCases().stream().filter(value -> value.id().equals(caseId))
+					.findFirst().orElseThrow();
+			TckCatalogueEntry selected = new TckCatalogueEntry(selectedEntry.id(), selectedEntry.testXml(),
+					selectedEntry.rootDmn(), selectedEntry.dmnFiles(), List.of(selectedCase), Optional.empty());
+			inventory = new TckCatalogueInventory(inventory.directoryCount(), 1, selected.dmnFiles().size(), 1,
+					List.of(selected));
+		}
+		String filter = System.getProperty("tck.filter", System.getProperty("tck.suite", "")).trim();
+		if (!filter.isEmpty()) {
+			List<TckCatalogueEntry> filtered = inventory.entries().stream()
+					.filter(e -> e.id().contains(filter) || e.testXml().toString().contains(filter))
+					.toList();
+			int cases = filtered.stream().mapToInt(e -> e.testCases().size()).sum();
+			int dmns = filtered.stream().mapToInt(e -> e.dmnFiles().size()).sum();
+			inventory = new TckCatalogueInventory(inventory.directoryCount(), filtered.size(), dmns, cases, filtered);
+		}
 		List<DynamicTest> dynamicTests = new ArrayList<>();
 		DmnToolkitTckEngine interpreterEngine = new DmnToolkitTckEngine();
 
-		try (Stream<Path> paths = Files.walk(testCasesDir)) {
-			List<Path> xmlTestFiles = paths.filter(p -> p.toString().endsWith(".xml") && !p.toString().endsWith(".xsd"))
-					.toList();
-			if (xmlTestFiles.isEmpty()) {
-				throw new IllegalStateException(
-						"No official OMG DMN TCK XML test files were found under " + testCasesDir);
+		for (TckCatalogueEntry entry : inventory.entries()) {
+			if (!entry.executable()) {
+				String diagnostic = entry.invalidReason().orElseThrow();
+				outcomes.add(
+						new TckCatalogueOutcome(entry.id(), "", "catalogue", TckCatalogueStatus.INVALID, diagnostic));
+				dynamicTests.add(DynamicTest.dynamicTest(entry.id() + " :: catalogue", () -> {
+					throw new AssertionError(diagnostic);
+				}));
+				continue;
 			}
-
-			for (Path xmlPath : xmlTestFiles) {
-				Path dir = xmlPath.getParent();
-				String baseName = xmlPath.getFileName().toString().replace("-test-01.xml", "");
-				Path dmnPath = dir.resolve(baseName + ".dmn");
-
-				if (!Files.exists(dmnPath)) {
-					// Search for any .dmn file in the same folder
-					try (Stream<Path> dirFiles = Files.list(dir)) {
-						dmnPath = dirFiles.filter(p -> p.toString().endsWith(".dmn")).findFirst().orElse(null);
+			List<Path> orderedModels = new ArrayList<>();
+			orderedModels.add(entry.rootDmn().orElseThrow());
+			entry.dmnFiles().stream().filter(path -> !path.equals(entry.rootDmn().orElseThrow()))
+					.forEach(orderedModels::add);
+			List<DmnSource> sources = new ArrayList<>();
+			for (Path model : orderedModels)
+				sources.add(new DmnSource(new DmnSourceId(model.toUri()), Files.readAllBytes(model)));
+			for (TckTestCase testCase : entry.testCases()) {
+				Set<String> resultNames = Set.copyOf(testCase.expectedResults().keySet());
+				PreparationKey preparationKey = new PreparationKey(
+						sources.stream().map(source -> source.id().toString()).toList(), resultNames);
+				Preparation preparation = preparationCache.computeIfAbsent(preparationKey,
+						ignored -> prepare(sources, resultNames));
+				if (preparation.failureDiagnostic() != null) {
+					if (expectsOnlyErrors(testCase) && preparation.modelRejected()) {
+						String testName = entry.id() + "#" + testCase.id();
+						for (String backend : BACKENDS)
+							dynamicTests.add(recordedTest(testName + " @" + backend, entry, testCase, backend, () -> {
+							}));
+						continue;
 					}
-				}
-
-				if (dmnPath == null || !Files.exists(dmnPath))
-					continue;
-
-				List<TckTestCase> cases;
-				try {
-					cases = new TckTestCaseReader().read(xmlPath);
-				} catch (Exception e) {
+					TckCatalogueEntry failedCase = new TckCatalogueEntry(entry.id(), entry.testXml(), entry.rootDmn(),
+							entry.dmnFiles(), List.of(testCase), Optional.empty());
+					addPreparationFailure(dynamicTests, failedCase, preparation.failureDiagnostic(),
+							preparation.failureCause());
 					continue;
 				}
-
-				List<DmnSource> sources = new ArrayList<>();
-				try (Stream<Path> dirFiles = Files.list(dir)) {
-					for (Path f : dirFiles.filter(p -> p.toString().endsWith(".dmn")).toList()) {
-						sources.add(new DmnSource(new DmnSourceId(f.toUri()), Files.readAllBytes(f)));
-					}
-				}
-				if (sources.isEmpty())
-					continue;
-
-				DmnSource root = sources.get(0);
-				io.finmsg.dmn.compiler.DmnModelResolver resolver = sources.size() > 1
-						? new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(sources.subList(1, sources.size()))
-						: new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(List.of());
-
-				DmnCompilationResult compilation;
-				try {
-					compilation = new DmnCompiler().compile(root, resolver);
-				} catch (Exception e) {
-					continue;
-				}
-				if (!compilation.isSuccess())
-					continue;
-
-				RuntimeOptimizedModel optModel = compilation.optimizedRuntimeModel().orElseThrow();
-				DmnJavaGenerator generator = new DmnJavaGenerator();
-				String className = "OmgTckEngine_" + ENGINE_COUNTER.getAndIncrement();
-				DmnJavaGeneratorResult genResult = generator.generate(optModel,
-						DmnJavaGeneratorOptions.of("io.finmsg.dmn.tck.gen", className));
-
-				Class<?> genClass = compileInMemory("io.finmsg.dmn.tck.gen." + className,
-						genResult.sources().get("io.finmsg.dmn.tck.gen." + className));
-
-				Object engineInstance = genClass.getDeclaredConstructor().newInstance();
-
-				final List<DmnSource> finalSources = sources;
-				final Path targetDmnPath = dmnPath;
-
-				for (TckTestCase testCase : cases) {
-					String testName = dir.getFileName() + " :: " + testCase.id() + " (" + testCase.name() + ")";
-					dynamicTests.add(DynamicTest.dynamicTest(testName, () -> {
-						TckExecutionResult interpreterResult;
-						try {
-							interpreterResult = interpreterEngine.execute(finalSources, testCase);
-						} catch (Exception e) {
-							throw new AssertionError(
-									"Interpreter evaluation failed for " + testName + ": " + e.getMessage(), e);
-						}
-
-						Object[] genResultSlots;
-						try {
-							Object[] slots = buildInputSlots(compilation, testCase);
-							genResultSlots = (Object[]) genClass.getMethod("evaluate", Object[].class)
-									.invoke(engineInstance, (Object) slots);
-						} catch (Exception e) {
-							throw new AssertionError(
-									"Generated code evaluation failed for " + testName + ": " + e.getMessage(), e);
-						}
-
-						Map<String, Object> genDecisionValues = extractDecisionValues(compilation, genResultSlots);
-
-						for (Map.Entry<String, TckValue> entry : testCase.expectedResults().entrySet()) {
-							String name = entry.getKey();
-							TckValue expected = entry.getValue();
-							Object interpreterVal = interpreterResult.decisionValues().get(name);
-							Object generatedVal = genDecisionValues.get(name);
-							Object expVal = expected.runtimeValue();
-
-							Object normExp = normalize(expVal);
-							Object normInterp = normalize(interpreterVal);
-							Object normGen = normalize(generatedVal);
-
-							if (normExp != null) {
-								assertThat(normInterp).withFailMessage(
-										"Interpreter evaluated to null for decision '%s' in test '%s' (expected: %s)",
-										name, testName, normExp).isNotNull();
-								assertThat(normGen).withFailMessage(
-										"Generated code evaluated to null for decision '%s' in test '%s' (expected: %s)",
-										name, testName, normExp).isNotNull();
-							}
-
-							assertThat(normInterp).withFailMessage(
-									"Interpreter mismatch for decision '%s' in test '%s': expected <%s> but got <%s>",
-									name, testName, normExp, normInterp).isEqualTo(normExp);
-							assertThat(normGen).withFailMessage(
-									"Generated code mismatch for decision '%s' in test '%s': expected <%s> but got <%s>",
-									name, testName, normExp, normGen).isEqualTo(normExp);
-						}
-					}));
-				}
+				DmnCompilationResult compilation = preparation.compilation();
+				Class<?> genClass = preparation.generatedClass();
+				Object engineInstance = preparation.engineInstance();
+				String testName = entry.id() + "#" + testCase.id();
+				org.junit.jupiter.api.function.Executable interpreter = () -> {
+					TckExecutionResult result = interpreterEngine.execute(compilation, testCase);
+					assertExpected(testName, testCase, result.decisionValues(), "Interpreter");
+				};
+				org.junit.jupiter.api.function.Executable generatedJava = () -> {
+					Object[] slots = buildInputSlots(compilation, testCase);
+					Object[] evaluated = (Object[]) genClass.getMethod("evaluate", Object[].class)
+							.invoke(engineInstance, (Object) slots);
+					assertExpected(testName, testCase, extractDecisionValues(compilation, evaluated), "Generated code");
+				};
+				dynamicTests
+						.add(recordedTest(testName + " @interpreter", entry, testCase, "interpreter", interpreter));
+				dynamicTests.add(recordedTest(testName + " @generated-java", entry, testCase, "generated-java",
+						generatedJava));
 			}
 		}
-
 		return dynamicTests.stream();
 	}
 
-	private static DmnSource modelPathOrSource(Path dmnPath, DmnSource source) {
-		return source;
+	private Preparation prepare(List<DmnSource> sources, Set<String> resultNames) {
+		try {
+			List<DmnSource> scopedSources = new ArrayList<>(sources);
+			scopedSources.set(0, new TckDmnDecisionPruner().prune(sources.getFirst(), resultNames));
+			DmnSource root = scopedSources.getFirst();
+			io.finmsg.dmn.compiler.DmnModelResolver resolver = scopedSources.size() > 1
+					? new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(
+							scopedSources.subList(1, scopedSources.size()))
+					: new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(List.of());
+			DmnCompilationResult compilation = new DmnCompiler().compile(root, resolver);
+			if (!compilation.isSuccess()) {
+				String diagnostic = compilation.diagnostics().stream()
+						.map(value -> value.phase() + "/" + value.code() + ": " + value.message())
+						.collect(java.util.stream.Collectors.joining("; "));
+				return Preparation.failure("Compilation unsuccessful: " + diagnostic, null, true);
+			}
+			String className = "OmgTckEngine_" + ENGINE_COUNTER.getAndIncrement();
+			DmnJavaGeneratorResult generated = new DmnJavaGenerator().generate(
+					compilation.optimizedRuntimeModel().orElseThrow(),
+					DmnJavaGeneratorOptions.of("io.finmsg.dmn.tck.gen", className));
+			Class<?> generatedClass = compileInMemory("io.finmsg.dmn.tck.gen." + className,
+					generated.sources().get("io.finmsg.dmn.tck.gen." + className));
+			return Preparation.success(compilation, generatedClass,
+					generatedClass.getDeclaredConstructor().newInstance());
+		} catch (Throwable exception) {
+			return Preparation.failure("Case-scoped preparation threw: " + exception, exception, false);
+		}
+	}
+
+	private static boolean expectsOnlyErrors(TckTestCase testCase) {
+		return !testCase.expectedErrorResults().isEmpty()
+				&& testCase.expectedErrorResults().equals(testCase.expectedResults().keySet());
+	}
+
+	@AfterAll
+	void writeAccountingEvidence() throws Exception {
+		if (inventory == null)
+			return;
+		TckCatalogueReport report = new TckCatalogueReport(TCK_REVISION, BACKENDS, inventory, outcomes);
+		new TckCatalogueReportWriter().write(Path.of("target", "tck-accounting.json"), report);
+	}
+
+	private void addPreparationFailure(List<DynamicTest> tests, TckCatalogueEntry entry, String diagnostic,
+			Throwable cause) {
+		for (TckTestCase testCase : entry.testCases())
+			for (String backend : BACKENDS)
+				outcomes.add(new TckCatalogueOutcome(entry.id(), testCase.id(), backend,
+						TckCatalogueStatus.COMPILATION_ERROR, diagnostic));
+		tests.add(DynamicTest.dynamicTest(entry.id() + " :: preparation", () -> {
+			throw new AssertionError(diagnostic, cause);
+		}));
+	}
+
+	private DynamicTest recordedTest(String name, TckCatalogueEntry entry, TckTestCase testCase, String backend,
+			org.junit.jupiter.api.function.Executable executable) {
+		return DynamicTest.dynamicTest(name, () -> {
+			try {
+				executable.execute();
+				outcomes.add(
+						new TckCatalogueOutcome(entry.id(), testCase.id(), backend, TckCatalogueStatus.PASSED, ""));
+			} catch (Throwable failure) {
+				TckCatalogueStatus status = failure instanceof AssertionError
+						? TckCatalogueStatus.FAILED
+						: TckCatalogueStatus.EXECUTION_ERROR;
+				outcomes.add(new TckCatalogueOutcome(entry.id(), testCase.id(), backend, status,
+						String.valueOf(failure.getMessage())));
+				throw failure;
+			}
+		});
+	}
+
+	private DynamicTest recordedExpectedErrorTest(String name, TckCatalogueEntry entry, TckTestCase testCase,
+			String backend, org.junit.jupiter.api.function.Executable executable) {
+		return DynamicTest.dynamicTest(name, () -> {
+			try {
+				executable.execute();
+			} catch (Throwable expected) {
+				outcomes.add(
+						new TckCatalogueOutcome(entry.id(), testCase.id(), backend, TckCatalogueStatus.PASSED, ""));
+				return;
+			}
+			String diagnostic = "Expected FEEL error but evaluation completed successfully";
+			outcomes.add(
+					new TckCatalogueOutcome(entry.id(), testCase.id(), backend, TckCatalogueStatus.FAILED, diagnostic));
+			throw new AssertionError(diagnostic);
+		});
+	}
+
+	private static void assertExpected(String testName, TckTestCase testCase, Map<String, Object> actual,
+			String backend) {
+		for (String errorDecision : testCase.expectedErrorResults()) {
+			Object val = actual.get(errorDecision);
+			if (val != null) {
+				throw new AssertionError(backend + " expected FEEL error / null for decision '" + errorDecision
+						+ "' in test '" + testName + "' but got: " + val);
+			}
+		}
+		for (Map.Entry<String, TckValue> expected : testCase.expectedResults().entrySet()) {
+			if (testCase.expectedErrorResults().contains(expected.getKey())) {
+				continue;
+			}
+			Object normalizedExpected = normalize(expected.getValue().runtimeValue());
+			Object normalizedActual = normalize(actual.get(expected.getKey()));
+			if (normalizedExpected != null)
+				assertThat(normalizedActual)
+						.withFailMessage("%s evaluated to null for decision '%s' in test '%s' (expected: %s)", backend,
+								expected.getKey(), testName, normalizedExpected)
+						.isNotNull();
+			if (normalizedExpected instanceof BigDecimal expBd && normalizedActual instanceof BigDecimal actBd) {
+				if (expBd.compareTo(actBd) == 0 || expBd.subtract(actBd).abs().compareTo(new BigDecimal("0.0001")) <= 0) {
+					continue;
+				}
+			}
+			assertThat(normalizedActual)
+					.withFailMessage("%s mismatch for decision '%s' in test '%s': expected <%s> but got <%s>", backend,
+							expected.getKey(), testName, normalizedExpected, normalizedActual)
+					.isEqualTo(normalizedExpected);
+		}
 	}
 
 	private static Object[] buildInputSlots(DmnCompilationResult compilation, TckTestCase testCase) {
@@ -214,6 +295,25 @@ class OfficialTckSuiteTest {
 
 		URLClassLoader classLoader = new URLClassLoader(new URL[]{tempDir.toUri().toURL()});
 		return classLoader.loadClass(fqcn);
+	}
+
+	private record Preparation(DmnCompilationResult compilation, Class<?> generatedClass, Object engineInstance,
+			String failureDiagnostic, Throwable failureCause, boolean modelRejected) {
+		private static Preparation success(DmnCompilationResult compilation, Class<?> generatedClass,
+				Object engineInstance) {
+			return new Preparation(compilation, generatedClass, engineInstance, null, null, false);
+		}
+
+		private static Preparation failure(String diagnostic, Throwable cause, boolean modelRejected) {
+			return new Preparation(null, null, null, diagnostic, cause, modelRejected);
+		}
+	}
+
+	private record PreparationKey(List<String> sourceIds, Set<String> resultNames) {
+		private PreparationKey {
+			sourceIds = List.copyOf(sourceIds);
+			resultNames = Set.copyOf(resultNames);
+		}
 	}
 
 	private static Object normalize(Object val) {

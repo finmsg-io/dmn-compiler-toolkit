@@ -233,6 +233,12 @@ public interface FeelParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitKey(FeelParser.KeyContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link FeelParser#keySegment}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitKeySegment(FeelParser.KeySegmentContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link FeelParser#unaryTests}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -334,6 +340,12 @@ public interface FeelParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitName(FeelParser.NameContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link FeelParser#nameSegment}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitNameSegment(FeelParser.NameSegmentContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link FeelParser#qualifiedName}.
 	 * @param ctx the parse tree

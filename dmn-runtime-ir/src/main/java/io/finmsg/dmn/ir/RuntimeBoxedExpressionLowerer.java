@@ -91,10 +91,9 @@ final class RuntimeBoxedExpressionLowerer {
 				FunctionDefinitionParsed function = boxed.getFunctionDefinition();
 				List<RuntimeFunctionParameter> parameters = new ArrayList<>();
 				Map<String, LocalSlotAddress> parameterSlots = RuntimeLexicalFrame.capturedScope(localSlots);
-				int[] functionNextLocalSlot = {0};
 				for (int index = 0; index < function.getParametersCount(); index++) {
 					InformationItem parameter = function.getParameters(index);
-					int localSlot = functionNextLocalSlot[0]++;
+					int localSlot = nextLocalSlot[0]++;
 					parameterSlots.put(path + "/parameter[" + index + "]", new LocalSlotAddress(0, localSlot));
 					parameters.add(new RuntimeFunctionParameter(parameter.getNode().getName(), localSlot,
 							RuntimeTypeLowerer.lower(parameter.getType(), itemTypes)));
@@ -103,12 +102,12 @@ final class RuntimeBoxedExpressionLowerer {
 					throw new RuntimeIrLoweringException("Boxed function requires a body at " + path + ".");
 				}
 				RuntimeExpression body = lowerParsedExpression(function.getBody(), path + "/body", bindings, slots,
-						itemTypes, parameterSlots, functionNextLocalSlot);
+						itemTypes, parameterSlots, nextLocalSlot);
 				RuntimeType functionType = expectedType == null
 						? RuntimeType.function(parameters.stream().map(RuntimeFunctionParameter::type).toList(),
 								body.type())
 						: expectedType;
-				yield new RuntimeFunctionDefinition(parameters, Optional.of(body), false, functionNextLocalSlot[0],
+				yield new RuntimeFunctionDefinition(parameters, Optional.of(body), false, nextLocalSlot[0],
 						functionType);
 			}
 			case TYPE_NOT_SET -> throw new RuntimeIrLoweringException("Empty boxed expression at " + path + ".");

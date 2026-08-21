@@ -31,6 +31,11 @@ LBRACE   : '{' ;
 RBRACE   : '}' ;
 AT       : '@' ;
 
+DATE_AND_TIME : 'date' WhiteSpace+ 'and' WhiteSpace+ 'time' ;
+YEARS_AND_MONTHS_DURATION : 'years' WhiteSpace+ 'and' WhiteSpace+ 'months' WhiteSpace+ 'duration' ;
+DAY_AND_TIME_DURATION : 'day' WhiteSpace+ 'and' WhiteSpace+ 'time' WhiteSpace+ 'duration' ;
+DAYS_AND_TIME_DURATION : 'days' WhiteSpace+ 'and' WhiteSpace+ 'time' WhiteSpace+ 'duration' ;
+
 FOR       : 'for' ;
 IN        : 'in' ;
 RETURN    : 'return' ;
@@ -57,6 +62,7 @@ CONTEXT   : 'context' ;
 
 STRING_LITERAL
     : '"' (StringEscapeSequence | ~["\r\n\\])* '"'
+    | '\'' (SingleQuoteEscapeSequence | ~['\r\n\\])* '\''
     ;
 
 NUMBER_LITERAL
@@ -76,9 +82,15 @@ fragment Digits
     ;
 
 fragment StringEscapeSequence
-    : '\\' ["'\\nrt]
-    | '\\u' HexDigit HexDigit HexDigit HexDigit
+    : '\\u' HexDigit HexDigit HexDigit HexDigit
     | '\\U' HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit
+    | '\\' .
+    ;
+
+fragment SingleQuoteEscapeSequence
+    : '\\u' HexDigit HexDigit HexDigit HexDigit
+    | '\\U' HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit
+    | '\\' .
     ;
 
 fragment HexDigit
@@ -99,11 +111,13 @@ fragment NameStartChar
     | [\u3001-\uD7FF]
     | [\uF900-\uFDCF]
     | [\uFDF0-\uFFFD]
+    | [\u{10000}-\u{EFFFF}]
     ;
 
 fragment NamePartChar
     : NameStartChar
     | [0-9]
+    | '\''
     | '\u00B7'
     | [\u0300-\u036F]
     | [\u203F-\u2040]

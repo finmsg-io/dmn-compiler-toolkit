@@ -70,7 +70,7 @@
 <a id="contents-section-3"></a>
 ## Next: MVP completion, gRPC, Spark SQL, and load validation
 
-- [x] 100% OMG DMN 1.5 TCK compliance (Compliance Level 2 & Compliance Level 3) for `DmnInterpreter` and `dmn-generator-java`
+- [ ] Full OMG DMN TCK CL2/CL3 conformance for `DmnInterpreter` and `dmn-generator-java` (current: 1,736/3,391 cases)
 - [x] JMH performance benchmark suite (`dmn-benchmarks`) with DataFaker payloads & reference model registry
 - [x] Generic gRPC service adapter generator in Java (`dmn-grpc`) backed by compiled Java decisions
 - [x] Pure Spark / Databricks SQL expression generator (`dmn-generator-sparksql`, zero UDFs, CTE queries, delegating query tuning to engine)

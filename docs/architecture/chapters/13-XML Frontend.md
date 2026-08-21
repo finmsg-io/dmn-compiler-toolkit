@@ -94,5 +94,3 @@ The current protobuf-supported subset is compiler-grade complete:
 - this chapter and the completeness audit define the supported-subset/model-extension boundary.
 
 Future XML work is driven by explicit protobuf model extensions, not unfinished reader/writer glue.
-
-See [the XML completeness audit](../../audits/dmn-frontend-xml-completeness.md).

@@ -67,11 +67,31 @@ public final class DmnModelRepository {
 	}
 
 	List<ResolvedItemDefinition> resolveType(Definitions source, NamedTypeReference reference) {
-		List<Definitions> targets = targetModels(source, reference.getNamespace());
+		String directName = reference.getName();
+		if (reference.getNamespace().isBlank() || reference.getNamespace().equals(source.getNamespace())) {
+			List<ResolvedItemDefinition> direct = source.getItemDefinitionsList().stream()
+					.filter(item -> item.getNode().getName().equals(directName))
+					.map(item -> new ResolvedItemDefinition(source, item)).toList();
+			if (!direct.isEmpty()) {
+				return direct;
+			}
+		}
+		String qualifier = reference.getNamespace();
+		String targetName = reference.getName();
+		if ((qualifier.isBlank() || qualifier.equals(source.getNamespace())) && targetName.contains(".")) {
+			String potentialPrefix = targetName.substring(0, targetName.indexOf('.'));
+			boolean hasImport = source.getImportsList().stream()
+					.anyMatch(i -> i.getName().equals(potentialPrefix) || i.getNamespace().equals(potentialPrefix));
+			if (hasImport) {
+				qualifier = potentialPrefix;
+				targetName = targetName.substring(targetName.indexOf('.') + 1);
+			}
+		}
+		List<Definitions> targets = targetModels(source, qualifier);
 		List<ResolvedItemDefinition> result = new ArrayList<>();
 		for (Definitions target : targets) {
-			target.getItemDefinitionsList().stream()
-					.filter(item -> item.getNode().getName().equals(reference.getName()))
+			final String finalName = targetName;
+			target.getItemDefinitionsList().stream().filter(item -> item.getNode().getName().equals(finalName))
 					.map(item -> new ResolvedItemDefinition(target, item)).forEach(result::add);
 		}
 		return result;
@@ -96,6 +116,9 @@ public final class DmnModelRepository {
 		boolean imported = source.getImportsList().stream()
 				.anyMatch(value -> value.getNamespace().equals(qualifier) || value.getName().equals(qualifier));
 		if (!imported) {
+			if (modelsByNamespace.containsKey(qualifier)) {
+				return List.copyOf(modelsByNamespace.get(qualifier));
+			}
 			return List.of();
 		}
 		String namespace = source.getImportsList().stream()

@@ -2,7 +2,7 @@
 
 ## Architecture Specification
 
-**Version 2.0 — 100% DMN 1.5 Specification & TCK Conformance Baseline**
+**Version 2.0 — implementation architecture; TCK conformance recovery in progress**
 
 Related normative material:
 

@@ -21,7 +21,7 @@ public final class ContextEntryTextReader {
 				switch (cursor.documentLocalName()) {
 					case "variable" -> builder.setVariable(informationItemReader.read(cursor));
 					case "literalExpression", "decisionTable", "invocation", "context", "relation", "list",
-							"functionDefinition" ->
+							"functionDefinition", "some", "every", "filter" ->
 						builder.setExpression(readers.expressionNodeReader().readText(cursor));
 					case "extensionElements" -> {
 					}

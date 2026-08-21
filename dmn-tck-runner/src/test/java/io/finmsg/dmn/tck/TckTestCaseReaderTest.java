@@ -29,5 +29,22 @@ class TckTestCaseReaderTest {
 		assertThat(testCase.inputs().get("flag").runtimeValue()).isEqualTo(true);
 		assertThat(testCase.inputs().get("nothing").kind()).isEqualTo(TckValue.Kind.NULL);
 		assertThat((BigDecimal) testCase.expectedResults().get("amount").runtimeValue()).isEqualByComparingTo("10.50");
+		assertThat(testCase.expectedErrorResults()).isEmpty();
+	}
+
+	@Test
+	void preservesExpectedErrorResults() throws Exception {
+		String xml = """
+				<testCases xmlns="urn:tck">
+				  <testCase id="error-case">
+				    <resultNode name="invalid decision" errorResult="true"><expected/></resultNode>
+				  </testCase>
+				</testCases>
+				""";
+
+		TckTestCase testCase = new TckTestCaseReader()
+				.read(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8))).getFirst();
+
+		assertThat(testCase.expectedErrorResults()).containsExactly("invalid decision");
 	}
 }

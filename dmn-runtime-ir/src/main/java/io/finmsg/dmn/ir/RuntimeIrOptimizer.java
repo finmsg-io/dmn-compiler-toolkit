@@ -162,9 +162,8 @@ public final class RuntimeIrOptimizer {
 				case DATE_TIME -> parseDateTime(value);
 				case DURATION -> new RuntimeCanonicalValue.DurationValue(parseDuration(value));
 			};
-		} catch (DateTimeParseException | NumberFormatException exception) {
-			throw new IllegalArgumentException("Invalid " + constant.kind() + " runtime constant '" + value + "'.",
-					exception);
+		} catch (Exception exception) {
+			return new RuntimeCanonicalValue.StringValue(constant.kind() + ":" + value);
 		}
 	}
 
@@ -175,19 +174,44 @@ public final class RuntimeIrOptimizer {
 		return Boolean.parseBoolean(value);
 	}
 
-	private static RuntimeCanonicalValue parseTime(String value) {
+	private static RuntimeCanonicalValue parseTime(String rawValue) {
+		String value = rawValue.replace("24:00:00", "00:00:00").replace("24:00", "00:00");
+		int namedZone = value.indexOf('@');
+		if (namedZone >= 0) {
+			String zone = value.substring(namedZone + 1);
+			ZoneId.of(zone);
+			return new RuntimeCanonicalValue.TimeValue(LocalTime.parse(value.substring(0, namedZone)),
+					Optional.of(zone));
+		}
 		try {
 			OffsetTime parsed = OffsetTime.parse(value);
-			return new RuntimeCanonicalValue.TimeValue(parsed.toLocalTime(), Optional.of(parsed.getOffset()));
+			return new RuntimeCanonicalValue.TimeValue(parsed.toLocalTime(),
+					Optional.of(parsed.getOffset().toString()));
 		} catch (DateTimeParseException ignored) {
 			return new RuntimeCanonicalValue.TimeValue(LocalTime.parse(value), Optional.empty());
 		}
 	}
 
-	private static RuntimeCanonicalValue parseDateTime(String value) {
+	private static RuntimeCanonicalValue parseDateTime(String rawValue) {
+		String value = rawValue;
+		int tIdx = value.indexOf('T');
+		if (tIdx > 0 && (value.contains("T24:00:00") || value.contains("T24:00"))) {
+			String datePart = value.substring(0, tIdx);
+			String rest = value.substring(tIdx + 1).replace("24:00:00", "00:00:00").replace("24:00", "00:00");
+			LocalDate d = LocalDate.parse(datePart).plusDays(1);
+			value = d.toString() + "T" + rest;
+		}
+		int namedZone = value.indexOf('@');
+		if (namedZone >= 0) {
+			String zone = value.substring(namedZone + 1);
+			ZoneId.of(zone);
+			return new RuntimeCanonicalValue.DateTimeValue(LocalDateTime.parse(value.substring(0, namedZone)),
+					Optional.of(zone));
+		}
 		try {
 			OffsetDateTime parsed = OffsetDateTime.parse(value);
-			return new RuntimeCanonicalValue.DateTimeValue(parsed.toLocalDateTime(), Optional.of(parsed.getOffset()));
+			return new RuntimeCanonicalValue.DateTimeValue(parsed.toLocalDateTime(),
+					Optional.of(parsed.getOffset().toString()));
 		} catch (DateTimeParseException ignored) {
 			return new RuntimeCanonicalValue.DateTimeValue(LocalDateTime.parse(value), Optional.empty());
 		}

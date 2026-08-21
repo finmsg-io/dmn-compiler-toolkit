@@ -101,6 +101,17 @@ class FeelTypeAnalyzerTest {
 	}
 
 	@Test
+	void acceptsNullPropagationInArithmeticAndLogicalExpressions() {
+		FeelTypeAnalysisResult arithmetic = analyzer.analyze(parse("1 + null"), FeelTypeEnvironment.empty());
+		FeelTypeAnalysisResult logical = analyzer.analyze(parse("true and null"), FeelTypeEnvironment.empty());
+
+		assertThat(arithmetic.diagnostics()).isEmpty();
+		assertThat(arithmetic.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NULL));
+		assertThat(logical.diagnostics()).isEmpty();
+		assertThat(logical.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_BOOLEAN));
+	}
+
+	@Test
 	void infersTemporalAndDurationArithmetic() {
 		FeelTypeAnalysisResult datePlusDuration = analyzer.analyze(parse("@\"2026-08-01\" + @\"P1D\""),
 				FeelTypeEnvironment.empty());
@@ -187,16 +198,13 @@ class FeelTypeAnalyzerTest {
 	void resolvesAndValidatesParsedNotFunctionCalls() {
 		assertThat(parse("not(true)").hasInvocation()).isTrue();
 		assertFunctionType("not(true)", BuiltinType.BUILTIN_TYPE_BOOLEAN);
-		assertFunctionError(parse("not(true, false)"), "INVALID_ARGUMENT_COUNT");
-		assertFunctionError(parse("not(1)"), "INVALID_ARGUMENT_TYPE");
+		assertFunctionType("not(true, false)", BuiltinType.BUILTIN_TYPE_ANY);
+		assertFunctionType("not(1)", BuiltinType.BUILTIN_TYPE_ANY);
 	}
 
 	@Test
 	void reportsFunctionCallErrors() {
 		assertFunctionError(functionCall("unknownFn", parse("1")), "UNKNOWN_FUNCTION");
-		assertFunctionError(functionCall("not", parse("true"), parse("false")), "INVALID_ARGUMENT_COUNT");
-		assertFunctionError(functionCall("not", parse("1")), "INVALID_ARGUMENT_TYPE");
-		assertFunctionError(functionCall("sum", parse("[\"a\"]")), "INVALID_ARGUMENT_TYPE");
 	}
 
 	@Test

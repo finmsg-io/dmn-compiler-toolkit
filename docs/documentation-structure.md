@@ -32,7 +32,6 @@ docs/
 │   └── adr/
 │       ├── generall-adr.md        ADR index, lifecycle, and template
 │       └── adr-NNNN-title.md      One immutable decision record per file
-├── audits/
 │   ├── index.md                   Audit catalog and freshness warning
 │   └── *.md                       Dated implementation assessments
 ├── todos/
@@ -55,7 +54,6 @@ sort correctly and existing references remain stable.
 | What is the delivery sequence? | `development-plan.md` |
 | Which broad capabilities remain? | `roadmap.md` |
 | What remains inside one module? | `todos/<module>.md` |
-| What did an assessment find at a point in time? | `audits/*.md` |
 | Why was an architectural choice made? | `architecture/adr/adr-NNNN-title.md` |
 | What does a project term mean? | `glossary.md` |
 
