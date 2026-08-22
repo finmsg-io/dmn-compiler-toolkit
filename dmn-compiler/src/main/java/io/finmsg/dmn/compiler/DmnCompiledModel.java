@@ -71,6 +71,11 @@ public final class DmnCompiledModel {
 		return inputSlots;
 	}
 
+	/** Returns the mapping of decision node names to their value slot indices. */
+	public Map<String, Integer> decisionSlots() {
+		return decisionSlots;
+	}
+
 	/** Evaluates model using Protobuf EvaluationRequest payload. */
 	public EvaluationResponse evaluate(EvaluationRequest request) {
 		long startTime = System.nanoTime();

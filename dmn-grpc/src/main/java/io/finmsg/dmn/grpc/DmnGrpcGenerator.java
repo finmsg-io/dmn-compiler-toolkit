@@ -1,9 +1,8 @@
 package io.finmsg.dmn.grpc;
 
 import io.finmsg.dmn.compiler.DmnCompilationResult;
-import io.finmsg.dmn.compiler.DmnSemanticModel;
+import io.finmsg.dmn.compiler.DmnCompiledModel;
 import io.finmsg.dmn.ir.RuntimeOptimizedModel;
-import io.finmsg.dmn.model.DrgElement;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -23,21 +22,9 @@ public class DmnGrpcGenerator {
 		RuntimeOptimizedModel optModel = compilation.optimizedRuntimeModel().orElseThrow();
 		int slotCount = optModel.model().valueSlotCount();
 
-		Map<String, Integer> inputSlots = new LinkedHashMap<>();
-		Map<String, Integer> decisionSlots = new LinkedHashMap<>();
-
-		int currentSlot = 0;
-		for (DmnSemanticModel model : compilation.semanticResult().models()) {
-			for (DrgElement element : model.model().getDrgElementsList()) {
-				if (element.hasInputData()) {
-					inputSlots.put(element.getInputData().getNode().getName(), currentSlot++);
-				} else if (element.hasDecision()) {
-					decisionSlots.put(element.getDecision().getNode().getName(), currentSlot++);
-				} else if (element.hasBusinessKnowledgeModel()) {
-					currentSlot++;
-				}
-			}
-		}
+		DmnCompiledModel compiledModel = compilation.compiledModel().orElseThrow();
+		Map<String, Integer> inputSlots = compiledModel.inputSlots();
+		Map<String, Integer> decisionSlots = compiledModel.decisionSlots();
 
 		String fqcn = options.packageName() + "." + options.serviceClassName();
 

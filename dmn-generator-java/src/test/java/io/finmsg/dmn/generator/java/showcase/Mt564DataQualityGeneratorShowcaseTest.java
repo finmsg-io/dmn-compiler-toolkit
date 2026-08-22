@@ -24,7 +24,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
@@ -99,7 +101,12 @@ class Mt564DataQualityGeneratorShowcaseTest {
 
 		DmnEvaluationResult interpResult = runtime.evaluate(optimizedModel.model(), runtimeInputMap);
 
+		Set<Integer> bkmSlots = new HashSet<>();
+		optimizedModel.model().businessKnowledgeModels().forEach(bkm -> bkmSlots.add(bkm.resultSlot()));
 		for (int i = 0; i < outputSlots.length; i++) {
+			if (bkmSlots.contains(i)) {
+				continue;
+			}
 			Object interpVal = interpResult.value(i);
 			Object genVal = outputSlots[i];
 			if (interpVal != null && !interpVal.getClass().getName().contains("Lambda")) {

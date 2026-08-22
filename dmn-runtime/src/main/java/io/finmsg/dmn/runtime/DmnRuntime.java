@@ -1397,6 +1397,10 @@ public final class DmnRuntime {
 						if (parts.length == 2) {
 							String p0 = parts[0].trim();
 							String p1 = parts[1].trim();
+							if (p0.isEmpty() && lowClosed)
+								yield null;
+							if (p1.isEmpty() && upClosed)
+								yield null;
 							Object low = p0.isEmpty() ? null : parseLiteralValue(p0);
 							Object up = p1.isEmpty() ? null : parseLiteralValue(p1);
 							if (!p0.isEmpty() && low == null)
@@ -2793,6 +2797,12 @@ public final class DmnRuntime {
 			return Boolean.FALSE;
 		if (text.startsWith("@\"") && text.endsWith("\"") && text.length() >= 3) {
 			String raw = text.substring(2, text.length() - 1);
+			if (raw.length() == 10 && raw.charAt(4) == '-' && raw.charAt(7) == '-') {
+				try {
+					return LocalDate.parse(raw);
+				} catch (Exception ignored) {
+				}
+			}
 			Object dt = parseDateTime(raw);
 			if (dt != null)
 				return dt;

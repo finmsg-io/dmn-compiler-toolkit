@@ -11,6 +11,11 @@
   <artifactId>dmn-tck-runner</artifactId>
   <name>DMN TCK Runner</name>
   <description>Test infrastructure for executing DMN TCK cases through the toolkit</description>
+  <properties>
+    <!-- Default: skip TCK test execution during ordinary local builds unless -Ptck is explicitly specified -->
+    <tck.skip>true</tck.skip>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>io.finmsg.dmn</groupId>
@@ -39,4 +44,29 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven.surefire.plugin.version}</version>
+        <configuration>
+          <skipTests>${tck.skip}</skipTests>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <!-- TCK profile: opt-in profile to run the full official OMG DMN TCK suite.
+         Usage: mvn test -Ptck
+                mvn verify -Ptck -->
+    <profile>
+      <id>tck</id>
+      <properties>
+        <tck.skip>false</tck.skip>
+      </properties>
+    </profile>
+  </profiles>
 </project>

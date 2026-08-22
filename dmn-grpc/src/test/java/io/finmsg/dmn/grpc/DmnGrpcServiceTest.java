@@ -98,10 +98,8 @@ class DmnGrpcServiceTest {
 
 			DmnEvaluationRequest request = DmnEvaluationRequest.newBuilder()
 					.setModelNamespace("https://finmsg.io/models/traffic").setModelName(holder.modelName())
-					.putInputs("Violation",
-							DmnGrpcValueConverter
-									.toProtoValue(Map.of("Type", "speed", "ActualSpeed", 140, "SpeedLimit", 100)))
-					.build();
+					.putInputs("Speed", DmnGrpcValueConverter.toProtoValue(new BigDecimal("140")))
+					.putInputs("SpeedLimit", DmnGrpcValueConverter.toProtoValue(new BigDecimal("100"))).build();
 
 			DmnEvaluationResponse response = stub.evaluate(request);
 
@@ -111,6 +109,7 @@ class DmnGrpcServiceTest {
 			Value vpValue = response.getOutputsMap().get("Violation Points");
 			Object vpObj = DmnGrpcValueConverter.toJavaObject(vpValue);
 			assertThat(vpObj).isNotNull();
+			assertThat(vpObj).isEqualTo(new BigDecimal("10"));
 
 			channel.shutdown();
 		} finally {

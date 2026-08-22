@@ -258,8 +258,11 @@ final class RuntimeExpressionLowerer {
 				iterations.add(new RuntimeIteration(localSlot, source, end));
 			}
 		}
-		int partialSlot = nextLocalSlot[0]++;
-		iterationSlots.put(path + "/partial", new LocalSlotAddress(0, partialSlot));
+		boolean usesPartial = bindings.stream().anyMatch(b -> b.declarationPath().equals(path + "/partial"));
+		int partialSlot = usesPartial ? nextLocalSlot[0]++ : -1;
+		if (usesPartial) {
+			iterationSlots.put(path + "/partial", new LocalSlotAddress(0, partialSlot));
+		}
 		RuntimeExpression result = lowerExpression(value.getReturnExpression(), path + "/return", bindings, slots,
 				itemTypes, iterationSlots, nextLocalSlot);
 		return new RuntimeForExpression(iterations, result, partialSlot, type);
@@ -300,10 +303,11 @@ final class RuntimeExpressionLowerer {
 			Map<String, ItemDefinition> itemTypes, Map<String, LocalSlotAddress> localSlots, int[] nextLocalSlot) {
 		List<RuntimeFunctionParameter> parameters = new ArrayList<>();
 		Map<String, LocalSlotAddress> parameterSlots = RuntimeLexicalFrame.capturedScope(localSlots);
+		int[] functionNextLocalSlot = {0};
 		for (int index = 0; index < value.getParametersCount(); index++) {
 			FormalParameter parameter = value.getParameters(index);
 			String parameterPath = path + "/parameter[" + index + "]";
-			int localSlot = nextLocalSlot[0]++;
+			int localSlot = functionNextLocalSlot[0]++;
 			parameterSlots.put(parameterPath, new LocalSlotAddress(0, localSlot));
 			parameters.add(new RuntimeFunctionParameter(parameter.getName(), localSlot,
 					RuntimeTypeLowerer.lower(parameter.getType(), itemTypes)));
@@ -311,8 +315,8 @@ final class RuntimeExpressionLowerer {
 		Optional<RuntimeExpression> body = value.getBody().getNodeCase() == Expression.NodeCase.NODE_NOT_SET
 				? Optional.empty()
 				: Optional.of(lowerExpression(value.getBody(), path + "/body", bindings, slots, itemTypes,
-						parameterSlots, nextLocalSlot));
-		return new RuntimeFunctionDefinition(parameters, body, value.getExternal(), nextLocalSlot[0], type);
+						parameterSlots, functionNextLocalSlot));
+		return new RuntimeFunctionDefinition(parameters, body, value.getExternal(), functionNextLocalSlot[0], type);
 	}
 
 	static RuntimeQuantifier quantifier(Quantifier quantifier) {

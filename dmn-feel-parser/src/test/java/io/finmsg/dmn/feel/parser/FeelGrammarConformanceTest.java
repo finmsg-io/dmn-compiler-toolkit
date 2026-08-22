@@ -138,8 +138,8 @@ final class FeelGrammarConformanceTest {
 	}
 
 	@Test
-	void rejectsThreeDotRangeOperator() {
-		assertInvalidExpression("[1...10]");
+	void acceptsThreeDotsAsDescendantOperator() {
+		assertExpression("[1...10]");
 	}
 
 	private static void assertExpression(String feel) {

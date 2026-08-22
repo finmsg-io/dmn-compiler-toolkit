@@ -13,6 +13,11 @@
   <name>DMN Benchmarks</name>
   <description>JMH microbenchmarks and reference model workloads for DMN Interpreter vs Generated Java</description>
 
+  <properties>
+    <!-- Default: skip benchmark test execution during ordinary local builds unless -Pbenchmarks is explicitly specified -->
+    <benchmarks.skip>true</benchmarks.skip>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>io.finmsg.dmn</groupId>
@@ -62,6 +67,14 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven.surefire.plugin.version}</version>
+        <configuration>
+          <skipTests>${benchmarks.skip}</skipTests>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
           <annotationProcessorPaths>
@@ -107,4 +120,22 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- Benchmarks profile: opt-in profile to run benchmark test suite.
+         Usage: mvn test -Pbenchmarks
+                mvn verify -Pbenchmarks -->
+    <profile>
+      <id>benchmarks</id>
+      <properties>
+        <benchmarks.skip>false</benchmarks.skip>
+      </properties>
+    </profile>
+    <profile>
+      <id>benchmark</id>
+      <properties>
+        <benchmarks.skip>false</benchmarks.skip>
+      </properties>
+    </profile>
+  </profiles>
 </project>

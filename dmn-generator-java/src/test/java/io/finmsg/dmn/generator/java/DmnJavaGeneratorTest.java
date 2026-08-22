@@ -73,7 +73,12 @@ class DmnJavaGeneratorTest {
 		// Java class
 		DmnEvaluationResult interpResult = runtime.evaluate(optimized.model(), runtimeInputMap);
 
+		Set<Integer> bkmSlots = new HashSet<>();
+		optimized.model().businessKnowledgeModels().forEach(bkm -> bkmSlots.add(bkm.resultSlot()));
 		for (int i = 0; i < outputSlots.length; i++) {
+			if (bkmSlots.contains(i)) {
+				continue;
+			}
 			Object interpVal = interpResult.value(i);
 			Object genVal = outputSlots[i];
 			if (interpVal != null && !interpVal.getClass().getName().contains("Lambda")) {

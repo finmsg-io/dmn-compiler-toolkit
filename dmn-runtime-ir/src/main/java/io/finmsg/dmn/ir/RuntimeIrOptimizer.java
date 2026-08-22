@@ -162,8 +162,11 @@ public final class RuntimeIrOptimizer {
 				case DATE_TIME -> parseDateTime(value);
 				case DURATION -> new RuntimeCanonicalValue.DurationValue(parseDuration(value));
 			};
+		} catch (IllegalArgumentException exception) {
+			throw exception;
 		} catch (Exception exception) {
-			return new RuntimeCanonicalValue.StringValue(constant.kind() + ":" + value);
+			throw new IllegalArgumentException("Invalid " + constant.kind() + " runtime constant '" + value + "'.",
+					exception);
 		}
 	}
 

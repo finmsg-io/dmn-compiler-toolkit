@@ -2,7 +2,6 @@ package io.finmsg.dmn.benchmark.provider;
 
 import io.finmsg.dmn.compiler.DmnCompilationResult;
 import io.finmsg.dmn.compiler.DmnCompiler;
-import io.finmsg.dmn.compiler.DmnSemanticModel;
 import io.finmsg.dmn.compiler.DmnSource;
 import io.finmsg.dmn.compiler.DmnSourceId;
 import io.finmsg.dmn.generator.java.DmnJavaGenerator;
@@ -10,7 +9,6 @@ import io.finmsg.dmn.generator.java.DmnJavaGeneratorOptions;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorResult;
 import io.finmsg.dmn.generator.java.GeneratedDecisionEngine;
 import io.finmsg.dmn.ir.RuntimeOptimizedModel;
-import io.finmsg.dmn.model.DrgElement;
 import io.finmsg.dmn.models.stream.DmnStreamBundle;
 
 import javax.tools.JavaCompiler;
@@ -87,20 +85,8 @@ public final class ReferenceModelRegistry {
 				.newInstance();
 		Method evalMethod = genClass.getMethod("evaluate", Object[].class);
 
-		Map<String, Integer> inputSlots = new LinkedHashMap<>();
-		Map<String, Integer> decisionSlots = new LinkedHashMap<>();
-		int slot = 0;
-		for (DmnSemanticModel model : compilation.semanticResult().models()) {
-			for (DrgElement element : model.model().getDrgElementsList()) {
-				if (element.hasInputData()) {
-					inputSlots.put(element.getInputData().getNode().getName(), slot++);
-				} else if (element.hasDecision()) {
-					decisionSlots.put(element.getDecision().getNode().getName(), slot++);
-				} else if (element.hasBusinessKnowledgeModel()) {
-					slot++;
-				}
-			}
-		}
+		Map<String, Integer> inputSlots = compilation.compiledModel().orElseThrow().inputSlots();
+		Map<String, Integer> decisionSlots = compilation.compiledModel().orElseThrow().decisionSlots();
 
 		return new CompiledModelHolder(modelName, compilation, engineInstance, evalMethod, Map.copyOf(inputSlots),
 				Map.copyOf(decisionSlots));

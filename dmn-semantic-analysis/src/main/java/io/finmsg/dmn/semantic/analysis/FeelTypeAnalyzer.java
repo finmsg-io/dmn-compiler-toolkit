@@ -619,6 +619,16 @@ public final class FeelTypeAnalyzer {
 				return ANY;
 			}
 			if (compatible.size() > 1) {
+				List<FeelFunctionSignature> nonVariadic = compatible.stream().filter(signature -> !signature.variadic())
+						.toList();
+				if (nonVariadic.size() == 1) {
+					return nonVariadic.getFirst().returnType();
+				}
+				TypeReference firstReturn = compatible.getFirst().returnType();
+				boolean allSameReturn = compatible.stream().allMatch(s -> s.returnType().equals(firstReturn));
+				if (allSameReturn) {
+					return firstReturn;
+				}
 				return ANY;
 			}
 			return compatible.getFirst().returnType();
