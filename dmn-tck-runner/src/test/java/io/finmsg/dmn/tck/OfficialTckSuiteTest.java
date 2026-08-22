@@ -179,8 +179,8 @@ class OfficialTckSuiteTest {
 			Object result = null;
 			try {
 				try {
-					result = genClass.getMethod("evaluateBkm", int.class, Object[].class, Object[].class).invoke(
-							engineInstance, slot, args, (Object) evaluated);
+					result = genClass.getMethod("evaluateBkm", int.class, Object[].class, Object[].class)
+							.invoke(engineInstance, slot, args, (Object) evaluated);
 				} catch (NoSuchMethodException e) {
 					result = genClass.getMethod("evaluateBkm", int.class, Object[].class).invoke(engineInstance, slot,
 							args);

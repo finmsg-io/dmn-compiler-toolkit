@@ -51,8 +51,8 @@ public final class DmnRuntime {
 			if (decision == null)
 				throw new DmnEvaluationException("Unknown aggregate ID " + id);
 			Frame frame = new Frame(Frame.EMPTY, decision.localSlotCount());
-			Object value = decision.expression().map(it -> state.expression(it, frame))
-					.orElseGet(() -> decision.decisionTable().map(it -> state.table(it, frame)).orElse(slots[decision.resultSlot()]));
+			Object value = decision.expression().map(it -> state.expression(it, frame)).orElseGet(() -> decision
+					.decisionTable().map(it -> state.table(it, frame)).orElse(slots[decision.resultSlot()]));
 			slots[decision.resultSlot()] = coerce(value, decision.type());
 		}
 		return new DmnEvaluationResult(model, Arrays.asList(slots.clone()));
@@ -450,7 +450,10 @@ public final class DmnRuntime {
 			if (source instanceof RuntimeRangeValue range) {
 				return switch (name) {
 					case "start" -> range.lower();
-					case "end" -> range.upper() != null ? range.upper() : (range.lowerBoundary() == RuntimeRangeBoundary.CLOSED && range.upperBoundary() == RuntimeRangeBoundary.CLOSED ? range.lower() : null);
+					case "end" -> range.upper() != null
+							? range.upper()
+							: (range.lowerBoundary() == RuntimeRangeBoundary.CLOSED
+									&& range.upperBoundary() == RuntimeRangeBoundary.CLOSED ? range.lower() : null);
 					case "start included" -> range.lowerBoundary() == RuntimeRangeBoundary.CLOSED;
 					case "end included" -> range.upperBoundary() == RuntimeRangeBoundary.CLOSED;
 					default -> null;
@@ -971,7 +974,8 @@ public final class DmnRuntime {
 				case SUBSTRING_AFTER -> feelSubstringAfter(arguments);
 				case STRING_LENGTH -> argument(arguments, 0) == null
 						? null
-						: BigDecimal.valueOf(stringValue(argument(arguments, 0)).codePointCount(0, stringValue(argument(arguments, 0)).length()));
+						: BigDecimal.valueOf(stringValue(argument(arguments, 0)).codePointCount(0,
+								stringValue(argument(arguments, 0)).length()));
 				case UPPER_CASE -> argument(arguments, 0) == null
 						? null
 						: stringValue(argument(arguments, 0)).toUpperCase(Locale.ROOT);
@@ -1326,7 +1330,11 @@ public final class DmnRuntime {
 				case CONTEXT_MERGE -> {
 					if (arguments.size() != 1 || arguments.get(0) == null)
 						yield null;
-					List<?> list = arguments.get(0) instanceof List<?> l ? l : (arguments.get(0) instanceof Map<?, ?> || arguments.get(0) instanceof RuntimeContextValue ? List.of(arguments.get(0)) : null);
+					List<?> list = arguments.get(0) instanceof List<?> l
+							? l
+							: (arguments.get(0) instanceof Map<?, ?> || arguments.get(0) instanceof RuntimeContextValue
+									? List.of(arguments.get(0))
+									: null);
 					if (list == null)
 						yield null;
 					Map<String, Object> merged = new LinkedHashMap<>();
@@ -1508,7 +1516,8 @@ public final class DmnRuntime {
 				Object sub = copy.get(k0);
 				if (sub != null && !(sub instanceof Map<?, ?> || sub instanceof RuntimeContextValue))
 					return null;
-				Object updatedSub = contextPut(sub != null ? sub : new LinkedHashMap<>(), keys.subList(1, keys.size()), val);
+				Object updatedSub = contextPut(sub != null ? sub : new LinkedHashMap<>(), keys.subList(1, keys.size()),
+						val);
 				if (updatedSub == null)
 					return null;
 				copy.put(k0, updatedSub);
@@ -1960,10 +1969,12 @@ public final class DmnRuntime {
 		if (range.lower() == null && range.upper() == null)
 			return null;
 		if (range.upperAbsent()) {
-			if (range.lowerBoundary() == RuntimeRangeBoundary.CLOSED && range.upperBoundary() == RuntimeRangeBoundary.CLOSED) {
+			if (range.lowerBoundary() == RuntimeRangeBoundary.CLOSED
+					&& range.upperBoundary() == RuntimeRangeBoundary.CLOSED) {
 				return equal(value, range.lower());
 			}
-			if (range.lowerBoundary() == RuntimeRangeBoundary.OPEN && range.upperBoundary() == RuntimeRangeBoundary.OPEN) {
+			if (range.lowerBoundary() == RuntimeRangeBoundary.OPEN
+					&& range.upperBoundary() == RuntimeRangeBoundary.OPEN) {
 				Boolean eq = equal(value, range.lower());
 				return eq == null ? null : !eq;
 			}
@@ -2899,10 +2910,8 @@ public final class DmnRuntime {
 			Map.entry("context", List.of(List.of("entries"))), Map.entry("get value", List.of(List.of("m", "key"))),
 			Map.entry("get entries", List.of(List.of("m"))),
 			Map.entry("sort", List.of(List.of("list", "precedes"), List.of("list"))),
-			Map.entry("day of year", List.of(List.of("date"))),
-			Map.entry("day of week", List.of(List.of("date"))),
-			Map.entry("month of year", List.of(List.of("date"))),
-			Map.entry("week of year", List.of(List.of("date"))),
+			Map.entry("day of year", List.of(List.of("date"))), Map.entry("day of week", List.of(List.of("date"))),
+			Map.entry("month of year", List.of(List.of("date"))), Map.entry("week of year", List.of(List.of("date"))),
 			Map.entry("string join",
 					List.of(List.of("list"), List.of("list", "delimiter"),
 							List.of("list", "delimiter", "prefix", "suffix"))),

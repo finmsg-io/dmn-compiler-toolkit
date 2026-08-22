@@ -116,8 +116,8 @@ public final class JavaExpressionEmitter {
 				if (i > 0)
 					sb.append(", ");
 				io.finmsg.dmn.ir.RuntimeField f = type.fieldLayout().get(i);
-				sb.append("new io.finmsg.dmn.ir.RuntimeField(").append(f.index()).append(", \"")
-						.append(f.name()).append("\", ").append(emitTypeLiteral(f.type())).append(")");
+				sb.append("new io.finmsg.dmn.ir.RuntimeField(").append(f.index()).append(", \"").append(f.name())
+						.append("\", ").append(emitTypeLiteral(f.type())).append(")");
 			}
 			sb.append("))");
 			return sb.toString();

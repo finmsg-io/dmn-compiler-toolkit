@@ -815,14 +815,15 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				case LIST -> {
 					TypeReference elemType = TypeReference.getDefaultInstance();
 					for (int i = 0; i < expression.getList().getElementsCount(); i++) {
-						TypeReference t = analyzeExpression(expression.getList().getElements(i), scope, path + "/element[" + i + "]",
-								location);
+						TypeReference t = analyzeExpression(expression.getList().getElements(i), scope,
+								path + "/element[" + i + "]", location);
 						if (t != null && !t.equals(TypeReference.getDefaultInstance())) {
 							elemType = t;
 						}
 					}
 					yield TypeReference.newBuilder()
-							.setList(io.finmsg.dmn.model.ListTypeReference.newBuilder().setElementType(elemType)).build();
+							.setList(io.finmsg.dmn.model.ListTypeReference.newBuilder().setElementType(elemType))
+							.build();
 				}
 				case FOR_EXPRESSION -> analyzeFor(expression.getForExpression(), scope, path, location);
 				case QUANTIFIED -> analyzeQuantified(expression.getQuantified(), scope, path, location);
@@ -875,13 +876,15 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 		private TypeReference analyzeFeelContext(ContextExpression context, Scope parent, String path,
 				SourceLocation location) {
 			Scope scope = new Scope(parent);
-			io.finmsg.dmn.model.ContextTypeReference.Builder ctxBuilder = io.finmsg.dmn.model.ContextTypeReference.newBuilder();
+			io.finmsg.dmn.model.ContextTypeReference.Builder ctxBuilder = io.finmsg.dmn.model.ContextTypeReference
+					.newBuilder();
 			for (int i = 0; i < context.getEntriesCount(); i++) {
 				io.finmsg.dmn.model.ContextEntry entry = context.getEntries(i);
 				TypeReference type = analyzeExpression(entry.getExpression(), scope, path + "/entry[" + i + "]",
 						location);
 				define(scope, entry.getName(), type, SymbolKind.LOCAL, path + "/entry[" + i + "]", location);
-				ctxBuilder.addEntries(io.finmsg.dmn.model.ContextEntryTypeReference.newBuilder().setName(entry.getName()).setType(type));
+				ctxBuilder.addEntries(io.finmsg.dmn.model.ContextEntryTypeReference.newBuilder()
+						.setName(entry.getName()).setType(type));
 			}
 			return TypeReference.newBuilder().setContext(ctxBuilder).build();
 		}
@@ -1110,8 +1113,8 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 			}
 			if (sourceType.hasContext()) {
 				for (io.finmsg.dmn.model.ContextEntryTypeReference entry : sourceType.getContext().getEntriesList()) {
-					define(filterScope, entry.getName(), entry.getType(), SymbolKind.LOCAL, path + "/item/" + entry.getName(),
-							location);
+					define(filterScope, entry.getName(), entry.getType(), SymbolKind.LOCAL,
+							path + "/item/" + entry.getName(), location);
 				}
 				return;
 			}
