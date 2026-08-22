@@ -34,9 +34,9 @@ public final class FunctionDefinitionReader {
 					case "functionDefinition" -> {
 						FunctionDefinition inner = read(cursor);
 						builder.addAllFormalParameters(inner.getFormalParametersList());
-						if (inner.hasLogic())
-							builder.setLogic(inner.getLogic());
+						builder.setLogic(feelReader.read(cursor));
 					}
+
 					case "documentation", "description", "extensionElements" -> {
 					}
 					default -> UnsupportedContent.rejectDmnChild(cursor, "functionDefinition");

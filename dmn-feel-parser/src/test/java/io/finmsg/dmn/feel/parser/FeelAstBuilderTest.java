@@ -26,11 +26,17 @@ class FeelAstBuilderTest {
 	void buildsUnboundedAndMixedRanges() {
 		var unbounded = parser.parseExpressionAst("[..10]").getAst().getRange();
 		var mixed = parser.parseExpressionAst("[20..30)").getAst().getRange();
+		var r1 = parser.parseExpressionAst("]18..21]").getAst().getRange();
+		var r2 = parser.parseExpressionAst("[18..21[").getAst().getRange();
 
 		assertThat(unbounded.hasLower()).isFalse();
 		assertThat(unbounded.hasUpper()).isTrue();
 		assertThat(mixed.getLowerBoundary()).isEqualTo(RangeBoundary.RANGE_BOUNDARY_CLOSED);
 		assertThat(mixed.getUpperBoundary()).isEqualTo(RangeBoundary.RANGE_BOUNDARY_OPEN);
+		assertThat(r1.getLowerBoundary()).isEqualTo(RangeBoundary.RANGE_BOUNDARY_OPEN);
+		assertThat(r1.getUpperBoundary()).isEqualTo(RangeBoundary.RANGE_BOUNDARY_CLOSED);
+		assertThat(r2.getLowerBoundary()).isEqualTo(RangeBoundary.RANGE_BOUNDARY_CLOSED);
+		assertThat(r2.getUpperBoundary()).isEqualTo(RangeBoundary.RANGE_BOUNDARY_OPEN);
 	}
 
 	@Test

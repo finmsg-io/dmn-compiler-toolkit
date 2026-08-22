@@ -359,7 +359,12 @@ public final class FeelAstBuilder {
 			literal.setKind(LiteralKind.LITERAL_KIND_NULL).setValue("null");
 		} else {
 			String value = decodeString(context.atLiteral().STRING_LITERAL().getText());
-			literal.setKind(atLiteralKind(value)).setValue(value);
+			LiteralKind kind = atLiteralKind(value);
+			if (kind == LiteralKind.LITERAL_KIND_NULL) {
+				literal.setKind(LiteralKind.LITERAL_KIND_NULL).setValue("null");
+			} else {
+				literal.setKind(kind).setValue(value);
+			}
 		}
 		return Expression.newBuilder().setLiteral(literal).build();
 	}
@@ -375,7 +380,10 @@ public final class FeelAstBuilder {
 		if (value.indexOf(':') >= 0) {
 			return LiteralKind.LITERAL_KIND_TIME;
 		}
-		return LiteralKind.LITERAL_KIND_DATE;
+		if (value.length() >= 8 && value.contains("-")) {
+			return LiteralKind.LITERAL_KIND_DATE;
+		}
+		return LiteralKind.LITERAL_KIND_NULL;
 	}
 
 	private Expression functionDefinition(FeelParser.FunctionDefinitionContext context) {

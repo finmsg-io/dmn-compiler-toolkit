@@ -45,8 +45,12 @@ public final class TckTestCaseReader {
 				for (Element resultNode : children(testCase, "resultNode"))
 					if ("true".equals(resultNode.getAttribute("errorResult")))
 						expectedErrors.add(requiredAttribute(resultNode, "name"));
+				String invocableName = testCase.getAttribute("invocableName");
+				String type = testCase.getAttribute("type");
 				result.add(new TckTestCase(requiredAttribute(testCase, "id"), testCase.getAttribute("name"),
-						namedValues(testCase, "inputNode"), namedValues(testCase, "resultNode"), expectedErrors));
+						namedValues(testCase, "inputNode"), namedValues(testCase, "resultNode"), expectedErrors,
+						invocableName.isBlank() ? java.util.Optional.empty() : java.util.Optional.of(invocableName),
+						type.isBlank() ? java.util.Optional.empty() : java.util.Optional.of(type)));
 			}
 			return List.copyOf(result);
 		} catch (ParserConfigurationException | SAXException exception) {

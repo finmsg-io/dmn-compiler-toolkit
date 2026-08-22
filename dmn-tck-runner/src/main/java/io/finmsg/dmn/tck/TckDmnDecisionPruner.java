@@ -49,14 +49,26 @@ public final class TckDmnDecisionPruner {
 			boolean changed;
 			do {
 				changed = false;
+				for (Element element : drgElements) {
+					if (!element.getLocalName().equals("decisionService"))
+						continue;
+					for (Element descendant : descendants(element)) {
+						if (!descendant.getLocalName().equals("outputDecision"))
+							continue;
+						String targetId = referencedId(descendant.getAttribute("href"));
+						if (retainedIds.contains(targetId)) {
+							changed |= retainedIds.add(element.getAttribute("id"));
+							break;
+						}
+					}
+				}
 				for (String id : List.copyOf(retainedIds)) {
 					Element element = byId.get(id);
 					if (element == null)
 						continue;
 					for (Element descendant : descendants(element)) {
 						String href = descendant.getAttribute("href");
-						int hash = href.lastIndexOf('#');
-						String targetId = hash >= 0 ? href.substring(hash + 1) : href;
+						String targetId = referencedId(href);
 						if (!targetId.isBlank() && byId.containsKey(targetId))
 							changed |= retainedIds.add(targetId);
 					}
@@ -78,6 +90,11 @@ public final class TckDmnDecisionPruner {
 		} catch (Exception exception) {
 			throw new IllegalArgumentException("Cannot prune TCK model " + source.id(), exception);
 		}
+	}
+
+	private static String referencedId(String href) {
+		int hash = href.lastIndexOf('#');
+		return hash >= 0 ? href.substring(hash + 1) : href;
 	}
 
 	private static List<Element> directDrgElements(Element definitions) {

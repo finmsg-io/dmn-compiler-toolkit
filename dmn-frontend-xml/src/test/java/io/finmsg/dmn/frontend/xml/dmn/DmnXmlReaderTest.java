@@ -79,12 +79,10 @@ class DmnXmlReaderTest {
 				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
 				    xmlns:ext="https://example.com/extension" namespace="https://example.com/model">
 				  <businessKnowledgeModel id="bkm-1" name="Double">
-				    <encapsulatedLogic>
+				    <encapsulatedLogic kind="FEEL">
 				      <ext:functionDefinition/>
-				      <functionDefinition kind="FEEL">
-				        <formalParameter id="parameter-1" name="value" typeRef="number"/>
-				        <literalExpression><text>value * 2</text></literalExpression>
-				      </functionDefinition>
+				      <formalParameter id="parameter-1" name="value" typeRef="number"/>
+				      <literalExpression><text>value * 2</text></literalExpression>
 				    </encapsulatedLogic>
 				  </businessKnowledgeModel>
 				</definitions>

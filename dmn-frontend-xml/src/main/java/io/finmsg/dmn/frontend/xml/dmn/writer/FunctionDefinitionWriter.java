@@ -10,7 +10,6 @@ final class FunctionDefinitionWriter {
 
 	void write(XmlEmitter xml, FunctionDefinition value) {
 		xml.startElement("encapsulatedLogic");
-		xml.startElement("functionDefinition");
 		xml.attribute("kind", kind(value.getKind()));
 		value.getFormalParametersList()
 				.forEach(parameter -> informationItemWriter.write(xml, "formalParameter", parameter));
@@ -21,7 +20,6 @@ final class FunctionDefinitionWriter {
 			xml.endElement();
 			xml.endElement();
 		}
-		xml.endElement();
 		xml.endElement();
 	}
 

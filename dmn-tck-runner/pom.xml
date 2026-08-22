@@ -53,6 +53,9 @@
         <version>${maven.surefire.plugin.version}</version>
         <configuration>
           <skipTests>${tck.skip}</skipTests>
+          <useFile>false</useFile>
+          <redirectTestOutputToFile>false</redirectTestOutputToFile>
+          <trimStackTrace>false</trimStackTrace>
         </configuration>
       </plugin>
     </plugins>

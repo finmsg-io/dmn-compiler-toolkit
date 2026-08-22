@@ -33,6 +33,16 @@ final class RuntimeExpressionLowerer {
 							"Missing semantic binding for decision expression at " + path + ".");
 				}
 				var binding = bindingOpt.get();
+				LocalSlotAddress remappedSlot = localSlots.get(binding.declarationPath());
+				if (remappedSlot == null) {
+					remappedSlot = localSlots.get(binding.symbolId());
+				}
+				if (remappedSlot == null) {
+					remappedSlot = localSlots.get(binding.symbolName());
+				}
+				if (remappedSlot != null) {
+					yield new RuntimeLocalReference(remappedSlot.lexicalDepth(), remappedSlot.localSlot(), type);
+				}
 				if (binding.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE
 						|| binding.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.PARAMETER) {
 					LocalSlotAddress localSlot = localSlots.get(binding.declarationPath());

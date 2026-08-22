@@ -270,6 +270,34 @@ public final class FeelReader {
 			}
 			return FeelText.newBuilder().setText(fnName + "(" + String.join(", ", args) + ")").build();
 		}
+		if ("functionDefinition".equals(tag)) {
+			java.util.List<String> params = new java.util.ArrayList<>();
+			String bodyText = "";
+			if (cursor.firstChild()) {
+				do {
+					if ("formalParameter".equals(cursor.documentLocalName())) {
+						String pName = cursor.attribute("name").orElse("");
+						String pType = cursor.attribute("typeRef").orElse("");
+						if (!pName.isEmpty()) {
+							params.add(pType.isEmpty() ? pName : pName + ": " + pType);
+						}
+					} else if ("literalExpression".equals(cursor.documentLocalName())
+							|| "functionDefinition".equals(cursor.documentLocalName())
+							|| "context".equals(cursor.documentLocalName())
+							|| "relation".equals(cursor.documentLocalName())
+							|| "list".equals(cursor.documentLocalName())
+							|| "invocation".equals(cursor.documentLocalName())
+							|| "decisionTable".equals(cursor.documentLocalName())
+							|| "expression".equals(cursor.documentLocalName())
+							|| "some".equals(cursor.documentLocalName()) || "every".equals(cursor.documentLocalName())
+							|| "filter".equals(cursor.documentLocalName())) {
+						bodyText = readText(cursor).getText();
+					}
+				} while (cursor.nextSibling());
+				cursor.parent();
+			}
+			return FeelText.newBuilder().setText("function (" + String.join(", ", params) + ") " + bodyText).build();
+		}
 		if ("list".equals(tag)) {
 			java.util.List<String> elements = new java.util.ArrayList<>();
 			if (cursor.firstChild()) {

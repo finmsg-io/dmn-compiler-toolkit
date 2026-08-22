@@ -191,7 +191,11 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 			if (expected.hasFunction()) {
 				expected = expected.getFunction().getReturnType();
 			}
-			validateValueType(feelType(function.getLogic()), expected, "BKM_RETURN_TYPE_MISMATCH",
+			TypeReference actual = feelType(function.getLogic());
+			if (actual.hasFunction()) {
+				actual = actual.getFunction().getReturnType();
+			}
+			validateValueType(actual, expected, "BKM_RETURN_TYPE_MISMATCH",
 					"definitions/businessKnowledgeModel[" + bkm.getNode().getName() + "]/variable",
 					bkm.getNode().getSourceLocation());
 			return bkm.toBuilder().setFunction(function).build();

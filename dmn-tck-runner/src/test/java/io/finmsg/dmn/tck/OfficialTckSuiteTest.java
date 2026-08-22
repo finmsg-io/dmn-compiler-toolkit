@@ -40,6 +40,8 @@ class OfficialTckSuiteTest {
 	private static final List<String> BACKENDS = List.of("interpreter", "generated-java");
 	private final List<TckCatalogueOutcome> outcomes = Collections.synchronizedList(new ArrayList<>());
 	private final Map<PreparationKey, Preparation> preparationCache = new HashMap<>();
+	private final AtomicInteger currentTestIndex = new AtomicInteger(0);
+	private int totalTestCount = 0;
 	private TckCatalogueInventory inventory;
 
 	@TestFactory
@@ -72,6 +74,9 @@ class OfficialTckSuiteTest {
 			int dmns = filtered.stream().mapToInt(e -> e.dmnFiles().size()).sum();
 			inventory = new TckCatalogueInventory(inventory.directoryCount(), filtered.size(), dmns, cases, filtered);
 		}
+		totalTestCount = inventory.entries().stream().filter(TckCatalogueEntry::executable)
+				.mapToInt(e -> e.testCases().size() * BACKENDS.size()).sum();
+		currentTestIndex.set(0);
 		List<DynamicTest> dynamicTests = new ArrayList<>();
 		DmnToolkitTckEngine interpreterEngine = new DmnToolkitTckEngine();
 
@@ -93,45 +98,95 @@ class OfficialTckSuiteTest {
 			for (Path model : orderedModels)
 				sources.add(new DmnSource(new DmnSourceId(model.toUri()), Files.readAllBytes(model)));
 			for (TckTestCase testCase : entry.testCases()) {
-				Set<String> resultNames = Set.copyOf(testCase.expectedResults().keySet());
-				PreparationKey preparationKey = new PreparationKey(
-						sources.stream().map(source -> source.id().toString()).toList(), resultNames);
-				Preparation preparation = preparationCache.computeIfAbsent(preparationKey,
-						ignored -> prepare(sources, resultNames));
-				if (preparation.failureDiagnostic() != null) {
-					if (expectsOnlyErrors(testCase) && preparation.modelRejected()) {
-						String testName = entry.id() + "#" + testCase.id();
-						for (String backend : BACKENDS)
-							dynamicTests.add(recordedTest(testName + " @" + backend, entry, testCase, backend, () -> {
-							}));
-						continue;
-					}
-					TckCatalogueEntry failedCase = new TckCatalogueEntry(entry.id(), entry.testXml(), entry.rootDmn(),
-							entry.dmnFiles(), List.of(testCase), Optional.empty());
-					addPreparationFailure(dynamicTests, failedCase, preparation.failureDiagnostic(),
-							preparation.failureCause());
-					continue;
-				}
-				DmnCompilationResult compilation = preparation.compilation();
-				Class<?> genClass = preparation.generatedClass();
-				Object engineInstance = preparation.engineInstance();
 				String testName = entry.id() + "#" + testCase.id();
-				org.junit.jupiter.api.function.Executable interpreter = () -> {
-					TckExecutionResult result = interpreterEngine.execute(compilation, testCase);
+				dynamicTests.add(recordedTest(testName + " @interpreter", entry, testCase, "interpreter", () -> {
+					Preparation preparation = getPreparation(sources, testCase);
+					if (preparation.failureDiagnostic() != null) {
+						if (expectsOnlyErrors(testCase) && preparation.modelRejected())
+							return;
+						throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
+					}
+					TckExecutionResult result = interpreterEngine.execute(preparation.compilation(), testCase);
 					assertExpected(testName, testCase, result.decisionValues(), "Interpreter");
-				};
-				org.junit.jupiter.api.function.Executable generatedJava = () -> {
-					Object[] slots = buildInputSlots(compilation, testCase);
-					Object[] evaluated = (Object[]) genClass.getMethod("evaluate", Object[].class)
-							.invoke(engineInstance, (Object) slots);
-					assertExpected(testName, testCase, extractDecisionValues(compilation, evaluated), "Generated code");
-				};
-				dynamicTests.add(recordedTest(testName + " @interpreter", entry, testCase, "interpreter", interpreter));
-				dynamicTests.add(
-						recordedTest(testName + " @generated-java", entry, testCase, "generated-java", generatedJava));
+				}));
+				dynamicTests.add(recordedTest(testName + " @generated-java", entry, testCase, "generated-java", () -> {
+					Preparation preparation = getPreparation(sources, testCase);
+					if (preparation.failureDiagnostic() != null) {
+						if (expectsOnlyErrors(testCase) && preparation.modelRejected())
+							return;
+						throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
+					}
+					executeGeneratedJava(preparation, testCase, testName);
+				}));
 			}
 		}
 		return dynamicTests.stream();
+	}
+
+	private Preparation getPreparation(List<DmnSource> sources, TckTestCase testCase) {
+		Set<String> resultNames = Set.copyOf(testCase.expectedResults().keySet());
+		PreparationKey preparationKey = new PreparationKey(
+				sources.stream().map(source -> source.id().toString()).toList(), resultNames);
+		return preparationCache.computeIfAbsent(preparationKey, ignored -> prepare(sources, resultNames));
+	}
+
+	private void executeGeneratedJava(Preparation preparation, TckTestCase testCase, String testName) throws Exception {
+		DmnCompilationResult compilation = preparation.compilation();
+		Class<?> genClass = preparation.generatedClass();
+		Object engineInstance = preparation.engineInstance();
+		if (testCase.invocableName().isPresent()) {
+			String invocableName = testCase.invocableName().get();
+			Map<String, Integer> bkmSlots = DmnToolkitTckEngine.getRuntimeBkmSlots(compilation);
+			Integer slot = bkmSlots.get(invocableName);
+			io.finmsg.dmn.ir.RuntimeModel model = compilation.optimizedRuntimeModel().orElseThrow().model();
+			io.finmsg.dmn.ir.RuntimeBkm targetBkm = model.businessKnowledgeModels().stream()
+					.filter(b -> b.resultSlot() == slot).findFirst().orElseThrow();
+			io.finmsg.dmn.ir.RuntimeFunctionDefinition fn = targetBkm.function().orElseThrow();
+
+			Object[] args = new Object[fn.parameters().size()];
+			boolean missingParam = false;
+			for (int i = 0; i < fn.parameters().size(); i++) {
+				String pName = fn.parameters().get(i).name();
+				if (testCase.inputs().containsKey(pName)) {
+					args[i] = testCase.inputs().get(pName).runtimeValue();
+				} else {
+					missingParam = true;
+				}
+			}
+			Map<String, Object> decValues = new LinkedHashMap<>();
+			if (missingParam && !testCase.inputs().isEmpty()) {
+				for (String exp : testCase.expectedResults().keySet()) {
+					decValues.put(exp, null);
+				}
+				assertExpected(testName, testCase, decValues, "Generated code");
+				return;
+			}
+			if (testCase.inputs().isEmpty() && !fn.parameters().isEmpty()) {
+				for (String exp : testCase.expectedResults().keySet()) {
+					decValues.put(exp, null);
+				}
+				assertExpected(testName, testCase, decValues, "Generated code");
+				return;
+			}
+
+			Object result = genClass.getMethod("evaluateBkm", int.class, Object[].class).invoke(engineInstance, slot,
+					args);
+			for (String expName : testCase.expectedResults().keySet()) {
+				if (result instanceof io.finmsg.dmn.runtime.RuntimeContextValue ctx) {
+					decValues.put(expName, ctx.namedFields().get(expName));
+				} else if (result instanceof Map<?, ?> map) {
+					decValues.put(expName, map.get(expName));
+				} else {
+					decValues.put(expName, result);
+				}
+			}
+			assertExpected(testName, testCase, decValues, "Generated code");
+			return;
+		}
+		Object[] slots = buildInputSlots(compilation, testCase);
+		Object[] evaluated = (Object[]) genClass.getMethod("evaluate", Object[].class).invoke(engineInstance,
+				(Object) slots);
+		assertExpected(testName, testCase, extractDecisionValues(compilation, evaluated), "Generated code");
 	}
 
 	private Preparation prepare(List<DmnSource> sources, Set<String> resultNames) {
@@ -178,10 +233,17 @@ class OfficialTckSuiteTest {
 
 	private void addPreparationFailure(List<DynamicTest> tests, TckCatalogueEntry entry, String diagnostic,
 			Throwable cause) {
-		for (TckTestCase testCase : entry.testCases())
-			for (String backend : BACKENDS)
+		for (TckTestCase testCase : entry.testCases()) {
+			for (String backend : BACKENDS) {
+				int idx = currentTestIndex.incrementAndGet();
+				String testName = entry.id() + "#" + testCase.id() + " @" + backend;
+				System.err.printf("[INFO] [TCK %4d/%4d] [COMPILATION_ERROR] %s -> %s%n", idx, totalTestCount, testName,
+						diagnostic);
+				System.err.flush();
 				outcomes.add(new TckCatalogueOutcome(entry.id(), testCase.id(), backend,
 						TckCatalogueStatus.COMPILATION_ERROR, diagnostic));
+			}
+		}
 		tests.add(DynamicTest.dynamicTest(entry.id() + " :: preparation", () -> {
 			throw new AssertionError(diagnostic, cause);
 		}));
@@ -190,11 +252,17 @@ class OfficialTckSuiteTest {
 	private DynamicTest recordedTest(String name, TckCatalogueEntry entry, TckTestCase testCase, String backend,
 			org.junit.jupiter.api.function.Executable executable) {
 		return DynamicTest.dynamicTest(name, () -> {
+			int idx = currentTestIndex.incrementAndGet();
 			try {
 				executable.execute();
+				System.out.printf("[INFO] [TCK %4d/%4d] [PASS] %s%n", idx, totalTestCount, name);
+				System.out.flush();
 				outcomes.add(
 						new TckCatalogueOutcome(entry.id(), testCase.id(), backend, TckCatalogueStatus.PASSED, ""));
 			} catch (Throwable failure) {
+				System.err.printf("[INFO] [TCK %4d/%4d] [FAIL] %s -> %s%n", idx, totalTestCount, name,
+						failure.getMessage());
+				System.err.flush();
 				TckCatalogueStatus status = failure instanceof AssertionError
 						? TckCatalogueStatus.FAILED
 						: TckCatalogueStatus.EXECUTION_ERROR;
@@ -208,14 +276,19 @@ class OfficialTckSuiteTest {
 	private DynamicTest recordedExpectedErrorTest(String name, TckCatalogueEntry entry, TckTestCase testCase,
 			String backend, org.junit.jupiter.api.function.Executable executable) {
 		return DynamicTest.dynamicTest(name, () -> {
+			int idx = currentTestIndex.incrementAndGet();
 			try {
 				executable.execute();
 			} catch (Throwable expected) {
+				System.out.printf("[INFO] [TCK %4d/%4d] [PASS] %s%n", idx, totalTestCount, name);
+				System.out.flush();
 				outcomes.add(
 						new TckCatalogueOutcome(entry.id(), testCase.id(), backend, TckCatalogueStatus.PASSED, ""));
 				return;
 			}
 			String diagnostic = "Expected FEEL error but evaluation completed successfully";
+			System.err.printf("[INFO] [TCK %4d/%4d] [FAIL] %s -> %s%n", idx, totalTestCount, name, diagnostic);
+			System.err.flush();
 			outcomes.add(
 					new TckCatalogueOutcome(entry.id(), testCase.id(), backend, TckCatalogueStatus.FAILED, diagnostic));
 			throw new AssertionError(diagnostic);
@@ -289,8 +362,12 @@ class OfficialTckSuiteTest {
 		Files.writeString(sourceFile, code, java.nio.charset.StandardCharsets.UTF_8);
 
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		int exitCode = compiler.run(null, null, null, "-encoding", "UTF-8", sourceFile.toString());
-		assertThat(exitCode).isEqualTo(0);
+		java.io.ByteArrayOutputStream errOut = new java.io.ByteArrayOutputStream();
+		int exitCode = compiler.run(null, null, errOut, "-encoding", "UTF-8", sourceFile.toString());
+		if (exitCode != 0) {
+			throw new IllegalStateException("javac compilation failed for " + fqcn + ":\n"
+					+ errOut.toString(java.nio.charset.StandardCharsets.UTF_8) + "\nSource:\n" + code);
+		}
 
 		URLClassLoader classLoader = new URLClassLoader(new URL[]{tempDir.toUri().toURL()});
 		return classLoader.loadClass(fqcn);

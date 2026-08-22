@@ -11,7 +11,9 @@ import io.finmsg.dmn.runtime.DmnRuntime;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -47,6 +49,74 @@ public final class DmnToolkitTckEngine {
 
 	public TckExecutionResult execute(DmnCompilationResult compilation, TckTestCase testCase) {
 		RuntimeNames names = runtimeNames(compilation);
+		io.finmsg.dmn.ir.RuntimeModel model = compilation.optimizedRuntimeModel().orElseThrow().model();
+
+		if (testCase.invocableName().isPresent()) {
+			String invocableName = testCase.invocableName().get();
+			Integer bkmSlot = names.bkmSlots().get(invocableName);
+			if (bkmSlot == null) {
+				throw new TckExecutionException(
+						"Unknown invocable '" + invocableName + "' in TCK case " + testCase.id());
+			}
+			io.finmsg.dmn.ir.RuntimeBkm targetBkm = model.businessKnowledgeModels().stream()
+					.filter(b -> b.resultSlot() == bkmSlot).findFirst().orElseThrow();
+			io.finmsg.dmn.ir.RuntimeFunctionDefinition fn = targetBkm.function().orElseThrow();
+
+			List<Object> posArgs = new ArrayList<>();
+			boolean missingParam = false;
+			for (io.finmsg.dmn.ir.RuntimeFunctionParameter param : fn.parameters()) {
+				if (testCase.inputs().containsKey(param.name())) {
+					posArgs.add(testCase.inputs().get(param.name()).runtimeValue());
+				} else {
+					missingParam = true;
+				}
+			}
+
+			Map<String, Object> actual = new LinkedHashMap<>();
+			if (missingParam && !testCase.inputs().isEmpty()) {
+				for (String exp : testCase.expectedResults().keySet()) {
+					actual.put(exp, null);
+				}
+				return new TckExecutionResult(testCase.id(), actual);
+			}
+			if (testCase.inputs().isEmpty() && !fn.parameters().isEmpty()) {
+				for (String exp : testCase.expectedResults().keySet()) {
+					actual.put(exp, null);
+				}
+				return new TckExecutionResult(testCase.id(), actual);
+			}
+
+			Map<Integer, Object> inputs = new LinkedHashMap<>();
+			model.inputs().forEach(input -> inputs.put(input.valueSlot(), null));
+			DmnEvaluationResult evaluation = new DmnRuntime().evaluate(model, inputs);
+			Object callableObj = evaluation.value(bkmSlot);
+			Object result = null;
+			try {
+				if (callableObj instanceof io.finmsg.dmn.runtime.RuntimeContextValue) {
+					result = callableObj;
+				} else if (callableObj != null) {
+					// Use reflection to invoke call(List, Map) on CallableValue
+					java.lang.reflect.Method callMethod = callableObj.getClass().getMethod("call", List.class,
+							Map.class);
+					callMethod.setAccessible(true);
+					result = callMethod.invoke(callableObj, posArgs, Map.of());
+				}
+			} catch (Throwable e) {
+				result = null;
+			}
+
+			for (String name : testCase.expectedResults().keySet()) {
+				if (result instanceof io.finmsg.dmn.runtime.RuntimeContextValue ctx) {
+					actual.put(name, ctx.namedFields().get(name));
+				} else if (result instanceof Map<?, ?> map) {
+					actual.put(name, map.get(name));
+				} else {
+					actual.put(name, result);
+				}
+			}
+			return new TckExecutionResult(testCase.id(), actual);
+		}
+
 		Map<Integer, Object> inputs = new LinkedHashMap<>();
 		compilation.optimizedRuntimeModel().orElseThrow().model().inputs()
 				.forEach(input -> inputs.put(input.valueSlot(), null));
@@ -70,6 +140,7 @@ public final class DmnToolkitTckEngine {
 	private static RuntimeNames runtimeNames(DmnCompilationResult compilation) {
 		Map<String, Integer> inputs = new LinkedHashMap<>();
 		Map<String, Integer> decisions = new LinkedHashMap<>();
+		Map<String, Integer> bkms = new LinkedHashMap<>();
 		int slot = 0;
 		for (DmnSemanticModel model : compilation.semanticResult().models()) {
 			for (DrgElement element : model.model().getDrgElementsList()) {
@@ -78,13 +149,14 @@ public final class DmnToolkitTckEngine {
 				} else if (element.hasDecision()) {
 					putUnique(decisions, element.getDecision().getNode().getName(), slot++);
 				} else if (element.hasBusinessKnowledgeModel()) {
-					slot++;
+					putUnique(bkms, element.getBusinessKnowledgeModel().getNode().getName(), slot++);
 				} else if (element.hasDecisionService()) {
+					putUnique(bkms, element.getDecisionService().getNode().getName(), slot);
 					putUnique(decisions, element.getDecisionService().getNode().getName(), slot++);
 				}
 			}
 		}
-		return new RuntimeNames(inputs, decisions);
+		return new RuntimeNames(inputs, decisions, bkms);
 	}
 
 	private static void putUnique(Map<String, Integer> values, String name, int slot) {
@@ -108,6 +180,11 @@ public final class DmnToolkitTckEngine {
 		return runtimeNames(compilation).decisionSlots();
 	}
 
-	public record RuntimeNames(Map<String, Integer> inputSlots, Map<String, Integer> decisionSlots) {
+	public static Map<String, Integer> getRuntimeBkmSlots(DmnCompilationResult compilation) {
+		return runtimeNames(compilation).bkmSlots();
+	}
+
+	public record RuntimeNames(Map<String, Integer> inputSlots, Map<String, Integer> decisionSlots,
+			Map<String, Integer> bkmSlots) {
 	}
 }

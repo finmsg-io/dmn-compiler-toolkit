@@ -56,9 +56,29 @@ public final class RuntimeIrLowerer {
 						Set<Integer> dependencies = new LinkedHashSet<>(decisionDependencies(decision, modelIds));
 						expression.ifPresent(value -> collectReferencedSlots(value, dependencies));
 						decisionTable.ifPresent(value -> collectReferencedSlots(value, dependencies));
-						decisions.add(new RuntimeDecision(runtimeId, runtimeId,
-								RuntimeTypeLowerer.lower(decision.getVariable().getType(), itemTypes),
-								List.copyOf(dependencies), expression, decisionTable, nextLocalSlot[0]));
+						TypeReference decType = decision.getVariable().getType();
+						for (DrgElement el : model.getDrgElementsList()) {
+							if (el.hasDecisionService()) {
+								DecisionService ds = el.getDecisionService();
+								for (ElementReference outRef : ds.getOutputDecisionsList()) {
+									String outId = outRef.getHref().startsWith("#")
+											? outRef.getHref().substring(1)
+											: outRef.getHref();
+									if (decision.getNode().getId().equals(outId) && ds.getVariable().hasType()
+											&& ds.getVariable().getType()
+													.getKindCase() != TypeReference.KindCase.KIND_NOT_SET) {
+										decType = ds.getVariable().getType();
+										if (decType.hasFunction()) {
+											decType = decType.getFunction().getReturnType();
+										}
+										break;
+									}
+								}
+							}
+						}
+						decisions.add(
+								new RuntimeDecision(runtimeId, runtimeId, RuntimeTypeLowerer.lower(decType, itemTypes),
+										List.copyOf(dependencies), expression, decisionTable, nextLocalSlot[0]));
 						runtimeId++;
 					}
 					case BUSINESS_KNOWLEDGE_MODEL -> {
@@ -117,12 +137,15 @@ public final class RuntimeIrLowerer {
 			}
 			int localSlot = nextLocalSlot[0]++;
 			localSlots.put(path + "/parameter[" + index + "]", new LocalSlotAddress(0, localSlot));
+			localSlots.put("definitions/inputData[" + paramName + "]", new LocalSlotAddress(0, localSlot));
+			localSlots.put("definitions/decision[" + paramName + "]", new LocalSlotAddress(0, localSlot));
+			localSlots.put(paramName, new LocalSlotAddress(0, localSlot));
 			localSlots.put(targetId, new LocalSlotAddress(0, localSlot));
 			parameters.add(
 					new RuntimeFunctionParameter(paramName, localSlot, RuntimeTypeLowerer.lower(paramType, itemTypes)));
 		}
 		RuntimeExpression body = null;
-		if (ds.getOutputDecisionsCount() > 0) {
+		if (ds.getOutputDecisionsCount() == 1) {
 			String outputHref = ds.getOutputDecisions(0).getHref();
 			String outputId = outputHref.startsWith("#") ? outputHref.substring(1) : outputHref;
 			for (DrgElement el : model.getDrgElementsList()) {
@@ -134,6 +157,27 @@ public final class RuntimeIrLowerer {
 					}
 				}
 			}
+		} else if (ds.getOutputDecisionsCount() > 1) {
+			List<RuntimeContextEntry> entries = new ArrayList<>();
+			for (ElementReference outRef : ds.getOutputDecisionsList()) {
+				String outputHref = outRef.getHref();
+				String outputId = outputHref.startsWith("#") ? outputHref.substring(1) : outputHref;
+				for (DrgElement el : model.getDrgElementsList()) {
+					if (el.hasDecision() && el.getDecision().getNode().getId().equals(outputId)) {
+						Optional<RuntimeExpression> expr = lowerDecisionExpression(el.getDecision(), bindings, slots,
+								itemTypes, localSlots, nextLocalSlot);
+						expr.ifPresent(e -> {
+							int entrySlot = nextLocalSlot[0]++;
+							entries.add(new RuntimeContextEntry(el.getDecision().getNode().getName(), entrySlot, e));
+						});
+					}
+				}
+			}
+			RuntimeType dsType = RuntimeTypeLowerer.lower(ds.getVariable().getType(), itemTypes);
+			RuntimeType contextType = dsType.kind() == RuntimeTypeKind.FUNCTION && dsType.returnType() != null
+					? dsType.returnType()
+					: RuntimeType.scalar(RuntimeTypeKind.CONTEXT);
+			body = new RuntimeContextExpression(entries, contextType);
 		}
 		RuntimeType type = RuntimeTypeLowerer.lower(ds.getVariable().getType(), itemTypes);
 		return new RuntimeFunctionDefinition(parameters, Optional.ofNullable(body), false, nextLocalSlot[0], type);
@@ -161,6 +205,10 @@ public final class RuntimeIrLowerer {
 		RuntimeExpression body = RuntimeExpressionLowerer.lowerExpression(function.getLogic().getParsed().getAst(),
 				path + "/logic", bindings, slots, itemTypes, localSlots, nextLocalSlot);
 		RuntimeType type = RuntimeTypeLowerer.lower(bkm.getVariable().getType(), itemTypes);
+		if (body instanceof RuntimeFunctionDefinition parsedFunction) {
+			return new RuntimeFunctionDefinition(parsedFunction.parameters(), parsedFunction.body(),
+					parsedFunction.external(), parsedFunction.localSlotCount(), type);
+		}
 		return new RuntimeFunctionDefinition(parameters, Optional.of(body),
 				function.getKind() == FunctionKind.FUNCTION_KIND_JAVA
 						|| function.getKind() == FunctionKind.FUNCTION_KIND_PMML,

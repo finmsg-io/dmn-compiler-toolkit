@@ -9,6 +9,7 @@ public final class ItemDefinitionReader {
 	private final TypeReferenceReader typeReferenceReader = new TypeReferenceReader();
 	private final ItemComponentReader itemComponentReader = new ItemComponentReader();
 	private final TypeConstraintReader typeConstraintReader = new TypeConstraintReader();
+	private final FunctionItemTypeReader functionItemTypeReader = new FunctionItemTypeReader();
 
 	public ItemDefinition read(XmlCursor cursor) {
 
@@ -33,12 +34,7 @@ public final class ItemDefinitionReader {
 
 					case "allowedValues", "typeConstraint" -> builder.setConstraint(typeConstraintReader.read(cursor));
 
-					case "functionItem" -> {
-						if (cursor.hasAttribute("outputTypeRef")) {
-							builder.setType(
-									typeReferenceReader.read(cursor.requiredAttribute("outputTypeRef"), cursor));
-						}
-					}
+					case "functionItem" -> builder.setType(functionItemTypeReader.read(cursor));
 
 					case "documentation", "description", "extensionElements" -> {
 					}
