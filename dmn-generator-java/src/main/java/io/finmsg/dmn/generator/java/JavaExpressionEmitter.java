@@ -110,6 +110,18 @@ public final class JavaExpressionEmitter {
 			return "io.finmsg.dmn.ir.RuntimeType.element(io.finmsg.dmn.ir.RuntimeTypeKind." + type.kind().name() + ", "
 					+ emitTypeLiteral(type.elementType()) + ")";
 		}
+		if (type.fieldLayout() != null && !type.fieldLayout().isEmpty()) {
+			StringBuilder sb = new StringBuilder("io.finmsg.dmn.ir.RuntimeType.contextFields(java.util.List.of(");
+			for (int i = 0; i < type.fieldLayout().size(); i++) {
+				if (i > 0)
+					sb.append(", ");
+				io.finmsg.dmn.ir.RuntimeField f = type.fieldLayout().get(i);
+				sb.append("new io.finmsg.dmn.ir.RuntimeField(").append(f.index()).append(", \"")
+						.append(f.name()).append("\", ").append(emitTypeLiteral(f.type())).append(")");
+			}
+			sb.append("))");
+			return sb.toString();
+		}
 		return "io.finmsg.dmn.ir.RuntimeType.scalar(io.finmsg.dmn.ir.RuntimeTypeKind." + type.kind().name() + ")";
 	}
 

@@ -205,10 +205,6 @@ public final class RuntimeIrLowerer {
 		RuntimeExpression body = RuntimeExpressionLowerer.lowerExpression(function.getLogic().getParsed().getAst(),
 				path + "/logic", bindings, slots, itemTypes, localSlots, nextLocalSlot);
 		RuntimeType type = RuntimeTypeLowerer.lower(bkm.getVariable().getType(), itemTypes);
-		if (body instanceof RuntimeFunctionDefinition parsedFunction) {
-			return new RuntimeFunctionDefinition(parsedFunction.parameters(), parsedFunction.body(),
-					parsedFunction.external(), parsedFunction.localSlotCount(), type);
-		}
 		return new RuntimeFunctionDefinition(parameters, Optional.of(body),
 				function.getKind() == FunctionKind.FUNCTION_KIND_JAVA
 						|| function.getKind() == FunctionKind.FUNCTION_KIND_PMML,

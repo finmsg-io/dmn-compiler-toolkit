@@ -87,7 +87,18 @@ public final class DmnToolkitTckEngine {
 			}
 
 			Map<Integer, Object> inputs = new LinkedHashMap<>();
-			model.inputs().forEach(input -> inputs.put(input.valueSlot(), null));
+			names.inputSlots().forEach((name, slot) -> {
+				if (testCase.inputs().containsKey(name)) {
+					inputs.put(slot, testCase.inputs().get(name).runtimeValue());
+				} else {
+					inputs.put(slot, null);
+				}
+			});
+			names.decisionSlots().forEach((name, slot) -> {
+				if (testCase.inputs().containsKey(name)) {
+					inputs.put(slot, testCase.inputs().get(name).runtimeValue());
+				}
+			});
 			DmnEvaluationResult evaluation = new DmnRuntime().evaluate(model, inputs);
 			Object callableObj = evaluation.value(bkmSlot);
 			Object result = null;

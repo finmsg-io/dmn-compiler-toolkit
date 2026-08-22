@@ -169,8 +169,24 @@ class OfficialTckSuiteTest {
 				return;
 			}
 
-			Object result = genClass.getMethod("evaluateBkm", int.class, Object[].class).invoke(engineInstance, slot,
-					args);
+			Object[] slots = buildInputSlots(compilation, testCase);
+			Object[] evaluated = null;
+			try {
+				evaluated = (Object[]) genClass.getMethod("evaluate", Object[].class).invoke(engineInstance,
+						(Object) slots);
+			} catch (Throwable ignored) {
+			}
+			Object result = null;
+			try {
+				try {
+					result = genClass.getMethod("evaluateBkm", int.class, Object[].class, Object[].class).invoke(
+							engineInstance, slot, args, (Object) evaluated);
+				} catch (NoSuchMethodException e) {
+					result = genClass.getMethod("evaluateBkm", int.class, Object[].class).invoke(engineInstance, slot,
+							args);
+				}
+			} catch (Throwable ignored) {
+			}
 			for (String expName : testCase.expectedResults().keySet()) {
 				if (result instanceof io.finmsg.dmn.runtime.RuntimeContextValue ctx) {
 					decValues.put(expName, ctx.namedFields().get(expName));
@@ -332,11 +348,16 @@ class OfficialTckSuiteTest {
 		int slotCount = compilation.optimizedRuntimeModel().orElseThrow().model().valueSlotCount();
 		Object[] slots = new Object[slotCount];
 		Map<String, Integer> inputSlots = DmnToolkitTckEngine.getRuntimeInputSlots(compilation);
+		Map<String, Integer> decisionSlots = DmnToolkitTckEngine.getRuntimeDecisionSlots(compilation);
 
 		testCase.inputs().forEach((name, val) -> {
 			Integer inputSlot = inputSlots.get(name);
 			if (inputSlot != null && inputSlot < slots.length) {
 				slots[inputSlot] = val.runtimeValue();
+			}
+			Integer decSlot = decisionSlots.get(name);
+			if (decSlot != null && decSlot < slots.length) {
+				slots[decSlot] = val.runtimeValue();
 			}
 		});
 		return slots;

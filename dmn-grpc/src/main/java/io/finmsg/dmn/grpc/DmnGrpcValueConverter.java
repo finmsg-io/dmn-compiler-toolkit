@@ -97,6 +97,6 @@ public final class DmnGrpcValueConverter {
 		if (val.contains("T")) {
 			return Duration.parse(val);
 		}
-		return Period.parse(val);
+		return Period.parse(val).normalized();
 	}
 }

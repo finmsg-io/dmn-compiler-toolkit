@@ -69,7 +69,10 @@ public final class DmnJavaGenerator {
 		sb.append("  }\n\n");
 
 		sb.append("  public Object evaluateBkm(int slot, Object[] args) {\n");
-		sb.append("    Object[] slots = new Object[SLOT_COUNT];\n");
+		sb.append("    return evaluateBkm(slot, args, new Object[SLOT_COUNT]);\n");
+		sb.append("  }\n");
+		sb.append("  public Object evaluateBkm(int slot, Object[] args, Object[] slots) {\n");
+		sb.append("    if (slots == null) slots = new Object[SLOT_COUNT];\n");
 		sb.append("    switch (slot) {\n");
 		for (RuntimeBkm bkm : model.businessKnowledgeModels()) {
 			if (bkm.functionKind() == RuntimeFunctionKind.FEEL && bkm.function().isPresent()) {
@@ -200,7 +203,7 @@ public final class DmnJavaGenerator {
 			sb.append("    return coerce(").append(JavaExpressionEmitter.emitWithBkms(expr, bkmBySlot)).append(", ")
 					.append(emitTypeConstant(decision.type())).append(");\n");
 		} else {
-			sb.append("    return null;\n");
+			sb.append("    return slots[").append(decision.resultSlot()).append("];\n");
 		}
 
 		sb.append("  }\n\n");
@@ -411,9 +414,6 @@ public final class DmnJavaGenerator {
 						    if (val == null) return null;
 						    if (val instanceof BigDecimal d) return d;
 						    if (val instanceof Number n) return new BigDecimal(n.toString());
-						    if (val instanceof String s) {
-						      try { return new BigDecimal(s.trim()); } catch (Exception e) { return null; }
-						    }
 						    return null;
 						  }
 						  private static java.time.Period periodFromMonths(long totalMonths) {
@@ -568,7 +568,7 @@ public final class DmnJavaGenerator {
 						    return c == null ? null : c >= 0;
 						  }
 						  private static boolean testEqualsOrContains(Object input, Object expected) {
-						    if (expected instanceof java.util.Collection<?> col && !(input instanceof java.util.Collection<?>)) {
+						    if (expected instanceof java.util.Collection<?> col) {
 						      for (Object elem : col) {
 						        if (elem instanceof io.finmsg.dmn.runtime.RuntimeRangeValue range) {
 						          if (Boolean.TRUE.equals(io.finmsg.dmn.runtime.DmnRuntime.contains(range, input))) return true;
@@ -576,7 +576,6 @@ public final class DmnJavaGenerator {
 						          return true;
 						        }
 						      }
-						      return false;
 						    }
 						    if (expected instanceof io.finmsg.dmn.runtime.RuntimeRangeValue range) {
 						      return Boolean.TRUE.equals(io.finmsg.dmn.runtime.DmnRuntime.contains(range, input));
@@ -696,11 +695,47 @@ public final class DmnJavaGenerator {
 						        default -> null;
 						      };
 						    }
+						    if (source instanceof java.time.ZonedDateTime zdt) {
+						      return switch (property) {
+						        case "year" -> BigDecimal.valueOf(zdt.getYear());
+						        case "month" -> BigDecimal.valueOf(zdt.getMonthValue());
+						        case "day" -> BigDecimal.valueOf(zdt.getDayOfMonth());
+						        case "weekday" -> BigDecimal.valueOf(zdt.getDayOfWeek().getValue());
+						        case "hour" -> BigDecimal.valueOf(zdt.getHour());
+						        case "minute" -> BigDecimal.valueOf(zdt.getMinute());
+						        case "second" -> BigDecimal.valueOf(zdt.getSecond());
+						        case "time offset" -> java.time.Duration.ofSeconds(zdt.getOffset().getTotalSeconds());
+						        case "timezone" -> zdt.getZone().getId();
+						        default -> null;
+						      };
+						    }
+						    if (source instanceof io.finmsg.dmn.runtime.DmnRuntime.NamedZoneDateTime nzdt) {
+						      return switch (property) {
+						        case "year" -> BigDecimal.valueOf(nzdt.value().getYear());
+						        case "month" -> BigDecimal.valueOf(nzdt.value().getMonthValue());
+						        case "day" -> BigDecimal.valueOf(nzdt.value().getDayOfMonth());
+						        case "weekday" -> BigDecimal.valueOf(nzdt.value().getDayOfWeek().getValue());
+						        case "hour" -> BigDecimal.valueOf(nzdt.value().getHour());
+						        case "minute" -> BigDecimal.valueOf(nzdt.value().getMinute());
+						        case "second" -> BigDecimal.valueOf(nzdt.value().getSecond());
+						        case "time offset" -> java.time.Duration.ofSeconds(nzdt.zone().getRules().getOffset(nzdt.value()).getTotalSeconds());
+						        case "timezone" -> nzdt.zone().getId();
+						        default -> null;
+						      };
+						    }
+						    if (source instanceof io.finmsg.dmn.runtime.DmnRuntime.NamedZoneTime nzt) {
+						      return switch (property) {
+						        case "hour" -> BigDecimal.valueOf(nzt.value().getHour());
+						        case "minute" -> BigDecimal.valueOf(nzt.value().getMinute());
+						        case "second" -> BigDecimal.valueOf(nzt.value().getSecond());
+						        case "timezone" -> nzt.zone().getId();
+						        default -> null;
+						      };
+						    }
 						    if (source instanceof java.time.Period p) {
 						      return switch (property) {
 						        case "years" -> BigDecimal.valueOf(p.getYears());
 						        case "months" -> BigDecimal.valueOf(p.getMonths());
-						        case "days" -> BigDecimal.valueOf(p.getDays());
 						        default -> null;
 						      };
 						    }
@@ -716,7 +751,7 @@ public final class DmnJavaGenerator {
 						    if (source instanceof io.finmsg.dmn.runtime.RuntimeRangeValue range) {
 						      return switch (property) {
 						        case "start" -> range.lower();
-						        case "end" -> range.upper();
+						        case "end" -> range.upper() != null ? range.upper() : (range.lowerBoundary() == io.finmsg.dmn.ir.RuntimeRangeBoundary.CLOSED && range.upperBoundary() == io.finmsg.dmn.ir.RuntimeRangeBoundary.CLOSED ? range.lower() : null);
 						        case "start included" -> range.lowerBoundary() == io.finmsg.dmn.ir.RuntimeRangeBoundary.CLOSED;
 						        case "end included" -> range.upperBoundary() == io.finmsg.dmn.ir.RuntimeRangeBoundary.CLOSED;
 						        default -> null;
@@ -908,9 +943,24 @@ public final class DmnJavaGenerator {
 						    if (obj instanceof java.time.LocalDateTime ldt) return ldt.toLocalDate();
 						    if (obj instanceof java.time.OffsetDateTime odt) return odt.toLocalDate();
 						    if (obj instanceof java.time.ZonedDateTime zdt) return zdt.toLocalDate();
+						    if (obj instanceof io.finmsg.dmn.runtime.DmnRuntime.NamedZoneDateTime nzdt) return nzdt.value().toLocalDate();
 						    try { return java.time.LocalDate.parse(String.valueOf(obj)); } catch (Exception e) { return null; }
 						  }
 						  private static Object builtin(String name, List<Object> args) {
+						    if ("substring before".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelSubstringBefore(args);
+						    if ("substring after".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelSubstringAfter(args);
+						    if ("string join".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelStringJoin(args);
+						    if ("abs".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelAbs(args);
+						    if ("sqrt".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelSqrt(args);
+						    if ("exp".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelExp(args);
+						    if ("log".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelLog(args);
+						    if ("modulo".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelModulo(args);
+						    if ("even".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelEven(args);
+						    if ("odd".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelOdd(args);
+						    if ("mode".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelMode(args);
+						    if ("all".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelAll(args);
+						    if ("any".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelAny(args);
+						    if ("number".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelNumber(args);
 						    if ("is".equals(name)) return args.size() == 2 ? io.finmsg.dmn.runtime.DmnRuntime.isValues(args.get(0), args.get(1)) : null;
 						    if ("date".equals(name) && !args.isEmpty()) {
 						      if (args.size() == 1) {
@@ -986,7 +1036,7 @@ public final class DmnJavaGenerator {
 						      if (args.size() == 1) {
 						        Object a = args.get(0);
 						        if (a == null) return null;
-						        try { return java.time.Period.parse(String.valueOf(a)); } catch (Exception e) { return null; }
+						        try { return java.time.Period.parse(String.valueOf(a)).normalized(); } catch (Exception e) { return null; }
 						      }
 						      if (args.size() == 2 && args.get(0) != null && args.get(1) != null) {
 						        java.time.LocalDate d1 = toLocalDate(args.get(0));
@@ -1004,23 +1054,37 @@ public final class DmnJavaGenerator {
 						      return args.get(0) == null || args.get(1) == null ? null : String.valueOf(args.get(0)).contains(String.valueOf(args.get(1)));
 						    }
 						    if ("string length".equals(name) && args.size() == 1) {
-						      return args.get(0) == null ? null : BigDecimal.valueOf(String.valueOf(args.get(0)).length());
-						    }
-						    if ("decimal".equals(name) && args.size() == 2 && args.get(0) instanceof Number n && args.get(1) instanceof Number scale) {
-						      return toBigDecimal(n).setScale(scale.intValue(), java.math.RoundingMode.HALF_EVEN);
-						    }
-						    if ("round half down".equals(name) && args.size() == 2 && args.get(0) instanceof Number n && args.get(1) instanceof Number scale) {
-						      return toBigDecimal(n).setScale(scale.intValue(), java.math.RoundingMode.HALF_DOWN);
+						      String s = args.get(0) == null ? null : String.valueOf(args.get(0));
+						      return s == null ? null : BigDecimal.valueOf(s.codePointCount(0, s.length()));
 						    }
 						    if ("sort".equals(name) && !args.isEmpty() && args.get(0) instanceof List<?> list) {
 						      List<Object> copy = new ArrayList<>((List<Object>) list);
-						      if (args.size() > 1 && args.get(1) instanceof java.util.function.BiFunction<?, ?, ?> fn) {
+						      if (args.size() > 1 && args.get(1) != null) {
+						        Object fnObj = args.get(1);
 						        copy.sort((a, b) -> {
-						          Object res = ((java.util.function.BiFunction<Object, Object, Object>) fn).apply(a, b);
+						          Object res = null;
+						          if (fnObj instanceof java.util.function.BiFunction<?, ?, ?> fn) {
+						            res = ((java.util.function.BiFunction<Object, Object, Object>) fn).apply(a, b);
+						          } else {
+						            try {
+						              java.lang.reflect.Method m = fnObj.getClass().getMethod("call", List.class, Map.class);
+						              m.setAccessible(true);
+						              res = m.invoke(fnObj, List.of(a, b), Map.of());
+						            } catch (Exception e) {
+						              try {
+						                java.lang.reflect.Method m = fnObj.getClass().getMethod("apply", Object.class, Object.class);
+						                m.setAccessible(true);
+						                res = m.invoke(fnObj, a, b);
+						              } catch (Exception ignored) {}
+						            }
+						          }
 						          return Boolean.TRUE.equals(res) ? -1 : (Boolean.FALSE.equals(res) ? 1 : 0);
 						        });
 						      } else {
-						        copy.sort((a, b) -> compare(a, b));
+						        copy.sort((a, b) -> {
+						          Integer c = compare(a, b);
+						          return c != null ? c : 0;
+						        });
 						      }
 						      return List.copyOf(copy);
 						    }
@@ -1051,6 +1115,13 @@ public final class DmnJavaGenerator {
 						        if (pos == 0 || pos < -copy.size() || pos > copy.size()) return null;
 						        int idx = pos > 0 ? pos - 1 : copy.size() + pos;
 						        if (idx >= 0 && idx < copy.size()) copy.set(idx, newItem);
+						      } else if (second instanceof FeelCallable fc) {
+						        if (fc.parameterNames().size() != 2) return null;
+						        for (int i = 0; i < copy.size(); i++) {
+						          Object res = fc.call(Arrays.asList(copy.get(i), newItem), Collections.emptyMap());
+						          if (!(res instanceof Boolean)) return null;
+						          if (Boolean.TRUE.equals(res)) copy.set(i, newItem);
+						        }
 						      } else if (second instanceof java.util.function.BiFunction<?, ?, ?> bf) {
 						        for (int i = 0; i < copy.size(); i++) {
 						          Object res = ((java.util.function.BiFunction<Object, Object, Object>) bf).apply(copy.get(i), newItem);
@@ -1101,30 +1172,10 @@ public final class DmnJavaGenerator {
 						   }
 						   if ("substring".equals(name) && args.size() >= 2) {
 						     String s = args.get(0) == null ? null : String.valueOf(args.get(0));
-						     if (s == null) return null;
+						     if (s == null || args.get(1) == null) return null;
 						     int start = ((Number) args.get(1)).intValue();
-						     int idx = start > 0 ? start - 1 : Math.max(0, s.length() + start);
-						     if (idx < 0 || idx >= s.length()) return "";
-						     if (args.size() >= 3) {
-						       int len = ((Number) args.get(2)).intValue();
-						       int end = Math.min(idx + len, s.length());
-						       return s.substring(idx, end);
-						     }
-						     return s.substring(idx);
-						   }
-						   if ("substring before".equals(name) && args.size() == 2) {
-						     String s = args.get(0) == null ? null : String.valueOf(args.get(0));
-						     String m = args.get(1) == null ? null : String.valueOf(args.get(1));
-						     if (s == null || m == null) return null;
-						     int i = s.indexOf(m);
-						     return i < 0 ? "" : s.substring(0, i);
-						   }
-						   if ("substring after".equals(name) && args.size() == 2) {
-						     String s = args.get(0) == null ? null : String.valueOf(args.get(0));
-						     String m = args.get(1) == null ? null : String.valueOf(args.get(1));
-						     if (s == null || m == null) return null;
-						     int i = s.indexOf(m);
-						     return i < 0 ? "" : s.substring(i + m.length());
+						     Integer len = args.size() >= 3 && args.get(2) != null ? ((Number) args.get(2)).intValue() : null;
+						     return io.finmsg.dmn.runtime.DmnRuntime.feelSubstring(s, start, len);
 						   }
 						   if ("upper case".equals(name) && args.size() == 1) {
 						     return args.get(0) == null ? null : stringValue(args.get(0)).toUpperCase();
@@ -1138,15 +1189,7 @@ public final class DmnJavaGenerator {
 						   if ("number".equals(name) && !args.isEmpty()) {
 						     return toBigDecimal(args.get(0));
 						   }
-						   if ("abs".equals(name) && !args.isEmpty()) {
-						     Object a = args.get(0);
-						     if (a == null) return null;
-						     if (a instanceof java.time.Duration dur) return dur.abs();
-						     if (a instanceof java.time.Period per) return per.toTotalMonths() < 0 ? per.negated() : per;
-						     BigDecimal d = toBigDecimal(a);
-						     return d != null ? d.abs() : null;
-						   }
-						   if (("floor".equals(name) || "ceiling".equals(name) || "round up".equals(name) || "round down".equals(name)) && !args.isEmpty()) {
+						   if (("floor".equals(name) || "ceiling".equals(name) || "round up".equals(name) || "round down".equals(name) || "round half up".equals(name) || "round half down".equals(name) || "round half even".equals(name) || "decimal".equals(name)) && !args.isEmpty()) {
 						     if (args.size() > 2 || !(args.get(0) instanceof Number)) return null;
 						     BigDecimal d = toBigDecimal(args.get(0));
 						     if (d == null) return null;
@@ -1154,14 +1197,17 @@ public final class DmnJavaGenerator {
 						     if (args.size() > 1) {
 						       if (!(args.get(1) instanceof Number)) return null;
 						       BigDecimal scaleValue = toBigDecimal(args.get(1));
-						       if (scaleValue == null || scaleValue.stripTrailingZeros().scale() > 0) return null;
-						       try { scale = scaleValue.intValueExact(); } catch (ArithmeticException e) { return null; }
+						       if (scaleValue == null) return null;
+						       scale = scaleValue.intValue();
 						     }
 						     if (scale < -6111 || scale > 6176) return null;
 						     if ("floor".equals(name)) return d.setScale(scale, java.math.RoundingMode.FLOOR);
 						     if ("ceiling".equals(name)) return d.setScale(scale, java.math.RoundingMode.CEILING);
 						     if ("round up".equals(name)) return d.setScale(scale, java.math.RoundingMode.UP);
 						     if ("round down".equals(name)) return d.setScale(scale, java.math.RoundingMode.DOWN);
+						     if ("round half up".equals(name)) return d.setScale(scale, java.math.RoundingMode.HALF_UP);
+						     if ("round half down".equals(name)) return d.setScale(scale, java.math.RoundingMode.HALF_DOWN);
+						     if ("round half even".equals(name) || "decimal".equals(name)) return d.setScale(scale, java.math.RoundingMode.HALF_EVEN);
 						   }
 						   if ("count".equals(name) && !args.isEmpty()) {
 						     Object a = args.get(0);
@@ -1191,6 +1237,12 @@ public final class DmnJavaGenerator {
 						     List<Object> indices = new ArrayList<>();
 						     for (int i = 0; i < list.size(); i++) { if (Boolean.TRUE.equals(equal(list.get(i), match))) indices.add(BigDecimal.valueOf(i + 1)); }
 						     return indices;
+						   }
+						   if ("reverse".equals(name) && args.size() == 1) {
+						     if (!(args.get(0) instanceof List<?> l)) return null;
+						     List<Object> copy = new ArrayList<>(l);
+						     Collections.reverse(copy);
+						     return List.copyOf(copy);
 						   }
 						   if ("append".equals(name) && args.size() >= 2) {
 						     List<Object> result = new ArrayList<>();
@@ -1241,24 +1293,6 @@ public final class DmnJavaGenerator {
 						     if (n % 2 != 0) return nums.get(n / 2);
 						     return nums.get(n / 2 - 1).add(nums.get(n / 2)).divide(BigDecimal.valueOf(2), java.math.MathContext.DECIMAL128);
 						   }
-						   if ("mode".equals(name) && !args.isEmpty()) {
-						     List<?> items = args.get(0) instanceof List<?> l ? l : args;
-						     if (items.isEmpty()) return Collections.emptyList();
-						     Map<Object, Integer> freqs = new HashMap<>();
-						     for (Object it : items) {
-						       if (it == null) return null;
-						       BigDecimal d = toBigDecimal(it);
-						       if (d == null) return null;
-						       freqs.put(d, freqs.getOrDefault(d, 0) + 1);
-						     }
-						     int max = Collections.max(freqs.values());
-						     List<Object> res = new ArrayList<>();
-						     for (Map.Entry<Object, Integer> e : freqs.entrySet()) {
-						       if (e.getValue() == max) res.add(e.getKey());
-						     }
-						     res.sort(io.finmsg.dmn.runtime.DmnRuntime::compare);
-						     return res;
-						   }
 						   if ("stddev".equals(name) && !args.isEmpty()) {
 						     List<?> items = args.get(0) instanceof List<?> l ? l : args;
 						     if (items.size() <= 1) return null;
@@ -1279,47 +1313,6 @@ public final class DmnJavaGenerator {
 						     }
 						     BigDecimal var = sqSum.divide(BigDecimal.valueOf(nums.size() - 1), java.math.MathContext.DECIMAL128);
 						     return BigDecimal.valueOf(Math.sqrt(var.doubleValue()));
-						   }
-						   if ("all".equals(name) && !args.isEmpty()) {
-						     List<?> items = args.get(0) instanceof List<?> l ? l : args;
-						     if (items.isEmpty()) return true;
-						     for (Object it : items) {
-						       if (!Boolean.TRUE.equals(it)) return false;
-						     }
-						     return true;
-						   }
-						   if ("any".equals(name) && !args.isEmpty()) {
-						     List<?> items = args.get(0) instanceof List<?> l ? l : args;
-						     if (items.isEmpty()) return false;
-						     for (Object it : items) {
-						       if (Boolean.TRUE.equals(it)) return true;
-						     }
-						     return false;
-						   }
-						   if ("sqrt".equals(name) && args.size() == 1) {
-						     BigDecimal d = toBigDecimal(args.get(0));
-						     return d == null || d.signum() < 0 ? null : BigDecimal.valueOf(Math.sqrt(d.doubleValue()));
-						   }
-						   if ("exp".equals(name) && args.size() == 1) {
-						     BigDecimal d = toBigDecimal(args.get(0));
-						     return d == null ? null : BigDecimal.valueOf(Math.exp(d.doubleValue()));
-						   }
-						   if ("log".equals(name) && args.size() == 1) {
-						     BigDecimal d = toBigDecimal(args.get(0));
-						     return d == null || d.signum() <= 0 ? null : BigDecimal.valueOf(Math.log(d.doubleValue()));
-						   }
-						   if ("modulo".equals(name) && args.size() == 2) {
-						     BigDecimal a = toBigDecimal(args.get(0));
-						     BigDecimal b = toBigDecimal(args.get(1));
-						     return a == null || b == null || b.signum() == 0 ? null : a.remainder(b);
-						   }
-						   if ("even".equals(name) && args.size() == 1) {
-						     BigDecimal d = toBigDecimal(args.get(0));
-						     return d == null ? null : d.remainder(BigDecimal.valueOf(2)).signum() == 0;
-						   }
-						   if ("odd".equals(name) && args.size() == 1) {
-						     BigDecimal d = toBigDecimal(args.get(0));
-						     return d == null ? null : d.remainder(BigDecimal.valueOf(2)).signum() != 0;
 						   }
 						   if ("insert before".equals(name) && args.size() == 3) {
 						     if (!(args.get(0) instanceof List<?> list)) return null;
@@ -1353,31 +1346,20 @@ public final class DmnJavaGenerator {
 						     }
 						     return result;
 						   }
-						   if ("string join".equals(name) && args.size() >= 1) {
-						     if (!(args.get(0) instanceof List<?> list)) return null;
-						     String delimiter = args.size() > 1 && args.get(1) != null ? String.valueOf(args.get(1)) : "";
-						     String prefix = args.size() > 2 && args.get(2) != null ? String.valueOf(args.get(2)) : "";
-						     String suffix = args.size() > 3 && args.get(3) != null ? String.valueOf(args.get(3)) : "";
-						     List<String> strs = new ArrayList<>();
-						     for (Object item : list) {
-						       if (item != null) strs.add(String.valueOf(item));
-						     }
-						     return prefix + String.join(delimiter, strs) + suffix;
-						   }
 						   if ("day and time duration".equals(name) && args.size() == 1) {
 						     String s = String.valueOf(args.get(0));
 						     try { return java.time.Duration.parse(s); } catch (Exception e) { return null; }
 						   }
-						   if ("get entries".equals(name) && args.size() == 1) {
-						     if (!(args.get(0) instanceof Map<?, ?> map)) return null;
+						   if ("get entries".equals(name)) {
+						     if (args.size() != 1 || !(args.get(0) instanceof Map<?, ?> map)) return null;
 						     List<Map<String, Object>> res = new ArrayList<>();
 						     for (Map.Entry<?, ?> e : map.entrySet()) {
 						       res.add(createContext(new Object[][]{{"key", e.getKey()}, {"value", e.getValue()}}));
 						     }
 						     return res;
 						   }
-						   if ("get value".equals(name) && args.size() == 2) {
-						     if (!(args.get(0) instanceof Map<?, ?> map)) return null;
+						   if ("get value".equals(name)) {
+						     if (args.size() != 2 || !(args.get(0) instanceof Map<?, ?> map)) return null;
 						     return map.get(args.get(1));
 						   }
 						   if ("time".equals(name) && args.size() > 1) {
@@ -1450,46 +1432,59 @@ public final class DmnJavaGenerator {
 						     }
 						     return null;
 						   }
-						   if ("day of year".equals(name) && !args.isEmpty()) {
-						     Object a = args.get(0);
-						     if (a instanceof java.time.LocalDate d) return BigDecimal.valueOf(d.getDayOfYear());
-						     if (a instanceof java.time.LocalDateTime dt) return BigDecimal.valueOf(dt.getDayOfYear());
-						     if (a instanceof java.time.OffsetDateTime odt) return BigDecimal.valueOf(odt.getDayOfYear());
+						   if ("day of year".equals(name) && args.size() == 1) {
+						     java.time.LocalDate d = toLocalDate(args.get(0));
+						     return d == null ? null : BigDecimal.valueOf(d.getDayOfYear());
 						   }
-						   if ("day of week".equals(name) && !args.isEmpty()) {
-						     Object a = args.get(0);
-						     java.time.LocalDate d = a instanceof java.time.LocalDate ld ? ld : a instanceof java.time.LocalDateTime dt ? dt.toLocalDate() : a instanceof java.time.OffsetDateTime odt ? odt.toLocalDate() : null;
-						     if (d != null) return d.getDayOfWeek().name().substring(0, 1) + d.getDayOfWeek().name().substring(1).toLowerCase();
+						   if ("day of week".equals(name) && args.size() == 1) {
+						     java.time.LocalDate d = toLocalDate(args.get(0));
+						     return d == null ? null : d.getDayOfWeek().name().substring(0, 1) + d.getDayOfWeek().name().substring(1).toLowerCase();
 						   }
-						   if ("week of year".equals(name) && !args.isEmpty()) {
-						     Object a = args.get(0);
-						     java.time.LocalDate d = a instanceof java.time.LocalDate ld ? ld : a instanceof java.time.LocalDateTime dt ? dt.toLocalDate() : a instanceof java.time.OffsetDateTime odt ? odt.toLocalDate() : null;
-						     if (d != null) return BigDecimal.valueOf(d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR));
+						   if ("week of year".equals(name) && args.size() == 1) {
+						     java.time.LocalDate d = toLocalDate(args.get(0));
+						     return d == null ? null : BigDecimal.valueOf(d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR));
 						   }
-						   if ("month of year".equals(name) && !args.isEmpty()) {
-						     Object a = args.get(0);
-						     java.time.LocalDate d = a instanceof java.time.LocalDate ld ? ld : a instanceof java.time.LocalDateTime dt ? dt.toLocalDate() : a instanceof java.time.OffsetDateTime odt ? odt.toLocalDate() : null;
-						     if (d != null) return d.getMonth().name().substring(0, 1) + d.getMonth().name().substring(1).toLowerCase();
+						   if ("month of year".equals(name) && args.size() == 1) {
+						     java.time.LocalDate d = toLocalDate(args.get(0));
+						     return d == null ? null : d.getMonth().name().substring(0, 1) + d.getMonth().name().substring(1).toLowerCase();
 						   }
 						   if ("context".equals(name)) {
-						     List<?> list = args.size() == 1 && args.get(0) instanceof List<?> l ? l : args;
+						     if (args.size() != 1 || args.get(0) == null) return null;
+						     List<?> list = args.get(0) instanceof List<?> l ? l : List.of(args.get(0));
 						     Map<String, Object> map = new LinkedHashMap<>();
 						     for (Object item : list) {
-						       if (item instanceof Map<?, ?> m && m.containsKey("key")) {
-						         map.put(String.valueOf(m.get("key")), m.get("value"));
+						       if (item == null) return null;
+						       Object keyObj = null;
+						       Object valObj = null;
+						       if (item instanceof Map<?, ?> m) {
+						         if (!m.containsKey("key") || !m.containsKey("value")) return null;
+						         keyObj = m.get("key");
+						         valObj = m.get("value");
+						       } else {
+						         return null;
 						       }
+						       if (!(keyObj instanceof String strKey)) return null;
+						       if (map.containsKey(strKey)) return null;
+						       map.put(strKey, valObj);
 						     }
 						     return map;
 						   }
-						   if ("context put".equals(name) && args.size() >= 3) {
+						   if ("context put".equals(name) && args.size() == 3) {
 						     return contextPutGen(args.get(0), args.get(1), args.get(2));
 						   }
 						   if ("context merge".equals(name)) {
-						     List<?> list = args.size() == 1 && args.get(0) instanceof List<?> l ? l : args;
+						     if (args.size() != 1 || args.get(0) == null) return null;
+						     List<?> list = args.get(0) instanceof List<?> l ? l : (args.get(0) instanceof Map<?, ?> ? List.of(args.get(0)) : null);
+						     if (list == null) return null;
 						     Map<String, Object> merged = new LinkedHashMap<>();
 						     for (Object item : list) {
 						       if (item instanceof Map<?, ?> m) {
-						         m.forEach((k, v) -> merged.put(String.valueOf(k), v));
+						         for (Map.Entry<?, ?> e : m.entrySet()) {
+						           if (!(e.getKey() instanceof String)) return null;
+						           merged.put((String) e.getKey(), e.getValue());
+						         }
+						       } else {
+						         return null;
 						       }
 						     }
 						     return merged;
@@ -1500,20 +1495,28 @@ public final class DmnJavaGenerator {
 						  }
 						  private static Object contextPutGen(Object ctx, Object keyOrKeys, Object val) {
 						    if (!(ctx instanceof Map<?, ?>)) return null;
+						    if (keyOrKeys == null) return null;
 						    Map<String, Object> copy = new LinkedHashMap<>();
 						    ((Map<?, ?>) ctx).forEach((k, v) -> copy.put(String.valueOf(k), v));
 						    if (keyOrKeys instanceof List<?> keys) {
-						      if (keys.isEmpty()) return copy;
+						      if (keys.isEmpty()) return null;
+						      for (Object k : keys) {
+						        if (!(k instanceof String)) return null;
+						      }
 						      if (keys.size() == 1) {
-						        copy.put(String.valueOf(keys.get(0)), val);
+						        copy.put((String) keys.get(0), val);
 						        return copy;
 						      }
-						      String k0 = String.valueOf(keys.get(0));
+						      String k0 = (String) keys.get(0);
 						      Object sub = copy.get(k0);
-						      copy.put(k0, contextPutGen(sub != null ? sub : new LinkedHashMap<>(), keys.subList(1, keys.size()), val));
+						      if (sub != null && !(sub instanceof Map<?, ?>)) return null;
+						      Object updatedSub = contextPutGen(sub != null ? sub : new LinkedHashMap<>(), keys.subList(1, keys.size()), val);
+						      if (updatedSub == null) return null;
+						      copy.put(k0, updatedSub);
 						      return copy;
 						    }
-						    copy.put(String.valueOf(keyOrKeys), val);
+						    if (!(keyOrKeys instanceof String strKey)) return null;
+						    copy.put(strKey, val);
 						    return copy;
 						  }
 						  private static Object parseLiteral(String text) {

@@ -298,7 +298,7 @@ public final class FeelAstBuilder {
 		InvocationExpression.Builder builder = InvocationExpression.newBuilder().setTarget(target);
 		if (context.namedParameters() != null) {
 			for (FeelParser.NamedParameterContext parameter : context.namedParameters().namedParameter()) {
-				builder.addArguments(NamedArgument.newBuilder().setName(parameter.parameterName().getText())
+				builder.addArguments(NamedArgument.newBuilder().setName(parameterName(parameter.parameterName()))
 						.setExpression(expression(parameter.expression())));
 			}
 		} else if (context.positionalParameters() != null) {
@@ -392,7 +392,7 @@ public final class FeelAstBuilder {
 		if (context.formalParameters() != null) {
 			for (FeelParser.FormalParameterContext parameter : context.formalParameters().formalParameter()) {
 				FormalParameter.Builder parsed = FormalParameter.newBuilder()
-						.setName(parameter.parameterName().getText());
+						.setName(parameterName(parameter.parameterName()));
 				if (parameter.type() != null) {
 					parsed.setType(type(parameter.type()));
 				}
@@ -436,12 +436,12 @@ public final class FeelAstBuilder {
 							.setUpperBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN).build();
 				}
 				if (op.EQ() != null) {
-					return RangeExpression.newBuilder().setLower(endExpr).setUpper(endExpr)
+					return RangeExpression.newBuilder().setLower(endExpr)
 							.setLowerBoundary(RangeBoundary.RANGE_BOUNDARY_CLOSED)
 							.setUpperBoundary(RangeBoundary.RANGE_BOUNDARY_CLOSED).build();
 				}
 				if (op.NE() != null) {
-					return RangeExpression.newBuilder().setLower(endExpr).setUpper(endExpr)
+					return RangeExpression.newBuilder().setLower(endExpr)
 							.setLowerBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN)
 							.setUpperBoundary(RangeBoundary.RANGE_BOUNDARY_OPEN).build();
 				}
@@ -642,6 +642,14 @@ public final class FeelAstBuilder {
 	private static String name(FeelParser.NameContext context) {
 		return context.nameSegment().stream().map(org.antlr.v4.runtime.RuleContext::getText)
 				.map(s -> s.replaceAll("\\s+", " ")).collect(java.util.stream.Collectors.joining(" "));
+	}
+
+	private static String parameterName(FeelParser.ParameterNameContext context) {
+		if (context.qualifiedName() != null) {
+			return context.qualifiedName().name().stream().map(FeelAstBuilder::name)
+					.collect(java.util.stream.Collectors.joining("."));
+		}
+		return context.getText();
 	}
 
 	private static String key(FeelParser.KeyContext context) {

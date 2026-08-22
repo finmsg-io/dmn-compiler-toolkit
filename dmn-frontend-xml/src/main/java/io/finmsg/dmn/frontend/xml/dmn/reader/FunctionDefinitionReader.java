@@ -32,9 +32,15 @@ public final class FunctionDefinitionReader {
 						builder.setLogic(feelReader.read(cursor));
 
 					case "functionDefinition" -> {
-						FunctionDefinition inner = read(cursor);
-						builder.addAllFormalParameters(inner.getFormalParametersList());
-						builder.setLogic(feelReader.read(cursor));
+						if (builder.getFormalParametersCount() == 0) {
+							FunctionDefinition inner = read(cursor);
+							builder.addAllFormalParameters(inner.getFormalParametersList());
+							if (inner.hasLogic()) {
+								builder.setLogic(inner.getLogic());
+							}
+						} else {
+							builder.setLogic(feelReader.read(cursor));
+						}
 					}
 
 					case "documentation", "description", "extensionElements" -> {

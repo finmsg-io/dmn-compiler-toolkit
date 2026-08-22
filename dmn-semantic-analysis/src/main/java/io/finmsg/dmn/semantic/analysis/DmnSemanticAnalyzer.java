@@ -813,20 +813,26 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 				}
 				case CONTEXT -> analyzeFeelContext(expression.getContext(), scope, path, location);
 				case LIST -> {
+					TypeReference elemType = TypeReference.getDefaultInstance();
 					for (int i = 0; i < expression.getList().getElementsCount(); i++) {
-						analyzeExpression(expression.getList().getElements(i), scope, path + "/element[" + i + "]",
+						TypeReference t = analyzeExpression(expression.getList().getElements(i), scope, path + "/element[" + i + "]",
 								location);
+						if (t != null && !t.equals(TypeReference.getDefaultInstance())) {
+							elemType = t;
+						}
 					}
-					yield TypeReference.getDefaultInstance();
+					yield TypeReference.newBuilder()
+							.setList(io.finmsg.dmn.model.ListTypeReference.newBuilder().setElementType(elemType)).build();
 				}
 				case FOR_EXPRESSION -> analyzeFor(expression.getForExpression(), scope, path, location);
 				case QUANTIFIED -> analyzeQuantified(expression.getQuantified(), scope, path, location);
 				case FILTER -> {
 					TypeReference sourceType = analyzeExpression(expression.getFilter().getSource(), scope,
 							path + "/source", location);
-					Scope filterScope = new Scope(scope);
-					define(filterScope, "item", TypeReference.getDefaultInstance(), SymbolKind.LOCAL,
+					Scope itemScope = new Scope(scope);
+					define(itemScope, "item", TypeReference.getDefaultInstance(), SymbolKind.LOCAL,
 							path + "/filter/item", location);
+					Scope filterScope = new Scope(itemScope);
 					exposeFilterItemComponents(sourceType, filterScope, path + "/filter", location);
 					analyzeExpression(expression.getFilter().getFilter(), filterScope, path + "/filter", location);
 					yield TypeReference.getDefaultInstance();
@@ -869,13 +875,15 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 		private TypeReference analyzeFeelContext(ContextExpression context, Scope parent, String path,
 				SourceLocation location) {
 			Scope scope = new Scope(parent);
+			io.finmsg.dmn.model.ContextTypeReference.Builder ctxBuilder = io.finmsg.dmn.model.ContextTypeReference.newBuilder();
 			for (int i = 0; i < context.getEntriesCount(); i++) {
 				io.finmsg.dmn.model.ContextEntry entry = context.getEntries(i);
 				TypeReference type = analyzeExpression(entry.getExpression(), scope, path + "/entry[" + i + "]",
 						location);
 				define(scope, entry.getName(), type, SymbolKind.LOCAL, path + "/entry[" + i + "]", location);
+				ctxBuilder.addEntries(io.finmsg.dmn.model.ContextEntryTypeReference.newBuilder().setName(entry.getName()).setType(type));
 			}
-			return TypeReference.getDefaultInstance();
+			return TypeReference.newBuilder().setContext(ctxBuilder).build();
 		}
 
 		private TypeReference iterationElementType(TypeReference source) {
@@ -1094,7 +1102,20 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 
 		private void exposeFilterItemComponents(TypeReference sourceType, Scope filterScope, String path,
 				SourceLocation location) {
-			if (sourceType == null || !sourceType.hasNamed()) {
+			if (sourceType == null) {
+				return;
+			}
+			if (sourceType.hasList()) {
+				sourceType = sourceType.getList().getElementType();
+			}
+			if (sourceType.hasContext()) {
+				for (io.finmsg.dmn.model.ContextEntryTypeReference entry : sourceType.getContext().getEntriesList()) {
+					define(filterScope, entry.getName(), entry.getType(), SymbolKind.LOCAL, path + "/item/" + entry.getName(),
+							location);
+				}
+				return;
+			}
+			if (!sourceType.hasNamed()) {
 				return;
 			}
 			List<DmnModelRepository.ResolvedItemDefinition> resolvedTypes = repository.resolveType(model,

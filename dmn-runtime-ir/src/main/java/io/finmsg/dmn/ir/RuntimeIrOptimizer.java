@@ -221,7 +221,7 @@ public final class RuntimeIrOptimizer {
 	}
 
 	private static TemporalAmount parseDuration(String value) {
-		return value.contains("T") ? Duration.parse(value) : Period.parse(value);
+		return value.contains("T") ? Duration.parse(value) : Period.parse(value).normalized();
 	}
 
 	private record PoolKey(RuntimeConstantKind kind, RuntimeCanonicalValue value, RuntimeType type) {

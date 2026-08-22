@@ -52,7 +52,7 @@ public final class DmnRuntime {
 				throw new DmnEvaluationException("Unknown aggregate ID " + id);
 			Frame frame = new Frame(Frame.EMPTY, decision.localSlotCount());
 			Object value = decision.expression().map(it -> state.expression(it, frame))
-					.orElseGet(() -> decision.decisionTable().map(it -> state.table(it, frame)).orElse(null));
+					.orElseGet(() -> decision.decisionTable().map(it -> state.table(it, frame)).orElse(slots[decision.resultSlot()]));
 			slots[decision.resultSlot()] = coerce(value, decision.type());
 		}
 		return new DmnEvaluationResult(model, Arrays.asList(slots.clone()));
@@ -435,7 +435,6 @@ public final class DmnRuntime {
 				return switch (name) {
 					case "years" -> BigDecimal.valueOf(p.getYears());
 					case "months" -> BigDecimal.valueOf(p.getMonths());
-					case "days" -> BigDecimal.valueOf(p.getDays());
 					default -> null;
 				};
 			}
@@ -451,7 +450,7 @@ public final class DmnRuntime {
 			if (source instanceof RuntimeRangeValue range) {
 				return switch (name) {
 					case "start" -> range.lower();
-					case "end" -> range.upper();
+					case "end" -> range.upper() != null ? range.upper() : (range.lowerBoundary() == RuntimeRangeBoundary.CLOSED && range.upperBoundary() == RuntimeRangeBoundary.CLOSED ? range.lower() : null);
 					case "start included" -> range.lowerBoundary() == RuntimeRangeBoundary.CLOSED;
 					case "end included" -> range.upperBoundary() == RuntimeRangeBoundary.CLOSED;
 					default -> null;
@@ -837,13 +836,15 @@ public final class DmnRuntime {
 				case RuntimeRangeUnaryTest it -> contains((RuntimeRangeValue) expression(it.range(), frame), candidate);
 				case RuntimeExpressionUnaryTest it -> {
 					Object expected = expression(it.expression(), frame);
-					if (expected instanceof Collection<?> col && !(candidate instanceof Collection<?>)) {
-						yield col.stream().anyMatch(elem -> {
+					if (expected instanceof Collection<?> col) {
+						boolean match = col.stream().anyMatch(elem -> {
 							if (elem instanceof RuntimeRangeValue range) {
 								return Boolean.TRUE.equals(contains(range, candidate));
 							}
 							return Boolean.TRUE.equals(equal(candidate, elem));
 						});
+						if (match)
+							yield true;
 					}
 					if (expected instanceof RuntimeRangeValue range) {
 						yield contains(range, candidate);
@@ -867,36 +868,7 @@ public final class DmnRuntime {
 				case NOT -> not(argument(arguments, 0));
 				case IS -> arguments.size() == 2 ? isValues(argument(arguments, 0), argument(arguments, 1)) : null;
 				case STRING -> formatFeelString(argument(arguments, 0));
-				case NUMBER -> {
-					if (arguments.size() == 1) {
-						Object a = arguments.get(0);
-						if (a == null)
-							yield null;
-						try {
-							yield new BigDecimal(String.valueOf(a).trim());
-						} catch (Exception e) {
-							yield null;
-						}
-					}
-					Object fromObj = arguments.get(0);
-					Object groupSepObj = arguments.size() > 1 ? arguments.get(1) : null;
-					Object decSepObj = arguments.size() > 2 ? arguments.get(2) : null;
-					if (fromObj == null)
-						yield null;
-					String from = String.valueOf(fromObj);
-					String groupSep = groupSepObj == null ? null : String.valueOf(groupSepObj);
-					String decSep = decSepObj == null ? null : String.valueOf(decSepObj);
-					try {
-						String cleaned = from;
-						if (groupSep != null && !groupSep.isEmpty())
-							cleaned = cleaned.replace(groupSep, "");
-						if (decSep != null && !decSep.isEmpty() && !".".equals(decSep))
-							cleaned = cleaned.replace(decSep, ".");
-						yield new BigDecimal(cleaned.trim());
-					} catch (Exception e) {
-						yield null;
-					}
-				}
+				case NUMBER -> feelNumber(arguments);
 				case DATE -> {
 					if (arguments.size() == 1) {
 						Object a = argument(arguments, 0);
@@ -993,24 +965,13 @@ public final class DmnRuntime {
 					listArgument(arguments).stream().map(DmnRuntime::number).reduce(BigDecimal.ZERO, BigDecimal::add);
 				case MIN -> listArgument(arguments).stream().min(DmnRuntime::compare).orElse(null);
 				case MAX -> listArgument(arguments).stream().max(DmnRuntime::compare).orElse(null);
-				case ABS -> {
-					Object a = argument(arguments, 0);
-					if (a == null)
-						yield null;
-					if (a instanceof Number)
-						yield number(a).abs();
-					if (a instanceof Duration d)
-						yield d.abs();
-					if (a instanceof Period p)
-						yield p.toTotalMonths() < 0 ? p.negated() : p;
-					yield null;
-				}
+				case ABS -> feelAbs(arguments);
 				case SUBSTRING -> substring(arguments);
-				case SUBSTRING_BEFORE -> substringBefore(arguments);
-				case SUBSTRING_AFTER -> substringAfter(arguments);
+				case SUBSTRING_BEFORE -> feelSubstringBefore(arguments);
+				case SUBSTRING_AFTER -> feelSubstringAfter(arguments);
 				case STRING_LENGTH -> argument(arguments, 0) == null
 						? null
-						: BigDecimal.valueOf(stringValue(argument(arguments, 0)).length());
+						: BigDecimal.valueOf(stringValue(argument(arguments, 0)).codePointCount(0, stringValue(argument(arguments, 0)).length()));
 				case UPPER_CASE -> argument(arguments, 0) == null
 						? null
 						: stringValue(argument(arguments, 0)).toUpperCase(Locale.ROOT);
@@ -1079,28 +1040,7 @@ public final class DmnRuntime {
 					yield nums.get(size / 2 - 1).add(nums.get(size / 2)).divide(BigDecimal.valueOf(2),
 							MathContext.DECIMAL128);
 				}
-				case MODE -> {
-					List<Object> list = listArgument(arguments);
-					if (list.isEmpty())
-						yield List.of();
-					Map<Object, Integer> counts = new HashMap<>();
-					for (Object o : list) {
-						if (o == null)
-							yield null;
-						BigDecimal n = number(o);
-						if (n == null)
-							yield null;
-						counts.put(n, counts.getOrDefault(n, 0) + 1);
-					}
-					int max = Collections.max(counts.values());
-					List<Object> result = new ArrayList<>();
-					for (Map.Entry<Object, Integer> e : counts.entrySet()) {
-						if (e.getValue() == max)
-							result.add(e.getKey());
-					}
-					result.sort(DmnRuntime::compare);
-					yield result;
-				}
+				case MODE -> feelMode(arguments);
 				case STDDEV -> {
 					List<Object> list = listArgument(arguments);
 					if (list.size() < 2)
@@ -1125,55 +1065,12 @@ public final class DmnRuntime {
 					BigDecimal variance = sqSum.divide(BigDecimal.valueOf(list.size() - 1), MathContext.DECIMAL128);
 					yield BigDecimal.valueOf(Math.sqrt(variance.doubleValue()));
 				}
-				case SQRT -> {
-					Object a = argument(arguments, 0);
-					if (!(a instanceof Number))
-						yield null;
-					double d = number(a).doubleValue();
-					if (d < 0)
-						yield null;
-					yield BigDecimal.valueOf(Math.sqrt(d));
-				}
-				case EXP -> {
-					Object a = argument(arguments, 0);
-					if (!(a instanceof Number))
-						yield null;
-					yield BigDecimal.valueOf(Math.exp(number(a).doubleValue()));
-				}
-				case LOG -> {
-					Object a = argument(arguments, 0);
-					if (!(a instanceof Number))
-						yield null;
-					double d = number(a).doubleValue();
-					if (d <= 0)
-						yield null;
-					yield BigDecimal.valueOf(Math.log(d));
-				}
-				case MODULO -> {
-					Object aObj = argument(arguments, 0);
-					Object bObj = argument(arguments, 1);
-					if (!(aObj instanceof Number) || !(bObj instanceof Number))
-						yield null;
-					BigDecimal a = number(aObj);
-					BigDecimal b = number(bObj);
-					if (b.compareTo(BigDecimal.ZERO) == 0)
-						yield null;
-					BigDecimal q = a.divide(b, MathContext.DECIMAL128);
-					BigDecimal floorQ = q.setScale(0, java.math.RoundingMode.FLOOR);
-					yield a.subtract(floorQ.multiply(b));
-				}
-				case EVEN -> {
-					Object a = argument(arguments, 0);
-					if (!(a instanceof Number))
-						yield null;
-					yield number(a).intValue() % 2 == 0;
-				}
-				case ODD -> {
-					Object a = argument(arguments, 0);
-					if (!(a instanceof Number))
-						yield null;
-					yield number(a).intValue() % 2 != 0;
-				}
+				case SQRT -> feelSqrt(arguments);
+				case EXP -> feelExp(arguments);
+				case LOG -> feelLog(arguments);
+				case MODULO -> feelModulo(arguments);
+				case EVEN -> feelEven(arguments);
+				case ODD -> feelOdd(arguments);
 				case PRODUCT -> {
 					List<Object> list = listArgument(arguments);
 					if (list.isEmpty())
@@ -1186,32 +1083,8 @@ public final class DmnRuntime {
 					}
 					yield prod;
 				}
-				case ALL -> {
-					List<Object> list = listArgument(arguments);
-					if (list.isEmpty())
-						yield true;
-					boolean hasNull = false;
-					for (Object o : list) {
-						if (Boolean.FALSE.equals(o))
-							yield false;
-						if (o == null)
-							hasNull = true;
-					}
-					yield hasNull ? null : true;
-				}
-				case ANY -> {
-					List<Object> list = listArgument(arguments);
-					if (list.isEmpty())
-						yield false;
-					boolean hasNull = false;
-					for (Object o : list) {
-						if (Boolean.TRUE.equals(o))
-							yield true;
-						if (o == null)
-							hasNull = true;
-					}
-					yield hasNull ? null : false;
-				}
+				case ALL -> feelAll(arguments);
+				case ANY -> feelAny(arguments);
 				case INSERT_BEFORE -> {
 					if (argument(arguments, 0) == null || argument(arguments, 1) == null
 							|| argument(arguments, 2) == null)
@@ -1238,13 +1111,11 @@ public final class DmnRuntime {
 				case APPEND -> {
 					if (argument(arguments, 0) == null)
 						yield null;
-					List<Object> list = new ArrayList<>((List<?>) argument(arguments, 0));
+					if (!(argument(arguments, 0) instanceof List<?> l0))
+						yield null;
+					List<Object> list = new ArrayList<>(l0);
 					for (int i = 1; i < arguments.size(); i++) {
-						Object item = arguments.get(i);
-						if (item instanceof List<?> l)
-							list.addAll(l);
-						else
-							list.add(item);
+						list.add(arguments.get(i));
 					}
 					yield List.copyOf(list);
 				}
@@ -1276,43 +1147,7 @@ public final class DmnRuntime {
 				}
 				case ROUND_UP -> rounded(arguments, java.math.RoundingMode.UP);
 				case ROUND_DOWN -> rounded(arguments, java.math.RoundingMode.DOWN);
-				case STRING_JOIN -> {
-					if (arguments.isEmpty() || arguments.size() > 2)
-						yield null;
-					Object firstArg = arguments.get(0);
-					if (firstArg == null)
-						yield null;
-					List<?> items;
-					if (firstArg instanceof List<?> l) {
-						items = l;
-					} else if (firstArg instanceof String s) {
-						items = List.of(s);
-					} else {
-						yield null;
-					}
-					String delimiter = "";
-					if (arguments.size() > 1) {
-						Object delimArg = arguments.get(1);
-						if (delimArg != null) {
-							if (!(delimArg instanceof String))
-								yield null;
-							delimiter = (String) delimArg;
-						}
-					}
-					StringBuilder sb = new StringBuilder();
-					boolean first = true;
-					for (Object o : items) {
-						if (o == null)
-							continue;
-						if (!(o instanceof String s))
-							yield null;
-						if (!first)
-							sb.append(delimiter);
-						sb.append(s);
-						first = false;
-					}
-					yield sb.toString();
-				}
+				case STRING_JOIN -> feelStringJoin(arguments);
 				case DAY_AND_TIME_DURATION -> {
 					if (argument(arguments, 0) == null || argument(arguments, 1) == null)
 						yield null;
@@ -1347,9 +1182,16 @@ public final class DmnRuntime {
 					yield Duration.between(t1, t2);
 				}
 				case GET_ENTRIES -> {
-					if (argument(arguments, 0) == null)
+					if (arguments.size() != 1 || argument(arguments, 0) == null)
 						yield null;
-					if (!(argument(arguments, 0) instanceof Map<?, ?> m))
+					Object arg = argument(arguments, 0);
+					Map<?, ?> m = null;
+					if (arg instanceof Map<?, ?> map) {
+						m = map;
+					} else if (arg instanceof RuntimeContextValue ctx) {
+						m = ctx.namedFields();
+					}
+					if (m == null)
 						yield null;
 					List<Map<String, Object>> result = new ArrayList<>();
 					for (Map.Entry<?, ?> e : m.entrySet()) {
@@ -1361,9 +1203,16 @@ public final class DmnRuntime {
 					yield result;
 				}
 				case GET_VALUE -> {
-					if (argument(arguments, 0) == null || argument(arguments, 1) == null)
+					if (arguments.size() != 2 || argument(arguments, 0) == null || argument(arguments, 1) == null)
 						yield null;
-					if (!(argument(arguments, 0) instanceof Map<?, ?> m))
+					Object arg = argument(arguments, 0);
+					Map<?, ?> m = null;
+					if (arg instanceof Map<?, ?> map) {
+						m = map;
+					} else if (arg instanceof RuntimeContextValue ctx) {
+						m = ctx.namedFields();
+					}
+					if (m == null)
 						yield null;
 					yield m.get(String.valueOf(argument(arguments, 1)));
 				}
@@ -1408,72 +1257,90 @@ public final class DmnRuntime {
 					yield null;
 				}
 				case DAY_OF_YEAR -> {
-					Object arg = argument(arguments, 0);
-					if (arg instanceof LocalDate d)
-						yield BigDecimal.valueOf(d.getDayOfYear());
-					if (arg instanceof LocalDateTime dt)
-						yield BigDecimal.valueOf(dt.getDayOfYear());
-					if (arg instanceof OffsetDateTime odt)
-						yield BigDecimal.valueOf(odt.getDayOfYear());
-					yield null;
+					if (arguments.size() != 1)
+						yield null;
+					LocalDate d = toLocalDate(arguments.get(0));
+					yield d == null ? null : BigDecimal.valueOf(d.getDayOfYear());
 				}
 				case DAY_OF_WEEK -> {
-					Object arg = argument(arguments, 0);
-					LocalDate d = arg instanceof LocalDate ld
-							? ld
-							: arg instanceof LocalDateTime dt
-									? dt.toLocalDate()
-									: arg instanceof OffsetDateTime odt ? odt.toLocalDate() : null;
+					if (arguments.size() != 1)
+						yield null;
+					LocalDate d = toLocalDate(arguments.get(0));
 					yield d == null
 							? null
 							: d.getDayOfWeek().name().substring(0, 1)
 									+ d.getDayOfWeek().name().substring(1).toLowerCase();
 				}
 				case WEEK_OF_YEAR -> {
-					Object arg = argument(arguments, 0);
-					LocalDate d = arg instanceof LocalDate ld
-							? ld
-							: arg instanceof LocalDateTime dt
-									? dt.toLocalDate()
-									: arg instanceof OffsetDateTime odt ? odt.toLocalDate() : null;
+					if (arguments.size() != 1)
+						yield null;
+					LocalDate d = toLocalDate(arguments.get(0));
 					yield d == null
 							? null
 							: BigDecimal.valueOf(d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR));
 				}
 				case MONTH_OF_YEAR -> {
-					Object arg = argument(arguments, 0);
-					LocalDate d = arg instanceof LocalDate ld
-							? ld
-							: arg instanceof LocalDateTime dt
-									? dt.toLocalDate()
-									: arg instanceof OffsetDateTime odt ? odt.toLocalDate() : null;
+					if (arguments.size() != 1)
+						yield null;
+					LocalDate d = toLocalDate(arguments.get(0));
 					yield d == null
 							? null
 							: d.getMonth().name().substring(0, 1) + d.getMonth().name().substring(1).toLowerCase();
 				}
 				case CONTEXT -> {
-					List<Object> list = listArgument(arguments);
+					if (arguments.size() != 1 || arguments.get(0) == null)
+						yield null;
+					List<?> list = arguments.get(0) instanceof List<?> l ? l : List.of(arguments.get(0));
 					Map<String, Object> map = new LinkedHashMap<>();
 					for (Object item : list) {
-						if (item instanceof Map<?, ?> m && m.containsKey("key")) {
-							map.put(String.valueOf(m.get("key")), m.get("value"));
+						if (item == null)
+							yield null;
+						Object keyObj = null;
+						Object valObj = null;
+						if (item instanceof Map<?, ?> m) {
+							if (!m.containsKey("key") || !m.containsKey("value"))
+								yield null;
+							keyObj = m.get("key");
+							valObj = m.get("value");
+						} else if (item instanceof RuntimeContextValue rcv) {
+							if (!rcv.namedFields().containsKey("key") || !rcv.namedFields().containsKey("value"))
+								yield null;
+							keyObj = rcv.namedFields().get("key");
+							valObj = rcv.namedFields().get("value");
+						} else {
+							yield null;
 						}
+						if (!(keyObj instanceof String strKey))
+							yield null;
+						if (map.containsKey(strKey))
+							yield null;
+						map.put(strKey, valObj);
 					}
 					yield map;
 				}
 				case CONTEXT_PUT -> {
-					if (arguments.size() < 3)
+					if (arguments.size() != 3)
 						yield null;
 					yield contextPut(argument(arguments, 0), argument(arguments, 1), argument(arguments, 2));
 				}
 				case CONTEXT_MERGE -> {
-					List<Object> list = listArgument(arguments);
+					if (arguments.size() != 1 || arguments.get(0) == null)
+						yield null;
+					List<?> list = arguments.get(0) instanceof List<?> l ? l : (arguments.get(0) instanceof Map<?, ?> || arguments.get(0) instanceof RuntimeContextValue ? List.of(arguments.get(0)) : null);
+					if (list == null)
+						yield null;
 					Map<String, Object> merged = new LinkedHashMap<>();
 					for (Object item : list) {
 						if (item instanceof Map<?, ?> m) {
-							m.forEach((k, v) -> merged.put(String.valueOf(k), v));
+							for (Map.Entry<?, ?> e : m.entrySet()) {
+								if (!(e.getKey() instanceof String))
+									yield null;
+								merged.put((String) e.getKey(), e.getValue());
+							}
 						} else if (item instanceof RuntimeContextValue rcv) {
 							merged.putAll(rcv.namedFields());
+						} else {
+							yield null;
 						}
 					}
 					yield merged;
@@ -1512,23 +1379,16 @@ public final class DmnRuntime {
 		}
 
 		private Object substring(List<Object> args) {
-			if (args.getFirst() == null)
+			if (args.isEmpty() || args.getFirst() == null || args.size() < 2 || args.get(1) == null)
 				return null;
 			String str = String.valueOf(args.getFirst());
 			Integer start = integer(args.get(1));
 			if (start == null)
 				return null;
-			int idx = start > 0 ? start - 1 : str.length() + start;
-			if (idx < 0 || idx >= str.length())
-				return "";
-			if (args.size() > 2 && args.get(2) != null) {
-				Integer len = integer(args.get(2));
-				if (len == null)
-					return null;
-				int end = Math.min(str.length(), idx + len);
-				return str.substring(idx, end);
-			}
-			return str.substring(idx);
+			Integer len = args.size() > 2 && args.get(2) != null ? integer(args.get(2)) : null;
+			if (args.size() > 2 && args.get(2) != null && len == null)
+				return null;
+			return feelSubstring(str, start, len);
 		}
 
 		private Object rounded(List<Object> args, java.math.RoundingMode mode) {
@@ -1542,13 +1402,9 @@ public final class DmnRuntime {
 				if (!(argument(args, 1) instanceof Number scaleNumber))
 					return null;
 				BigDecimal scaleDecimal = number(scaleNumber);
-				if (scaleDecimal == null || scaleDecimal.stripTrailingZeros().scale() > 0)
+				if (scaleDecimal == null)
 					return null;
-				try {
-					scale = scaleDecimal.intValueExact();
-				} catch (ArithmeticException ignored) {
-					return null;
-				}
+				scale = scaleDecimal.intValue();
 			}
 			if (scale < -6111 || scale > 6176)
 				return null;
@@ -1629,6 +1485,8 @@ public final class DmnRuntime {
 		private Object contextPut(Object ctx, Object keyOrKeys, Object val) {
 			if (!(ctx instanceof Map<?, ?> || ctx instanceof RuntimeContextValue))
 				return null;
+			if (keyOrKeys == null)
+				return null;
 			Map<String, Object> copy = new LinkedHashMap<>();
 			if (ctx instanceof Map<?, ?> m) {
 				m.forEach((k, v) -> copy.put(String.valueOf(k), v));
@@ -1637,17 +1495,28 @@ public final class DmnRuntime {
 			}
 			if (keyOrKeys instanceof List<?> keys) {
 				if (keys.isEmpty())
-					return copy;
+					return null;
+				for (Object k : keys) {
+					if (!(k instanceof String))
+						return null;
+				}
 				if (keys.size() == 1) {
-					copy.put(String.valueOf(keys.get(0)), val);
+					copy.put((String) keys.get(0), val);
 					return copy;
 				}
-				String k0 = String.valueOf(keys.get(0));
+				String k0 = (String) keys.get(0);
 				Object sub = copy.get(k0);
-				copy.put(k0, contextPut(sub != null ? sub : new LinkedHashMap<>(), keys.subList(1, keys.size()), val));
+				if (sub != null && !(sub instanceof Map<?, ?> || sub instanceof RuntimeContextValue))
+					return null;
+				Object updatedSub = contextPut(sub != null ? sub : new LinkedHashMap<>(), keys.subList(1, keys.size()), val);
+				if (updatedSub == null)
+					return null;
+				copy.put(k0, updatedSub);
 				return copy;
 			}
-			copy.put(String.valueOf(keyOrKeys), val);
+			if (!(keyOrKeys instanceof String strKey))
+				return null;
+			copy.put(strKey, val);
 			return copy;
 		}
 
@@ -1780,6 +1649,8 @@ public final class DmnRuntime {
 				return odt.toLocalDate();
 			if (obj instanceof ZonedDateTime zdt)
 				return zdt.toLocalDate();
+			if (obj instanceof NamedZoneDateTime nzdt)
+				return nzdt.value().toLocalDate();
 			try {
 				return LocalDate.parse(String.valueOf(obj));
 			} catch (Exception e) {
@@ -1801,7 +1672,7 @@ public final class DmnRuntime {
 			String s = value.trim();
 			boolean isYm = s.contains("Y") || (s.contains("M") && !s.contains("T") && !s.contains("D"));
 			if (isYm) {
-				return Period.parse(s);
+				return Period.parse(s).normalized();
 			}
 			return Duration.parse(s);
 		} catch (Exception e) {
@@ -2088,6 +1959,15 @@ public final class DmnRuntime {
 			return null;
 		if (range.lower() == null && range.upper() == null)
 			return null;
+		if (range.upperAbsent()) {
+			if (range.lowerBoundary() == RuntimeRangeBoundary.CLOSED && range.upperBoundary() == RuntimeRangeBoundary.CLOSED) {
+				return equal(value, range.lower());
+			}
+			if (range.lowerBoundary() == RuntimeRangeBoundary.OPEN && range.upperBoundary() == RuntimeRangeBoundary.OPEN) {
+				Boolean eq = equal(value, range.lower());
+				return eq == null ? null : !eq;
+			}
+		}
 		if (range.lower() != null) {
 			Integer lowC = compare(value, range.lower());
 			if (lowC == null)
@@ -2112,10 +1992,10 @@ public final class DmnRuntime {
 		return List.of(value);
 	}
 	public static boolean instanceOf(Object value, RuntimeType type) {
+		if (value == null)
+			return false;
 		if (type == null || type.kind() == RuntimeTypeKind.ANY)
 			return true;
-		if (value == null)
-			return type.kind() == RuntimeTypeKind.NULL;
 		return switch (type.kind()) {
 			case BOOLEAN -> value instanceof Boolean;
 			case NUMBER -> value instanceof Number;
@@ -2132,11 +2012,40 @@ public final class DmnRuntime {
 			case RANGE -> value instanceof RuntimeRangeValue range && (type.elementType() == null
 					|| ((range.lower() == null || instanceOf(range.lower(), type.elementType()))
 							&& (range.upper() == null || instanceOf(range.upper(), type.elementType()))));
-			case CONTEXT -> value instanceof RuntimeContextValue || value instanceof Map<?, ?>;
+			case CONTEXT -> instanceOfContext(value, type);
 			case FUNCTION -> value instanceof CallableValue;
 			case ANY -> true;
 			case NULL -> false;
 		};
+	}
+
+	private static boolean instanceOfContext(Object value, RuntimeType type) {
+		if (value instanceof RuntimeContextValue rcv) {
+			if (type.fieldLayout() != null && !type.fieldLayout().isEmpty()) {
+				Map<String, Object> fields = rcv.namedFields();
+				for (io.finmsg.dmn.ir.RuntimeField f : type.fieldLayout()) {
+					if (!fields.containsKey(f.name()))
+						return false;
+					Object fVal = fields.get(f.name());
+					if (fVal != null && !instanceOf(fVal, f.type()))
+						return false;
+				}
+			}
+			return true;
+		}
+		if (value instanceof Map<?, ?> m) {
+			if (type.fieldLayout() != null && !type.fieldLayout().isEmpty()) {
+				for (io.finmsg.dmn.ir.RuntimeField f : type.fieldLayout()) {
+					if (!m.containsKey(f.name()))
+						return false;
+					Object fVal = m.get(f.name());
+					if (fVal != null && !instanceOf(fVal, f.type()))
+						return false;
+				}
+			}
+			return true;
+		}
+		return false;
 	}
 
 	private static Period periodFromMonths(long totalMonths) {
@@ -2950,6 +2859,8 @@ public final class DmnRuntime {
 			Map.entry("contains", List.of(List.of("string", "match"))),
 			Map.entry("starts with", List.of(List.of("string", "match"))),
 			Map.entry("ends with", List.of(List.of("string", "match"))),
+			Map.entry("substring before", List.of(List.of("string", "match"))),
+			Map.entry("substring after", List.of(List.of("string", "match"))),
 			Map.entry("matches", List.of(List.of("input", "pattern"), List.of("input", "pattern", "flags"))),
 			Map.entry("replace",
 					List.of(List.of("input", "pattern", "replacement"),
@@ -2983,11 +2894,15 @@ public final class DmnRuntime {
 					List.of(List.of("list", "start position"), List.of("list", "start position", "length"))),
 			Map.entry("append", List.of(List.of("list", "item"))), Map.entry("union", List.of(List.of("list"))),
 			Map.entry("distinct values", List.of(List.of("list"))), Map.entry("flatten", List.of(List.of("list"))),
-			Map.entry("context merge", List.of(List.of("contexts"), List.of("context"))),
+			Map.entry("context merge", List.of(List.of("contexts"))),
 			Map.entry("context put", List.of(List.of("context", "key", "value"), List.of("context", "keys", "value"))),
 			Map.entry("context", List.of(List.of("entries"))), Map.entry("get value", List.of(List.of("m", "key"))),
 			Map.entry("get entries", List.of(List.of("m"))),
 			Map.entry("sort", List.of(List.of("list", "precedes"), List.of("list"))),
+			Map.entry("day of year", List.of(List.of("date"))),
+			Map.entry("day of week", List.of(List.of("date"))),
+			Map.entry("month of year", List.of(List.of("date"))),
+			Map.entry("week of year", List.of(List.of("date"))),
 			Map.entry("string join",
 					List.of(List.of("list"), List.of("list", "delimiter"),
 							List.of("list", "delimiter", "prefix", "suffix"))),
@@ -2997,6 +2912,248 @@ public final class DmnRuntime {
 			Map.entry("stddev", List.of(List.of("list"))), Map.entry("product", List.of(List.of("list"))),
 			Map.entry("min", List.of(List.of("list"))), Map.entry("max", List.of(List.of("list"))),
 			Map.entry("count", List.of(List.of("list"))));
+
+	public static Object feelAbs(List<Object> arguments) {
+		if (arguments == null || arguments.size() != 1)
+			return null;
+		Object a = arguments.get(0);
+		if (a == null)
+			return null;
+		if (a instanceof Number n)
+			return number(n).abs();
+		if (a instanceof Duration d)
+			return d.abs();
+		if (a instanceof Period p)
+			return p.toTotalMonths() < 0 ? p.negated() : p;
+		return null;
+	}
+
+	public static BigDecimal feelSqrt(List<Object> arguments) {
+		if (arguments == null || arguments.size() != 1)
+			return null;
+		Object a = arguments.get(0);
+		if (!(a instanceof Number))
+			return null;
+		BigDecimal n = number(a);
+		if (n == null || n.signum() < 0)
+			return null;
+		return BigDecimal.valueOf(Math.sqrt(n.doubleValue()));
+	}
+
+	public static BigDecimal feelExp(List<Object> arguments) {
+		if (arguments == null || arguments.size() != 1)
+			return null;
+		Object a = arguments.get(0);
+		if (!(a instanceof Number))
+			return null;
+		BigDecimal n = number(a);
+		if (n == null)
+			return null;
+		return BigDecimal.valueOf(Math.exp(n.doubleValue()));
+	}
+
+	public static BigDecimal feelLog(List<Object> arguments) {
+		if (arguments == null || arguments.size() != 1)
+			return null;
+		Object a = arguments.get(0);
+		if (!(a instanceof Number))
+			return null;
+		BigDecimal n = number(a);
+		if (n == null || n.signum() <= 0)
+			return null;
+		return BigDecimal.valueOf(Math.log(n.doubleValue()));
+	}
+
+	public static Boolean feelEven(List<Object> arguments) {
+		if (arguments == null || arguments.size() != 1)
+			return null;
+		Object a = arguments.get(0);
+		if (!(a instanceof Number))
+			return null;
+		BigDecimal n = number(a);
+		if (n == null)
+			return null;
+		return n.intValue() % 2 == 0;
+	}
+
+	public static Boolean feelOdd(List<Object> arguments) {
+		if (arguments == null || arguments.size() != 1)
+			return null;
+		Object a = arguments.get(0);
+		if (!(a instanceof Number))
+			return null;
+		BigDecimal n = number(a);
+		if (n == null)
+			return null;
+		return n.intValue() % 2 != 0;
+	}
+
+	public static List<Object> feelMode(List<Object> arguments) {
+		if (arguments == null || arguments.isEmpty())
+			return null;
+		if (arguments.size() == 1 && arguments.get(0) == null)
+			return null;
+		List<Object> list;
+		if (arguments.size() == 1 && arguments.get(0) instanceof List<?> l) {
+			list = (List<Object>) l;
+		} else {
+			list = arguments;
+		}
+		if (list.isEmpty())
+			return List.of();
+		Map<Object, Integer> counts = new HashMap<>();
+		for (Object o : list) {
+			if (o == null)
+				return null;
+			BigDecimal n = number(o);
+			if (n == null)
+				return null;
+			counts.put(n, counts.getOrDefault(n, 0) + 1);
+		}
+		int max = Collections.max(counts.values());
+		List<Object> result = new ArrayList<>();
+		for (Map.Entry<Object, Integer> e : counts.entrySet()) {
+			if (e.getValue() == max)
+				result.add(e.getKey());
+		}
+		result.sort(DmnRuntime::compare);
+		return result;
+	}
+
+	public static BigDecimal feelNumber(List<Object> arguments) {
+		if (arguments == null || (arguments.size() != 1 && arguments.size() != 3))
+			return null;
+		if (arguments.size() == 1) {
+			Object a = arguments.get(0);
+			if (a == null)
+				return null;
+			if (a instanceof Number num)
+				return number(num);
+			if (a instanceof String s) {
+				try {
+					return new BigDecimal(s.trim());
+				} catch (Exception e) {
+					return null;
+				}
+			}
+			return null;
+		}
+		Object fromObj = arguments.get(0);
+		Object groupSepObj = arguments.get(1);
+		Object decSepObj = arguments.get(2);
+		if (!(fromObj instanceof String from))
+			return null;
+		String groupSep = null;
+		if (groupSepObj != null) {
+			if (!(groupSepObj instanceof String gs) || (!gs.equals(" ") && !gs.equals(".") && !gs.equals(",")))
+				return null;
+			groupSep = gs;
+		}
+		String decSep = null;
+		if (decSepObj != null) {
+			if (!(decSepObj instanceof String ds) || (!ds.equals(".") && !ds.equals(",")))
+				return null;
+			decSep = ds;
+		}
+		if (groupSep != null && decSep != null && groupSep.equals(decSep))
+			return null;
+		try {
+			String s = from.trim();
+			if (groupSep != null) {
+				s = s.replace(groupSep, "");
+			}
+			if (decSep != null && !".".equals(decSep)) {
+				s = s.replace(decSep, ".");
+			}
+			return new BigDecimal(s);
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	public static String feelSubstring(String str, Integer start, Integer len) {
+		if (str == null || start == null)
+			return null;
+		int totalCodePoints = str.codePointCount(0, str.length());
+		int cpStart = start > 0 ? start - 1 : totalCodePoints + start;
+		if (cpStart < 0 || cpStart >= totalCodePoints)
+			return "";
+		int charStart = str.offsetByCodePoints(0, cpStart);
+		if (len != null) {
+			if (len <= 0)
+				return "";
+			int cpEnd = Math.min(totalCodePoints, cpStart + len);
+			int charEnd = str.offsetByCodePoints(0, cpEnd);
+			return str.substring(charStart, charEnd);
+		}
+		return str.substring(charStart);
+	}
+
+	public static Boolean feelAll(List<Object> arguments) {
+		if (arguments == null || arguments.isEmpty())
+			return null;
+		if (arguments.size() == 1 && arguments.get(0) == null)
+			return null;
+		List<Object> list;
+		if (arguments.size() == 1 && arguments.get(0) instanceof List<?> l) {
+			list = (List<Object>) l;
+		} else if (arguments.size() == 1 && !(arguments.get(0) instanceof Boolean)) {
+			return null;
+		} else {
+			list = arguments;
+		}
+		if (list.isEmpty())
+			return true;
+		boolean hasNullOrNonBoolean = false;
+		for (Object o : list) {
+			if (Boolean.FALSE.equals(o))
+				return false;
+			if (!Boolean.TRUE.equals(o))
+				hasNullOrNonBoolean = true;
+		}
+		return hasNullOrNonBoolean ? null : true;
+	}
+
+	public static BigDecimal feelModulo(List<Object> arguments) {
+		if (arguments == null || arguments.size() != 2)
+			return null;
+		Object aObj = arguments.get(0);
+		Object bObj = arguments.get(1);
+		if (!(aObj instanceof Number) || !(bObj instanceof Number))
+			return null;
+		BigDecimal a = number(aObj);
+		BigDecimal b = number(bObj);
+		if (a == null || b == null || b.signum() == 0)
+			return null;
+		BigDecimal q = a.divide(b, MathContext.DECIMAL128);
+		BigDecimal floorQ = q.setScale(0, java.math.RoundingMode.FLOOR);
+		return a.subtract(floorQ.multiply(b));
+	}
+
+	public static Boolean feelAny(List<Object> arguments) {
+		if (arguments == null || arguments.isEmpty())
+			return null;
+		if (arguments.size() == 1 && arguments.get(0) == null)
+			return null;
+		List<Object> list;
+		if (arguments.size() == 1 && arguments.get(0) instanceof List<?> l) {
+			list = (List<Object>) l;
+		} else if (arguments.size() == 1 && !(arguments.get(0) instanceof Boolean)) {
+			return null;
+		} else {
+			list = arguments;
+		}
+		if (list.isEmpty())
+			return false;
+		boolean hasNullOrNonBoolean = false;
+		for (Object o : list) {
+			if (Boolean.TRUE.equals(o))
+				return true;
+			if (!Boolean.FALSE.equals(o))
+				hasNullOrNonBoolean = true;
+		}
+		return hasNullOrNonBoolean ? null : false;
+	}
 
 	public static List<Object> bindNamedBuiltinArguments(String fnName, Map<String, Object> namedArgs) {
 		if (namedArgs == null || namedArgs.isEmpty())
@@ -3010,6 +3167,13 @@ public final class DmnRuntime {
 				List<Object> args = new ArrayList<>(spec.size());
 				for (String param : spec) {
 					args.add(namedArgs.get(param));
+				}
+				// context put(context, key, value): 'key' must be a string, not a list.
+				// If 'key' was the matched param (not 'keys') and its value is a list → null.
+				if ("context put".equals(fnName) && spec.contains("key") && !spec.contains("keys")) {
+					Object keyVal = namedArgs.get("key");
+					if (keyVal instanceof List<?>)
+						return null;
 				}
 				return args;
 			}
@@ -3114,5 +3278,81 @@ public final class DmnRuntime {
 				result.append(ch);
 		}
 		return result.toString().replaceAll("(\\\\p\\{[^}]*)\\s+([^}]*})", "$1$2");
+	}
+
+	public static String feelSubstringBefore(List<Object> args) {
+		if (args == null || args.size() != 2 || args.get(0) == null || args.get(1) == null)
+			return null;
+		if (!(args.get(0) instanceof String) || !(args.get(1) instanceof String))
+			return null;
+		String str = (String) args.get(0);
+		String sub = (String) args.get(1);
+		int idx = str.indexOf(sub);
+		return idx < 0 ? "" : str.substring(0, idx);
+	}
+
+	public static String feelSubstringAfter(List<Object> args) {
+		if (args == null || args.size() != 2 || args.get(0) == null || args.get(1) == null)
+			return null;
+		if (!(args.get(0) instanceof String) || !(args.get(1) instanceof String))
+			return null;
+		String str = (String) args.get(0);
+		String sub = (String) args.get(1);
+		int idx = str.indexOf(sub);
+		return idx < 0 ? "" : str.substring(idx + sub.length());
+	}
+
+	public static String feelStringJoin(List<Object> arguments) {
+		if (arguments == null || arguments.isEmpty() || arguments.size() > 4 || arguments.size() == 3)
+			return null;
+		Object firstArg = arguments.get(0);
+		if (firstArg == null)
+			return null;
+		List<?> items;
+		if (firstArg instanceof List<?> l) {
+			items = l;
+		} else if (firstArg instanceof String s) {
+			items = List.of(s);
+		} else {
+			return null;
+		}
+		String delimiter = "";
+		if (arguments.size() > 1) {
+			Object delimArg = arguments.get(1);
+			if (delimArg != null) {
+				if (!(delimArg instanceof String))
+					return null;
+				delimiter = (String) delimArg;
+			}
+		}
+		String prefix = "";
+		String suffix = "";
+		if (arguments.size() == 4) {
+			Object p = arguments.get(2);
+			Object s = arguments.get(3);
+			if (p != null && !(p instanceof String))
+				return null;
+			if (s != null && !(s instanceof String))
+				return null;
+			if (p != null)
+				prefix = (String) p;
+			if (s != null)
+				suffix = (String) s;
+		}
+		StringBuilder sb = new StringBuilder();
+		sb.append(prefix);
+		boolean first = true;
+		for (Object o : items) {
+			if (o == null)
+				continue;
+			if (!(o instanceof String s))
+				return null;
+			if (!first)
+				sb.append(delimiter);
+			sb.append(s);
+			first = false;
+		}
+		sb.append(suffix);
+		return sb.toString();
 	}
 }
