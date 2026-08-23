@@ -97,6 +97,29 @@ class DmnXmlReaderTest {
 	}
 
 	@Test
+	void preservesBoxedFunctionAsParameterlessBkmBody() {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+				    namespace="https://example.com/model">
+				  <businessKnowledgeModel id="bkm-1" name="FunctionFactory">
+				    <encapsulatedLogic>
+				      <functionDefinition>
+				        <formalParameter id="parameter-1" name="value" typeRef="number"/>
+				        <literalExpression><text>value + 1</text></literalExpression>
+				      </functionDefinition>
+				    </encapsulatedLogic>
+				  </businessKnowledgeModel>
+				</definitions>
+				""";
+
+		var function = new DmnXmlReader().read(xml.getBytes()).getDrgElements(0).getBusinessKnowledgeModel()
+				.getFunction();
+
+		assertEquals(0, function.getFormalParametersCount());
+		assertEquals("function (value: number) value + 1", function.getLogic().getText().getText());
+	}
+
+	@Test
 	void returnsStructuredDiagnosticForMalformedXml() {
 		DmnReadOptions options = new DmnReadOptions(1024, "memory:broken.dmn");
 

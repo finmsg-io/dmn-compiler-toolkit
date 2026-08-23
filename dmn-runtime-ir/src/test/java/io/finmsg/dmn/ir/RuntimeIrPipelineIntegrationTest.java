@@ -79,10 +79,8 @@ class RuntimeIrPipelineIntegrationTest {
 				  <businessKnowledgeModel id="bkm-1" name="Double">
 				    <variable id="result-1" name="Double" typeRef="number"/>
 				    <encapsulatedLogic>
-				      <functionDefinition kind="FEEL">
-				        <formalParameter id="parameter-1" name="value" typeRef="number"/>
-				        <literalExpression><text>value * 2</text></literalExpression>
-				      </functionDefinition>
+				      <formalParameter id="parameter-1" name="value" typeRef="number"/>
+				      <literalExpression><text>value * 2</text></literalExpression>
 				    </encapsulatedLogic>
 				  </businessKnowledgeModel>
 				</definitions>

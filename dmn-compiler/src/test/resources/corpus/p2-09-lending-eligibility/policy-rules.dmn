@@ -6,13 +6,11 @@
     <dmn:businessKnowledgeModel id="bkm-max-loan" name="MaxLoanAmount">
         <dmn:variable id="var-max-loan" name="MaxLoanAmount" typeRef="number"/>
         <dmn:encapsulatedLogic id="logic-max-loan">
-            <dmn:functionDefinition>
-                <dmn:formalParameter id="param-risk" name="risk" typeRef="string"/>
-                <dmn:formalParameter id="param-income" name="income" typeRef="number"/>
-                <dmn:literalExpression id="expr-max-loan">
-                    <dmn:text>if risk = "LOW" then income * 4 else if risk = "MEDIUM" then income * 2 else 0</dmn:text>
-                </dmn:literalExpression>
-            </dmn:functionDefinition>
+            <dmn:formalParameter id="param-risk" name="risk" typeRef="string"/>
+            <dmn:formalParameter id="param-income" name="income" typeRef="number"/>
+            <dmn:literalExpression id="expr-max-loan">
+                <dmn:text>if risk = "LOW" then income * 4 else if risk = "MEDIUM" then income * 2 else 0</dmn:text>
+            </dmn:literalExpression>
         </dmn:encapsulatedLogic>
     </dmn:businessKnowledgeModel>
 </dmn:definitions>

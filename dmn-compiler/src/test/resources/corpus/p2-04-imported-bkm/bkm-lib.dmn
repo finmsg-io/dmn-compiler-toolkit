@@ -6,13 +6,11 @@
     <dmn:businessKnowledgeModel id="bkm-mult" name="multiplyBkm">
         <dmn:variable id="var-bkm-mult" name="multiplyBkm" typeRef="number"/>
         <dmn:encapsulatedLogic id="logic-bkm-mult">
-            <dmn:functionDefinition>
-                <dmn:formalParameter id="param-x" name="x" typeRef="number"/>
-                <dmn:formalParameter id="param-y" name="y" typeRef="number"/>
-                <dmn:literalExpression id="expr-bkm-mult">
-                    <dmn:text>x * y</dmn:text>
-                </dmn:literalExpression>
-            </dmn:functionDefinition>
+            <dmn:formalParameter id="param-x" name="x" typeRef="number"/>
+            <dmn:formalParameter id="param-y" name="y" typeRef="number"/>
+            <dmn:literalExpression id="expr-bkm-mult">
+                <dmn:text>x * y</dmn:text>
+            </dmn:literalExpression>
         </dmn:encapsulatedLogic>
     </dmn:businessKnowledgeModel>
 </dmn:definitions>
