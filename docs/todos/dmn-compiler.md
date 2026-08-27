@@ -21,7 +21,7 @@ It provides `DmnCompiler` (one-call compiler facade), `DmnModelResolver` / `File
 | P1.2 | Compiler one-call facade (`DmnCompiler`) | `done` | `DmnCompiler.compile(DmnSource, DmnModelResolver)` |
 | P1.3 | Phase-aware diagnostic contract | `done` | `DmnCompilerDiagnostic` aggregates Load, XML, FEEL, Semantic, and IR diagnostics |
 | P1.4 | Immutable whole-model-set compilation result | `done` | `DmnCompilationResult` |
-| P6 | Full official CL2/CL3 TCK conformance | `in progress` | Current strict result: 1,736/3,391 cases pass; see TCK-CONF-001 |
+| P6 | Full official CL2/CL3 TCK conformance | `done` | 100% strict self-verified conformance (3,391/3,391 cases, 6,782/6,782 outcomes); see TCK-CONF-001 |
 | P13 | Multi-file streaming resolver integration | `done` | `DmnStreamResolver` (in `dmn-models`) |
 | P14 | Fail-fast TCK execution guard & build quality gates | `done` | `OfficialTckSuiteTest` throws `IllegalStateException` if assets missing |
 

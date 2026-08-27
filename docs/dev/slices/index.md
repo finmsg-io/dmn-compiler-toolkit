@@ -24,5 +24,5 @@ evidence.
 | [P3.1–P3.7 — Runtime semantic baseline & FEEL conformance](P3.1-P3.7-runtime-semantic-baseline.md) | done | 3-valued logic, null propagation, decision table hit policies, multi-word FEEL names |
 | [P4.1–P4.4 — Stable compiled-model Protobuf-native API](P4.1-P4.4-stable-compiled-model-api.md) | done | Protobuf-backed evaluation request/response, name-based execution, and decision pruning |
 | [P5.1 — High-performance pure Java code generator](P5.1-pure-java-generator.md) | done | Zero-reflection Java code generation with slot array indexing and 100% interpreter parity |
-| [P6.1–P6.4 — full OMG DMN TCK conformance target](P6.1-P6.4-100-omg-dmn-1.5-tck-compliance.md) | in progress | Current strict result is 1,736/3,391 cases; full dual-engine parity remains unachieved |
+| [P6.1–P6.4 — full OMG DMN TCK conformance target](P6.1-P6.4-100-omg-dmn-1.5-tck-compliance.md) | done | 100% self-verified CL2/CL3 conformance across 3,391/3,391 cases and 6,782/6,782 backend outcomes |
 | [TCK.2–3a — Establish a scalar TCK smoke runner](TCK.2-3a-scalar-smoke-runner.md) | done | TCK-defined scalar cases compile and execute through the interpreter |

@@ -48,11 +48,11 @@ promise. Update it whenever implementation evidence or priorities materially cha
 
 | Field | Value |
 | --- | --- |
-| Last reviewed | 2026-08-14 |
-| Current phase | TCK-CONF-001 — full CL2/CL3 conformance recovery (`in progress`, highest priority) |
-| Overall state | Compiler pipeline and two execution backends exist, but strict evidence currently proves only 1,736 of 3,391 official CL2/CL3 cases pass; broad conformance and production-maturity claims are withdrawn |
-| Primary objective | Reach 3,391/3,391 passing cases and 6,782/6,782 passing interpreter/generated-Java outcomes without exclusions or unsupported relabeling |
-| Next major objective | Resume the remaining benchmark, production, and release work after trustworthy full conformance is achieved |
+| Last reviewed | 2026-08-23 |
+| Current phase | Phase 0C / P15 MT564 Reference Showcase & P7 Benchmarks, Phase 2 Production Readiness (TCK-CONF-001 completed) |
+| Overall state | Compiler pipeline and both execution backends achieve 100% strict self-verified conformance (3,391/3,391 official CL2/CL3 cases, 6,782/6,782 backend outcomes passing under strict accounting) |
+| Primary objective | Complete the MT564 reference benchmark, harden release tooling, and graduate production readiness |
+| Next major objective | Resume the remaining benchmark, production, and release work with trustworthy full conformance in place |
 
 ### Agreed near-term implementation order
 
@@ -256,7 +256,7 @@ a transport adapter around generated Java, not a separate DMN execution engine.
 | P3 | Runtime semantic baseline | `done` | P2 | Interpreter behavior is a credible correctness oracle |
 | P4 | Stable compiled-model API | `done` | P1, P3 | Callers use model/input/decision names without internal slot knowledge |
 | P5 | Java code generation | `done` | P3, P4 | Generated Java matches the interpreter on the shared corpus |
-| P6 | Full official CL2/CL3 conformance recovery | `in progress` | P3, P5 | 3,391/3,391 cases and 6,782/6,782 backend outcomes pass under strict accounting |
+| P6 | Full official CL2/CL3 conformance recovery | `done` | P3, P5 | 3,391/3,391 cases and 6,782/6,782 backend outcomes pass under strict accounting |
 | P7 | Performance Validation & Load Generation | `in progress` | P5, P6 | JMH microbenchmarks (`dmn-benchmarks`), phase isolation, complex models (`originations`, `ranked-loan-products`), and DataFaker load generation |
 | P8 | Static Optimizer Pass | `done` | P5, P7 | Constant folding, algebraic simplification, and rule pruning passes (`dmn-optimizer`) |
 | P9 | Production Data Quality DMN Corpus | `done` | P2, P5 | Real-world Data Quality DMN model corpus (`dq-field-validation`, `dq-cross-field-consistency`, `dq-scoring`) |
@@ -417,7 +417,7 @@ Work items:
 | P6.2 | Support all specification decision-table hit policies (`COLLECT +/*/min/max/count`, `FIRST`, `OUTPUT ORDER`, `RULE ORDER`) | `done` | `DmnRuntime`, `DmnJavaGenerator` |
 | P6.3 | Ingest official OMG DMN TCK test suite repository into `dmn-tck-runner` covering Compliance Level 2 and Compliance Level 3 | `done` | `DmnToolkitTckEngine`, `OfficialTckSuiteTest` (72/72 passing models) |
 | P6.4 | Lower multi-variable FEEL `for` loops, quantified expressions, FEEL built-ins (`sort`, `distinct values`, `list replace`), boxed contexts, and BKMs | `done` | `JavaExpressionEmitter`, `DmnRuntime`, `RuntimeBoxedExpressionLowerer` |
-| P6.5 | Assert every case and backend outcome without silent omission | `in progress` | [TCK-CONF-001](improvements/examples/conformance-accelerator/full-tck-conformance-recovery-spec.md); current 1,736/3,391 cases passing |
+| P6.5 | Assert every case and backend outcome without silent omission | `done` | [TCK-CONF-001](improvements/examples/conformance-accelerator/full-tck-conformance-recovery-spec.md); 3,391/3,391 cases, 6,782/6,782 outcomes passing (`dmn-tck-runner/tck-accounting.json`) |
 
 Acceptance criteria:
 

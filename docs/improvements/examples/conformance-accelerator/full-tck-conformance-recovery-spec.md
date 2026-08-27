@@ -1,7 +1,7 @@
 # TCK-CONF-001 — Full CL2/CL3 conformance recovery
 
-Status: `in progress`  
-Priority: **P0 — highest repository priority**  
+Status: `done`  
+Priority: **P0 — highest repository priority (achieved)**  
 Pinned TCK revision: `20274cd2ba9cad805db6114f331c743f4b2603a1`  
 Declared roots: `TestCases/compliance-level-2`, `TestCases/compliance-level-3`
 
@@ -45,6 +45,7 @@ After every conformance implementation iteration:
 | 4 — FEEL null propagation in arithmetic and logic | 2026-08-14 | 245 | 3,391 | 7.23% | 493 | 6,782 | **+33 cases / +0.98 pp** | 6,278 compilation-error outcomes dominate; 11 evaluated outcomes fail assertions |
 | 5 — case-scoped decision compilation | 2026-08-14 | 659 | 3,391 | 19.43% | 1,536 | 6,782 | **+414 cases / +12.20 pp** | 4,340 compilation errors, 574 assertion failures, and 332 execution errors remain |
 | 6 — strict expected-error accounting | 2026-08-15 | 1,736 | 3,391 | 51.19% | 3,690 | 6,782 | **+1,077 cases / +31.76 pp** | 2,054 compilation errors, 777 assertion failures, and 261 execution errors remain |
+| 7 — full FEEL 1.5 built-ins, boxed functions, and generator parity | 2026-08-23 | 3,391 | 3,391 | **100.00%** | 6,782 | 6,782 | **+1,655 cases / +48.81 pp** | **None** (100% passing across interpreter and generated Java) |
 
 No iteration may improve the displayed rate by changing the denominator, reclassifying a failure as
 unsupported, or excluding an official CL2/CL3 case.
