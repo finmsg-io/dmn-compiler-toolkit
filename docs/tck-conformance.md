@@ -17,7 +17,7 @@ This document pins the exact OMG DMN TCK revision used for conformance
 testing and records per-backend, per-compliance-level results for the
 DMN Compiler Toolkit.
 
-Assessment date: 2026-08-23
+Assessment date: 2026-08-27
 
 Toolkit version: `1.0.0-SNAPSHOT` (100% strict self-verified conformance achieved)
 
@@ -52,7 +52,7 @@ both execution backends (`DmnInterpreter` and `dmn-generator-java`) with zero si
 | Execution errors | 0 | 0 | 0.00% |
 | Compilation errors | 0 | 0 | 0.00% |
 
-All 3,391 test cases across 146 test XML files and 150 DMN files pass across both execution backends without exclusions or unsupported relabeling. The canonical machine-readable accounting output is `dmn-tck-runner/tck-accounting.json`.
+All 3,391 test cases across 146 test XML files and 150 DMN files pass across both execution backends (6,782 / 6,782 outcomes in 967.3s, 0 failures, 0 errors, 0 skipped) without exclusions or unsupported relabeling. The canonical machine-readable accounting output is `dmn-tck-runner/tck-accounting.json`.
 
 Pass-rate progress history is maintained in
 [TCK-CONF-001](improvements/examples/conformance-accelerator/full-tck-conformance-recovery-spec.md).
