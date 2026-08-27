@@ -46,6 +46,7 @@ After every conformance implementation iteration:
 | 5 — case-scoped decision compilation | 2026-08-14 | 659 | 3,391 | 19.43% | 1,536 | 6,782 | **+414 cases / +12.20 pp** | 4,340 compilation errors, 574 assertion failures, and 332 execution errors remain |
 | 6 — strict expected-error accounting | 2026-08-15 | 1,736 | 3,391 | 51.19% | 3,690 | 6,782 | **+1,077 cases / +31.76 pp** | 2,054 compilation errors, 777 assertion failures, and 261 execution errors remain |
 | 7 — full FEEL 1.5 built-ins, boxed functions, and generator parity | 2026-08-23 | 3,391 | 3,391 | **100.00%** | 6,782 | 6,782 | **+1,655 cases / +48.81 pp** | **None** (100% passing across interpreter and generated Java) |
+| 8 — full suite re-verification run | 2026-08-27 | 3,391 | 3,391 | **100.00%** | 6,782 | 6,782 | **0 cases / 0.00 pp** (maintained) | **None** (100% passing in 967.3s; 0 failures, 0 errors, 0 skipped) |
 
 No iteration may improve the displayed rate by changing the denominator, reclassifying a failure as
 unsupported, or excluding an official CL2/CL3 case.
@@ -62,7 +63,7 @@ unsupported, or excluding an official CL2/CL3 case.
 
 ## Completion gate
 
-This work package is complete only when the strict report proves:
+This work package is complete. The strict report confirms:
 
 ```text
 available cases              = 3,391
@@ -73,5 +74,7 @@ passed backend outcomes      = 6,782
 missing/non-passing outcomes = 0
 ```
 
-Documentation may then state self-verified conformance for this pinned revision. It must not state
+Verified on 2026-08-27 (`OfficialTckSuiteTest`, 967.3s runtime). Canonical artifact: `dmn-tck-runner/tck-accounting.json`.
+
+Documentation may state self-verified conformance for this pinned revision. It must not state
 external certification unless an actual certification process has occurred.
