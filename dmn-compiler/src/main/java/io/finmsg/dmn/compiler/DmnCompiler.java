@@ -3,7 +3,9 @@ package io.finmsg.dmn.compiler;
 import io.finmsg.dmn.ir.RuntimeIrLowerer;
 import io.finmsg.dmn.ir.RuntimeIrLoweringException;
 import io.finmsg.dmn.ir.RuntimeIrOptimizer;
+import io.finmsg.dmn.ir.RuntimeModel;
 import io.finmsg.dmn.ir.RuntimeOptimizedModel;
+import io.finmsg.dmn.optimizer.DmnOptimizer;
 import io.finmsg.dmn.semantic.analysis.DmnSemanticPipelineResult;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,17 +20,20 @@ public final class DmnCompiler {
 	private final DmnModelLoader loader;
 	private final DmnModelSetSemanticAnalyzer semanticAnalyzer;
 	private final RuntimeIrLowerer lowerer;
+	private final DmnOptimizer modelOptimizer;
 	private final RuntimeIrOptimizer optimizer;
 
 	public DmnCompiler() {
-		this(new DmnModelLoader(), new DmnModelSetSemanticAnalyzer(), new RuntimeIrLowerer(), new RuntimeIrOptimizer());
+		this(new DmnModelLoader(), new DmnModelSetSemanticAnalyzer(), new RuntimeIrLowerer(), new DmnOptimizer(),
+				new RuntimeIrOptimizer());
 	}
 
 	DmnCompiler(DmnModelLoader loader, DmnModelSetSemanticAnalyzer semanticAnalyzer, RuntimeIrLowerer lowerer,
-			RuntimeIrOptimizer optimizer) {
+			DmnOptimizer modelOptimizer, RuntimeIrOptimizer optimizer) {
 		this.loader = Objects.requireNonNull(loader, "loader");
 		this.semanticAnalyzer = Objects.requireNonNull(semanticAnalyzer, "semanticAnalyzer");
 		this.lowerer = Objects.requireNonNull(lowerer, "lowerer");
+		this.modelOptimizer = Objects.requireNonNull(modelOptimizer, "modelOptimizer");
 		this.optimizer = Objects.requireNonNull(optimizer, "optimizer");
 	}
 
@@ -55,7 +60,11 @@ public final class DmnCompiler {
 						model.bindings()))
 				.toList();
 		try {
-			RuntimeOptimizedModel optimized = optimizer.optimize(lowerer.lowerModelSet(analyses));
+			RuntimeModel lowered = lowerer.lowerModelSet(analyses);
+			RuntimeModel selected = options.runtimeModelMode() == RuntimeModelMode.OPTIMIZED
+					? modelOptimizer.optimize(lowered)
+					: lowered;
+			RuntimeOptimizedModel optimized = optimizer.optimize(selected);
 			return result(loaded, semantic, Optional.of(optimized), semantic.diagnostics());
 		} catch (RuntimeIrLoweringException exception) {
 			List<DmnCompilerDiagnostic> diagnostics = new ArrayList<>(semantic.diagnostics());

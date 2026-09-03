@@ -19,7 +19,10 @@ public final class TckCatalogueReportWriter {
 		StringBuilder json = new StringBuilder(4096);
 		TckCatalogueInventory inventory = report.inventory();
 		json.append("{\n  \"revision\": \"").append(escape(report.revision())).append("\",\n")
-				.append("  \"inventory\": {\"directories\": ").append(inventory.directoryCount())
+				.append("  \"backends\": [")
+				.append(report.backends().stream().map(value -> "\"" + escape(value) + "\"")
+						.collect(java.util.stream.Collectors.joining(", ")))
+				.append("],\n").append("  \"inventory\": {\"directories\": ").append(inventory.directoryCount())
 				.append(", \"testXmlFiles\": ").append(inventory.testXmlCount()).append(", \"dmnFiles\": ")
 				.append(inventory.dmnFileCount()).append(", \"decodedCases\": ").append(inventory.decodedCaseCount())
 				.append("},\n  \"statusCounts\": {");

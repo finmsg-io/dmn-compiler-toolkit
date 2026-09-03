@@ -36,6 +36,27 @@ class DmnCompilerTest {
 	}
 
 	@Test
+	void selectsLoweredOrTransformationOptimizedRuntimeModelExplicitly() {
+		DmnSource root = source("root.dmn", model("urn:root", "Root", """
+				<decision id="decision" name="Decision">
+				  <variable id="variable" name="Decision" typeRef="number"/>
+				  <literalExpression><text>1 + 2</text></literalExpression>
+				</decision>
+				"""));
+
+		DmnCompilationResult lowered = compiler.compile(root, new InMemoryDmnModelResolver(List.of()),
+				DmnCompilerOptions.lowered());
+		DmnCompilationResult optimized = compiler.compile(root, new InMemoryDmnModelResolver(List.of()),
+				DmnCompilerOptions.optimized());
+
+		assertThat(
+				lowered.optimizedRuntimeModel().orElseThrow().model().decisions().getFirst().expression().orElseThrow())
+				.isInstanceOf(io.finmsg.dmn.ir.RuntimeBinaryExpression.class);
+		assertThat(optimized.optimizedRuntimeModel().orElseThrow().model().decisions().getFirst().expression()
+				.orElseThrow()).isInstanceOf(io.finmsg.dmn.ir.RuntimeConstant.class);
+	}
+
+	@Test
 	void compilesImportedModelsIntoOneLinkedRuntimeModel() {
 		DmnSource root = source("root.dmn",
 				model("urn:root", "Root", "<import namespace=\"urn:base\" locationURI=\"base.dmn\"/>"));

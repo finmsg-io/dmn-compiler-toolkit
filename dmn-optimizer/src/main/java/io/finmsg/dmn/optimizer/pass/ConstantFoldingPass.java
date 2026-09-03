@@ -274,6 +274,6 @@ public class ConstantFoldingPass implements OptimizerPass {
 	private RuntimeExpression foldFilter(RuntimeFilterExpression filter) {
 		RuntimeExpression source = transformExpression(filter.source());
 		RuntimeExpression predicate = transformExpression(filter.filter());
-		return new RuntimeFilterExpression(source, predicate, filter.type());
+		return new RuntimeFilterExpression(source, filter.localSlot(), predicate, filter.type());
 	}
 }

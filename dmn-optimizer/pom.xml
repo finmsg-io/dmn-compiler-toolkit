@@ -20,11 +20,6 @@
       <artifactId>dmn-runtime-ir</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <dependency>
-      <groupId>io.finmsg.dmn</groupId>
-      <artifactId>dmn-runtime</artifactId>
-      <version>${project.version}</version>
-    </dependency>
 
     <!-- Test Dependencies -->
     <dependency>
@@ -35,18 +30,6 @@
     <dependency>
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.finmsg.dmn</groupId>
-      <artifactId>dmn-compiler</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.finmsg.dmn</groupId>
-      <artifactId>dmn-generator-java</artifactId>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

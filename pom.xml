@@ -22,11 +22,11 @@
         <module>dmn-semantic-analysis</module>
         <module>dmn-runtime-ir</module>
         <module>dmn-runtime</module>
+        <module>dmn-optimizer</module>
         <module>dmn-compiler</module>
         <module>dmn-generator-java</module>
         <module>dmn-tck-runner</module>
         <module>dmn-benchmarks</module>
-        <module>dmn-optimizer</module>
         <module>dmn-grpc</module>
         <module>dmn-generator-sparksql</module>
         <module>dmn-models</module>

@@ -160,7 +160,7 @@ public class AlgebraicSimplificationPass implements OptimizerPass {
 	private RuntimeExpression simplifyFilter(RuntimeFilterExpression filter) {
 		RuntimeExpression source = simplifyExpression(filter.source());
 		RuntimeExpression predicate = simplifyExpression(filter.filter());
-		return new RuntimeFilterExpression(source, predicate, filter.type());
+		return new RuntimeFilterExpression(source, filter.localSlot(), predicate, filter.type());
 	}
 
 	private boolean isZeroConstant(RuntimeExpression expr) {

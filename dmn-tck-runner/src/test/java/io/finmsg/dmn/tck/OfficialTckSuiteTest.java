@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.finmsg.dmn.compiler.DmnCompilationResult;
 import io.finmsg.dmn.compiler.DmnCompiler;
+import io.finmsg.dmn.compiler.DmnCompilerOptions;
 import io.finmsg.dmn.compiler.DmnSource;
 import io.finmsg.dmn.compiler.DmnSourceId;
+import io.finmsg.dmn.compiler.RuntimeModelMode;
 import io.finmsg.dmn.generator.java.DmnJavaGenerator;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorOptions;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorResult;
@@ -37,15 +39,22 @@ class OfficialTckSuiteTest {
 	private static final AtomicInteger ENGINE_COUNTER = new AtomicInteger(1);
 	private static final String TCK_REVISION = "20274cd2ba9cad805db6114f331c743f4b2603a1";
 	private static final List<String> CATALOGUE_ROOTS = List.of("compliance-level-2", "compliance-level-3");
-	private static final List<String> BACKENDS = List.of("interpreter", "generated-java");
 	private final List<TckCatalogueOutcome> outcomes = Collections.synchronizedList(new ArrayList<>());
 	private final Map<PreparationKey, Preparation> preparationCache = new HashMap<>();
+	private final Map<PreparationKey, GeneratedPreparation> generatedPreparationCache = new HashMap<>();
 	private final AtomicInteger currentTestIndex = new AtomicInteger(0);
+	private List<RuntimeModelMode> activeModelModes = List.of();
+	private List<String> activeBackends = List.of();
 	private int totalTestCount = 0;
 	private TckCatalogueInventory inventory;
 
 	@TestFactory
 	Stream<DynamicTest> verifyFullOfficialOmgTckConformance() throws Exception {
+		activeModelModes = configuredModelModes();
+		activeBackends = activeModelModes.stream().flatMap(mode -> {
+			String variant = mode.name().toLowerCase(Locale.ROOT);
+			return Stream.of(variant + "-interpreter", variant + "-generated-java");
+		}).toList();
 		URL officialResource = OfficialTckSuiteTest.class.getClassLoader().getResource("tck-official/TestCases");
 		if (officialResource == null) {
 			throw new IllegalStateException("Official OMG DMN TCK test suite is missing! "
@@ -56,6 +65,10 @@ class OfficialTckSuiteTest {
 		Path testCasesDir = Path.of(officialResource.toURI());
 		inventory = new TckCatalogueDiscovery().discover(testCasesDir, CATALOGUE_ROOTS);
 		String selector = System.getProperty("tck.case", "").trim();
+		String filter = System.getProperty("tck.filter", System.getProperty("tck.suite", "")).trim();
+		if (Boolean.getBoolean("tck.requireFull") && (!selector.isEmpty() || !filter.isEmpty())) {
+			throw new IllegalArgumentException("tck.requireFull=true forbids tck.case, tck.filter, and tck.suite");
+		}
 		if (!selector.isEmpty()) {
 			TckCatalogueEntry selectedEntry = inventory.requireExactCase(selector);
 			String caseId = selector.substring(selector.lastIndexOf('#') + 1);
@@ -66,7 +79,6 @@ class OfficialTckSuiteTest {
 			inventory = new TckCatalogueInventory(inventory.directoryCount(), 1, selected.dmnFiles().size(), 1,
 					List.of(selected));
 		}
-		String filter = System.getProperty("tck.filter", System.getProperty("tck.suite", "")).trim();
 		if (!filter.isEmpty()) {
 			List<TckCatalogueEntry> filtered = inventory.entries().stream()
 					.filter(e -> e.id().contains(filter) || e.testXml().toString().contains(filter)).toList();
@@ -75,7 +87,7 @@ class OfficialTckSuiteTest {
 			inventory = new TckCatalogueInventory(inventory.directoryCount(), filtered.size(), dmns, cases, filtered);
 		}
 		totalTestCount = inventory.entries().stream().filter(TckCatalogueEntry::executable)
-				.mapToInt(e -> e.testCases().size() * BACKENDS.size()).sum();
+				.mapToInt(e -> e.testCases().size() * activeBackends.size()).sum();
 		currentTestIndex.set(0);
 		List<DynamicTest> dynamicTests = new ArrayList<>();
 		DmnToolkitTckEngine interpreterEngine = new DmnToolkitTckEngine();
@@ -98,42 +110,72 @@ class OfficialTckSuiteTest {
 			for (Path model : orderedModels)
 				sources.add(new DmnSource(new DmnSourceId(model.toUri()), Files.readAllBytes(model)));
 			for (TckTestCase testCase : entry.testCases()) {
-				String testName = entry.id() + "#" + testCase.id();
-				dynamicTests.add(recordedTest(testName + " @interpreter", entry, testCase, "interpreter", () -> {
-					Preparation preparation = getPreparation(sources, testCase);
-					if (preparation.failureDiagnostic() != null) {
-						if (expectsOnlyErrors(testCase) && preparation.modelRejected())
-							return;
-						throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
-					}
-					TckExecutionResult result = interpreterEngine.execute(preparation.compilation(), testCase);
-					assertExpected(testName, testCase, result.decisionValues(), "Interpreter");
-				}));
-				dynamicTests.add(recordedTest(testName + " @generated-java", entry, testCase, "generated-java", () -> {
-					Preparation preparation = getPreparation(sources, testCase);
-					if (preparation.failureDiagnostic() != null) {
-						if (expectsOnlyErrors(testCase) && preparation.modelRejected())
-							return;
-						throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
-					}
-					executeGeneratedJava(preparation, testCase, testName);
-				}));
+				for (RuntimeModelMode modelMode : activeModelModes)
+					addModelVariantTests(dynamicTests, interpreterEngine, entry, sources, testCase, modelMode);
 			}
 		}
 		return dynamicTests.stream();
 	}
 
-	private Preparation getPreparation(List<DmnSource> sources, TckTestCase testCase) {
-		Set<String> resultNames = Set.copyOf(testCase.expectedResults().keySet());
-		PreparationKey preparationKey = new PreparationKey(
-				sources.stream().map(source -> source.id().toString()).toList(), resultNames);
-		return preparationCache.computeIfAbsent(preparationKey, ignored -> prepare(sources, resultNames));
+	private static List<RuntimeModelMode> configuredModelModes() {
+		return switch (System.getProperty("tck.modelVariant", "all").trim().toLowerCase(Locale.ROOT)) {
+			case "all" -> List.of(RuntimeModelMode.LOWERED, RuntimeModelMode.OPTIMIZED);
+			case "lowered" -> List.of(RuntimeModelMode.LOWERED);
+			case "optimized" -> List.of(RuntimeModelMode.OPTIMIZED);
+			default -> throw new IllegalArgumentException("tck.modelVariant must be all, lowered, or optimized");
+		};
 	}
 
-	private void executeGeneratedJava(Preparation preparation, TckTestCase testCase, String testName) throws Exception {
-		DmnCompilationResult compilation = preparation.compilation();
-		Class<?> genClass = preparation.generatedClass();
-		Object engineInstance = preparation.engineInstance();
+	private void addModelVariantTests(List<DynamicTest> dynamicTests, DmnToolkitTckEngine interpreterEngine,
+			TckCatalogueEntry entry, List<DmnSource> sources, TckTestCase testCase, RuntimeModelMode modelMode) {
+		String variant = modelMode.name().toLowerCase(Locale.ROOT);
+		String testName = entry.id() + "#" + testCase.id();
+		String interpreterBackend = variant + "-interpreter";
+		String generatedJavaBackend = variant + "-generated-java";
+		dynamicTests.add(recordedTest(testName + " @" + interpreterBackend, entry, testCase, interpreterBackend, () -> {
+			Preparation preparation = getPreparation(sources, testCase, modelMode);
+			if (preparation.failureDiagnostic() != null) {
+				if (expectsOnlyErrors(testCase) && preparation.modelRejected())
+					return;
+				throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
+			}
+			TckExecutionResult result = interpreterEngine.execute(preparation.compilation(), testCase);
+			assertExpected(testName, testCase, result.decisionValues(), variant + " interpreter");
+		}));
+		dynamicTests
+				.add(recordedTest(testName + " @" + generatedJavaBackend, entry, testCase, generatedJavaBackend, () -> {
+					Preparation preparation = getPreparation(sources, testCase, modelMode);
+					if (preparation.failureDiagnostic() != null) {
+						if (expectsOnlyErrors(testCase) && preparation.modelRejected())
+							return;
+						throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
+					}
+					GeneratedPreparation generated = getGeneratedPreparation(sources, testCase, modelMode, preparation);
+					if (generated.failureDiagnostic() != null)
+						throw new AssertionError(generated.failureDiagnostic(), generated.failureCause());
+					executeGeneratedJava(preparation.compilation(), generated, testCase, testName);
+				}));
+	}
+
+	private Preparation getPreparation(List<DmnSource> sources, TckTestCase testCase, RuntimeModelMode modelMode) {
+		Set<String> resultNames = Set.copyOf(testCase.expectedResults().keySet());
+		PreparationKey preparationKey = new PreparationKey(
+				sources.stream().map(source -> source.id().toString()).toList(), resultNames, modelMode);
+		return preparationCache.computeIfAbsent(preparationKey, ignored -> prepare(sources, resultNames, modelMode));
+	}
+
+	private GeneratedPreparation getGeneratedPreparation(List<DmnSource> sources, TckTestCase testCase,
+			RuntimeModelMode modelMode, Preparation preparation) {
+		Set<String> resultNames = Set.copyOf(testCase.expectedResults().keySet());
+		PreparationKey key = new PreparationKey(sources.stream().map(source -> source.id().toString()).toList(),
+				resultNames, modelMode);
+		return generatedPreparationCache.computeIfAbsent(key, ignored -> prepareGenerated(preparation.compilation()));
+	}
+
+	private void executeGeneratedJava(DmnCompilationResult compilation, GeneratedPreparation generated,
+			TckTestCase testCase, String testName) throws Exception {
+		Class<?> genClass = generated.generatedClass();
+		Object engineInstance = generated.engineInstance();
 		if (testCase.invocableName().isPresent()) {
 			String invocableName = testCase.invocableName().get();
 			Map<String, Integer> bkmSlots = DmnToolkitTckEngine.getRuntimeBkmSlots(compilation);
@@ -205,7 +247,7 @@ class OfficialTckSuiteTest {
 		assertExpected(testName, testCase, extractDecisionValues(compilation, evaluated), "Generated code");
 	}
 
-	private Preparation prepare(List<DmnSource> sources, Set<String> resultNames) {
+	private Preparation prepare(List<DmnSource> sources, Set<String> resultNames, RuntimeModelMode modelMode) {
 		try {
 			List<DmnSource> scopedSources = new ArrayList<>(sources);
 			scopedSources.set(0, new TckDmnDecisionPruner().prune(sources.getFirst(), resultNames));
@@ -214,23 +256,31 @@ class OfficialTckSuiteTest {
 					? new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(
 							scopedSources.subList(1, scopedSources.size()))
 					: new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(List.of());
-			DmnCompilationResult compilation = new DmnCompiler().compile(root, resolver);
+			DmnCompilationResult compilation = new DmnCompiler().compile(root, resolver,
+					new DmnCompilerOptions(io.finmsg.dmn.compiler.DmnModelLoadOptions.defaults(), modelMode));
 			if (!compilation.isSuccess()) {
 				String diagnostic = compilation.diagnostics().stream()
 						.map(value -> value.phase() + "/" + value.code() + ": " + value.message())
 						.collect(java.util.stream.Collectors.joining("; "));
 				return Preparation.failure("Compilation unsuccessful: " + diagnostic, null, true);
 			}
+			return Preparation.success(compilation);
+		} catch (Throwable exception) {
+			return Preparation.failure("Case-scoped preparation threw: " + exception, exception, false);
+		}
+	}
+
+	private GeneratedPreparation prepareGenerated(DmnCompilationResult compilation) {
+		try {
 			String className = "OmgTckEngine_" + ENGINE_COUNTER.getAndIncrement();
 			DmnJavaGeneratorResult generated = new DmnJavaGenerator().generate(
 					compilation.optimizedRuntimeModel().orElseThrow(),
 					DmnJavaGeneratorOptions.of("io.finmsg.dmn.tck.gen", className));
 			Class<?> generatedClass = compileInMemory("io.finmsg.dmn.tck.gen." + className,
 					generated.sources().get("io.finmsg.dmn.tck.gen." + className));
-			return Preparation.success(compilation, generatedClass,
-					generatedClass.getDeclaredConstructor().newInstance());
+			return GeneratedPreparation.success(generatedClass, generatedClass.getDeclaredConstructor().newInstance());
 		} catch (Throwable exception) {
-			return Preparation.failure("Case-scoped preparation threw: " + exception, exception, false);
+			return GeneratedPreparation.failure("Generated-Java preparation threw: " + exception, exception);
 		}
 	}
 
@@ -243,14 +293,17 @@ class OfficialTckSuiteTest {
 	void writeAccountingEvidence() throws Exception {
 		if (inventory == null)
 			return;
-		TckCatalogueReport report = new TckCatalogueReport(TCK_REVISION, BACKENDS, inventory, outcomes);
-		new TckCatalogueReportWriter().write(Path.of("target", "tck-accounting.json"), report);
+		TckCatalogueReport report = new TckCatalogueReport(TCK_REVISION, activeBackends, inventory, outcomes);
+		String variant = activeModelModes.size() == 1
+				? "-" + activeModelModes.getFirst().name().toLowerCase(Locale.ROOT)
+				: "";
+		new TckCatalogueReportWriter().write(Path.of("target", "tck-accounting" + variant + ".json"), report);
 	}
 
 	private void addPreparationFailure(List<DynamicTest> tests, TckCatalogueEntry entry, String diagnostic,
 			Throwable cause) {
 		for (TckTestCase testCase : entry.testCases()) {
-			for (String backend : BACKENDS) {
+			for (String backend : activeBackends) {
 				int idx = currentTestIndex.incrementAndGet();
 				String testName = entry.id() + "#" + testCase.id() + " @" + backend;
 				System.err.printf("[INFO] [TCK %4d/%4d] [COMPILATION_ERROR] %s -> %s%n", idx, totalTestCount, testName,
@@ -394,19 +447,29 @@ class OfficialTckSuiteTest {
 		return classLoader.loadClass(fqcn);
 	}
 
-	private record Preparation(DmnCompilationResult compilation, Class<?> generatedClass, Object engineInstance,
-			String failureDiagnostic, Throwable failureCause, boolean modelRejected) {
-		private static Preparation success(DmnCompilationResult compilation, Class<?> generatedClass,
-				Object engineInstance) {
-			return new Preparation(compilation, generatedClass, engineInstance, null, null, false);
+	private record Preparation(DmnCompilationResult compilation, String failureDiagnostic, Throwable failureCause,
+			boolean modelRejected) {
+		private static Preparation success(DmnCompilationResult compilation) {
+			return new Preparation(compilation, null, null, false);
 		}
 
 		private static Preparation failure(String diagnostic, Throwable cause, boolean modelRejected) {
-			return new Preparation(null, null, null, diagnostic, cause, modelRejected);
+			return new Preparation(null, diagnostic, cause, modelRejected);
 		}
 	}
 
-	private record PreparationKey(List<String> sourceIds, Set<String> resultNames) {
+	private record GeneratedPreparation(Class<?> generatedClass, Object engineInstance, String failureDiagnostic,
+			Throwable failureCause) {
+		private static GeneratedPreparation success(Class<?> generatedClass, Object engineInstance) {
+			return new GeneratedPreparation(generatedClass, engineInstance, null, null);
+		}
+
+		private static GeneratedPreparation failure(String diagnostic, Throwable cause) {
+			return new GeneratedPreparation(null, null, diagnostic, cause);
+		}
+	}
+
+	private record PreparationKey(List<String> sourceIds, Set<String> resultNames, RuntimeModelMode modelMode) {
 		private PreparationKey {
 			sourceIds = List.copyOf(sourceIds);
 			resultNames = Set.copyOf(resultNames);

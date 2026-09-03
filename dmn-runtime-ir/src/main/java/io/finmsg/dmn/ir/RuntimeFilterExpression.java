@@ -9,8 +9,4 @@ public record RuntimeFilterExpression(RuntimeExpression source, int localSlot, R
 		Objects.requireNonNull(filter, "filter");
 		Objects.requireNonNull(type, "type");
 	}
-
-	public RuntimeFilterExpression(RuntimeExpression source, RuntimeExpression filter, RuntimeType type) {
-		this(source, 0, filter, type);
-	}
 }
