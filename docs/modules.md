@@ -9,11 +9,11 @@
 - [dmn-semantic-analysis](#contents-section-4)
 - [dmn-runtime-ir](#contents-section-5)
 - [dmn-runtime](#contents-section-6)
-- [dmn-compiler](#contents-section-7)
-- [dmn-generator-java](#contents-section-8)
-- [dmn-tck-runner](#contents-section-9)
-- [dmn-benchmarks](#contents-section-10)
-- [dmn-optimizer](#contents-section-11)
+- [dmn-optimizer](#contents-section-7)
+- [dmn-compiler](#contents-section-8)
+- [dmn-generator-java](#contents-section-9)
+- [dmn-tck-runner](#contents-section-10)
+- [dmn-benchmarks](#contents-section-11)
 - [dmn-grpc](#contents-section-12)
 - [dmn-generator-sparksql](#contents-section-13)
 - [dmn-models](#contents-section-14)
@@ -120,6 +120,12 @@ unary tests, and decision tables without depending on XML, ANTLR, or semantic pr
 
 
 <a id="contents-section-7"></a>
+## `dmn-optimizer`
+
+Provides constant folding (`ConstantFoldingPass`), algebraic identity simplification (`AlgebraicSimplificationPass`), and decision table rule pruning (`DecisionTableOptimizationPass`) for Runtime IR models. Operates on `RuntimeModel` IR before process-local evaluation in `DmnRuntime` or AOT code generation in `dmn-generator-java`.
+
+
+<a id="contents-section-8"></a>
 ## `dmn-compiler`
 
 Owns public compiler orchestration and resolver-independent source-loading contracts.
@@ -141,7 +147,7 @@ optional optimized linked Runtime IR model. Error diagnostics gate later phases,
 lowering failures are normalized at the compiler boundary.
 
 
-<a id="contents-section-8"></a>
+<a id="contents-section-9"></a>
 ## `dmn-generator-java`
 
 Provides high-performance Java source code generation directly from Runtime IR models.
@@ -157,7 +163,7 @@ String javaSource = generator.generate(runtimeModel);
 Options (`DmnJavaGeneratorOptions`) allow customizing the generated package name, class name, and execution optimization strategies.
 
 
-<a id="contents-section-9"></a>
+<a id="contents-section-10"></a>
 ## `dmn-tck-runner`
 
 Provides a conformance runner for OMG DMN Technology Compatibility Kit (TCK) test cases.
@@ -169,7 +175,7 @@ Embeds the official vendor-neutral [OMG DMN TCK repository](https://dmn-tck.gith
 - **Current executed set**: self-verified cases evaluated across both interpreter and generated Java engines (`OfficialTckSuiteTest`). The authoritative revision, counts, terminology, and known catalogue-accounting limitation are maintained in the [TCK conformance record](tck-conformance.md).
 
 
-<a id="contents-section-10"></a>
+<a id="contents-section-11"></a>
 ## `dmn-benchmarks`
 
 Provides JMH microbenchmarks and reference model workloads comparing `DmnRuntime` vs `dmn-generator-java`. Uses DataFaker (`net.datafaker:datafaker`) to generate realistic input payloads and includes `ReferenceModelRegistry` for pluggable DMN model discovery (`credit-approval.dmn`, `traffic-violation.dmn`, `dq-field-validation.dmn`, `dq-cross-field-consistency.dmn`, `dq-scoring.dmn`).
@@ -183,12 +189,6 @@ in the [benchmark evidence plan](improvements/benchmark-evidence-and-scalability
 - **Traffic Violation Decision Table**: `dmn-generator-java` achieves **6.16M ops/sec** (173 ns/op) vs `DmnRuntime` interpreter **736k ops/sec** (1.25 µs/op) — **~7.2x speedup**.
 - **Credit Approval DRG Graph**: `dmn-generator-java` achieves **1.14M ops/sec** (471 ns/op) vs `DmnRuntime` interpreter **199k ops/sec** (2.12 µs/op) — **~4.5x speedup**.
 - **Scalar Arithmetic**: `dmn-generator-java` achieves **12.0M ops/sec** (124.5 ns/op) vs `DmnRuntime` interpreter **3.88M ops/sec** (258 ns/op) — **~2.1x speedup**.
-
-
-<a id="contents-section-11"></a>
-## `dmn-optimizer`
-
-Provides constant folding (`ConstantFoldingPass`), algebraic identity simplification (`AlgebraicSimplificationPass`), and decision table rule pruning (`DecisionTableOptimizationPass`) for Runtime IR models. Operates on `RuntimeModel` IR before process-local evaluation in `DmnRuntime` or AOT code generation in `dmn-generator-java`.
 
 
 <a id="contents-section-12"></a>

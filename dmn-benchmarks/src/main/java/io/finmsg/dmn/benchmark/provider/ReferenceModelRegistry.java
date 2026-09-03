@@ -59,12 +59,17 @@ public final class ReferenceModelRegistry {
 
 	public static CompiledModelHolder loadBundleFromClasspath(String resourcePath, String modelName) throws Exception {
 		DmnStreamBundle bundle = DmnStreamBundle.fromClasspath(resourcePath);
-		DmnCompilationResult compilation = bundle.compile(new DmnCompiler());
+		io.finmsg.dmn.compiler.DmnSource root = bundle.findRootSource()
+				.orElseThrow(() -> new IllegalStateException("Bundle is empty"));
+		DmnCompilationResult compilation = new DmnCompiler().compile(root, bundle.asResolver(),
+				io.finmsg.dmn.compiler.DmnCompilerOptions.optimized());
 		return compile(modelName, compilation);
 	}
 
 	public static CompiledModelHolder compile(String modelName, DmnSource source) throws Exception {
-		return compile(modelName, new DmnCompiler().compile(source));
+		return compile(modelName,
+				new DmnCompiler().compile(source, new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(List.of()),
+						io.finmsg.dmn.compiler.DmnCompilerOptions.optimized()));
 	}
 
 	private static CompiledModelHolder compile(String modelName, DmnCompilationResult compilation) throws Exception {

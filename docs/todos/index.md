@@ -19,8 +19,8 @@ This directory contains the current work list per active Maven module. These doc
 | `dmn-semantic-analysis` | [Semantic analysis](dmn-semantic-analysis.md) — Symbol & Scoped Analysis (`done`) |
 | `dmn-runtime-ir` | [Runtime IR](dmn-runtime-ir.md) — Immutable Runtime IR & Optimizer (`done`) |
 | `dmn-runtime` | [Runtime interpreter](dmn-runtime.md) — Deterministic Interpreter (`done`) |
-| `dmn-generator-java` | [Java code generator](../modules.md#contents-section-8) — Zero-Reflection AOT Java (`done`) |
-| `dmn-tck-runner` | [TCK runner](../modules.md#contents-section-9) — self-verified execution implemented; catalogue accounting remains in the cross-module plan (`done`) |
+| `dmn-generator-java` | [Java code generator](../modules.md#contents-section-9) — Zero-Reflection AOT Java (`done`) |
+| `dmn-tck-runner` | [TCK runner](../modules.md#contents-section-10) — self-verified execution implemented; catalogue accounting remains in the cross-module plan (`done`) |
 | `dmn-benchmarks` | [JMH benchmarks](dmn-benchmarks.md) — DataFaker Workloads & Phase Isolation Benchmarks (`in progress`) |
 | `dmn-optimizer` | [Optimizer pass](dmn-optimizer.md) — Constant Folding & Rule Pruning (`done`) |
 | `dmn-grpc` | [gRPC adapter](dmn-grpc.md) — Transport-Neutral Pure gRPC Java (`done`) |
