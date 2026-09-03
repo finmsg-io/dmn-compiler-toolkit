@@ -10,3 +10,7 @@ site/
 
 # Release zip archives
 zips/
+
+# Python cache
+__pycache__/
+*.pyc
