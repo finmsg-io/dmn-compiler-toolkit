@@ -47,18 +47,50 @@ The goals of the internal architecture are:
 
 The compiler is organized as a pipeline.
 
-```mermaid
-flowchart TD
-    XML["DMN XML"] --> Frontend["XML Frontend"]
-    Frontend --> Model["Semantic Model"]
-    Model --> PassMgr["Compiler Pass Manager"]
-    PassMgr --> P1["Pass 1"]
-    PassMgr --> P2["Pass 2"]
-    PassMgr --> PN["Pass N"]
-    P1 --> IR["Runtime IR"]
-    P2 --> IR
-    PN --> IR
-    IR --> Gen["Code Generator"]
+``` text
+                    DMN XML
+
+                       |
+
+                       v
+
+               XML Frontend
+
+                       |
+
+                       v
+
+              Semantic Model
+
+                       |
+
+          +------------+------------+
+
+          | Compiler Pass Manager   |
+
+          +------------+------------+
+
+                       |
+
+      +----------------+----------------+
+
+      |                |                |
+
+      v                v                v
+
+  Pass 1          Pass 2          Pass N
+
+                       |
+
+                       v
+
+                 Runtime IR
+
+                       |
+
+                       v
+
+               Code Generator
 ```
 
 The **Pass Manager** orchestrates the complete compilation process.
