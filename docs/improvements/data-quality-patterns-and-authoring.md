@@ -85,20 +85,12 @@ adapter. It does not implement the SWIFT FIN grammar inside FEEL.
 
 This separation matters:
 
-```text
-MT564 FIN text
-      |
-      v
-Existing/future parser and canonical mapping
-      |
-      v
-Normalized MT564 context
-      |
-      v
-DMN data-quality model
-      |
-      v
-Quality report and violations
+```mermaid
+flowchart TD
+    Text["MT564 FIN text"] --> Parser["Existing/future parser and canonical mapping"]
+    Parser --> Ctx["Normalized MT564 context"]
+    Ctx --> DQ["DMN data-quality model"]
+    DQ --> Report["Quality report and violations"]
 ```
 
 Parsing, network validation, authentication, and full standards conformance are separate concerns.

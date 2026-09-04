@@ -48,44 +48,16 @@ readability.
 
 The compiler transforms:
 
-``` text
-DMN XML
-
-    |
-
-    v
-
-Semantic Model
-
-    |
-
-    v
-
-FEEL AST
-
-    |
-
-    v
-
-Optimized Runtime IR
+```mermaid
+flowchart TD
+    XML["DMN XML"] --> Model["Semantic Model"] --> AST["FEEL AST"] --> IR["Optimized Runtime IR"]
 ```
 
 At runtime:
 
-``` text
-Application
-
-    |
-
-    v
-
-Runtime IR
-
-    |
-
-    v
-
-Decision Result
+```mermaid
+flowchart TD
+    App["Application"] --> IR["Runtime IR"] --> Res["Decision Result"]
 ```
 
 No XML processing, FEEL parsing, or semantic analysis occurs.
@@ -112,25 +84,13 @@ The Runtime IR is optimized for:
 The Runtime IR is the stable contract between compiler and execution
 targets.
 
-``` text
-                     Optimizer
-                         |
-                         v
-
-              +---------------------+
-              |      Runtime IR     |
-              +---------------------+
-                         |
-        +----------------+----------------+
-        |                |                |
-        v                v                v
-
-      Java            Rust             Spark SQL
-
-        |
-        v
-
-   Executable Artifact
+```mermaid
+flowchart TD
+    Opt["Optimizer"] --> IR["Runtime IR"]
+    IR --> Java["Java"]
+    IR --> Rust["Rust"]
+    IR --> Spark["Spark SQL"]
+    Java --> Exec["Executable Artifact"]
 ```
 
 ------------------------------------------------------------------------
@@ -194,14 +154,9 @@ Example:
 
 Compilation:
 
-``` text
-customerAge
-
-        |
-
-        v
-
-VariableId = 12
+```mermaid
+flowchart TD
+    Name["customerAge"] --> Id["VariableId = 12"]
 ```
 
 Runtime:
@@ -254,26 +209,17 @@ io.finmsg.dmn.ir
 
 Structure:
 
-``` text
-ir
-
-├── RuntimeModel
-
-├── RuntimeDecision
-
-├── RuntimeExpression
-
-├── RuntimeInstruction
-
-├── RuntimeVariable
-
-├── RuntimeFunction
-
-├── ExecutionGraph
-
-├── ConstantPool
-
-└── serialization
+```mermaid
+flowchart TD
+    IR["ir"] --> C1["RuntimeModel"]
+    IR --> C2["RuntimeDecision"]
+    IR --> C3["RuntimeExpression"]
+    IR --> C4["RuntimeInstruction"]
+    IR --> C5["RuntimeVariable"]
+    IR --> C6["RuntimeFunction"]
+    IR --> C7["ExecutionGraph"]
+    IR --> C8["ConstantPool"]
+    IR --> C9["serialization"]
 ```
 
 ------------------------------------------------------------------------
@@ -308,19 +254,13 @@ Contains:
 
 Example:
 
-``` text
-RuntimeModel
-
- |
- +-- Decisions
- |
- +-- Expressions
- |
- +-- Variables
- |
- +-- Functions
- |
- +-- Constants
+```mermaid
+flowchart TD
+    Model["RuntimeModel"] --> D["Decisions"]
+    Model --> E["Expressions"]
+    Model --> V["Variables"]
+    Model --> F["Functions"]
+    Model --> C["Constants"]
 ```
 
 ------------------------------------------------------------------------
@@ -602,22 +542,9 @@ Use both.
 
 Compiler:
 
-``` text
-FEEL AST
-
-    |
-
-    v
-
-Expression Graph
-
-    |
-
-Optimization
-
-    |
-
-Instruction Stream
+```mermaid
+flowchart TD
+    AST["FEEL AST"] --> Graph["Expression Graph"] --> Opt["Optimization"] --> Stream["Instruction Stream"]
 ```
 
 ------------------------------------------------------------------------
@@ -971,16 +898,11 @@ Runtime IR is immutable.
 
 Therefore:
 
-``` text
-One RuntimeModel
-
-        |
-
-        +---- Thread 1
-
-        +---- Thread 2
-
-        +---- Thread 3
+```mermaid
+flowchart TD
+    Model["One RuntimeModel"] --> T1["Thread 1"]
+    Model --> T2["Thread 2"]
+    Model --> T3["Thread 3"]
 ```
 
 No synchronization required.
@@ -1062,46 +984,16 @@ It provides:
 
 The final compiler pipeline is:
 
-``` text
-                 DMN XML
-
-                    |
-
-                    v
-
-             Semantic Model
-
-                    |
-
-                    v
-
-                FEEL AST
-
-                    |
-
-                    v
-
-          Semantic Analysis
-
-                    |
-
-                    v
-
-              Optimizations
-
-                    |
-
-                    v
-
-              Runtime IR
-
-                    |
-
-        +-----------+------------+
-
-        |           |            |
-
-       Java       Rust        Spark
+```mermaid
+flowchart TD
+    XML["DMN XML"] --> Model["Semantic Model"]
+    Model --> AST["FEEL AST"]
+    AST --> Ana["Semantic Analysis"]
+    Ana --> Opt["Optimizations"]
+    Opt --> IR["Runtime IR"]
+    IR --> Java["Java"]
+    IR --> Rust["Rust"]
+    IR --> Spark["Spark"]
 ```
 
 ------------------------------------------------------------------------

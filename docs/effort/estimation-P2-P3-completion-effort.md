@@ -105,18 +105,18 @@ to every fixture.
 
 ### Suggested P2 sequencing
 
-```text
-Corpus foundation
-    |
-    v
-P2.1 -> P2.2 -> P2.3
-    |       |
-    |       +---------> P2.7 -> P2.8
-    v
-P2.4 -> P2.5 -> P2.6
-    |
-    v
-P2.9 -> closure
+```mermaid
+flowchart TD
+    Root["Corpus foundation"] --> P21["P2.1"]
+    P21 --> P22["P2.2"]
+    P22 --> P23["P2.3"]
+    P21 --> P24["P2.4"]
+    P24 --> P25["P2.5"]
+    P25 --> P26["P2.6"]
+    P22 --> P27["P2.7"]
+    P27 --> P28["P2.8"]
+    P26 --> P29["P2.9"]
+    P29 --> Closure["Closure"]
 ```
 
 P2.1 should establish the reusable execution harness. P2.2–P2.8 then add small focused repositories.
@@ -140,22 +140,19 @@ review.
 
 ### Suggested P3 sequencing
 
-```text
-Semantic harness and supported-operation matrix
-    |
-    +--------> P3.1 null logic ----+
-    |                              |
-    +--------> P3.2 numerics ------+----> P3.5 decision tables
-    |                              |              |
-    +--------> P3.3 filters -------+              |
-    |                                             v
-    +--------> P3.4 temporal ----------------> P3.6 built-in catalog
-                                                   |
-                                                   v
-                                              P3.7 limits
-                                                   |
-                                                   v
-                                        P2 corpus integration/closure
+```mermaid
+flowchart TD
+    Root["Semantic harness and supported-operation matrix"] --> P31["P3.1 null logic"]
+    Root --> P32["P3.2 numerics"]
+    Root --> P33["P3.3 filters"]
+    Root --> P34["P3.4 temporal"]
+    P31 --> P35["P3.5 decision tables"]
+    P32 --> P35
+    P33 --> P35
+    P35 --> P36["P3.6 built-in catalog"]
+    P34 --> P36
+    P36 --> P37["P3.7 limits"]
+    P37 --> P2Closure["P2 corpus integration / closure"]
 ```
 
 Null and numeric semantics should be defined before decision-table completion. Temporal behavior and

@@ -164,41 +164,19 @@ conditional parameter dependencies, immutable parameters, and domain-specific in
 
 ## Proposed workflow
 
-```text
-Approved DMN baseline + tuning declaration + versioned labeled data
-                              |
-                              v
-                     Validate identities, data, and constraints
-                              |
-                              v
-                    Compile immutable baseline Runtime IR
-                              |
-                              v
-                  Generate permitted candidate parameters
-                              |
-                              v
-             Apply typed IR parameter overlays in isolated variants
-                              |
-                              v
-                Evaluate tuning data and reject infeasible candidates
-                              |
-                              v
-              Rank feasible candidates by declared objectives
-                              |
-                              v
-          Re-evaluate finalists on untouched validation and holdout data
-                              |
-                              v
-         Robustness, subgroup, sensitivity, and confidence analysis
-                              |
-                              v
-        Source-level DMN patch + evidence report + approval request
-                              |
-                              v
-       Compile patched source and prove equivalence to selected IR variant
-                              |
-                              v
-                    Shadow/canary deployment outside optimizer
+```mermaid
+flowchart TD
+    A["Approved DMN baseline + tuning declaration + versioned labeled data"] --> B["Validate identities, data, and constraints"]
+    B --> C["Compile immutable baseline Runtime IR"]
+    C --> D["Generate permitted candidate parameters"]
+    D --> E["Apply typed IR parameter overlays in isolated variants"]
+    E --> F["Evaluate tuning data and reject infeasible candidates"]
+    F --> G["Rank feasible candidates by declared objectives"]
+    G --> H["Re-evaluate finalists on untouched validation and holdout data"]
+    H --> I["Robustness, subgroup, sensitivity, and confidence analysis"]
+    I --> J["Source-level DMN patch + evidence report + approval request"]
+    J --> K["Compile patched source and prove equivalence to selected IR variant"]
+    K --> L["Shadow/canary deployment outside optimizer"]
 ```
 
 ## Architecture

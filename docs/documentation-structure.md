@@ -16,28 +16,28 @@ The goal is to make every document's authority and update cadence obvious.
 <a id="contents-section-1"></a>
 ## Proposed structure
 
-```text
-docs/
-├── index.md                       Project entry point and current summary
-├── getting-started.md             First build and usage path
-├── modules.md                     Module responsibilities and dependencies
-├── roadmap.md                     Concise capability checklist
-├── development-plan.md            Living milestones, sequencing, and decisions needed
-├── documentation-structure.md     This ownership and placement guide
-├── glossary.md                    Normative project terminology and acronyms
-├── architecture.md                Short architecture overview
-├── architecture/
-│   ├── architecture-spec.md       Normative system architecture
-│   ├── chapters/                  Topic-oriented architecture detail
-│   └── adr/
-│       ├── generall-adr.md        ADR index, lifecycle, and template
-│       └── adr-NNNN-title.md      One immutable decision record per file
-│   ├── index.md                   Audit catalog and freshness warning
-│   └── *.md                       Dated implementation assessments
-├── todos/
-│   ├── index.md                   Active module-work catalog
-│   └── <module>.md                Exactly one current TODO per Maven module
-└── dev/                           Contributor processes, delivery method, and style
+```mermaid
+mindmap
+  root((docs/))
+    index.md["index.md: Project entry point and summary"]
+    getting-started.md["getting-started.md: First build and usage path"]
+    modules.md["modules.md: Module responsibilities and dependencies"]
+    roadmap.md["roadmap.md: Concise capability checklist"]
+    development-plan.md["development-plan.md: Living milestones and sequencing"]
+    documentation-structure.md["documentation-structure.md: Ownership and placement guide"]
+    glossary.md["glossary.md: Normative project terminology"]
+    architecture.md["architecture.md: Short architecture overview"]
+    architecture["architecture/"]
+      architecture-spec.md["architecture-spec.md: Normative system architecture"]
+      chapters["chapters/: Topic-oriented architecture detail"]
+      adr["adr/"]
+        generall-adr.md["generall-adr.md: ADR index, lifecycle, and template"]
+        adr-files["adr-NNNN-*.md: One immutable decision record per file"]
+      audit-files["Audit and status pages (*.md)"]
+    todos["todos/"]
+      todos-index["index.md: Active module-work catalog"]
+      module-todos["&lt;module&gt;.md: Exactly one current TODO per module"]
+    dev["dev/: Contributor processes, delivery method, and style"]
 ```
 
 The filename `generall-adr.md` follows the requested repository convention. New ADR

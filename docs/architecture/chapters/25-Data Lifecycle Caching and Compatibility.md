@@ -21,10 +21,14 @@ semantic, Runtime IR, compiled, and generated artifacts.
 <a id="contents-section-2"></a>
 ## Proposed artifact lifecycle
 
-```text
-DmnSource -> parsed model -> analyzed model set -> Runtime IR -> optimized model
-                                                       -> generated artifacts
-                                                       -> reusable compiled model
+```mermaid
+flowchart TD
+    Src["DmnSource"] --> Parsed["Parsed model"]
+    Parsed --> Analyzed["Analyzed model set"]
+    Analyzed --> IR["Runtime IR"]
+    IR --> Opt["Optimized model"]
+    IR --> Gen["Generated artifacts"]
+    IR --> Reusable["Reusable compiled model"]
 ```
 
 Every artifact should be immutable. Each result should identify the source set and compiler options

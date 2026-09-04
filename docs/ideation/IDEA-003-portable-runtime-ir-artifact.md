@@ -107,33 +107,19 @@ binary compatibility is owned by its backend and platform.
 
 ## Proposed delivery architecture
 
-```text
-Root DMN + imports
-        |
-        v
-Trusted Java compiler
- XML -> FEEL -> semantics -> Runtime IR -> optimizer
-        |
-        v
-Portable IR encoder + canonical verifier
-        |
-        v
-  model.dmnir
-  envelope + versioned protobuf payload + optional source map/signature
-        |
-        +--------------------------+--------------------------+
-        |                          |                          |
-        v                          v                          v
-Java artifact loader       Rust code generator       Future backend
-        |                          |                          |
-        v                          v                          v
-Reference execution        Generated Rust crate      Interpreter/codegen
-                                   |
-                                   v
-                         rustc / cargo build
-                                   |
-                                   v
-                        Native library or service
+```mermaid
+flowchart TD
+    Root["Root DMN + imports"] --> Comp["Trusted Java compiler<br/>(XML → FEEL → semantics → Runtime IR → optimizer)"]
+    Comp --> Enc["Portable IR encoder + canonical verifier"]
+    Enc --> Artifact["model.dmnir<br/>(envelope + versioned protobuf payload + optional source map/signature)"]
+    Artifact --> JavaLoader["Java artifact loader"]
+    Artifact --> RustGen["Rust code generator"]
+    Artifact --> FutureBack["Future backend"]
+    JavaLoader --> RefExec["Reference execution"]
+    RustGen --> RustCrate["Generated Rust crate"]
+    FutureBack --> InterpGen["Interpreter / codegen"]
+    RustCrate --> Cargo["rustc / cargo build"]
+    Cargo --> Native["Native library or service"]
 ```
 
 ## Portable artifact design

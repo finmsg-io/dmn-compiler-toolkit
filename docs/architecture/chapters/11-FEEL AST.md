@@ -18,8 +18,9 @@
 
 The FEEL AST is the protobuf compiler representation produced by `FeelAstBuilder`. It contains no ANTLR parse-tree objects.
 
-```text
-FEEL text → ANTLR parse tree → FeelAstBuilder → protobuf Expression
+```mermaid
+flowchart LR
+    Text["FEEL text"] --> ANTLR["ANTLR parse tree"] --> AstBuilder["FeelAstBuilder"] --> Expr["protobuf Expression"]
 ```
 
 <a id="contents-section-2"></a>

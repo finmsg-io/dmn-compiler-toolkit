@@ -21,12 +21,13 @@ build tools, generated artifacts, and execution hosts.
 <a id="contents-section-2"></a>
 ## Proposed system boundary
 
-```text
-DMN repository / source provider
-            -> DMN Compiler Toolkit
-                 -> diagnostics and compiled model
-                 -> generated Java / Protobuf / gRPC artifacts
-            -> application or service execution host
+```mermaid
+flowchart LR
+    Repo["DMN repository / source provider"] --> Toolkit["DMN Compiler Toolkit"]
+    Toolkit --> Diag["Diagnostics and compiled model"]
+    Toolkit --> Artifacts["Generated Java / Protobuf / gRPC artifacts"]
+    Diag --> Host["Application or service execution host"]
+    Artifacts --> Host
 ```
 
 The toolkit should own parsing, semantic analysis, Runtime IR, optimization, reference execution,

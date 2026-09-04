@@ -148,79 +148,37 @@ Structure:
 
     Runtime IR:
 
-    ```text id="n6h3zv"
-    Runtime IR
+```mermaid
+flowchart TD
+    subgraph Mode1["Mode 1: Java Source Generation"]
+        IR1["Runtime IR"] --> Src["Java Source"] --> Javac["javac"] --> Class1[".class"]
+    end
+    subgraph Mode2["Mode 2: Direct Bytecode Generation"]
+        IR2["Runtime IR"] --> Bytecode["JVM Bytecode (ASM / ByteBuddy)"] --> ClassLoader["ClassLoader"]
+    end
+```
 
-          |
+Advantages Mode 1:
+- easy debugging
+- readable output
+- IDE support
+- simple deployment
 
-          v
+<a id="mode-2-----direct-bytecode-generation"></a>
+## Mode 2 --- Direct Bytecode Generation
 
-    Java Source
+Advantages Mode 2:
+- faster build
+- no javac dependency
+- dynamic deployment
 
-          |
-
-          v
-
-    javac
-
-          |
-
-          v
-
-    .class
-
-Advantages:
-
--   easy debugging
--   readable output
--   IDE support
--   simple deployment
+Recommended architecture: Start with source generation; add bytecode generation later.
 
 ------------------------------------------------------------------------
 
-## Mode 2 --- Direct Bytecode Generation
+## 13.5 Generated Class Structure
 
-Runtime IR:
-
-\`\`\`text id="5m7k3d" Runtime IR
-
-      |
-
-      v
-
-JVM Bytecode
-
-      |
-
-      v
-
-ClassLoader
-
-
-    Using:
-
-    * ASM
-    * ByteBuddy
-
-    Advantages:
-
-    * faster build
-    * no javac dependency
-    * dynamic deployment
-
-    ---
-
-    Recommended architecture:
-
-    Start with source generation.
-
-    Add bytecode generation later.
-
-    ---
-
-    # 13.5 Generated Class Structure
-
-    Example DMN model:
+Example DMN model:
 
     ```text id="5x6y0k"
     TrafficViolation
@@ -601,29 +559,20 @@ Example:
 throw new DecisionExecutionException(
     "Invalid input"
 );
-```
-
 ------------------------------------------------------------------------
 
 # 13.16 Generated Artifact Layout
 
 Example:
 
-\`\`\`text id="j8p1q0" target/generated-sources/dmn
+```mermaid
+flowchart TD
+    Dir["target/generated-sources/dmn"] --> F1["TrafficViolationDecision.java"]
+    Dir --> F2["TrafficInput.java"]
+    Dir --> F3["Penalty.java"]
+```
 
-    |
-    +-- TrafficViolationDecision.java
-
-    +-- TrafficInput.java
-
-    +-- Penalty.java
-
-
-    ---
-
-    Maven integration:
-
-    ```xml
+Maven integration:xml
     <generatedSources>
         target/generated-sources/dmn
     </generatedSources>
@@ -833,20 +782,9 @@ SIMD-friendly processing
 
 Architecture allows:
 
-``` text
-Runtime IR
-
-      |
-
-      v
-
-ASM Generator
-
-      |
-
-      v
-
-Class<?> 
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> ASM["ASM Generator"] --> ClassObj["Class&lt;?&gt;"]
 ```
 
 Benefits:
@@ -917,30 +855,9 @@ It provides:
 
 The complete backend architecture:
 
-``` text
-                Runtime IR
-
-                    |
-
-                    v
-
-          +----------------+
-
-          | Java Generator |
-
-          +----------------+
-
-                    |
-
-                    v
-
-             Java Artifact
-
-                    |
-
-                    v
-
-                  JVM
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> JavaGen["Java Generator"] --> Artifact["Java Artifact"] --> JVM["JVM"]
 ```
 
 ------------------------------------------------------------------------

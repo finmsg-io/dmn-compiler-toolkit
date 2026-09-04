@@ -225,22 +225,13 @@ The main remaining objectives are:
 <a id="contents-section-4"></a>
 ## Target delivery architecture
 
-```text
-Root DMN + model resolver
-          |
-          v
-Compiler facade
-  XML -> FEEL -> semantic model set -> Runtime IR -> dmn-optimizer
-          |
-          +-------------------+
-          |                   |
-          v                   v
-Reference interpreter   Java source generator
-                               |
-                               +-------------------+
-                               |                   |
-                               v                   v
-                        Direct Java API      gRPC adapter
+```mermaid
+flowchart TD
+    Root["Root DMN + model resolver"] --> Facade["Compiler facade<br/>(XML → FEEL → semantic model set → Runtime IR → dmn-optimizer)"]
+    Facade --> Interp["Reference interpreter"]
+    Facade --> JavaGen["Java source generator"]
+    JavaGen --> DirectAPI["Direct Java API"]
+    JavaGen --> Grpc["gRPC adapter"]
 ```
 
 The interpreter and generators consume the same optimized Runtime IR. gRPC is

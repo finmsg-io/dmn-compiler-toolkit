@@ -19,18 +19,18 @@ the [ADR guide](architecture/adr/generall-adr.md), and project terminology is de
 
 The toolkit is a staged compiler rather than an XML-centric interpreter.
 
-```text
-DMN XML Source Graph
-  → Model Resolver & DmnCompiler Facade
-  → XML Frontend (VTD-XML)
-  → immutable protobuf Semantic Model with FEEL text
-  → FEEL Parser pass
-  → copied protobuf model with FEEL AST
-  → Whole-Model-Set Semantic Analysis
-  → validated linked model set, bindings, order, and diagnostics
-  → structural Runtime IR lowering
-  ├── Process-Local Interpreter (dmn-runtime)
-  └── Java Code Generator (dmn-generator-java)
+```mermaid
+flowchart TD
+    XML["DMN XML Source Graph"] --> Facade["Model Resolver & DmnCompiler Facade"]
+    Facade --> Frontend["XML Frontend (VTD-XML)"]
+    Frontend --> ProtoModel["Immutable protobuf Semantic Model with FEEL text"]
+    ProtoModel --> FeelPass["FEEL Parser pass"]
+    FeelPass --> ParsedProto["Protobuf model with FEEL AST"]
+    ParsedProto --> SemanticAnalysis["Whole-Model-Set Semantic Analysis"]
+    SemanticAnalysis --> Validated["Validated linked model set, bindings, order, and diagnostics"]
+    Validated --> RuntimeIr["Structural Runtime IR lowering"]
+    RuntimeIr --> Interpreter["Process-Local Interpreter (dmn-runtime)"]
+    RuntimeIr --> JavaGen["Java Code Generator (dmn-generator-java)"]
 ```
 
 Nine Maven modules implement this pipeline through cross-model typed semantic analysis,

@@ -129,29 +129,19 @@ value, actual value, and a structural difference.
 
 ## Proposed architecture
 
-```text
-Pinned external TCK checkout
-        |
-        v
-Catalog and case discovery
-        |
-        v
-TCK XML value decoder -----> Capability manifest
-        |                           |
-        v                           v
-Backend-neutral test case ----> Classification policy
-        |
-        v
-DmnToolkit engine adapter
-  DmnCompiler -> Runtime IR -> Interpreter
-        |
-        +------ later: Generated Java backend
-        |
-        v
-Canonical FEEL value model and comparator
-        |
-        v
-JUnit dynamic tests + JSON/XML/Markdown reports
+```mermaid
+flowchart TD
+    Checkout["Pinned external TCK checkout"] --> Discovery["Catalog and case discovery"]
+    Discovery --> Decoder["TCK XML value decoder"]
+    Decoder --> Manifest["Capability manifest"]
+    Decoder --> TestCase["Backend-neutral test case"]
+    Manifest --> Policy["Classification policy"]
+    TestCase --> Policy
+    TestCase --> Adapter["DmnToolkit engine adapter<br/>(DmnCompiler → Runtime IR → Interpreter)"]
+    Adapter --> GenJava["Generated Java backend"]
+    Adapter --> ValueModel["Canonical FEEL value model and comparator"]
+    GenJava --> ValueModel
+    ValueModel --> Reports["JUnit dynamic tests + JSON/XML/Markdown reports"]
 ```
 
 ### Suggested module boundary

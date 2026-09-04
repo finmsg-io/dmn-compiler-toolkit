@@ -34,20 +34,12 @@ The AST represents the syntactic structure of an expression while removing the c
 
 Example:
 
-```text
-a + b * c
-
-↓
-
-Binary(+)
-
-├── Variable(a)
-
-└── Binary(*)
-
-    ├── Variable(b)
-
-    └── Variable(c)
+```mermaid
+flowchart TD
+    Plus["Binary(+)"] --> A["Variable(a)"]
+    Plus --> Mult["Binary(*)"]
+    Mult --> B["Variable(b)"]
+    Mult --> C["Variable(c)"]
 ```
 
 ---
@@ -538,32 +530,16 @@ The XML Frontend is not part of the runtime.
 
 The following terms describe the progression of a DMN model through the compiler.
 
-```text
-DMN XML
-    │
-    ▼
-XML Frontend
-    │
-    ▼
-Semantic Model
-    │
-    ▼
-FEEL AST
-    │
-    ▼
-Semantic Analysis
-    │
-    ▼
-Optimization
-    │
-    ▼
-Runtime IR
-    │
-    ▼
-Code Generator
-    │
-    ▼
-Executable Artifact
+```mermaid
+flowchart TD
+    XML["DMN XML"] --> Front["XML Frontend"]
+    Front --> Sem["Semantic Model"]
+    Sem --> AST["FEEL AST"]
+    AST --> Ana["Semantic Analysis"]
+    Ana --> Opt["Optimization"]
+    Opt --> IR["Runtime IR"]
+    IR --> Gen["Code Generator"]
+    Gen --> Exec["Executable Artifact"]
 ```
 
 Each stage has a clearly defined input and output, ensuring that responsibilities remain separated and transformations are deterministic.

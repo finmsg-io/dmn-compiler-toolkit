@@ -39,22 +39,11 @@ A new backend must not require:
 
 The architecture:
 
-``` text
-                         Runtime IR
-
-                              |
-
-          +-------------------+-------------------+
-          |                   |                   |
-          v                   v                   v
-
-        Java                Rust              Spark SQL
-
-          |                   |                   |
-
-          v                   v                   v
-
-       JVM App             Native App        Databricks
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> Java["Java"] --> JVM["JVM App"]
+    IR --> Rust["Rust"] --> Native["Native App"]
+    IR --> Spark["Spark SQL"] --> Databricks["Databricks"]
 ```
 
 ------------------------------------------------------------------------
@@ -96,14 +85,9 @@ Adding a Rust backend:
 
 Requires:
 
-``` text
-Runtime IR
-
-     |
-
-     v
-
-Rust Generator
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> RustGen["Rust Generator"]
 ```
 
 Does not require:
@@ -140,32 +124,20 @@ dmn-generator-wasm
 
 Dependency rule:
 
-``` text
-                 Runtime IR
-
-                     |
-
-       +-------------+--------------+
-
-       |             |              |
-
-       v             v              v
-
-    Java          Rust           Spark
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> Java["Java"]
+    IR --> Rust["Rust"]
+    IR --> Spark["Spark"]
 ```
 
 ------------------------------------------------------------------------
 
 Forbidden:
 
-``` text
-Rust Generator
-
-      |
-
-      v
-
-FEEL Parser
+```mermaid
+flowchart TD
+    RustGen["Rust Generator"] --> FeelParser["FEEL Parser"]
 ```
 
 ------------------------------------------------------------------------
@@ -248,14 +220,9 @@ public interface BackendCapabilities {
 
 Compiler can validate:
 
-``` text
-Runtime IR
-
-        |
-
-        v
-
-Backend Capability Check
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> CapCheck["Backend Capability Check"]
 ```
 
 ------------------------------------------------------------------------
@@ -281,26 +248,9 @@ Generate native high-performance decision engines.
 
 Architecture:
 
-``` text
-Runtime IR
-
-     |
-
-     v
-
-Rust Generator
-
-     |
-
-     v
-
-Rust Source
-
-     |
-
-     v
-
-Native Binary
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> RustGen["Rust Generator"] --> RustSrc["Rust Source"] --> Bin["Native Binary"]
 ```
 
 ------------------------------------------------------------------------
@@ -360,20 +310,9 @@ Generate cloud-native decision services.
 
 Architecture:
 
-``` text
-Runtime IR
-
-     |
-
-     v
-
-Go Generator
-
-     |
-
-     v
-
-Go Service
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> GoGen["Go Generator"] --> GoSrc["Go Service"]
 ```
 
 ------------------------------------------------------------------------
@@ -415,26 +354,9 @@ Generate distributed decision execution.
 
 Architecture:
 
-``` text
-Runtime IR
-
-      |
-
-      v
-
-Spark SQL Generator
-
-      |
-
-      v
-
-SQL Expression
-
-      |
-
-      v
-
-Spark Execution Engine
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> SparkGen["Spark SQL Generator"] --> SQLExpr["SQL Expression"] --> Engine["Spark Execution Engine"]
 ```
 
 ------------------------------------------------------------------------
@@ -562,26 +484,9 @@ Generate native machine code.
 
 Architecture:
 
-``` text
-Runtime IR
-
-      |
-
-      v
-
-LLVM IR Generator
-
-      |
-
-      v
-
-LLVM Optimizer
-
-      |
-
-      v
-
-Machine Code
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> LLVMGen["LLVM IR Generator"] --> LLVMOpt["LLVM Optimizer"] --> Machine["Machine Code"]
 ```
 
 ------------------------------------------------------------------------
@@ -631,20 +536,9 @@ Targets:
 
 Architecture:
 
-``` text
-Runtime IR
-
-      |
-
-      v
-
-WASM Generator
-
-      |
-
-      v
-
-.wasm module
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> WASMGen["WASM Generator"] --> WASMMod[".wasm module"]
 ```
 
 ------------------------------------------------------------------------
@@ -791,14 +685,9 @@ Target mapping
 
 Example:
 
-``` text
-Opcode.ADD
-
-      |
-
-      v
-
-target language add operator
+```mermaid
+flowchart TD
+    Op["Opcode.ADD"] --> Target["target language add operator"]
 ```
 
 ------------------------------------------------------------------------
@@ -853,20 +742,9 @@ Python Generator
 
 Architecture:
 
-``` text
-                 Runtime IR
-
-                     |
-
-                     v
-
-              Python Generator
-
-                     |
-
-                     v
-
-             Python Decision Module
+```mermaid
+flowchart TD
+    IR["Runtime IR"] --> PyGen["Python Generator"] --> PyMod["Python Decision Module"]
 ```
 
 ------------------------------------------------------------------------
@@ -927,38 +805,14 @@ DMN Compiler Platform
 
 Comparable architecture:
 
-``` text
-LLVM:
-
-C/C++/Rust
-
-       |
-
-       v
-
-LLVM IR
-
-       |
-
-       v
-
-Many Targets
-
-DMN Compiler:
-
-DMN
-
-       |
-
-       v
-
-Runtime IR
-
-       |
-
-       v
-
-Many Targets
+```mermaid
+flowchart TD
+    subgraph LLVMArchitecture["LLVM Pattern"]
+        Lang["C / C++ / Rust"] --> LLVMIR["LLVM IR"] --> LLVMTargets["Many Hardware Targets"]
+    end
+    subgraph DMNArchitecture["DMN Compiler Pattern"]
+        DMN["DMN XML"] --> RuntimeIR["Runtime IR"] --> DMNTargets["Many Execution Targets (Java / Rust / Spark)"]
+    end
 ```
 
 ------------------------------------------------------------------------
@@ -974,32 +828,12 @@ The Runtime IR enables:
 
 The final architecture:
 
-``` text
-                    DMN
-
-                     |
-
-                     v
-
-              Compiler Pipeline
-
-                     |
-
-                     v
-
-                Runtime IR
-
-                     |
-
-      +--------------+---------------+
-
-      |              |               |
-
-     JVM           Native          SQL
-
-      |              |               |
-
-    Java           Rust          Spark
+```mermaid
+flowchart TD
+    DMN["DMN"] --> Pipeline["Compiler Pipeline"] --> IR["Runtime IR"]
+    IR --> JVM["JVM (Java)"]
+    IR --> Native["Native (Rust)"]
+    IR --> SQL["SQL (Spark)"]
 ```
 
 ------------------------------------------------------------------------

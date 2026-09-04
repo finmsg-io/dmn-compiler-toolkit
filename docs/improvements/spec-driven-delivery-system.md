@@ -227,23 +227,13 @@ example rather than completing all process, release, and documentation infrastru
 
 The pilot should prove the delivery method and the product path together:
 
-```text
-One reviewed normalized MT564 scenario
-        |
-        v
-Small reusable DQ BKM contract
-        |
-        v
-One imported MT564 rule model
-        |
-        v
-Valid and invalid scenario fixtures
-        |
-        v
-Interpreter and generated-Java parity
-        |
-        v
-Evidence, friction log, and next decision
+```mermaid
+flowchart TD
+    Scenario["One reviewed normalized MT564 scenario"] --> BKM["Small reusable DQ BKM contract"]
+    BKM --> Rule["One imported MT564 rule model"]
+    Rule --> Fixtures["Valid and invalid scenario fixtures"]
+    Fixtures --> Parity["Interpreter and generated-Java parity"]
+    Parity --> Evidence["Evidence, friction log, and next decision"]
 ```
 
 Keep the first slice intentionally narrow. Do not require the complete pattern library, complete

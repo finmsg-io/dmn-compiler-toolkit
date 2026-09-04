@@ -102,29 +102,12 @@ engine, while retaining standard DMN interchange and generated-code options.
 
 Treat a decision service as the public pipeline boundary and its internal DRG as the executable flow:
 
-```text
-Inputs
-  transaction
-  customer
-      |
-      v
-Normalize and derive facts
-  normalizedAmount
-  customerRisk
-      |
-      v
-Evaluate policy
-  sanctionsResult
-  fraudRisk
-  eligibility
-      |
-      v
-Resolve outcome
-  action
-  reasonCodes
-      |
-      v
-Decision service outputs
+```mermaid
+flowchart TD
+    Inputs["<b>Inputs</b><br/>transaction<br/>customer"] --> Norm["<b>Normalize and derive facts</b><br/>normalizedAmount<br/>customerRisk"]
+    Norm --> Eval["<b>Evaluate policy</b><br/>sanctionsResult<br/>fraudRisk<br/>eligibility"]
+    Eval --> Outcome["<b>Resolve outcome</b><br/>action<br/>reasonCodes"]
+    Outcome --> Outputs["<b>Decision service outputs</b>"]
 ```
 
 The arrows are information requirements. Topological order is derived from the graph. Parallel

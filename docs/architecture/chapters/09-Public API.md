@@ -33,20 +33,9 @@ Users should not need to understand:
 
 The public API provides a simple abstraction:
 
-``` text
-DMN Model
-
-     |
-
-     v
-
-Compiler API
-
-     |
-
-     v
-
-Executable Decision Model
+```mermaid
+flowchart TD
+    Model["DMN Model"] --> API["Compiler API"] --> Exec["Executable Decision Model"]
 ```
 
 ------------------------------------------------------------------------
@@ -157,24 +146,16 @@ io.finmsg.dmn.api
 
 Structure:
 
-``` text
-api
-
-├── Compiler
-
-├── CompilerConfiguration
-
-├── CompilationResult
-
-├── DecisionModel
-
-├── DecisionExecutor
-
-├── Diagnostic
-
-├── Backend
-
-└── Version
+```mermaid
+flowchart TD
+    API["api"] --> C1["Compiler"]
+    API --> C2["CompilerConfiguration"]
+    API --> C3["CompilationResult"]
+    API --> C4["DecisionModel"]
+    API --> C5["DecisionExecutor"]
+    API --> C6["Diagnostic"]
+    API --> C7["Backend"]
+    API --> C8["Version"]
 ```
 
 ------------------------------------------------------------------------
@@ -579,32 +560,9 @@ mvn compile
 
 Pipeline:
 
-``` text
-DMN Files
-
-    |
-
-    v
-
-Compiler
-
-    |
-
-    v
-
-Generated Java
-
-    |
-
-    v
-
-javac
-
-    |
-
-    v
-
-Application
+```mermaid
+flowchart TD
+    Files["DMN Files"] --> Comp["Compiler"] --> Java["Generated Java"] --> Javac["javac"] --> App["Application"]
 ```
 
 ------------------------------------------------------------------------
@@ -669,20 +627,9 @@ Future support:
 
 The API enables:
 
-``` text
-Editor
-
- |
-
- v
-
-Compiler Diagnostics API
-
- |
-
- v
-
-Compiler
+```mermaid
+flowchart TD
+    Editor["Editor"] --> DiagAPI["Compiler Diagnostics API"] --> Comp["Compiler"]
 ```
 
 ------------------------------------------------------------------------
@@ -796,20 +743,9 @@ The public API provides:
 
 The user sees:
 
-``` text
-DMN File
-
-   |
-
-   v
-
-Compiler API
-
-   |
-
-   v
-
-Decision Result
+```mermaid
+flowchart TD
+    File["DMN File"] --> API["Compiler API"] --> Res["Decision Result"]
 ```
 
 The internal compiler remains free to evolve.

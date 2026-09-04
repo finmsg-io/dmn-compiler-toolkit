@@ -19,18 +19,18 @@
 <a id="contents-section-1"></a>
 ## 5.1 Current project structure
 
-```text
-dmn-compiler-toolkit
-├── pom.xml
-├── dmn-protobuf
-├── dmn-frontend-xml
-├── dmn-feel-parser
-├── dmn-semantic-analysis
-├── dmn-runtime-ir
-├── dmn-runtime
-├── dmn-compiler
-├── dmn-generator-java
-└── dmn-tck-runner
+```mermaid
+flowchart TD
+    Root["dmn-compiler-toolkit"] --> Pom["pom.xml (Parent POM)"]
+    Root --> Proto["dmn-protobuf"]
+    Root --> Front["dmn-frontend-xml"]
+    Root --> Feel["dmn-feel-parser"]
+    Root --> Sem["dmn-semantic-analysis"]
+    Root --> IR["dmn-runtime-ir"]
+    Root --> Runtime["dmn-runtime"]
+    Root --> Comp["dmn-compiler"]
+    Root --> JavaGen["dmn-generator-java"]
+    Root --> TCK["dmn-tck-runner"]
 ```
 
 All modules use:

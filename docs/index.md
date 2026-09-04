@@ -26,31 +26,17 @@ functionality. This page intentionally does not duplicate that inventory.
 
 The implemented pipeline is:
 
-```text
-DMN XML Source Graph
-   │
-   ▼
-DmnCompiler Facade / Model Resolver
-   │
-   ▼
-Definitions with FEEL text (DmnXmlReader)
-   │
-   ▼
-Definitions with parsed FEEL AST (DmnFeelParser)
-   │
-   ▼
-Semantic-analysis result and diagnostics (DmnSemanticAnalyzer)
-   │
-   ▼
-Immutable Runtime IR (RuntimeIrLowerer)
-   │
-   ▼
-Static Optimizer Pass (dmn-optimizer)
-   │
-   ├────────────────────────┬────────────────────────┐
-   ▼                        ▼                        ▼
-Process-local Interpreter   Java Generator           JMH Benchmarks
-(dmn-runtime)               (dmn-generator-java)     (dmn-benchmarks)
+```mermaid
+flowchart TD
+    XML["DMN XML Source Graph"] --> Facade["DmnCompiler Facade / Model Resolver"]
+    Facade --> XMLReader["Definitions with FEEL text (DmnXmlReader)"]
+    XMLReader --> FeelParser["Definitions with parsed FEEL AST (DmnFeelParser)"]
+    FeelParser --> SemAnalysis["Semantic-analysis result and diagnostics (DmnSemanticAnalyzer)"]
+    SemAnalysis --> Lowerer["Immutable Runtime IR (RuntimeIrLowerer)"]
+    Lowerer --> Optimizer["Static Optimizer Pass (dmn-optimizer)"]
+    Optimizer --> Interp["Process-local Interpreter<br/>(dmn-runtime)"]
+    Optimizer --> JavaGen["Java Generator<br/>(dmn-generator-java)"]
+    Optimizer --> JMH["JMH Benchmarks<br/>(dmn-benchmarks)"]
 ```
 
 Cross-model compilation, Runtime IR lowering, optimization, process-local interpretation, Java

@@ -32,14 +32,14 @@
 
 The representative integration path is:
 
-```text
-TrafficViolation.dmn
-  → DmnXmlReader
-  → semantic Definitions with text
-  → DmnFeelParser
-  → parsed Definitions
-  → DmnSemanticAnalyzer
-  → successful semantic result
+```mermaid
+flowchart TD
+    A["TrafficViolation.dmn"] --> B["DmnXmlReader"]
+    B --> C["Semantic Definitions with text"]
+    C --> D["DmnFeelParser"]
+    D --> E["Parsed Definitions"]
+    E --> F["DmnSemanticAnalyzer"]
+    F --> G["Successful semantic result"]
 ```
 
 Assertions cover input-model immutability, decision-table expressions, unary tests, type constraints, boxed context expressions, AST structure, name resolution, property resolution, and parser idempotency.
@@ -68,11 +68,11 @@ Semantic-analysis tests verify:
 
 The primary correctness oracle for the entire toolkit is the official OMG DMN TCK suite executed by `dmn-tck-runner`:
 
-```text
-12. Official OMG DMN 1.5 TCK Conformance Suite (OfficialTckSuiteTest)
-    ├── Compliance Level 2 official test models (CL2)
-    ├── Compliance Level 3 official test models (CL3)
-    └── 100% dual-engine value parity (DmnInterpreter vs dmn-generator-java)
+```mermaid
+flowchart TD
+    Root["12. Official OMG DMN 1.5 TCK Conformance Suite"] --> CL2["Compliance Level 2 official test models (CL2)"]
+    Root --> CL3["Compliance Level 3 official test models (CL3)"]
+    Root --> Parity["100% dual-engine value parity<br/>(DmnInterpreter vs dmn-generator-java)"]
 ```
 
 - **Pass rate**: 72 / 72 official models passing (100% pass rate, 0 skipped, 0 failures, 0 errors).

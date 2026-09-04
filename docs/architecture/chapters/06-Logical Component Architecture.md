@@ -37,54 +37,21 @@ Current implementation status:
 
 # 4.2 Component Overview
 
-``` text
-                        +---------------------------+
-                        |      DMN XML Reader       |
-                        +-------------+-------------+
-                                      |
-                                      v
-                        +---------------------------+
-                        |      Semantic Model       |
-                        +-------------+-------------+
-                                      |
-                     +----------------+----------------+
-                     |                                 |
-                     v                                 v
-            +-------------------+             +-------------------+
-            |   FEEL Parser      |             | Model Validator   |
-            +---------+----------+             +---------+---------+
-                      |                                  |
-                      +----------------+-----------------+
-                                       |
-                                       v
-                           +---------------------------+
-                           |     Semantic Analyzer     |
-                           +-------------+-------------+
-                                         |
-                                         v
-                           +---------------------------+
-                           | Dependency Graph Builder  |
-                           +-------------+-------------+
-                                         |
-                                         v
-                           +---------------------------+
-                           | Compiler Pass Framework   |
-                           +-------------+-------------+
-                                         |
-                                         v
-                           +---------------------------+
-                           |       Runtime Builder     |
-                           +-------------+-------------+
-                                         |
-                                         v
-                           +---------------------------+
-                           |        Runtime IR         |
-                           +-------------+-------------+
-                                         |
-             +--------------+------------+-------------+-------------+
-             |              |                          |             |
-             v              v                          v             v
-        Java Generator  Rust Generator          Spark Generator  Interpreter
+```mermaid
+flowchart TD
+    Reader["DMN XML Reader"] --> SemModel["Semantic Model"]
+    SemModel --> FeelParser["FEEL Parser"]
+    SemModel --> Validator["Model Validator"]
+    FeelParser --> Analyzer["Semantic Analyzer"]
+    Validator --> Analyzer
+    Analyzer --> DepGraph["Dependency Graph Builder"]
+    DepGraph --> PassFw["Compiler Pass Framework"]
+    PassFw --> Builder["Runtime Builder"]
+    Builder --> RuntimeIR["Runtime IR"]
+    RuntimeIR --> JavaGen["Java Generator"]
+    RuntimeIR --> RustGen["Rust Generator"]
+    RuntimeIR --> SparkGen["Spark Generator"]
+    RuntimeIR --> Interp["Interpreter"]
 ```
 
 ------------------------------------------------------------------------
@@ -171,16 +138,12 @@ Convert FEEL source code into an Abstract Syntax Tree.
 <a id="contents-section-10"></a>
 ### Output
 
-``` text
-Binary(+)
-
-├── Variable(a)
-
-└── Binary(*)
-
-    ├── Variable(b)
-
-    └── Variable(c)
+```mermaid
+flowchart TD
+    Plus["Binary(+)"] --> A["Variable(a)"]
+    Plus --> Mult["Binary(*)"]
+    Mult --> B["Variable(b)"]
+    Mult --> C["Variable(c)"]
 ```
 
 The parser performs syntax analysis only.

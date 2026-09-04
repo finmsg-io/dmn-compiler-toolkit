@@ -9,19 +9,23 @@ Separate authored source-of-truth content from generated projections and histori
 Audience pages compose links and short explanations around canonical facts; they do not own module,
 capability, conformance, or benchmark data.
 
-```text
-Authoritative inputs
-  Maven reactor ───────────────┐
-  capability manifest/tests ───┼──> deterministic projections
-  TCK/benchmark artifacts ─────┘           │
-                                           v
-                                  README and site tables
-
-Accepted ADRs ─────> architect view ──┐
-Public API/build ───> developer view ──┼──> audience navigation
-Examples/capability -> DMN user view ──┘
-
-Audits/completed slices -> historical archive, outside primary navigation
+```mermaid
+flowchart TD
+    subgraph DataProjections["Automated Data Projections"]
+        Reactor["Maven reactor"] --> Proj["Deterministic projections"]
+        Manifest["Capability manifest / tests"] --> Proj
+        TCK["TCK / benchmark artifacts"] --> Proj
+        Proj --> Tables["README and site tables"]
+    end
+    subgraph AudienceViews["Audience-Oriented Navigation"]
+        ADRs["Accepted ADRs"] --> ArchView["Architect view"]
+        API["Public API / build"] --> DevView["Developer view"]
+        Examples["Examples / capability"] --> UserView["DMN user view"]
+        ArchView --> Nav["Audience navigation"]
+        DevView --> Nav
+        UserView --> Nav
+    end
+    Audits["Audits / completed slices"] -.-> Archive["Historical archive (outside primary navigation)"]
 ```
 
 ## Information ownership

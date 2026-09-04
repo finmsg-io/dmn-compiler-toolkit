@@ -31,26 +31,14 @@ parallel implementations or weakening verification.
 
 Optimize the complete value stream:
 
-```text
-Idea selected
-    |
-    v
-Slice clarified
-    |
-    v
-First executable example
-    |
-    v
-Focused implementation and tests
-    |
-    v
-End-to-end/parity evidence
-    |
-    v
-Reviewable change
-    |
-    v
-Releasable artifact and documentation
+```mermaid
+flowchart TD
+    A["Idea selected"] --> B["Slice clarified"]
+    B --> C["First executable example"]
+    C --> D["Focused implementation and tests"]
+    D --> E["End-to-end / parity evidence"]
+    E --> F["Reviewable change"]
+    F --> G["Releasable artifact and documentation"]
 ```
 
 The principal delays to measure are:
@@ -261,26 +249,17 @@ been measured and proven insufficient.
 
 Structure CI as a dependency graph:
 
-```text
-format/static/architecture
-          |
-          +-------------------+
-          |                   |
-          v                   v
- affected module tests   API/schema diff
-          |
-          v
- full reactor
-          |
-    +-----+---------+----------------+
-    |               |                |
-    v               v                v
- corpus/parity   TCK/fuzz       benchmark trends
-    |               |                |
-    +---------------+----------------+
-                    |
-                    v
-             evidence summary
+```mermaid
+flowchart TD
+    Static["format / static / architecture"] --> Tests["affected module tests"]
+    Static --> Diff["API / schema diff"]
+    Tests --> Full["full reactor"]
+    Full --> Parity["corpus / parity"]
+    Full --> TCK["TCK / fuzz"]
+    Full --> Bench["benchmark trends"]
+    Parity --> Summary["evidence summary"]
+    TCK --> Summary
+    Bench --> Summary
 ```
 
 Run independent jobs concurrently, cache immutable dependencies and generated toolchains safely,

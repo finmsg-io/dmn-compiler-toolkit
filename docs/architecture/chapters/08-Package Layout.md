@@ -24,21 +24,21 @@ Contains all Java classes generated from the protobuf schemas, including `Defini
 <a id="contents-section-2"></a>
 ## 6.2 XML frontend
 
-```text
-io.finmsg.dmn.frontend.xml
-├── XmlCursor
-├── XmlEmitter
-├── XmlReader
-├── XmlWriter
-├── dmn
-│   ├── DmnXmlReader
-│   ├── DmnWriter
-│   ├── DmnVersionDetector
-│   ├── reader
-│   └── writer
-├── exception
-├── util
-└── vtd
+```mermaid
+flowchart TD
+    Root["io.finmsg.dmn.frontend.xml"] --> C1["XmlCursor"]
+    Root --> C2["XmlEmitter"]
+    Root --> C3["XmlReader"]
+    Root --> C4["XmlWriter"]
+    Root --> DMN["dmn"]
+    DMN --> D1["DmnXmlReader"]
+    DMN --> D2["DmnWriter"]
+    DMN --> D3["DmnVersionDetector"]
+    DMN --> D4["reader"]
+    DMN --> D5["writer"]
+    Root --> EX["exception"]
+    Root --> UT["util"]
+    Root --> VTD["vtd"]
 ```
 
 Individual DMN writers belong in:
@@ -50,15 +50,15 @@ io.finmsg.dmn.frontend.xml.dmn.writer
 <a id="contents-section-3"></a>
 ## 6.3 FEEL parser
 
-```text
-io.finmsg.dmn.feel.parser
-├── FeelParserFacade
-├── FeelAstBuilder
-├── DmnFeelParser
-├── FeelDiagnostic
-├── DmnFeelDiagnostic
-├── DmnFeelParseResult
-└── DmnFeelParseException
+```mermaid
+flowchart TD
+    Root["io.finmsg.dmn.feel.parser"] --> C1["FeelParserFacade"]
+    Root --> C2["FeelAstBuilder"]
+    Root --> C3["DmnFeelParser"]
+    Root --> C4["FeelDiagnostic"]
+    Root --> C5["DmnFeelDiagnostic"]
+    Root --> C6["DmnFeelParseResult"]
+    Root --> C7["DmnFeelParseException"]
 ```
 
 ANTLR-generated sources use the same parser package below `src/gen/java`.
@@ -66,11 +66,11 @@ ANTLR-generated sources use the same parser package below `src/gen/java`.
 <a id="contents-section-4"></a>
 ## 6.4 Semantic analysis
 
-```text
-io.finmsg.dmn.semantic.analysis
-├── DmnSemanticAnalyzer
-├── DmnSemanticAnalysisResult
-└── DmnSemanticDiagnostic
+```mermaid
+flowchart TD
+    Root["io.finmsg.dmn.semantic.analysis"] --> C1["DmnSemanticAnalyzer"]
+    Root --> C2["DmnSemanticAnalysisResult"]
+    Root --> C3["DmnSemanticDiagnostic"]
 ```
 
 <a id="contents-section-5"></a>

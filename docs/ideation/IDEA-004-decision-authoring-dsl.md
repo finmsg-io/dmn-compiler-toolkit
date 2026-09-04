@@ -17,17 +17,12 @@ with DMN tools and organizations that do not use the DSL.
 
 The recommended product model is:
 
-```text
-Concise DSL
-    |
-    v
-Canonical Decision Model
-    |                  |
-    v                  v
-Valid DMN XML      Executable Runtime IR
-                          |
-                          v
-                Interpreter / Java / Rust / other backends
+```mermaid
+flowchart TD
+    DSL["Concise DSL"] --> Model["Canonical Decision Model"]
+    Model --> XML["Valid DMN XML"]
+    Model --> IR["Executable Runtime IR"]
+    IR --> Backends["Interpreter / Java / Rust / other backends"]
 ```
 
 The canonical decision model—not optimized Runtime IR—should preserve authoring intent. Runtime IR
@@ -258,33 +253,17 @@ layout should be a separate product capability from semantic validity.
 
 ## Compiler architecture
 
-```text
-.decision source
-      |
-      v
-Lexer/parser
-      |
-      v
-DSL syntax tree + comments + exact source ranges
-      |
-      v
-Desugaring and canonicalization
-      |
-      v
-Existing/extended canonical protobuf DMN model
-      |
-      +----------------------+
-      |                      |
-      v                      v
-DMN XML writer        Existing FEEL + semantic pipeline
-                             |
-                             v
-                        Runtime IR
-                             |
-               +-------------+-------------+
-               |                           |
-               v                           v
-          Interpreter                 Code generators
+```mermaid
+flowchart TD
+    Src[".decision source"] --> Parser["Lexer / parser"]
+    Parser --> AST["DSL syntax tree + comments + exact source ranges"]
+    AST --> Desugar["Desugaring and canonicalization"]
+    Desugar --> Proto["Existing/extended canonical protobuf DMN model"]
+    Proto --> Writer["DMN XML writer"]
+    Proto --> Pipeline["Existing FEEL + semantic pipeline"]
+    Pipeline --> IR["Runtime IR"]
+    IR --> Interp["Interpreter"]
+    IR --> Codegen["Code generators"]
 ```
 
 The DSL frontend should depend on canonical model contracts. Semantic analysis must not depend on

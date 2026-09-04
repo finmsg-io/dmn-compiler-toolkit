@@ -15,32 +15,18 @@
 <a id="contents-section-1"></a>
 ## 3.1 Pipeline
 
-```text
-DMN XML Source Graph
-   │
-   ▼
-Compiler Facade & Model Resolver (dmn-compiler)   Implemented
-   │
-   ▼
-XML Frontend (dmn-frontend-xml)                   Implemented
-   │
-   ▼
-Semantic Model (dmn-protobuf)                     Implemented
-   │
-   ▼
-FEEL Parsing Pass (dmn-feel-parser)               Implemented
-   │
-   ▼
-Semantic Analysis (dmn-semantic-analysis)         Implemented for linked model sets
-   │
-   ▼
-Runtime IR Lowering (dmn-runtime-ir)              Implemented (constants, frames, IR slots)
-   │
-   ├──► Reference Interpreter (dmn-runtime)           Implemented
-   └──► Java Code Generator (dmn-generator-java)         Implemented (AOT Java generator)
-           │
-           ▼
-        TCK Test Runner (dmn-tck-runner)           Implemented (100% CL2 & CL3 pass)
+```mermaid
+flowchart TD
+    XML["DMN XML Source Graph"] --> Facade["Compiler Facade & Model Resolver (dmn-compiler)<br/><i>Implemented</i>"]
+    Facade --> Frontend["XML Frontend (dmn-frontend-xml)<br/><i>Implemented</i>"]
+    Frontend --> Model["Semantic Model (dmn-protobuf)<br/><i>Implemented</i>"]
+    Model --> FeelParser["FEEL Parsing Pass (dmn-feel-parser)<br/><i>Implemented</i>"]
+    FeelParser --> Semantic["Semantic Analysis (dmn-semantic-analysis)<br/><i>Implemented for linked model sets</i>"]
+    Semantic --> RuntimeIr["Runtime IR Lowering (dmn-runtime-ir)<br/><i>Implemented (constants, frames, IR slots)</i>"]
+    RuntimeIr --> Interpreter["Reference Interpreter (dmn-runtime)<br/><i>Implemented</i>"]
+    RuntimeIr --> JavaGen["Java Code Generator (dmn-generator-java)<br/><i>Implemented (AOT Java generator)</i>"]
+    JavaGen --> TckRunner["TCK Test Runner (dmn-tck-runner)<br/><i>Implemented (100% CL2 & CL3 pass)</i>"]
+    Interpreter -.-> TckRunner
 ```
 
 Each stage has a stable protobuf or IR input/output boundary and treats its input as immutable.
@@ -72,25 +58,17 @@ The XML frontend selects the text branch. `DmnFeelParser` creates a copied model
 <a id="contents-section-4"></a>
 ## 3.4 Dependency direction
 
-```text
-dmn-tck-runner
-        │
-        ├───────────────────────┐
-        ▼                       ▼
-dmn-compiler            dmn-generator-java
-        │                       │
-        ▼                       ▼
-dmn-runtime             dmn-runtime-ir
-        │                       │
-        └───────────┬───────────┘
-                    ▼
-          dmn-semantic-analysis
-                    │
-                    ▼
-               dmn-protobuf
-
-dmn-feel-parser  ──► dmn-protobuf
-dmn-frontend-xml ──► dmn-protobuf
+```mermaid
+flowchart TD
+    TCK["dmn-tck-runner"] --> Comp["dmn-compiler"]
+    TCK --> JavaGen["dmn-generator-java"]
+    Comp --> Runtime["dmn-runtime"]
+    JavaGen --> RuntimeIR["dmn-runtime-ir"]
+    Runtime --> Semantic["dmn-semantic-analysis"]
+    RuntimeIR --> Semantic
+    Semantic --> Proto["dmn-protobuf"]
+    Feel["dmn-feel-parser"] --> Proto
+    Front["dmn-frontend-xml"] --> Proto
 ```
 
 The parser and XML frontend are test-scoped dependencies of semantic-analysis and runtime integration tests; they are not production dependencies of the runtime or generated Java code.

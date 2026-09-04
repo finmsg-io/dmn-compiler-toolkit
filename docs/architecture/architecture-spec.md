@@ -43,33 +43,33 @@ Status labels:
 
 Current modules:
 
-```text
-dmn-compiler-toolkit
-├── dmn-protobuf
-├── dmn-frontend-xml
-├── dmn-feel-parser
-├── dmn-semantic-analysis
-├── dmn-runtime-ir
-├── dmn-runtime
-├── dmn-compiler
-├── dmn-generator-java
-└── dmn-tck-runner
+```mermaid
+flowchart TD
+    Root["dmn-compiler-toolkit"] --> Proto["dmn-protobuf"]
+    Root --> Front["dmn-frontend-xml"]
+    Root --> Feel["dmn-feel-parser"]
+    Root --> Sem["dmn-semantic-analysis"]
+    Root --> IR["dmn-runtime-ir"]
+    Root --> Runtime["dmn-runtime"]
+    Root --> Comp["dmn-compiler"]
+    Root --> JavaGen["dmn-generator-java"]
+    Root --> TCK["dmn-tck-runner"]
 ```
 
 Current executable compiler path:
 
-```text
-DMN XML Source Graph
-  → DmnModelResolver / DmnCompiler Facade
-  → DmnXmlReader (VTD-XML)
-  → Definitions with FEEL text
-  → DmnFeelParser (ANTLR4)
-  → Definitions with parsed FEEL AST
-  → DmnSemanticPipeline / DmnModelSetSemanticAnalyzer
-  → typed linked model set, deterministic compilation order, and semantic diagnostics
-  → RuntimeIrLowerer (immutable Runtime IR with integer slots)
-  ├── DmnInterpreter (process-local runtime execution)
-  └── DmnJavaGenerator (zero-reflection Java code generation)
+```mermaid
+flowchart TD
+    XML["DMN XML Source Graph"] --> Facade["DmnModelResolver / DmnCompiler Facade"]
+    Facade --> Reader["DmnXmlReader (VTD-XML)"]
+    Reader --> DefText["Definitions with FEEL text"]
+    DefText --> Parser["DmnFeelParser (ANTLR4)"]
+    Parser --> DefAST["Definitions with parsed FEEL AST"]
+    DefAST --> Analyzer["DmnSemanticPipeline / DmnModelSetSemanticAnalyzer"]
+    Analyzer --> Linked["Typed linked model set, deterministic compilation order & diagnostics"]
+    Linked --> Lowerer["RuntimeIrLowerer (immutable Runtime IR with integer slots)"]
+    Lowerer --> Interp["DmnInterpreter (process-local runtime execution)"]
+    Lowerer --> JavaGen["DmnJavaGenerator (zero-reflection Java code generation)"]
 ```
 
 The semantic-analysis stage implements reference and structured-property resolution, exposes successful symbol and named-type bindings, performs type and expression analysis, validates operators, functions, imports, and DMN structures, and analyzes dependency graphs across namespace-linked models. Bindings are exposed as an immutable side table rather than persisted in protobuf AST nodes. Structural Runtime IR, typed constants, bound value-slot references, unary/binary operators, boxed logic, and decision tables are implemented. Process-local interpretation (`dmn-runtime`), one-call compiler facade (`dmn-compiler`), high-performance Java code generation (`dmn-generator-java`), and TCK conformance testing (`dmn-tck-runner`) are implemented. Optimization passes and multi-language backends (Rust, Go) remain future stages.

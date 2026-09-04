@@ -159,42 +159,22 @@ targets:
 
 ## Proposed workflow
 
-```text
-DMN source or portable Runtime IR + scenario request
-                         |
-                         v
-           Compile/load and validate model identity
-                         |
-                         v
-           Resolve target to stable semantic/IR nodes
-                         |
-                         v
-       Derive types, domains, predicates, and dependencies
-                         |
-                         v
-      Select generation strategy and enforce search budgets
-                         |
-        +----------------+----------------+
-        |                |                |
-        v                v                v
- Constraint solving  Property generation  Coverage-guided mutation
-        |                |                |
-        +----------------+----------------+
-                         |
-                         v
-             Candidate concrete input values
-                         |
-                         v
-        Execute through instrumented authoritative runtime
-                         |
-                         v
-             Confirm target and capture behavior trace
-                         |
-                         v
-        Minimize, diversify, deduplicate, and rank witnesses
-                         |
-                         v
-       Scenario bundle / regression tests / scalable load data
+```mermaid
+flowchart TD
+    A["DMN source or portable Runtime IR + scenario request"] --> B["Compile/load and validate model identity"]
+    B --> C["Resolve target to stable semantic/IR nodes"]
+    C --> D["Derive types, domains, predicates, and dependencies"]
+    D --> E["Select generation strategy and enforce search budgets"]
+    E --> Strat1["Constraint solving"]
+    E --> Strat2["Property generation"]
+    E --> Strat3["Coverage-guided mutation"]
+    Strat1 --> F["Candidate concrete input values"]
+    Strat2 --> F
+    Strat3 --> F
+    F --> G["Execute through instrumented authoritative runtime"]
+    G --> H["Confirm target and capture behavior trace"]
+    H --> I["Minimize, diversify, deduplicate, and rank witnesses"]
+    I --> J["Scenario bundle / regression tests / scalable load data"]
 ```
 
 ## Recommended generation strategies

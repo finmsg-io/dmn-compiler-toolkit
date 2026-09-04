@@ -48,27 +48,13 @@ special cases, stale plans, or speculative infrastructure.
 
 ## Operating loop
 
-```text
-Observe
-  Gather repository, test, dependency, API, benchmark, documentation, and workflow evidence
-     |
-     v
-Reflect
-  Compare intent with reality; identify drift, friction, duplication, and obsolete assumptions
-     |
-     v
-Decide
-  Keep, simplify, fix, experiment, defer, or remove—with an owner and expected outcome
-     |
-     v
-Improve
-  Deliver one bounded change and its verification evidence
-     |
-     v
-Learn
-  Record what changed, whether the expected benefit occurred, and which rule/process should adapt
-     |
-     +-------------------------------------------------------------------> Observe
+```mermaid
+flowchart TD
+    Observe["<b>Observe</b><br/>Gather repository, test, dependency, API, benchmark, documentation, and workflow evidence"] --> Reflect["<b>Reflect</b><br/>Compare intent with reality; identify drift, friction, duplication, and obsolete assumptions"]
+    Reflect --> Decide["<b>Decide</b><br/>Keep, simplify, fix, experiment, defer, or remove—with an owner and expected outcome"]
+    Decide --> Improve["<b>Improve</b><br/>Deliver one bounded change and its verification evidence"]
+    Improve --> Learn["<b>Learn</b><br/>Record what changed, whether expected benefit occurred, and which rule/process should adapt"]
+    Learn --> Observe
 ```
 
 ## Proposed helpers and tools

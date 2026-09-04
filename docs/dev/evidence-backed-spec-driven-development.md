@@ -39,12 +39,12 @@ documentation affected by the result.
 <a id="contents-section-2"></a>
 ## Core principle
 
-```text
-Architectural requirement
-        -> milestone work item
-        -> acceptance scenarios
-        -> implementation and tests
-        -> linked completion evidence
+```mermaid
+flowchart TD
+    Req["Architectural requirement"] --> Item["Milestone work item"]
+    Item --> Scenarios["Acceptance scenarios"]
+    Scenarios --> Tests["Implementation & tests"]
+    Tests --> Evidence["Linked completion evidence"]
 ```
 
 A specification states intent and observable behavior. Tests, benchmarks, generated artifacts, and

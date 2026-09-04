@@ -56,34 +56,14 @@ The architecture follows a compiler-oriented performance model.
 
 Traditional interpreter:
 
-``` text
-             Runtime
-
-DMN XML
-
-  |
-
-  v
-
-Parse XML
-
-  |
-
-  v
-
-Parse FEEL
-
-  |
-
-  v
-
-Resolve Types
-
-  |
-
-  v
-
-Evaluate Decision
+```mermaid
+flowchart TD
+    subgraph TraditionalRuntime["Traditional Interpreted Runtime"]
+        XML["DMN XML"] --> ParseXML["Parse XML"]
+        ParseXML --> ParseFEEL["Parse FEEL"]
+        ParseFEEL --> ResolveTypes["Resolve Types"]
+        ResolveTypes --> Eval["Evaluate Decision"]
+    end
 ```
 
 Every execution repeats work.
@@ -92,44 +72,18 @@ Every execution repeats work.
 
 Compiler approach:
 
-``` text
-             Build Time
-
-DMN XML
-
-  |
-
-  v
-
-Semantic Analysis
-
-  |
-
-  v
-
-Optimization
-
-  |
-
-  v
-
-Runtime IR
-
-  |
-
-  v
-
-Generated Code
-
-             Runtime
-
-Input
-
-  |
-
-  v
-
-Decision Execution
+```mermaid
+flowchart TD
+    subgraph BuildTime["Build Time"]
+        XML["DMN XML"] --> Sem["Semantic Analysis"]
+        Sem --> Opt["Optimization"]
+        Opt --> IR["Runtime IR"]
+        IR --> Gen["Generated Code"]
+    end
+    subgraph Runtime["Runtime Execution"]
+        Input["Input Data"] --> Exec["Decision Execution (Zero reflection / zero parsing)"]
+    end
+    Gen -.-> Exec
 ```
 
 ------------------------------------------------------------------------
@@ -160,14 +114,9 @@ Example:
 
 One compilation:
 
-``` text
-traffic.dmn
-
-        |
-
-        v
-
-Runtime IR
+```mermaid
+flowchart TD
+    DMN["traffic.dmn"] --> IR["Runtime IR"]
 ```
 
 Millions of executions:
@@ -222,20 +171,9 @@ Benefits:
 
 Traditional:
 
-``` text
-"speed > 100"
-
-       |
-
-       v
-
-Parser
-
-       |
-
-       v
-
-Evaluation
+```mermaid
+flowchart TD
+    Expr['"speed > 100"'] --> Parser["Parser"] --> Eval["Evaluation"]
 ```
 
 Every execution.
@@ -244,26 +182,9 @@ Every execution.
 
 Compiler:
 
-``` text
-"speed > 100"
-
-       |
-
-       v
-
-FEEL AST
-
-       |
-
-       v
-
-Runtime IR
-
-       |
-
-       v
-
-Java bytecode
+```mermaid
+flowchart TD
+    Expr['"speed > 100"'] --> AST["FEEL AST"] --> IR["Runtime IR"] --> Bytecode["Java bytecode"]
 ```
 
 Once.
@@ -389,16 +310,10 @@ Benefits:
 
 Example:
 
-``` text
-RuntimeModel
-
-        |
-
-        +----------+
-
-        |          |
-
- Thread 1      Thread 2
+```mermaid
+flowchart TD
+    Model["Immutable RuntimeModel"] --> T1["Thread 1"]
+    Model --> T2["Thread 2"]
 ```
 
 No synchronization.

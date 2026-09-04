@@ -12,16 +12,16 @@ release pull request when the accumulated changes are worth publishing.
 This gives frequent releases without making every merge a public release and without maintaining a
 large release script. The normal path becomes:
 
-```text
-Feature/fix PR
-    -> required CI checks
-    -> merge to main
-    -> automated release PR updated
-    -> human merges release PR
-    -> tag + GitHub Release
-    -> clean release verification
-    -> Maven package publication
-    -> release evidence and documentation publication
+```mermaid
+flowchart TD
+    PR["Feature/fix PR"] --> CI["Required CI checks"]
+    CI --> MergeMain["Merge to main"]
+    MergeMain --> RelPR["Automated release PR updated"]
+    RelPR --> HumanMerge["Human merges release PR"]
+    HumanMerge --> Tag["Tag + GitHub Release"]
+    Tag --> CleanVerif["Clean release verification"]
+    CleanVerif --> PubMaven["Maven package publication"]
+    PubMaven --> PubDocs["Release evidence & documentation publication"]
 ```
 
 The automation should make the safe path easy. It should not hide a failed build behind a tag or
