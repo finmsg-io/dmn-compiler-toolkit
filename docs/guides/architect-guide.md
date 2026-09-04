@@ -66,7 +66,7 @@ flowchart TD
 
 ## 3. Trust Boundaries & Security Architecture
 
-The toolkit enforces strict boundaries between trusted build-time compilation and untrusted runtime execution (see [SECURITY.md](../../SECURITY.md)):
+The toolkit enforces strict boundaries between trusted build-time compilation and untrusted runtime execution (see `SECURITY.md` at repository root):
 
 ```mermaid
 flowchart LR
