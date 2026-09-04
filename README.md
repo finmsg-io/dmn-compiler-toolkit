@@ -29,12 +29,12 @@ The project is a feature-rich DMN 1.5/1.6 compiler platform.
 
 Current status & focus:
 
-- 14 reactor modules fully implemented and verified
-- OMG DMN 1.5/1.6 TCK conformance suite engine with dual-engine parity (Interpreter & Java AOT)
-- Static optimization passes (`dmn-optimizer`) and pure Spark / Databricks SQL CTE generator (`dmn-generator-sparksql`)
-- Dynamic and strongly typed gRPC service stubs generator (`dmn-grpc`)
-- Multi-file DMN sample suites and streaming ingestion API (`dmn-models`)
-- Near-term focus: Governance quality gates, backend parity formalization, and native binary generators (Rust/Go/C++)
+- Lean Tier-1 reactor for the optimized interpreter and generated-Java runtime path
+- 3,391/3,391 official OMG DMN TCK cases passing on both optimized backends (6,782 outcomes)
+- Static optimization passes (`dmn-optimizer`) enabled by default through `DmnCompiler`
+- Spark SQL and gRPC flavors isolated behind the opt-in `incubator` profile
+- TCK and benchmarks isolated behind opt-in verification profiles to preserve fast builds
+- Near-term focus: production hardening and an early Tier-1 release
 
 <a id="contents-section-2"></a>
 ## Architecture
@@ -82,12 +82,12 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-runtime` | Deterministic interpreter for executable Runtime IR |
 | `dmn-compiler` | Compiler orchestration and resolver-independent model-source contracts |
 | `dmn-generator-java` | High-performance Java source code generator directly from Runtime IR |
-| `dmn-tck-runner` | OMG DMN TCK test-case runner & dual-engine spec conformance adapter |
-| `dmn-benchmarks` | JMH microbenchmarks & DataFaker reference model workloads |
+| `dmn-tck-runner` | Opt-in OMG DMN TCK runner for strict optimized-interpreter/generated-Java conformance |
+| `dmn-benchmarks` | Opt-in JMH microbenchmarks & DataFaker reference model workloads |
 | `dmn-optimizer` | Constant folding, algebraic simplification, and rule pruning passes |
-| `dmn-grpc` | Generic and strongly-typed Protobuf schema & gRPC service adapter generator |
-| `dmn-generator-sparksql` | Pure Spark / Databricks SQL CTE query generator (`<decision-name>.sql`) without UDF overhead |
-| `dmn-models` | Multi-file DMN sample suites and Java streaming ingestion API (`DmnStreamBundle`) |
+| `dmn-grpc` | Incubating generic and strongly-typed Protobuf schema & gRPC service adapter generator |
+| `dmn-generator-sparksql` | Incubating Spark / Databricks SQL CTE query generator |
+| `dmn-models` | Opt-in benchmark models and streaming ingestion fixtures |
 
 Planned modules include further optimization and native code generation backends.
 
@@ -104,7 +104,14 @@ Planned modules include further optimization and native code generation backends
 mvn clean verify
 ```
 
-The command builds all Maven modules and runs the test suite.
+The command builds the lean Tier-1 reactor and runs its unit/integration tests. Additional gates are
+explicit:
+
+```bash
+mvn -Ptck verify          # complete optimized interpreter + generated-Java TCK
+mvn -Pbenchmarks verify   # benchmark support modules
+mvn -Pincubator verify    # experimental gRPC and Spark SQL flavors
+```
 
 <a id="contents-section-6"></a>
 ## Generate FEEL parser sources

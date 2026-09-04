@@ -10,13 +10,15 @@ public record DmnCompilerOptions(DmnModelLoadOptions modelLoadOptions, RuntimeMo
 		Objects.requireNonNull(runtimeModelMode, "runtimeModelMode");
 	}
 
-	/** Preserves source compatibility while optimized execution is introduced. */
+	/**
+	 * Preserves the original single-argument construction with production defaults.
+	 */
 	public DmnCompilerOptions(DmnModelLoadOptions modelLoadOptions) {
-		this(modelLoadOptions, RuntimeModelMode.LOWERED);
+		this(modelLoadOptions, RuntimeModelMode.OPTIMIZED);
 	}
 
 	public static DmnCompilerOptions defaults() {
-		return lowered();
+		return optimized();
 	}
 
 	public static DmnCompilerOptions lowered() {

@@ -48,12 +48,14 @@ class DmnCompilerTest {
 				DmnCompilerOptions.lowered());
 		DmnCompilationResult optimized = compiler.compile(root, new InMemoryDmnModelResolver(List.of()),
 				DmnCompilerOptions.optimized());
+		DmnCompilationResult defaults = compiler.compile(root);
 
 		assertThat(
 				lowered.optimizedRuntimeModel().orElseThrow().model().decisions().getFirst().expression().orElseThrow())
 				.isInstanceOf(io.finmsg.dmn.ir.RuntimeBinaryExpression.class);
 		assertThat(optimized.optimizedRuntimeModel().orElseThrow().model().decisions().getFirst().expression()
 				.orElseThrow()).isInstanceOf(io.finmsg.dmn.ir.RuntimeConstant.class);
+		assertThat(defaults.optimizedRuntimeModel()).isEqualTo(optimized.optimizedRuntimeModel());
 	}
 
 	@Test

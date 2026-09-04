@@ -25,11 +25,6 @@
         <module>dmn-optimizer</module>
         <module>dmn-compiler</module>
         <module>dmn-generator-java</module>
-        <module>dmn-tck-runner</module>
-        <module>dmn-benchmarks</module>
-        <module>dmn-grpc</module>
-        <module>dmn-generator-sparksql</module>
-        <module>dmn-models</module>
     </modules>
 
     <properties>
@@ -271,7 +266,12 @@
             <id>tck</id>
             <properties>
                 <tck.skip>false</tck.skip>
+                <tck.modelVariant>optimized</tck.modelVariant>
+                <tck.requireFull>true</tck.requireFull>
             </properties>
+            <modules>
+                <module>dmn-tck-runner</module>
+            </modules>
         </profile>
 
         <!-- Benchmarks profile: opt-in profile to run benchmark test suite.
@@ -283,12 +283,29 @@
             <properties>
                 <benchmarks.skip>false</benchmarks.skip>
             </properties>
+            <modules>
+                <module>dmn-models</module>
+                <module>dmn-benchmarks</module>
+            </modules>
         </profile>
         <profile>
             <id>benchmark</id>
             <properties>
                 <benchmarks.skip>false</benchmarks.skip>
             </properties>
+            <modules>
+                <module>dmn-models</module>
+                <module>dmn-benchmarks</module>
+            </modules>
+        </profile>
+
+        <!-- Incubating backends are intentionally excluded from the fast default reactor. -->
+        <profile>
+            <id>incubator</id>
+            <modules>
+                <module>dmn-grpc</module>
+                <module>dmn-generator-sparksql</module>
+            </modules>
         </profile>
 
         <!-- Security scan profile: run manually or in dedicated CI step.

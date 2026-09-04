@@ -13,19 +13,22 @@ The module embeds the official vendor-neutral [OMG DMN Technology Compatibility 
 | CL2/CL3 XML test files | 146 |
 | CL2/CL3 DMN files | 150 |
 | Available CL2/CL3 cases | 3,391 |
-| Passing cases | **169 (4.98%)** |
-| Compilation-blocked/non-passing cases | **3,222 (95.02%)** |
-| Passing backend outcomes | 338 / 6,782 |
+| Passing cases | **3,391 / 3,391 (100%)** |
+| Passing optimized-interpreter outcomes | **3,391 / 3,391 (100%)** |
+| Passing optimized-generated-Java outcomes | **3,391 / 3,391 (100%)** |
+| Non-passing or excluded outcomes | **0 / 6,782** |
 
-The former 100% conformance claim was invalid because the runner silently omitted discovery,
-decoding, and compilation failures. Only `PASSED` counts as passing.
+This result is tied to official TCK revision `20274cd2ba9cad805db6114f331c743f4b2603a1`.
+The strict runner accounts for every discovered case on both backends; discovery, decoding,
+compilation, execution, unsupported, invalid, and excluded outcomes cannot disappear from the
+denominator. Only `PASSED` counts as passing.
 
 ### Execution & Verification
 
 The suite runner `OfficialTckSuiteTest` dynamically discovers and executes all official test cases:
 
 ```text
-mvn -pl dmn-tck-runner -am test
+mvn -Ptck verify
 ```
 
 For every test case, the test suite:
@@ -34,5 +37,10 @@ For every test case, the test suite:
 3. Generates and executes Java source using `DmnJavaGenerator` when compilation succeeds.
 4. Records a terminal outcome for each case/backend pair and fails the conformance goal for every
    non-passing outcome.
+
+The canonical machine-readable evidence is written to
+`dmn-tck-runner/target/tck-accounting-optimized.json`. The `tck` profile selects only the optimized
+model and requires the complete official corpus. It is deliberately outside the default reactor so
+ordinary Tier-1 development remains fast; CI and release verification run it as a separate gate.
 
 The name-to-slot mapping in `DmnToolkitTckEngine` is internal conformance infrastructure to facilitate direct model evaluation.

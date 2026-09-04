@@ -2,7 +2,11 @@ package io.finmsg.dmn.grpc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.finmsg.dmn.benchmark.provider.ReferenceModelRegistry;
+import io.finmsg.dmn.compiler.DmnCompilationResult;
+import io.finmsg.dmn.compiler.DmnCompiler;
+import io.finmsg.dmn.compiler.DmnCompilerOptions;
+import io.finmsg.dmn.compiler.DmnSource;
+import io.finmsg.dmn.compiler.DmnSourceId;
 import io.finmsg.dmn.generator.java.DmnJavaGenerator;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorOptions;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorResult;
@@ -16,6 +20,7 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -56,10 +61,14 @@ class DmnGrpcServiceTest {
 	@Test
 	@DisplayName("Full gRPC integration: In-process Netty-free server execution on traffic-violation.dmn")
 	void testGrpcServiceInProcessExecution() throws Exception {
-		ReferenceModelRegistry.CompiledModelHolder holder = ReferenceModelRegistry
-				.loadFromClasspath("models/traffic-violation.dmn");
-
-		RuntimeOptimizedModel optModel = holder.compilationResult().optimizedRuntimeModel().orElseThrow();
+		URL modelResource = DmnGrpcServiceTest.class.getClassLoader().getResource("models/traffic-violation.dmn");
+		assertThat(modelResource).isNotNull();
+		DmnCompilationResult compilation = new DmnCompiler().compile(
+				new DmnSource(new DmnSourceId(URI.create("urn:grpc-test:traffic-violation")),
+						Files.readAllBytes(Path.of(modelResource.toURI()))),
+				new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(List.of()), DmnCompilerOptions.optimized());
+		assertThat(compilation.isSuccess()).isTrue();
+		RuntimeOptimizedModel optModel = compilation.optimizedRuntimeModel().orElseThrow();
 
 		// 1. Generate compiled AOT Java decision engine
 		String genPkg = "io.finmsg.dmn.grpc.gen";
@@ -75,7 +84,7 @@ class DmnGrpcServiceTest {
 		String grpcFqcn = genPkg + "." + grpcClassName;
 
 		DmnGrpcGenerator grpcGen = new DmnGrpcGenerator();
-		DmnGrpcGeneratorResult grpcResult = grpcGen.generate(holder.compilationResult(), engineFqcn,
+		DmnGrpcGeneratorResult grpcResult = grpcGen.generate(compilation, engineFqcn,
 				DmnGrpcGeneratorOptions.of(genPkg, grpcClassName));
 
 		// 3. Compile both Java classes in-memory
@@ -97,7 +106,8 @@ class DmnGrpcServiceTest {
 					.newBlockingStub(channel);
 
 			DmnEvaluationRequest request = DmnEvaluationRequest.newBuilder()
-					.setModelNamespace("https://finmsg.io/models/traffic").setModelName(holder.modelName())
+					.setModelNamespace("urn:finmsg:benchmark:traffic-violation")
+					.setModelName(compilation.compiledModel().orElseThrow().modelName())
 					.putInputs("Speed", DmnGrpcValueConverter.toProtoValue(new BigDecimal("140")))
 					.putInputs("SpeedLimit", DmnGrpcValueConverter.toProtoValue(new BigDecimal("100"))).build();
 

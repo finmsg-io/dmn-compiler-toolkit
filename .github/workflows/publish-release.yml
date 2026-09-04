@@ -71,6 +71,9 @@ jobs:
       - name: Clean release verification
         run: mvn --batch-mode -Pformat,release clean verify
 
+      - name: Verify complete optimized TCK
+        run: mvn --batch-mode -Ptck verify
+
       - name: Verify release artifacts and clean checkout
         run: |
           python tools/verify_release.py --tag "$RELEASE_TAG" --artifacts

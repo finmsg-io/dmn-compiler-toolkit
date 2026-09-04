@@ -14,6 +14,8 @@
   <properties>
     <!-- Default: skip TCK test execution during ordinary local builds unless -Ptck is explicitly specified -->
     <tck.skip>true</tck.skip>
+    <tck.modelVariant>all</tck.modelVariant>
+    <tck.requireFull>false</tck.requireFull>
   </properties>
 
   <dependencies>
@@ -56,6 +58,10 @@
           <useFile>false</useFile>
           <redirectTestOutputToFile>false</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
+          <systemPropertyVariables>
+            <tck.modelVariant>${tck.modelVariant}</tck.modelVariant>
+            <tck.requireFull>${tck.requireFull}</tck.requireFull>
+          </systemPropertyVariables>
         </configuration>
       </plugin>
     </plugins>
@@ -69,6 +75,8 @@
       <id>tck</id>
       <properties>
         <tck.skip>false</tck.skip>
+        <tck.modelVariant>optimized</tck.modelVariant>
+        <tck.requireFull>true</tck.requireFull>
       </properties>
     </profile>
   </profiles>

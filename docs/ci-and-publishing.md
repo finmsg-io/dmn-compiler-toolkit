@@ -42,7 +42,8 @@ permissions, but repository environment protection is the external approval boun
 - canonical documentation-fact and repository-tool tests;
 - strict MkDocs construction;
 - fail-fast Spotless validation;
-- the complete Maven reactor tests and coverage generation;
+- lean Tier-1 reactor tests and coverage generation;
+- a separate complete optimized-interpreter/generated-Java TCK gate with accounting evidence;
 - a tracked-source drift check after the build.
 
 Apply or check formatting locally with `tools/format.ps1` and `tools/check-format.ps1`, or their
@@ -56,7 +57,8 @@ generation belong to R1.
 
 1. Create a release-preparation branch from current green `main`.
 2. Set one non-snapshot reactor version with Maven Versions Plugin and commit every changed POM.
-3. Run documentation checks and `mvn --batch-mode -Pformat,release clean verify`.
+3. Run documentation checks, `mvn --batch-mode -Pformat,release clean verify`, and
+   `mvn --batch-mode -Ptck verify`.
 4. Merge the reviewed, green release-preparation pull request to `main`.
 5. Create one annotated strict SemVer tag matching the POM version on that exact `main` commit.
 6. Push only that tag. Approve the `release` environment after checking the commit and version.
@@ -73,10 +75,11 @@ The tag starts `.github/workflows/publish-release.yml`. Before deployment it:
 1. checks out the exact tag with complete history;
 2. validates strict SemVer, reactor-wide POM agreement, non-snapshot version, and `main` ancestry;
 3. builds documentation strictly;
-4. runs a clean full Maven verification with formatting and release profiles;
-5. verifies non-empty source and Javadoc JARs for every JAR module;
-6. proves the tagged checkout remains clean;
-7. deploys through GitHub Packages with Maven `deployAtEnd` enabled.
+4. runs a clean Tier-1 Maven verification with formatting and release profiles;
+5. runs the complete strict TCK against the optimized interpreter and generated Java;
+6. verifies non-empty source and Javadoc JARs for every Tier-1 JAR module;
+7. proves the tagged checkout remains clean;
+8. deploys the Tier-1 artifacts through GitHub Packages with Maven `deployAtEnd` enabled.
 
 The default Maven configuration sets `maven.deploy.skip=true`. Only the explicit `release` profile
 enables deployment and attaches sources and Javadocs. This local guard prevents an ordinary
