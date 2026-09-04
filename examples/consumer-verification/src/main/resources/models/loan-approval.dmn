@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+            namespace="urn:example:loan-approval"
+            name="Loan Approval Model"
+            id="_loan_approval">
+
+  <inputData id="_input_score" name="BorrowerScore">
+    <variable name="BorrowerScore" typeRef="number"/>
+  </inputData>
+
+  <inputData id="_input_income" name="Income">
+    <variable name="Income" typeRef="number"/>
+  </inputData>
+
+  <decision id="_loan_approval_decision" name="LoanApproval">
+    <variable name="LoanApproval" typeRef="string"/>
+    <informationRequirement>
+      <requiredInput href="#_input_score"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#_input_income"/>
+    </informationRequirement>
+    <decisionTable id="_table_loan" hitPolicy="UNIQUE">
+      <input id="_in_1">
+        <inputExpression typeRef="number">
+          <text>BorrowerScore</text>
+        </inputExpression>
+      </input>
+      <input id="_in_2">
+        <inputExpression typeRef="number">
+          <text>Income</text>
+        </inputExpression>
+      </input>
+      <output id="_out_1" name="LoanApproval" typeRef="string"/>
+      <rule id="_rule_1">
+        <inputEntry id="_ine_11"><text>&gt;= 700</text></inputEntry>
+        <inputEntry id="_ine_12"><text>&gt;= 50000</text></inputEntry>
+        <outputEntry id="_oute_11"><text>"APPROVED"</text></outputEntry>
+      </rule>
+      <rule id="_rule_2">
+        <inputEntry id="_ine_21"><text>&lt; 700</text></inputEntry>
+        <inputEntry id="_ine_22"><text>-</text></inputEntry>
+        <outputEntry id="_oute_21"><text>"DECLINED"</text></outputEntry>
+      </rule>
+      <rule id="_rule_3">
+        <inputEntry id="_ine_31"><text>-</text></inputEntry>
+        <inputEntry id="_ine_32"><text>&lt; 50000</text></inputEntry>
+        <outputEntry id="_oute_31"><text>"REVIEW"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

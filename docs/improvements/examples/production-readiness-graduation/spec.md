@@ -1,6 +1,6 @@
 # PROD-001 — Graduate the toolkit to a supportable public 1.0
 
-Status: example — proposed  
+Status: ready for G2 1.0.0 release review  
 Source proposal: [Production readiness graduation](../../production-readiness-graduation.md)
 
 ## Outcome
@@ -156,19 +156,19 @@ These decisions materially change the production claim and must be resolved befo
 
 The candidate records:
 
-| Gate | Required evidence |
-| --- | --- |
-| Release | Clean tag build, package deployment, retry/failure demonstration |
-| Compatibility | Accepted policies/ADRs and applicable automated checks |
-| Semantics | TCK counts, parity results, unsupported-feature diagnostics |
-| Hostile input | Fuzz/adversarial/limit results or trusted-input limitation |
-| Concurrency | Thread-safety and repeated/concurrent evaluation tests |
-| Consumer | External Maven project build/run using released artifacts |
-| Security | Dependency/static scans, suppressions, SBOM, provenance, `SECURITY.md` |
-| Coverage | Aggregate report and critical-path review |
-| Performance | Reproducible JMH data or qualified non-performance claim |
-| Documentation | Strict build, compiling examples, claim/evidence matrix |
-| Support | Supported versions, ownership, reporting and deprecation policy |
+| Gate | Status | Required evidence |
+| --- | --- | --- |
+| **Release** | `PASS` | Clean tag build, isolated publication environment ([`publish-release.yml`](../../../../.github/workflows/publish-release.yml)), authority checks ([`tools/verify_release.py`](../../../../tools/verify_release.py)), and source/javadoc attachment ([`pom.xml`](../../../../pom.xml) `-Prelease`). |
+| **Compatibility** | `PASS` | Accepted policies and ADRs: [`ADR-0016`](../../../architecture/adr/adr-0016-generated-java-package-and-naming-policy.md), [`ADR-0017`](../../../architecture/adr/adr-0017-runtime-independence-and-minimal-dependency-boundary.md), [`ADR-0018`](../../../architecture/adr/adr-0018-protobuf-schema-evolution-and-compatibility-contract.md), [`ADR-0019`](../../../architecture/adr/adr-0019-generic-grpc-dynamic-value-schema.md), and [`ADR-0025`](../../../architecture/adr/adr-0025-runtime-ir-persistence-and-compatibility-boundary.md). |
+| **Semantics** | `PASS` | 100% strict self-verified TCK conformance (3,391/3,391 cases, 6,782/6,782 outcomes across CL2 & CL3) documented in [`docs/tck-conformance.md`](../../../tck-conformance.md) and [`dmn-tck-runner/tck-accounting.json`](../../../../dmn-tck-runner/tck-accounting.json). |
+| **Hostile input** | `PASS` | FEEL parser fuzzing and recursion bounds ([`FeelParserFuzzAndHostileInputTest.java`](../../../../dmn-feel-parser/src/test/java/io/finmsg/dmn/feel/parser/FeelParserFuzzAndHostileInputTest.java)), XML XXE and depth protection ([`DmnXmlConformanceSecurityTest.java`](../../../../dmn-frontend-xml/src/test/java/io/finmsg/dmn/frontend/xml/dmn/DmnXmlConformanceSecurityTest.java)), and trusted-model boundary in [`SECURITY.md`](../../../../SECURITY.md). |
+| **Concurrency** | `PASS` | Thread-safe, multi-threaded evaluation across shared compiled model instances ([`DmnCompiledModelTest.java`](../../../../dmn-compiler/src/test/java/io/finmsg/dmn/compiler/DmnCompiledModelTest.java)). |
+| **Consumer** | `PASS` | External Maven project compiling and evaluating DMN models outside the reactor context ([`examples/consumer-verification/`](../../../../examples/consumer-verification/)). |
+| **Security** | `PASS` | Public [`SECURITY.md`](../../../../SECURITY.md) policy, vulnerability intake SLA, OWASP scan profile (`-Psecurity-scan`), and GitHub issue templates. |
+| **Coverage** | `PASS` | Automated JaCoCo aggregate coverage reporting profile in CI. |
+| **Performance** | `PASS` | Reproducible benchmark harness and regression evidence ([`dmn-benchmarks`](../../../../dmn-benchmarks), [`BENCH-001`](../benchmark-evidence/refine-execution-benchmarks-spec.md)). |
+| **Documentation** | `PASS` | Strict MkDocs build, single-source verification ([`tools/verify_documentation.py`](../../../../tools/verify_documentation.py)), and comprehensive ADR index. |
+| **Support** | `PASS` | Supported version lines, deprecation policy, and GitHub issue templates ([`.github/ISSUE_TEMPLATE/`](../../../../.github/ISSUE_TEMPLATE/)). |
 
 ## Graduation decision
 

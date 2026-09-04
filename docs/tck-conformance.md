@@ -6,6 +6,9 @@
 - [Overview](#contents-section-1)
 - [TCK suite version](#contents-section-2)
 - [Test results](#contents-section-3)
+  - [Overall summary](#contents-section-3-1)
+  - [Compliance level breakdown](#contents-section-3-2)
+  - [Execution backend breakdown](#contents-section-3-3)
 - [Exclusions](#contents-section-4)
 - [Terminology](#contents-section-5)
 <!-- generated-toc:end -->
@@ -17,7 +20,7 @@ This document pins the exact OMG DMN TCK revision used for conformance
 testing and records per-backend, per-compliance-level results for the
 DMN Compiler Toolkit.
 
-Assessment date: 2026-08-27
+Assessment date: 2026-09-04
 
 Toolkit version: `1.0.0-SNAPSHOT` (100% strict self-verified conformance achieved)
 
@@ -40,6 +43,9 @@ in the checkout step. Locally: `git submodule update --init --recursive`.
 
 ### Strict baseline (`OfficialTckSuiteTest`)
 
+<a id="contents-section-3-1"></a>
+#### Overall summary
+
 The strict test suite declares the upstream CL2 and CL3 roots and records every case against
 both execution backends (`DmnInterpreter` and `dmn-generator-java`) with zero silent skips:
 
@@ -54,8 +60,27 @@ both execution backends (`DmnInterpreter` and `dmn-generator-java`) with zero si
 
 All 3,391 test cases across 146 test XML files and 150 DMN files pass across both execution backends (6,782 / 6,782 outcomes in 967.3s, 0 failures, 0 errors, 0 skipped) without exclusions or unsupported relabeling. The canonical machine-readable accounting output is `dmn-tck-runner/tck-accounting.json`.
 
+<a id="contents-section-3-2"></a>
+#### Compliance level breakdown
+
+| Compliance level | Test XML files | DMN models | Cases | Interpreter outcomes | Generator outcomes | Total outcomes | Pass rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **Compliance Level 2 (CL2)** | 28 | 28 | 116 | 116 / 116 | 116 / 116 | 232 / 232 | **100.00%** |
+| **Compliance Level 3 (CL3)** | 118 | 122 | 3,275 | 3,275 / 3,275 | 3,275 / 3,275 | 6,550 / 6,550 | **100.00%** |
+| **Total (CL2 + CL3)** | **146** | **150** | **3,391** | **3,391 / 3,391** | **3,391 / 3,391** | **6,782 / 6,782** | **100.00%** |
+
+<a id="contents-section-3-3"></a>
+#### Execution backend breakdown
+
+| Execution backend | Cases tested | Passed outcomes | Failed | Errors | Pass rate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **`DmnInterpreter`** (IR interpreter) | 3,391 | 3,391 | 0 | 0 | **100.00%** |
+| **`dmn-generator-java`** (Compiled Java) | 3,391 | 3,391 | 0 | 0 | **100.00%** |
+| **Total** | **6,782** | **6,782** | **0** | **0** | **100.00%** |
+
 Pass-rate progress history is maintained in
 [TCK-CONF-001](improvements/examples/conformance-accelerator/full-tck-conformance-recovery-spec.md).
+An interactive HTML visual dashboard can be generated locally using `python tools/generate_tck_dashboard.py` (rendered to `docs/tck-dashboard.html`), and test accounting diffs can be evaluated using `python tools/diff_tck_accounting.py`.
 
 <a id="contents-section-4"></a>
 ## Exclusions

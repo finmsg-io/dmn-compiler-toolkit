@@ -21,6 +21,10 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Guides:
+      - Enterprise Architect Guide: guides/architect-guide.md
+      - Java Developer Guide: guides/developer-guide.md
+      - DMN Modeler & Analyst Guide: guides/modeler-guide.md
   - Capability Maturity: capabilities.md
   - TCK Conformance: tck-conformance.md
   - Glossary: glossary.md
@@ -45,6 +49,10 @@ nav:
           - ADR-0013 No Reflection: architecture/adr/adr-0013-no-reflection-in-generated-code.md
           - ADR-0014 Maven Modules: architecture/adr/adr-0014-maven-multi-module-architecture.md
           - ADR-0015 Extensions: architecture/adr/adr-0015-open-extension-model.md
+          - ADR-0016 Java Package & Naming: architecture/adr/adr-0016-generated-java-package-and-naming-policy.md
+          - ADR-0017 Runtime Independence: architecture/adr/adr-0017-runtime-independence-and-minimal-dependency-boundary.md
+          - ADR-0018 Protobuf Evolution: architecture/adr/adr-0018-protobuf-schema-evolution-and-compatibility-contract.md
+          - ADR-0019 Generic gRPC Schema: architecture/adr/adr-0019-generic-grpc-dynamic-value-schema.md
           - ADR-0025 Runtime IR Persistence: architecture/adr/adr-0025-runtime-ir-persistence-and-compatibility-boundary.md
 
       - Chapters:

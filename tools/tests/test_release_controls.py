@@ -23,6 +23,8 @@ class ReleaseControlsTest(unittest.TestCase):
         self.assertEqual(1, workflow.count("packages: write"))
         self.assertIn("mvn --batch-mode -Pformat,release clean verify", workflow)
         self.assertIn("python tools/verify_release.py --tag", workflow)
+        self.assertIn("python tools/generate_release_notes.py --tag", workflow)
+        self.assertIn("python tools/generate_checksums.py --output", workflow)
 
     def test_maven_deployment_is_default_deny_and_deploys_at_end(self) -> None:
         model = ET.parse(ROOT / "pom.xml").getroot()

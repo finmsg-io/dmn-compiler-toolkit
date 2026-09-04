@@ -1,6 +1,6 @@
 # DOC-001 — Trustworthy audience-oriented documentation
 
-Status: example — proposed  
+Status: implemented  
 Profile: documentation  
 Source proposal: [Documentation and positioning improvement](../../documentation-and-positioning.md)
 
@@ -84,6 +84,15 @@ Completion requires:
 - evidence review for every promoted selling point;
 - a usability walkthrough for each audience journey;
 - updated decision states where implementation already resolved the choice.
+
+## Completion evidence
+
+- Created dedicated audience landing guides:
+  - `docs/guides/architect-guide.md`: AOT compiler philosophy vs. reflection engines, deployment topologies (Embedded, Sidecar gRPC, Spark SQL), latency/throughput profiles, security trust boundaries, and ADR index.
+  - `docs/guides/developer-guide.md`: Maven dependency coordinates, `DmnRuntime` interpreter evaluation, AOT Java code generation (`dmn-generator-java`), strongly-typed direct execution, diagnostic sinks, and CLI tooling.
+  - `docs/guides/modeler-guide.md`: DMN 1.5 compliance scope (100% CL2/CL3 across 3,391 cases), supported boxed expressions mindmap, FEEL syntax reference (arithmetic, temporal, filter lists), decision table hit policies, and interactive TCK dashboard walkthrough.
+- Integrated guides directly into `mkdocs.yml` top navigation under `Guides`.
+- Automated documentation consistency verified via `tools/verify_documentation.py`.
 
 ## Stop, pivot, or continue
 

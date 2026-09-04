@@ -726,10 +726,10 @@ These constraints apply to every milestone:
 | ID | Decision | Needed by | State | Resolution |
 | --- | --- | --- | --- | --- |
 | D-001 | First realistic multi-file business domain | P2.9 | resolved | Lending / Credit Eligibility (`credit-application.dmn`, `applicant-score.dmn`, `policy-rules.dmn`) |
-| D-002 | Generated Java package and naming policy | P5.1 | open | — |
-| D-003 | Shared runtime helper dependency versus fully standalone generated Java | P5.1 | open | — |
-| D-004 | Generic gRPC dynamic-value schema | P7 | open | — |
-| D-005 | Protobuf compatibility policy for regenerated typed APIs | P8 | open | — |
+| D-002 | Generated Java package and naming policy | P5.1 | resolved | [ADR-0016](architecture/adr/adr-0016-generated-java-package-and-naming-policy.md) |
+| D-003 | Shared runtime helper dependency versus fully standalone generated Java | P5.1 | resolved | [ADR-0017](architecture/adr/adr-0017-runtime-independence-and-minimal-dependency-boundary.md) |
+| D-004 | Generic gRPC dynamic-value schema | P7 | resolved | [ADR-0019](architecture/adr/adr-0019-generic-grpc-dynamic-value-schema.md) |
+| D-005 | Protobuf compatibility policy for regenerated typed APIs | P8 | resolved | [ADR-0018](architecture/adr/adr-0018-protobuf-schema-evolution-and-compatibility-contract.md) |
 
 Material architectural decisions should graduate to an ADR. This table tracks only
 when a decision is needed and where its final resolution can be found.

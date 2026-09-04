@@ -74,6 +74,12 @@ jobs:
       - name: Verify complete optimized TCK
         run: mvn --batch-mode -Ptck verify
 
+      - name: Generate release notes and artifact checksums
+        run: |
+          python tools/generate_release_notes.py --tag "$RELEASE_TAG" --output release-notes.md
+          python tools/generate_checksums.py --output checksums.sha256
+          python tools/generate_checksums.py --verify checksums.sha256
+
       - name: Verify release artifacts and clean checkout
         run: |
           python tools/verify_release.py --tag "$RELEASE_TAG" --artifacts

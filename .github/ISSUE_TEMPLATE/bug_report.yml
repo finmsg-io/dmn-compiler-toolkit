@@ -1,0 +1,52 @@
+name: Bug Report
+description: File a report to help us fix a bug or unexpected behavior.
+title: "[BUG]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue! Please provide as much detail as possible.
+  - type: input
+    id: version
+    attributes:
+      label: Toolkit Version
+      description: Which version of the DMN Compiler Toolkit are you using?
+      placeholder: e.g., 1.0.0, 1.0.0-SNAPSHOT
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Java Runtime (Version & Vendor) and Operating System
+      placeholder: e.g., OpenJDK 25 (Temurin), Ubuntu 24.04 / Windows 11
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Provide steps, minimal DMN XML or FEEL snippet, and execution code.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen per the DMN 1.5 specification?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Compiler / Runtime Diagnostics or Stacktrace
+      description: Please paste any relevant diagnostic messages or logs.
+      render: shell

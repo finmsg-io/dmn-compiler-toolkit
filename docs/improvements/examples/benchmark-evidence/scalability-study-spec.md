@@ -1,6 +1,6 @@
 # BENCH-002 - Produce reproducible scalability evidence
 
-Status: example - proposed  
+Status: implemented  
 Profile: performance evidence  
 Depends on: BENCH-001  
 Source proposal: [Trustworthy benchmark evidence and scalability](../../benchmark-evidence-and-scalability.md)
@@ -87,3 +87,10 @@ the results from retained raw data and environment metadata.
 Publish a scalability claim only when correctness evidence passes and repeated forks show a stable
 direction. If uncertainty or environmental variance prevents a defensible conclusion, retain the
 data, state that limitation, and improve the protocol before setting thresholds.
+
+## Completion evidence
+
+- `tools/summarize_scalability_benchmarks.py` deterministically parses 1/2/4/8 thread JMH JSON outputs, computing throughput, scaling relative to 1 thread, parallel efficiency, memory allocation rates, and GC times;
+- Unit test suite in `tools/tests/test_summarize_scalability_benchmarks.py` verifies metric calculations, baseline speedup, efficiency, and Markdown formatting;
+- Retained raw JSON benchmarks and environment metadata maintained under `dmn-benchmarks/results/` alongside deterministic `scalability-summary.md` and `scalability-summary.csv` projections;
+- Multi-threaded harness scripts (`run-scalability.ps1` and `run-scalability.sh`) capture environment properties, OS, JVM, and core count alongside raw metrics.

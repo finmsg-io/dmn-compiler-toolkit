@@ -53,6 +53,10 @@ ADRs provide historical context, improve maintainability, and help future contri
 | [ADR-0013](adr-0013-no-reflection-in-generated-code.md) | No reflection in generated code |
 | [ADR-0014](adr-0014-maven-multi-module-architecture.md) | Maven multi-module architecture |
 | [ADR-0015](adr-0015-open-extension-model.md) | Open extension model |
+| [ADR-0016](adr-0016-generated-java-package-and-naming-policy.md) | Generated Java package and class naming policy |
+| [ADR-0017](adr-0017-runtime-independence-and-minimal-dependency-boundary.md) | Runtime independence and minimal dependency boundary |
+| [ADR-0018](adr-0018-protobuf-schema-evolution-and-compatibility-contract.md) | Protobuf schema evolution and compatibility contract |
+| [ADR-0019](adr-0019-generic-grpc-dynamic-value-schema.md) | Generic gRPC dynamic-value schema |
 | [ADR-0025](adr-0025-runtime-ir-persistence-and-compatibility-boundary.md) | Runtime IR persistence and compatibility boundary |
 
 ---

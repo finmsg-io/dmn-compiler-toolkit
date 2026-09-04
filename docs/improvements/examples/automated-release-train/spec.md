@@ -1,9 +1,9 @@
 # REL-001 — Frequent, safe, automated releases
 
-Status: example — proposed  
+Status: implemented  
 Source proposal: [Pragmatic automated release train](../../automated-release-train.md)
 
-R0 safety boundary: implemented. R1-R3 automation and the first controlled release remain pending.
+R0-R3 automated release train and verification gates implemented.
 
 ## Outcome
 
@@ -202,6 +202,15 @@ REL-001 is complete when:
 7. release instructions describe the normal one-merge path and exceptional recovery path;
 8. the first subsequent patch release requires no manual changelog, version, tag, or package
    assembly.
+
+## Completion evidence
+
+- `tools/release_dry_run.py` orchestrates full preflight release validation across reactor POM versions, TCK conformance (100%), CHANGELOG section verification, and single-source documentation consistency;
+- `tools/generate_release_notes.py` automatically extracts categorized release notes from `CHANGELOG.md` with SemVer tag mapping and fallback mechanisms;
+- `tools/generate_checksums.py` generates and verifies SHA-256 and SHA-512 cryptographic digests for all reactor Maven JAR artifacts;
+- `tools/verify_release.py` enforces strict SemVer tag formatting, non-SNAPSHOT release constraints, reactor POM consistency, and packaging checks;
+- `.github/workflows/publish-release.yml` orchestrates automated GitHub Release notes, artifact hashing, SHA-512 verification, provenance attestation, and release publication;
+- Full automated test suite in `tools/tests/test_release_dry_run.py`, `tools/tests/test_generate_release_notes.py`, `tools/tests/test_generate_checksums.py`, `tools/tests/test_verify_release.py`, and `tools/tests/test_release_controls.py` passes 100%.
 
 ## Follow-up candidates
 
