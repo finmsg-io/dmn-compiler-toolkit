@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="loan-eligibility"
+             name="Loan Eligibility Model"
+             namespace="urn:finmsg:smoke:loan-eligibility">
+
+  <inputData id="in-applicant-name" name="ApplicantName">
+    <variable id="in-applicant-name-var" name="ApplicantName" typeRef="string"/>
+  </inputData>
+
+  <inputData id="in-credit-score" name="CreditScore">
+    <variable id="in-credit-score-var" name="CreditScore" typeRef="number"/>
+  </inputData>
+
+  <inputData id="in-annual-income" name="AnnualIncome">
+    <variable id="in-annual-income-var" name="AnnualIncome" typeRef="number"/>
+  </inputData>
+
+  <inputData id="in-loan-amount" name="LoanAmount">
+    <variable id="in-loan-amount-var" name="LoanAmount" typeRef="number"/>
+  </inputData>
+
+  <inputData id="in-existing-debts" name="ExistingDebts">
+    <variable id="in-existing-debts-var" name="ExistingDebts" typeRef="number"/>
+  </inputData>
+
+  <decision id="dec-dti" name="DebtToIncomeRatio">
+    <variable id="dec-dti-var" name="DebtToIncomeRatio" typeRef="number"/>
+    <informationRequirement>
+      <requiredInput href="#in-annual-income"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#in-loan-amount"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#in-existing-debts"/>
+    </informationRequirement>
+    <literalExpression>
+      <text>(ExistingDebts + (LoanAmount * 0.05)) / (AnnualIncome / 12)</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="dec-risk-category" name="RiskCategory">
+    <variable id="dec-risk-category-var" name="RiskCategory" typeRef="string"/>
+    <informationRequirement>
+      <requiredInput href="#in-credit-score"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredDecision href="#dec-dti"/>
+    </informationRequirement>
+    <decisionTable id="dt-risk-category" hitPolicy="FIRST">
+      <input id="dt-in-score">
+        <inputExpression typeRef="number"><text>CreditScore</text></inputExpression>
+      </input>
+      <input id="dt-in-dti">
+        <inputExpression typeRef="number"><text>DebtToIncomeRatio</text></inputExpression>
+      </input>
+      <output id="dt-out-risk" typeRef="string"/>
+      <rule id="r1">
+        <inputEntry><text>&gt;= 750</text></inputEntry>
+        <inputEntry><text>&lt;= 0.35</text></inputEntry>
+        <outputEntry><text>"LOW"</text></outputEntry>
+      </rule>
+      <rule id="r2">
+        <inputEntry><text>&gt;= 700</text></inputEntry>
+        <inputEntry><text>&lt;= 0.43</text></inputEntry>
+        <outputEntry><text>"MEDIUM"</text></outputEntry>
+      </rule>
+      <rule id="r3">
+        <inputEntry><text>&gt;= 620</text></inputEntry>
+        <inputEntry><text>&lt;= 0.50</text></inputEntry>
+        <outputEntry><text>"HIGH"</text></outputEntry>
+      </rule>
+      <rule id="r4">
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"REJECTED"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="dec-loan-offer" name="LoanOffer">
+    <variable id="dec-loan-offer-var" name="LoanOffer" typeRef="string"/>
+    <informationRequirement>
+      <requiredDecision href="#dec-risk-category"/>
+    </informationRequirement>
+    <literalExpression>
+      <text>if RiskCategory = "LOW" then "APPROVED_PREMIUM" else if RiskCategory = "MEDIUM" then "APPROVED_STANDARD" else if RiskCategory = "HIGH" then "APPROVED_SUBPRIME" else "DECLINED"</text>
+    </literalExpression>
+  </decision>
+
+</definitions>
