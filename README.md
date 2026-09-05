@@ -39,32 +39,16 @@ Current status & focus:
 <a id="contents-section-2"></a>
 ## Architecture
 
-```text
-DMN XML
-   │
-   ▼
-XML Frontend
-   │
-   ▼
-Semantic Model
-   │
-   ▼
-FEEL Parser
-   │
-   ▼
-Semantic Analysis
-   │
-   ▼
-Optimizer
-   │
-   ▼
-Runtime IR
-   │
-   ▼
-Code Generators
-   │
-   ▼
-Optimized Runtime
+```mermaid
+flowchart TB
+    xml["DMN XML"] --> frontend["XML Frontend"]
+    frontend --> semantic["Semantic Model"]
+    semantic --> feel["FEEL Parser"]
+    feel --> analysis["Semantic Analysis"]
+    analysis --> optimizer["Optimizer"]
+    optimizer --> ir["Runtime IR"]
+    ir --> generators["Code Generators"]
+    generators --> runtime["Optimized Runtime"]
 ```
 
 The architecture separates parsing, semantic analysis, optimization, and runtime generation. Runtime execution is intentionally independent from the original DMN XML representation.
@@ -188,10 +172,13 @@ The token requires package read permission.
 
 GitHub Actions performs the following operations:
 
-```text
-Feature branch push  -> build, test, publish branch SNAPSHOT
-Pull request         -> build and test
-Main branch push     -> build, test, publish release version
+```mermaid
+flowchart LR
+    feature["Feature branch push"] --> featureBuild["Build and test"]
+    featureBuild --> snapshot["Publish branch SNAPSHOT"]
+    pullRequest["Pull request"] --> prBuild["Build and test"]
+    main["Main branch push"] --> mainBuild["Build and test"]
+    mainBuild --> release["Publish release version"]
 ```
 
 Feature branch versions use a branch-specific suffix, for example:
