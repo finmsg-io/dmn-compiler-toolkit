@@ -71,16 +71,12 @@ The pipeline runs `DmnSemanticAnalyzer`, `DmnTypeAnalyzer`, and `DmnDependencyAn
 <a id="contents-section-5"></a>
 ## 10.3 Current order
 
-```text
-DmnXmlReader
-   ↓
-DmnFeelParser
-   ↓
-DmnSemanticAnalyzer
-   ↓
-DmnTypeAnalyzer
-   ↓
-DmnDependencyAnalyzer
+```mermaid
+flowchart TB
+    reader["DmnXmlReader"] --> parser["DmnFeelParser"]
+    parser --> semantic["DmnSemanticAnalyzer"]
+    semantic --> types["DmnTypeAnalyzer"]
+    types --> dependencies["DmnDependencyAnalyzer"]
 ```
 
 FEEL parsing must precede semantic analysis.
@@ -88,26 +84,20 @@ FEEL parsing must precede semantic analysis.
 <a id="contents-section-6"></a>
 ## 10.4 Implemented semantic pass order
 
-```text
-name resolution
-   ↓
-named-type resolution
-   ↓
-expression type inference
-   ↓
-operator and function validation
-   ↓
-dependency graph and cycle detection
-   ↓
-deterministic compilation order
+```mermaid
+flowchart TB
+    names["Name resolution"] --> namedTypes["Named-type resolution"]
+    namedTypes --> inference["Expression type inference"]
+    inference --> validation["Operator and function validation"]
+    validation --> dependencyGraph["Dependency graph and cycle detection"]
+    dependencyGraph --> order["Deterministic compilation order"]
 ```
 
 Decision-table and other DMN structure validation run within `DmnTypeAnalyzer`. The next semantic work is:
 
-```text
-remaining DMN 1.5 semantic edge cases
-   ↓
-Runtime IR lowering
+```mermaid
+flowchart TB
+    semantics["Remaining DMN 1.5 semantic edge cases"] --> lowering["Runtime IR lowering"]
 ```
 
 <a id="contents-section-7"></a>

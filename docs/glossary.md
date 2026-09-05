@@ -93,12 +93,9 @@ The compiler stage that converts Runtime IR into executable artifacts.
 
 Example:
 
-```text
-Runtime IR
-
-↓
-
-Java Source
+```mermaid
+flowchart TB
+    ir["Runtime IR"] --> java["Java Source"]
 ```
 
 ---
@@ -109,20 +106,11 @@ The complete transformation from DMN XML into executable output.
 
 Example:
 
-```text
-DMN XML
-
-↓
-
-Compiler Pipeline
-
-↓
-
-Runtime IR
-
-↓
-
-Generated Java
+```mermaid
+flowchart TB
+    xml["DMN XML"] --> pipeline["Compiler Pipeline"]
+    pipeline --> ir["Runtime IR"]
+    ir --> java["Generated Java"]
 ```
 
 ---
@@ -159,12 +147,9 @@ An optimization that evaluates constant expressions during compilation.
 
 Example:
 
-```text
-10 + 20
-
-↓
-
-30
+```mermaid
+flowchart LR
+    expression["10 + 20"] --> result["30"]
 ```
 
 ---
@@ -310,12 +295,9 @@ The process of transforming a high-level representation into a lower-level repre
 
 Example:
 
-```text
-Semantic Model
-
-↓
-
-Runtime IR
+```mermaid
+flowchart TB
+    semantic["Semantic Model"] --> ir["Runtime IR"]
 ```
 
 ---
@@ -384,12 +366,9 @@ The compiler process that connects symbolic references with their targets.
 
 Example:
 
-```text
-Decision A
-
-↓
-
-InputData X
+```mermaid
+flowchart TB
+    decision["Decision A"] --> input["InputData X"]
 ```
 
 ---

@@ -25,13 +25,13 @@ Current assessment:
 
 ## Graduation principle
 
-```text
-Implemented capability
-    + explicit contract
-    + executable verification
-    + release/support mechanism
-    + honest documentation
-    = production claim
+```mermaid
+flowchart LR
+    capability["Implemented capability"] --> claim["Production claim"]
+    contract["Explicit contract"] --> claim
+    verification["Executable verification"] --> claim
+    support["Release/support mechanism"] --> claim
+    documentation["Honest documentation"] --> claim
 ```
 
 A capability without a contract cannot be supported predictably. A contract without executable

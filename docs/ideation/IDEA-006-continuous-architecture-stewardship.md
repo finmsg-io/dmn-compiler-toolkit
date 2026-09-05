@@ -385,10 +385,12 @@ cost—not lines of code removed alone.
 
 ## Finding lifecycle
 
-```text
-observed -> validated -> selected -> in progress -> verified -> closed
-                    \-> accepted/deferred with trigger
-                    \-> rejected with rationale
+```mermaid
+flowchart LR
+    observed["Observed"] --> validated["Validated"] --> selected["Selected"]
+    selected --> progress["In progress"] --> verified["Verified"] --> closed["Closed"]
+    selected --> deferred["Accepted/deferred with trigger"]
+    selected --> rejected["Rejected with rationale"]
 ```
 
 A finding contains:
@@ -553,11 +555,13 @@ commitment source; this stewardship loop keeps it aligned with evidence.
 
 The ideation portfolio should gain explicit lifecycle states such as:
 
-```text
-exploring -> evidence gathering -> candidate -> promoted
-          \-> deferred
-          \-> rejected
-          \-> archived
+```mermaid
+flowchart LR
+    exploring["Exploring"] --> evidence["Evidence gathering"] --> candidate["Candidate"]
+    candidate --> promoted["Promoted"]
+    candidate --> deferred["Deferred"]
+    candidate --> rejected["Rejected"]
+    candidate --> archived["Archived"]
 ```
 
 IDEA-001 through IDEA-005 are not automatically a roadmap. Portfolio review should identify shared

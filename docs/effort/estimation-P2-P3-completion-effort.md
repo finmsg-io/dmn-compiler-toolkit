@@ -184,13 +184,13 @@ null/error semantics, built-in contracts, canonical host values, or decision-tab
 
 The likely critical path is:
 
-```text
-P2.1 execution harness
-  -> null/numeric semantic contract
-  -> correct filters and decision tables
-  -> temporal and shared built-in semantics
-  -> complete P2.9 execution
-  -> limits, integration, and closure
+```mermaid
+flowchart TB
+    harness["P2.1 execution harness"] --> semantics["Null/numeric semantic contract"]
+    semantics --> filters["Correct filters and decision tables"]
+    filters --> temporal["Temporal and shared built-in semantics"]
+    temporal --> execution["Complete P2.9 execution"]
+    execution --> closure["Limits, integration, and closure"]
 ```
 
 Decisions required early:

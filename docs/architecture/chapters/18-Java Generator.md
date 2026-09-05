@@ -658,24 +658,10 @@ mvn compile
 
 executes:
 
-``` text
-DMN XML
-
-↓
-
-Runtime IR
-
-↓
-
-Java Source
-
-↓
-
-javac
-
-↓
-
-Application
+```mermaid
+flowchart TB
+    xml["DMN XML"] --> ir["Runtime IR"] --> source["Java Source"]
+    source --> javac["javac"] --> application["Application"]
 ```
 
 ------------------------------------------------------------------------
@@ -734,12 +720,9 @@ Generated Java
 
 Generated source:
 
-``` text
-javac
-
-↓
-
-.class
+```mermaid
+flowchart TB
+    javac["javac"] --> classFile[".class"]
 ```
 
 must succeed.
@@ -819,12 +802,9 @@ where possible.
 
 For batch execution:
 
-``` text
-Decision[]
-
-↓
-
-SIMD-friendly processing
+```mermaid
+flowchart TB
+    decisions["Decision[]"] --> simd["SIMD-friendly processing"]
 ```
 
 ------------------------------------------------------------------------

@@ -98,12 +98,9 @@ Public interfaces evolve slowly.
 
 Internal modules may change:
 
-``` text
-VTD-XML
-
-↓
-
-different XML parser
+```mermaid
+flowchart TB
+    current["VTD-XML"] --> replacement["Different XML parser"]
 ```
 
 without affecting users.

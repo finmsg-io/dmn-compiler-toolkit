@@ -199,9 +199,10 @@ semantic model and executable artifact have different purposes, consumers, and e
 
 Use explicit bidirectional mapping:
 
-```text
-Java Runtime IR --encode--> Protobuf wire IR
-Java Runtime IR <--decode-- Protobuf wire IR
+```mermaid
+flowchart LR
+    runtime["Java Runtime IR"] -->|encode| wire["Protobuf wire IR"]
+    wire -->|decode| runtime
 ```
 
 The wire schema should express executable meaning cleanly across languages. It need not reproduce
@@ -210,14 +211,16 @@ not be distributable until it has a stable wire representation and declared capa
 
 Round-trip requirements:
 
-```text
-runtime IR -> wire IR -> runtime IR
+```mermaid
+flowchart LR
+    runtimeInput["Runtime IR"] --> wire["Wire IR"] --> runtimeOutput["Runtime IR"]
 ```
 
 must preserve observable behavior and stable identities, while:
 
-```text
-wire bytes -> decode -> encode -> wire bytes
+```mermaid
+flowchart LR
+    input["Wire bytes"] --> decode["Decode"] --> encode["Encode"] --> output["Wire bytes"]
 ```
 
 must reproduce canonical bytes for accepted canonical artifacts.

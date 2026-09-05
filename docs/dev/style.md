@@ -329,32 +329,11 @@ Dependency direction must always follow the architecture.
 
 Each compiler stage has exactly one responsibility.
 
-```
-XML
-
-↓
-
-Semantic Model
-
-↓
-
-FEEL AST
-
-↓
-
-Semantic Analysis
-
-↓
-
-Optimization
-
-↓
-
-Runtime IR
-
-↓
-
-Code Generation
+```mermaid
+flowchart TB
+    xml["XML"] --> semantic["Semantic Model"] --> feel["FEEL AST"]
+    feel --> analysis["Semantic Analysis"] --> optimization["Optimization"]
+    optimization --> ir["Runtime IR"] --> generation["Code Generation"]
 ```
 
 No stage performs work belonging to another stage.
@@ -372,16 +351,9 @@ Every compiler pass
 
 Preferred
 
-```
-Input Model
-
-↓
-
-Compiler Pass
-
-↓
-
-Output Model
+```mermaid
+flowchart TB
+    input["Input Model"] --> pass["Compiler Pass"] --> output["Output Model"]
 ```
 
 Avoid hidden side effects.
@@ -506,38 +478,17 @@ Every public API includes examples.
 
 Allowed
 
-```
-generator
-
-↓
-
-runtime
-
-↓
-
-semantic
-
-↓
-
-feel
-
-↓
-
-model
-
-↓
-
-xml
+```mermaid
+flowchart TB
+    generator["Generator"] --> runtime["Runtime"] --> semantic["Semantic"]
+    semantic --> feel["FEEL"] --> model["Model"] --> xml["XML"]
 ```
 
 Forbidden
 
-```
-runtime
-
-↓
-
-xml
+```mermaid
+flowchart TB
+    runtime["Runtime"] --> xml["XML"]
 ```
 
 Compiler components never depend upward.

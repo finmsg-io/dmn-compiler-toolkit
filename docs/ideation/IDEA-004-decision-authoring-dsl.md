@@ -337,8 +337,11 @@ diagnostics, dependency order, and Runtime IR behavior.
 
 ### DMN export
 
-```text
-DSL -> canonical model -> DMN XML -> XML reader -> canonical model
+```mermaid
+flowchart LR
+    dsl["DSL"] --> canonicalInput["Canonical model"]
+    canonicalInput --> xml["DMN XML"] --> reader["XML reader"]
+    reader --> canonicalOutput["Canonical model"]
 ```
 
 must preserve all declared exportable semantics. The generated XML should validate against supported

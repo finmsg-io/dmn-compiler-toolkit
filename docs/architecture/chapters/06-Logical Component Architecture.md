@@ -196,16 +196,9 @@ Constructs the complete Decision Requirements Graph (DRG).
 
 Produces
 
-``` text
-Decision A
-
-↓
-
-Decision C
-
-↓
-
-Decision D
+```mermaid
+flowchart TB
+    decisionA["Decision A"] --> decisionC["Decision C"] --> decisionD["Decision D"]
 ```
 
 Used for
@@ -230,16 +223,9 @@ No pass mutates its input.
 
 Example
 
-``` text
-Input
-
-↓
-
-Constant Folding
-
-↓
-
-Output
+```mermaid
+flowchart TB
+    input["Input"] --> folding["Constant Folding"] --> output["Output"]
 ```
 
 ------------------------------------------------------------------------

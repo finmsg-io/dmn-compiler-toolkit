@@ -916,12 +916,9 @@ Runtime IR tests:
 <a id="contents-section-11"></a>
 ## Compilation correctness
 
-``` text
-DMN
-
-↓
-
-Runtime IR
+```mermaid
+flowchart TB
+    dmn["DMN"] --> ir["Runtime IR"]
 ```
 
 ------------------------------------------------------------------------
@@ -929,16 +926,9 @@ Runtime IR
 <a id="contents-section-12"></a>
 ## Serialization
 
-``` text
-Runtime IR
-
-↓
-
-protobuf
-
-↓
-
-Runtime IR
+```mermaid
+flowchart TB
+    runtimeInput["Runtime IR"] --> protobuf["Protobuf"] --> runtimeOutput["Runtime IR"]
 ```
 
 ------------------------------------------------------------------------

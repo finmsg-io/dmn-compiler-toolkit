@@ -173,7 +173,7 @@ Traditional:
 
 ```mermaid
 flowchart TD
-    Expr['"speed > 100"'] --> Parser["Parser"] --> Eval["Evaluation"]
+    expression["speed &gt; 100"] --> parser["Parser"] --> evaluation["Evaluation"]
 ```
 
 Every execution.
@@ -184,7 +184,7 @@ Compiler:
 
 ```mermaid
 flowchart TD
-    Expr['"speed > 100"'] --> AST["FEEL AST"] --> IR["Runtime IR"] --> Bytecode["Java bytecode"]
+    expression["speed &gt; 100"] --> ast["FEEL AST"] --> ir["Runtime IR"] --> bytecode["Java bytecode"]
 ```
 
 Once.

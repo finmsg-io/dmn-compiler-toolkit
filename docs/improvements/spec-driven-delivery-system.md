@@ -21,16 +21,12 @@ The practical goal is:
 
 ## The minimal model
 
-```text
-Reusable principles
-        ↓
-Repository instructions
-        ↓
-Short outcome specification
-        ↓
-Selected reusable skills
-        ↓
-Implementation and executable evidence
+```mermaid
+flowchart TB
+    principles["Reusable principles"] --> instructions["Repository instructions"]
+    instructions --> specification["Short outcome specification"]
+    specification --> skills["Selected reusable skills"]
+    skills --> evidence["Implementation and executable evidence"]
 ```
 
 Only two artifacts are normally needed for concrete work:
@@ -80,13 +76,13 @@ Use this ownership model:
 
 Recommended status flow:
 
-```text
-Idea
-  -> improvement/decision
-  -> accepted development-plan outcome
-  -> active spec
-  -> implementation and executable evidence
-  -> development-plan completion summary
+```mermaid
+flowchart TB
+    idea["Idea"] --> decision["Improvement/decision"]
+    decision --> outcome["Accepted development-plan outcome"]
+    outcome --> specification["Active spec"]
+    specification --> evidence["Implementation and executable evidence"]
+    evidence --> summary["Development-plan completion summary"]
 ```
 
 Only accepted work appears as active in the development plan. The plan links to the specification

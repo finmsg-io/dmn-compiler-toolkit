@@ -118,11 +118,12 @@ results.
 
 Optional stage metadata can improve readability:
 
-```text
-derive     -> normalizedAmount, customerRisk
-screen     -> sanctionsResult, fraudRisk
-decide     -> eligibility, action
-explain    -> reasonCodes
+```mermaid
+flowchart LR
+    derive["Derive"] --> derived["normalizedAmount, customerRisk"]
+    screen["Screen"] --> screened["sanctionsResult, fraudRisk"]
+    decide["Decide"] --> decided["eligibility, action"]
+    explain["Explain"] --> explained["reasonCodes"]
 ```
 
 Stage membership should initially be documentation/tooling metadata. Dependencies remain

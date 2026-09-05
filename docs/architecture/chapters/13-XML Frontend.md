@@ -16,8 +16,9 @@
 <a id="contents-section-1"></a>
 ## 11.1 Boundary
 
-```text
-DMN XML ⇄ Definitions with FEEL text
+```mermaid
+flowchart LR
+    xml["DMN XML"] <--> definitions["Definitions with FEEL text"]
 ```
 
 `dmn-frontend-xml` owns XML parsing and semantic XML emission. FEEL parsing, reference/type

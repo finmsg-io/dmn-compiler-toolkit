@@ -10,14 +10,11 @@ the source of candidate scope until a real work item is accepted.
 
 The packet assumes these defaults rather than copying them:
 
-```text
-Reusable CONSTITUTION.md
-        ↓
-Repository AGENTS.md overlay
-        ↓
-Documentation quality profile
-        ↓
-This work packet
+```mermaid
+flowchart TB
+    constitution["Reusable CONSTITUTION.md"] --> agents["Repository AGENTS.md overlay"]
+    agents --> profile["Documentation quality profile"]
+    profile --> packet["This work packet"]
 ```
 
 The constitution and agent instructions are absent here because they are generic/project-level
@@ -44,16 +41,11 @@ change with automation and migration consequences.
 
 ## Intended flow
 
-```text
-Shape and accept spec
-        ↓
-Resolve design decisions needed by the first slice
-        ↓
-Deliver one independently useful plan slice
-        ↓
-Run selected skills and quality gates
-        ↓
-Record evidence and learning
-        ↓
-Continue, pivot, or stop
+```mermaid
+flowchart TB
+    specification["Shape and accept spec"] --> decisions["Resolve design decisions needed by the first slice"]
+    decisions --> slice["Deliver one independently useful plan slice"]
+    slice --> gates["Run selected skills and quality gates"]
+    gates --> evidence["Record evidence and learning"]
+    evidence --> outcome["Continue, pivot, or stop"]
 ```

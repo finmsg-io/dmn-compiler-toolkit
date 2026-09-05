@@ -49,8 +49,9 @@ Each stage has a stable protobuf or IR input/output boundary and treats its inpu
 
 The semantic and parsed compiler models share the same protobuf schema. Replaceable nodes use a `oneof`:
 
-```text
-text representation  →  parsed representation
+```mermaid
+flowchart LR
+    text["Text representation"] --> parsed["Parsed representation"]
 ```
 
 The XML frontend selects the text branch. `DmnFeelParser` creates a copied model and selects the parsed branch only for successfully parsed nodes. The original semantic model remains unchanged.
