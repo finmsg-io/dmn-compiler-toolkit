@@ -88,7 +88,9 @@ class TestSummarizeScalabilityBenchmarks(unittest.TestCase):
             metrics = compute_scalability_metrics(records)
             md = generate_markdown(metrics, "os=windows\njava=25")
             self.assertIn("DMN Multi-Threaded Scalability Benchmark Summary", md)
-            self.assertIn("generatedDirect_ScalarArithmetic", md)
+            self.assertIn("ScalarArithmetic", md)
+            self.assertIn("Generated Java", md)
+            self.assertIn("Metric & Column Legend", md)
             self.assertIn("os=windows", md)
 
 
