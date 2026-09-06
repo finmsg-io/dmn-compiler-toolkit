@@ -2,21 +2,26 @@
 
 This module provides microbenchmarks and reference model workloads evaluating performance across the **DMN Runtime IR Interpreter** (`DmnRuntime`) and **Generated Java Bytecode** (`dmn-generator-java`).
 
-## Historical, pre-BENCH-001 performance snapshot
+## Verified Performance Snapshot (Single-Threaded Baseline)
 
-The following figures predate the corrected harness and are retained only as historical context.
-They must not be used as release-grade performance or scalability claims.
+The following figures reflect the latest verified 3-fork JMH scalability benchmark suite with the GC profiler enabled.
 
-Benchmark environment: OpenJDK 25.0.2 LTS (Zulu25.32+21-CA) on 64-Bit Server VM.
+Benchmark environment: OpenJDK 25.0.2 LTS (build 25.0.2+10-LTS, Azul Systems, Inc.) on Intel(R) Core(TM) i7-10510U CPU @ 1.80GHz (4 physical cores, 8 logical threads, 16 GB RAM).
 
-| Benchmark Scenario | Engine | Throughput (ops/sec) | Average Latency | Speedup |
-|---|---|---|---|---|
-| **Traffic Violation** (Decision Table) | **`dmn-generator-java`** | **6,162,000 ops/sec** | **0.173 µs** (173 ns) | **~7.2x faster** |
-| | `DmnRuntime` (Interpreter) | 736,000 ops/sec | 1.254 µs (1,254 ns) | Baseline |
-| **Credit Approval** (Multi-node DRG Graph) | **`dmn-generator-java`** | **1,142,000 ops/sec** | **0.471 µs** (471 ns) | **~4.5x faster** |
-| | `DmnRuntime` (Interpreter) | 199,000 ops/sec | 2.122 µs (2,122 ns) | Baseline |
-| **Scalar Arithmetic** (FEEL Expression) | **`dmn-generator-java`** | **12,000,000 ops/sec** | **124.5 ns** | **~2.1x faster** |
-| | `DmnRuntime` (Interpreter) | 3,875,000 ops/sec | 258.0 ns | Baseline |
+| Benchmark Scenario | Engine | Throughput (`thrpt` [⬆️]) | Average Latency (`avgt` [⬇️]) | Allocation | Speedup vs Interpreter |
+|---|---|---|---|---|---|
+| **Traffic Violation** (Decision Table) | **`dmn-generator-java`** | **6,395,000 ops/sec** (6.395 ops/µs) | **0.189 µs** (189 ns) | 444 B/op | **~6.7x faster** (throughput) |
+| | `DmnRuntime` (Interpreter) | 961,000 ops/sec (0.961 ops/µs) | 1.242 µs (1,242 ns) | 2,515 B/op | Baseline |
+| **Credit Approval** (Multi-node DRG Graph) | **`dmn-generator-java`** | **1,979,000 ops/sec** (1.979 ops/µs) | **0.457 µs** (457 ns) | 836 B/op | **~4.4x faster** (throughput) |
+| | `DmnRuntime` (Interpreter) | 454,000 ops/sec (0.454 ops/µs) | 1.749 µs (1,749 ns) | 3,200 B/op | Baseline |
+| **Originations** (Loan Decisioning) | **`dmn-generator-java`** | **1,303,000 ops/sec** (1.303 ops/µs) | **0.685 µs** (685 ns) | 1,840 B/op | **~6.1x faster** (throughput) |
+| | `DmnRuntime` (Interpreter) | 215,000 ops/sec (0.215 ops/µs) | 3.722 µs (3,722 ns) | 7,168 B/op | Baseline |
+| **Ranked Loan Products** (Multi-Stage Graph) | **`dmn-generator-java`** | **1,615,000 ops/sec** (1.615 ops/µs) | **0.832 µs** (832 ns) | 1,232 B/op | **~6.2x faster** (throughput) |
+| | `DmnRuntime` (Interpreter) | 259,000 ops/sec (0.259 ops/µs) | 4.298 µs (4,298 ns) | 7,249 B/op | Baseline |
+| **Scalar Arithmetic** (FEEL Expression) | **`dmn-generator-java`** | **10,950,000 ops/sec** (0.011 ops/ns) | **91.3 ns** | 208 B/op | **~2.2x faster** (throughput) |
+| | `DmnRuntime` (Interpreter) | 4,960,000 ops/sec (0.005 ops/ns) | 223.3 ns | 624 B/op | Baseline |
+
+For complete multi-threaded concurrency results across 1, 2, 4, and 8 threads, see the [Scalability Summary](results/scalability-summary.md).
 
 ## Reference Models Included
 
@@ -25,8 +30,7 @@ Benchmark environment: OpenJDK 25.0.2 LTS (Zulu25.32+21-CA) on 64-Bit Server VM.
 3. **Scalar Arithmetic**: High-frequency scalar FEEL expression benchmark.
 4. **Originations**: Multi-stage eligibility, affordability, risk-band, and routing benchmark with deterministic DataFaker workloads.
 5. **Ranked Loan Products**: Multi-stage customer segmentation, capacity, term, and product recommendation benchmark.
-6. **SWIFT MT564 Data Quality**: Valid, single-violation, multi-violation, and representative large normalized-message scenarios.
-7. **Compiler Phases**: Isolated XML parsing, semantic analysis, Runtime IR lowering, Runtime IR optimization, and full-pipeline compilation.
+6. **Compiler Phases**: Isolated XML parsing, semantic analysis, Runtime IR lowering, Runtime IR optimization, and full-pipeline compilation.
 
 ## DataFaker Integration
 
@@ -82,10 +86,3 @@ For retained allocation and scalability evidence, run:
 The equivalent Linux command is `./dmn-benchmarks/scripts/run-scalability.sh`. Both use three forks,
 the JMH GC profiler, 1/2/4/8 threads, and write raw JSON plus environment metadata under
 `dmn-benchmarks/results/`.
-
-Run the publication-oriented MT564 matrix with `run-mt564-reference.ps1` or
-`run-mt564-reference.sh`. These scripts retain scenario/path JSON and metadata, validate the complete
-matrix, and generate deterministic Markdown and CSV summaries. The `largeStructure` fixture includes
-128 synthetic option entries, but the current three scalar MT564 rules do not traverse that collection;
-its evidence therefore covers normalized input mapping and output adaptation rather than collection
-validation scaling.

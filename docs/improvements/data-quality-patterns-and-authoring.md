@@ -86,6 +86,7 @@ adapter. It does not implement the SWIFT FIN grammar inside FEEL.
 This separation matters:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Text["MT564 FIN text"] --> Parser["Existing/future parser and canonical mapping"]
     Parser --> Ctx["Normalized MT564 context"]

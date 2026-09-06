@@ -3,23 +3,24 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [5.1 Current project structure](#contents-section-1)
-- [5.2 dmn-protobuf](#contents-section-2)
-- [5.3 dmn-frontend-xml](#contents-section-3)
-- [5.4 dmn-feel-parser](#contents-section-4)
-- [5.5 dmn-semantic-analysis](#contents-section-5)
-- [5.6 dmn-runtime-ir](#contents-section-6)
-- [5.7 dmn-runtime](#contents-section-7)
-- [5.8 dmn-compiler](#contents-section-8)
-- [5.9 Target modules](#contents-section-9)
-- [5.10 Module rules](#contents-section-10)
+- [7.1 Current project structure](#contents-section-1)
+- [7.2 `dmn-protobuf`](#contents-section-2)
+- [7.3 `dmn-frontend-xml`](#contents-section-3)
+- [7.4 `dmn-feel-parser`](#contents-section-4)
+- [7.5 `dmn-semantic-analysis`](#contents-section-5)
+- [7.6 `dmn-runtime-ir`](#contents-section-6)
+- [7.7 `dmn-runtime`](#contents-section-7)
+- [7.8 `dmn-compiler`](#contents-section-8)
+- [7.9 Target modules](#contents-section-9)
+- [7.10 Module rules](#contents-section-10)
 <!-- generated-toc:end -->
 
 
 <a id="contents-section-1"></a>
-## 5.1 Current project structure
+## 7.1 Current project structure
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Root["dmn-compiler-toolkit"] --> Pom["pom.xml (Parent POM)"]
     Root --> Proto["dmn-protobuf"]
@@ -42,7 +43,7 @@ Java:    25
 ```
 
 <a id="contents-section-2"></a>
-## 5.2 `dmn-protobuf`
+## 7.2 `dmn-protobuf`
 
 Defines generated contracts in `io.finmsg.dmn.model`.
 
@@ -61,7 +62,7 @@ model.proto
 The text schema does not depend on the parsed schema. `feel.proto` composes both through replaceable wrapper messages.
 
 <a id="contents-section-3"></a>
-## 5.3 `dmn-frontend-xml`
+## 7.3 `dmn-frontend-xml`
 
 Production dependencies:
 
@@ -82,7 +83,7 @@ Responsibilities:
 - namespace/version preservation and prefixed-DMN output
 
 <a id="contents-section-4"></a>
-## 5.4 `dmn-feel-parser`
+## 7.4 `dmn-feel-parser`
 
 Production dependencies:
 
@@ -102,7 +103,7 @@ Responsibilities:
 `dmn-frontend-xml` is test-scoped for the Traffic Violation integration test.
 
 <a id="contents-section-5"></a>
-## 5.5 `dmn-semantic-analysis`
+## 7.5 `dmn-semantic-analysis`
 
 Production dependency:
 
@@ -128,7 +129,7 @@ Responsibilities currently implemented:
 `dmn-feel-parser` and `dmn-frontend-xml` are test-scoped dependencies only.
 
 <a id="contents-section-6"></a>
-## 5.6 `dmn-runtime-ir`
+## 7.6 `dmn-runtime-ir`
 
 Production dependency:
 
@@ -158,7 +159,7 @@ models lower into one namespace-free slot space. Typed constant pools and stable
 provided by a separate optimization pass.
 
 <a id="contents-section-7"></a>
-## 5.7 `dmn-runtime`
+## 7.7 `dmn-runtime`
 
 Production dependency: `dmn-runtime-ir`.
 
@@ -168,7 +169,7 @@ expressions, built-ins, invocations, unary tests, and decision tables. External 
 functions require a future host-binding boundary.
 
 <a id="contents-section-8"></a>
-## 5.8 `dmn-compiler`
+## 7.8 `dmn-compiler`
 
 The compiler module owns orchestration and resolver-independent model-source contracts.
 Its source layer includes root-confined filesystem, classpath, and in-memory resolvers. The
@@ -199,7 +200,7 @@ lowering failures are adapted at the compiler boundary. This completes the P1 or
 without introducing reverse dependencies from any lower-level module.
 
 <a id="contents-section-9"></a>
-## 5.9 Target modules
+## 7.9 Target modules
 
 ```text
 dmn-optimizer
@@ -208,7 +209,7 @@ dmn-benchmarks
 ```
 
 <a id="contents-section-10"></a>
-## 5.10 Module rules
+## 7.10 Module rules
 
 1. One architectural responsibility per module.
 2. Production dependencies point toward lower-level contracts.

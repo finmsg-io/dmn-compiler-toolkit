@@ -13,6 +13,7 @@ This gives frequent releases without making every merge a public release and wit
 large release script. The normal path becomes:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     PR["Feature/fix PR"] --> CI["Required CI checks"]
     CI --> MergeMain["Merge to main"]

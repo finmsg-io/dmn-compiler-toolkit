@@ -26,6 +26,7 @@ Current assessment:
 ## Graduation principle
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     capability["Implemented capability"] --> claim["Production claim"]
     contract["Explicit contract"] --> claim

@@ -60,17 +60,11 @@ Example
 
 ```
 io.finmsg.dmn.model
-
 io.finmsg.dmn.frontend
-
 io.finmsg.dmn.feel
-
 io.finmsg.dmn.semantic
-
 io.finmsg.dmn.runtime
-
 io.finmsg.dmn.generator.java
-
 io.finmsg.dmn.generator.spark
 ```
 
@@ -84,11 +78,8 @@ Classes
 
 ```
 Decision
-
 DecisionTable
-
 RuntimeExpression
-
 TypeResolver
 ```
 
@@ -96,9 +87,7 @@ Interfaces
 
 ```
 ExpressionVisitor
-
 CompilerPass
-
 CodeGenerator
 ```
 
@@ -106,9 +95,7 @@ Enums
 
 ```
 HitPolicy
-
 BuiltinType
-
 BinaryOperator
 ```
 
@@ -116,13 +103,9 @@ Methods
 
 ```
 compile()
-
 parse()
-
 resolveTypes()
-
 generate()
-
 evaluate()
 ```
 
@@ -130,9 +113,7 @@ Variables
 
 ```
 decision
-
 expression
-
 runtimeModel
 ```
 
@@ -140,9 +121,7 @@ Constants
 
 ```
 DEFAULT_NAMESPACE
-
 MAX_RULES
-
 EMPTY_CONTEXT
 ```
 
@@ -157,9 +136,7 @@ Good
 
 ```
 Decision
-
 InputData
-
 DecisionTable
 ```
 
@@ -167,7 +144,6 @@ Avoid
 
 ```
 DecisionOrInput
-
 GenericNode
 ```
 
@@ -197,7 +173,6 @@ Correct
 
 ```
 repeated Decision decisions = 1;
-
 repeated Rule rules = 2;
 ```
 
@@ -257,23 +232,14 @@ Reserve numbers by responsibility.
 
 ```
 1-9
-
 Identity
-
 10-19
-
 Metadata
-
 20-49
-
 Relationships
-
 50-99
-
 Contents
-
 100+
-
 Future extensions
 ```
 
@@ -290,11 +256,8 @@ Correct
 
 ```
 HIT_POLICY_FIRST
-
 HIT_POLICY_ANY
-
 BINARY_OPERATOR_ADD
-
 BUILTIN_TYPE_STRING
 ```
 
@@ -302,11 +265,8 @@ Never
 
 ```
 FIRST
-
 ANY
-
 ADD
-
 STRING
 ```
 
@@ -330,6 +290,7 @@ Dependency direction must always follow the architecture.
 Each compiler stage has exactly one responsibility.
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     xml["XML"] --> semantic["Semantic Model"] --> feel["FEEL AST"]
     feel --> analysis["Semantic Analysis"] --> optimization["Optimization"]
@@ -352,6 +313,7 @@ Every compiler pass
 Preferred
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     input["Input Model"] --> pass["Compiler Pass"] --> output["Output Model"]
 ```
@@ -391,9 +353,7 @@ Example
 
 ```
 DMN-1004
-
 Unknown decision "RiskScore"
-
 Line 43
 Column 17
 ```
@@ -479,6 +439,7 @@ Every public API includes examples.
 Allowed
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     generator["Generator"] --> runtime["Runtime"] --> semantic["Semantic"]
     semantic --> feel["FEEL"] --> model["Model"] --> xml["XML"]
@@ -487,6 +448,7 @@ flowchart TB
 Forbidden
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     runtime["Runtime"] --> xml["XML"]
 ```
@@ -555,9 +517,7 @@ Feature branches
 
 ```
 feature/xml-reader
-
 feature/runtime-ir
-
 feature/java-generator
 ```
 
@@ -571,9 +531,7 @@ Examples
 Add Runtime IR builder
 
 Implement FEEL parser
-
 Refactor DecisionTable normalization
-
 Optimize dependency graph generation
 ```
 
@@ -581,11 +539,8 @@ Avoid
 
 ```
 fix
-
 changes
-
 update
-
 misc
 ```
 
@@ -603,11 +558,8 @@ Example
 
 ```
 1.0.0
-
 1.1.0
-
 1.1.1
-
 2.0.0
 ```
 

@@ -7,7 +7,7 @@
 - [Next planned work](#contents-section-2)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-08-08
+Last reviewed: 2026-09-06
 
 The `dmn-compiler` module owns public compilation orchestration and resolver-independent model-source contracts.
 It provides `DmnCompiler` (one-call compiler facade), `DmnModelResolver` / `FilesystemDmnModelResolver` / `InMemoryDmnModelResolver` (transitive multi-model loader), `DmnCompilerDiagnostic` (phase-aware aggregated diagnostics), and `DmnCompilationResult` (immutable model-set compilation result).
@@ -24,11 +24,11 @@ It provides `DmnCompiler` (one-call compiler facade), `DmnModelResolver` / `File
 | P6 | Full official CL2/CL3 TCK conformance | `done` | 100% strict self-verified conformance (3,391/3,391 cases, 6,782/6,782 outcomes); see TCK-CONF-001 |
 | P13 | Multi-file streaming resolver integration | `done` | `DmnStreamResolver` (in `dmn-models`) |
 | P14 | Fail-fast TCK execution guard & build quality gates | `done` | `OfficialTckSuiteTest` throws `IllegalStateException` if assets missing |
+| P14.11 | Automated FEEL parser fuzzing & hostile-input stress tests | `done` | `FeelParserFuzzAndHostileInputTest` |
 
 <a id="contents-section-2"></a>
 ## Next planned work
 
 | Priority | Work item | Status | Target / Evidence |
 | --- | --- | --- | --- |
-| P14.11 | Automated FEEL parser fuzzing & XML hostile-identifier stress tests | `proposed` | `dmn-compiler` & `dmn-feel-parser` |
-| P20 | Cross-language decision generators (Rust, Golang, C++) | `deferred` | Reassess native generator SPI backends after the reference showcase and production/evidence milestones |
+| P20 | Cross-language decision generators (Rust, Golang, C++) | `proposed` | Define native code generator SPI and lower Runtime IR to native targets |

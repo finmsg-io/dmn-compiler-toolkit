@@ -27,6 +27,7 @@ functionality. This page intentionally does not duplicate that inventory.
 The implemented pipeline is:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     XML["DMN XML Source Graph"] --> Facade["DmnCompiler Facade / Model Resolver"]
     Facade --> XMLReader["Definitions with FEEL text (DmnXmlReader)"]
@@ -44,7 +45,7 @@ generation, gRPC adapters, Spark SQL generation, multi-file model ingestion, the
 corpus, TCK execution, and JMH benchmarks are implemented. Implementation does not by itself imply
 public-production maturity or identical backend coverage; consult the
 [capability maturity page](capabilities.md), [TCK conformance record](tck-conformance.md), and
-[development plan](development-plan.md) for the verified boundaries and current work.
+[roadmap](roadmap.md) for the verified boundaries and current work.
 
 <a id="contents-section-2"></a>
 ## Design goals

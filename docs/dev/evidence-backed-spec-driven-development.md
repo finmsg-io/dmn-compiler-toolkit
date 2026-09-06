@@ -12,16 +12,6 @@
 - [Proportional verification](#contents-section-7)
 - [Example: P1.3 transitive import loading](#contents-section-8)
 - [Reusable slice template](#contents-section-12)
-- [Outcome](#outcome)
-- [In scope](#in-scope)
-- [Non-goals](#non-goals)
-- [Architectural constraints](#architectural-constraints)
-- [Affected modules and contracts](#affected-modules-and-contracts)
-- [Acceptance scenarios](#acceptance-scenarios)
-- [Open decisions](#open-decisions)
-- [Verification plan](#verification-plan)
-- [Completion evidence](#completion-evidence)
-- [Result](#result)
 - [Process guardrails](#contents-section-13)
 <!-- generated-toc:end -->
 
@@ -40,6 +30,7 @@ documentation affected by the result.
 ## Core principle
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Req["Architectural requirement"] --> Item["Milestone work item"]
     Item --> Scenarios["Acceptance scenarios"]
@@ -74,7 +65,7 @@ The process is deliberately not “specify the entire product first.” Future m
 | --- | --- |
 | [Architecture specification](../architecture/architecture-spec.md) | Enduring requirements, boundaries, and intended system structure |
 | [ADRs](../architecture/adr/generall-adr.md) | Significant decisions, alternatives, rationale, and consequences |
-| [Development plan](../development-plan.md) | Milestone sequencing, acceptance criteria, state, and evidence |
+| [Roadmap](../roadmap.md) | Milestone sequencing, acceptance criteria, state, and evidence |
 | [Module TODOs](../todos/index.md) | Current module-local gaps, not completion history |
 | [Slice specification](slices/index.md) | Temporary implementation contract for one bounded increment |
 | Tests and benchmarks | Executable behavioral and quality evidence |
@@ -158,13 +149,10 @@ Status: proposed | ready | in progress | blocked | done
 Owner: <person or team, if useful>
 Requirements: <AR IDs and links>
 Milestone: <plan item>
-
 ## Outcome
-
 <One paragraph describing the externally observable result.>
 
 ## In scope
-
 - <behavior or contract included in this slice>
 - <behavior or contract included in this slice>
 
@@ -174,7 +162,6 @@ Milestone: <plan item>
 - <adjacent concern owned by another slice>
 
 ## Architectural constraints
-
 - <module/dependency rule>
 - <determinism, immutability, compatibility, security, or runtime rule>
 
@@ -200,9 +187,7 @@ Milestone: <plan item>
 - Downstream: `<affected modules or “not required”>`
 - Full reactor: required | not required — <reason>
 - Documentation: `<checks>`
-
 ## Completion evidence
-
 - Tests: <links/names>
 - Documentation/API: <links>
 - ADR: <link or not required>

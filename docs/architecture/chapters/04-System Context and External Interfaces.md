@@ -1,58 +1,94 @@
-# Chapter 4 — System Context and External Interfaces [FUTURE — UNREVIEWED]
+# Chapter 4 — System Context and External Interfaces [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [Status and purpose](#contents-section-1)
-- [Proposed system boundary](#contents-section-2)
-- [Proposed external interfaces](#contents-section-3)
-- [Open review questions](#contents-section-4)
+- [4.1 Purpose and System Scope](#contents-section-1)
+- [4.2 System Context Architecture](#contents-section-2)
+- [4.3 External Interfaces and SPI Contracts](#contents-section-3)
+- [4.4 Boundary Invariants and Architectural Isolation](#contents-section-4)
 <!-- generated-toc:end -->
 
-> **Review status: UNREVIEWED PROPOSAL.** This chapter describes candidate boundaries and does not
-> commit the project to an interface or integration.
-
 <a id="contents-section-1"></a>
-## Status and purpose
+## 4.1 Purpose and System Scope
 
-This chapter proposes a context view separating compiler-owned behavior from callers, repositories,
-build tools, generated artifacts, and execution hosts.
+This chapter defines the system context and external integration boundaries of the DMN Compiler Toolkit. It establishes clear architectural lines separating compiler-owned responsibilities (parsing, semantic validation, intermediate representation, optimization, and code generation) from external systems (source repositories, application hosts, deployment runtimes, and client protocols).
 
 <a id="contents-section-2"></a>
-## Proposed system boundary
+## 4.2 System Context Architecture
+
+The compiler toolkit operates as a deterministic transformation pipeline and high-performance runtime engine:
 
 ```mermaid
-flowchart LR
-    Repo["DMN repository / source provider"] --> Toolkit["DMN Compiler Toolkit"]
-    Toolkit --> Diag["Diagnostics and compiled model"]
-    Toolkit --> Artifacts["Generated Java / Protobuf / gRPC artifacts"]
-    Diag --> Host["Application or service execution host"]
-    Artifacts --> Host
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    subgraph Sources["DMN Sources & Providers"]
+        XML["DMN 1.5 XML Files"]
+        REPO["Model Repositories / Git"]
+        CLASSPATH["Classpath / Filesystem Resources"]
+    end
+
+    subgraph Toolkit["DMN Compiler Toolkit Pipeline"]
+        RESOLVER["DmnModelResolver (SPI)"]
+        FRONTEND["XML Frontend (VTD-XML)"]
+        FEEL["FEEL Parser (ANTLR4)"]
+        SEMANTICS["Whole-Model Semantic Analysis"]
+        IR["Runtime IR Lowering & Optimization"]
+        BACKENDS["Code Generators (Java, Spark SQL)"]
+        INTERPRETER["Reference Runtime Interpreter"]
+    end
+
+    subgraph Artifacts["Generated & Compiled Artifacts"]
+        JAVA_SRC["Deterministic Java Classes"]
+        PROTO["Protobuf Semantic Payloads"]
+        BYTECODE["Compiled In-Memory Models"]
+    end
+
+    subgraph ExecutionHosts["Target Execution Hosts"]
+        APP["Embedded Java Applications"]
+        SPARK["Apache Spark / Data Platforms"]
+        GRPC_SRV["gRPC Microservices (dmn-grpc)"]
+        CI["CI/CD Validation Gates"]
+    end
+    XML --> RESOLVER
+    REPO --> RESOLVER
+    CLASSPATH --> RESOLVER
+    RESOLVER --> FRONTEND
+    FRONTEND --> SEMANTICS
+    FEEL --> SEMANTICS
+    SEMANTICS --> IR
+    IR --> BACKENDS
+    IR --> INTERPRETER
+    BACKENDS --> JAVA_SRC
+    BACKENDS --> PROTO
+    BACKENDS --> BYTECODE
+    JAVA_SRC --> APP
+    BYTECODE --> APP
+    PROTO --> CI
+    BACKENDS -.-> SPARK
+    JAVA_SRC --> GRPC_SRV
 ```
 
-The toolkit should own parsing, semantic analysis, Runtime IR, optimization, reference execution,
-and generation. It should not own repository authentication, application business state, service
-deployment, or external function implementations.
-
 <a id="contents-section-3"></a>
-## Proposed external interfaces
+## 4.3 External Interfaces and SPI Contracts
 
-| Interface | Proposed boundary |
-| --- | --- |
-| Source resolution | `DmnModelResolver` with stable source identity and caller policy |
-| Filesystem/classpath | Confined resolver adapters, not implicit global lookup |
-| Compiler API | Immutable options, diagnostics, model metadata, optimized Runtime IR |
-| Runtime API | Name-based inputs and requested decisions; internal slots remain hidden |
-| JAVA/PMML functions | Explicit host-binding SPI with allow-list and conversion policy |
-| Generated Java | Deterministic sources with a documented helper-runtime dependency |
-| gRPC | Transport adapter around generated Java, not a second execution engine |
-| Build tools | Maven/CLI adapters invoking the same compiler facade |
+The toolkit exposes clearly defined, immutable interfaces to host applications:
+
+| Interface / SPI | Module | Architectural Role & Contract |
+| --- | --- | --- |
+| `DmnModelResolver` | `dmn-frontend-xml` | **Source Provider SPI**: Resolves import URIs, namespaces, and file locations into immutable `DmnSource` instances without leaking underlying filesystem details. |
+| `DmnCompiler` | `dmn-compiler` | **Compiler Facade**: Main orchestration entry point. Accepts compilation options and model sources; emits `CompilationResult` containing diagnostics and `CompiledModel`. |
+| `CompiledModel` | `dmn-runtime` | **Immutable Runtime Model**: Thread-safe evaluation handle. Encapsulates decision execution graphs, slot definitions, and decision services. |
+| `EvaluationContext` | `dmn-runtime` | **Execution State Container**: Supplies named inputs, resolves built-in function bindings, and collects evaluation outputs per request. |
+| `DmnGrpcService` | `dmn-grpc` | **Network Transport Adapter**: Exposes compiled decision models over high-performance gRPC/Protobuf protocols without adding overhead to core evaluation. |
 
 <a id="contents-section-4"></a>
-## Open review questions
+## 4.4 Boundary Invariants and Architectural Isolation
 
-- Which interfaces are public compatibility commitments in the first release?
-- Is a CLI part of the product boundary or only a development adapter?
-- Which external repository schemes should be supported by the core distribution?
-- How are external functions discovered, authorized, versioned, and isolated?
+To maintain high performance and robust security, the toolkit enforces four strict architectural invariants:
+
+1. **Zero Runtime XML Dependency (ADR-0008)**: The production runtime engine (`dmn-runtime`) and generated Java code have zero compile-time or runtime dependencies on XML parsers, VTD-XML, or DOM libraries.
+2. **Zero Runtime Reflection (ADR-0013)**: Generated code and runtime evaluators invoke strongly typed getters, direct variable slots, and static dispatcher methods, avoiding `java.lang.reflect` and JVM dynamic proxy overhead.
+3. **Hermetic Resolution (ADR-0017)**: The compiler does not perform uncontrolled ambient filesystem or network lookups. All model dependencies must be resolved through configured `DmnModelResolver` boundaries.
+4. **Stateless Compiler Pipelines (ADR-0005 & ADR-0011)**: All intermediate representations (Semantic Model, FEEL AST, Runtime IR) are strictly immutable. Compilation runs produce zero shared mutable side-effects.
 

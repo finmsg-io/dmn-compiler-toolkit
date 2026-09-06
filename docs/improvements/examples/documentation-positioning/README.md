@@ -11,6 +11,7 @@ the source of candidate scope until a real work item is accepted.
 The packet assumes these defaults rather than copying them:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     constitution["Reusable CONSTITUTION.md"] --> agents["Repository AGENTS.md overlay"]
     agents --> profile["Documentation quality profile"]
@@ -42,6 +43,7 @@ change with automation and migration consequences.
 ## Intended flow
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     specification["Shape and accept spec"] --> decisions["Resolve design decisions needed by the first slice"]
     decisions --> slice["Deliver one independently useful plan slice"]

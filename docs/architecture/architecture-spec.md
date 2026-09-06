@@ -44,6 +44,7 @@ Status labels:
 Current modules:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Root["dmn-compiler-toolkit"] --> Proto["dmn-protobuf"]
     Root --> Front["dmn-frontend-xml"]
@@ -59,6 +60,7 @@ flowchart TD
 Current executable compiler path:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     XML["DMN XML Source Graph"] --> Facade["DmnModelResolver / DmnCompiler Facade"]
     Facade --> Reader["DmnXmlReader (VTD-XML)"]

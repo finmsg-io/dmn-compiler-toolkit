@@ -11,6 +11,7 @@ Traditional rule engines (e.g., Drools/KIE, Camunda DMN) rely on runtime interpr
 The **DMN Compiler Toolkit** adopts an ahead-of-time (AOT) compiler architecture:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     A["DMN 1.5 XML"] --> B["VTD-XML Frontend"]
     B --> C["Protobuf Semantic Model"]
@@ -38,6 +39,7 @@ flowchart LR
 The toolkit supports three primary enterprise deployment topologies:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph Topology1["1. Direct Embedded Java Library"]
         App["Host Application / JVM"] --> Gen["Generated Decision Engine JAR"]
@@ -69,6 +71,7 @@ flowchart TD
 The toolkit enforces strict boundaries between trusted build-time compilation and untrusted runtime execution (see `SECURITY.md` at repository root):
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     subgraph TrustedZone["Trusted Build / CI Pipeline"]
         XML["DMN XML Models"] --> Comp["Compiler Toolkit & Analyzer"]

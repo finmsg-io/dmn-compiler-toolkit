@@ -10,6 +10,7 @@ Audience pages compose links and short explanations around canonical facts; they
 capability, conformance, or benchmark data.
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph DataProjections["Automated Data Projections"]
         Reactor["Maven reactor"] --> Proj["Deterministic projections"]

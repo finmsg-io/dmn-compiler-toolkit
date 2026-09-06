@@ -3,26 +3,26 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [AP-001 --- Semantic Correctness over XML Fidelity](#contents-section-1)
-- [AP-002 --- Compilation before Execution](#contents-section-2)
-- [AP-003 --- Layer Isolation](#contents-section-3)
-- [AP-004 --- Single Responsibility per Compiler Pass](#contents-section-4)
-- [AP-005 --- Immutable Intermediate Representations](#contents-section-5)
-- [AP-006 --- Runtime Independence](#contents-section-6)
-- [AP-007 --- Performance is a Feature](#contents-section-7)
-- [AP-008 --- Deterministic Compilation](#contents-section-8)
-- [AP-009 --- Explicit Dependencies](#contents-section-9)
-- [AP-010 --- Strong Typing](#contents-section-10)
-- [AP-011 --- Compiler over Interpreter](#contents-section-11)
-- [AP-012 --- Extensible Backend Architecture](#contents-section-12)
-- [AP-013 --- Specification Compliance](#contents-section-13)
-- [AP-014 --- Testability](#contents-section-14)
-- [AP-015 --- Open Architecture](#contents-section-15)
-- [AP-016 --- Stable Public APIs](#contents-section-16)
-- [AP-017 --- Documentation as Part of the Architecture](#contents-section-17)
-- [AP-018 --- Long-Term Maintainability](#contents-section-18)
-- [AP-019 --- Security by Design](#contents-section-19)
-- [AP-020 --- Observability](#contents-section-20)
+- [2.1 AP-001 --- Semantic Correctness over XML Fidelity](#contents-section-1)
+- [2.2 AP-002 --- Compilation before Execution](#contents-section-2)
+- [2.3 AP-003 --- Layer Isolation](#contents-section-3)
+- [2.4 AP-004 --- Single Responsibility per Compiler Pass](#contents-section-4)
+- [2.5 AP-005 --- Immutable Intermediate Representations](#contents-section-5)
+- [2.6 AP-006 --- Runtime Independence](#contents-section-6)
+- [2.7 AP-007 --- Performance is a Feature](#contents-section-7)
+- [2.8 AP-008 --- Deterministic Compilation](#contents-section-8)
+- [2.9 AP-009 --- Explicit Dependencies](#contents-section-9)
+- [2.10 AP-010 --- Strong Typing](#contents-section-10)
+- [2.11 AP-011 --- Compiler over Interpreter](#contents-section-11)
+- [2.12 AP-012 --- Extensible Backend Architecture](#contents-section-12)
+- [2.13 AP-013 --- Specification Compliance](#contents-section-13)
+- [2.14 AP-014 --- Testability](#contents-section-14)
+- [2.15 AP-015 --- Open Architecture](#contents-section-15)
+- [2.16 AP-016 --- Stable Public APIs](#contents-section-16)
+- [2.17 AP-017 --- Documentation as Part of the Architecture](#contents-section-17)
+- [2.18 AP-018 --- Long-Term Maintainability](#contents-section-18)
+- [2.19 AP-019 --- Security by Design](#contents-section-19)
+- [2.20 AP-020 --- Observability](#contents-section-20)
 <!-- generated-toc:end -->
 
 This chapter defines the fundamental architectural principles governing
@@ -33,7 +33,7 @@ Toolkit. Every architectural decision, implementation, optimization, and
 future contribution should be evaluated against them.
 
 <a id="contents-section-1"></a>
-## AP-001 --- Semantic Correctness over XML Fidelity
+## 2.1 AP-001 --- Semantic Correctness over XML Fidelity
 
 The internal representation models DMN semantics rather than the XML
 document structure.
@@ -46,7 +46,7 @@ models.
 ------------------------------------------------------------------------
 
 <a id="contents-section-2"></a>
-## AP-002 --- Compilation before Execution
+## 2.2 AP-002 --- Compilation before Execution
 
 Every possible validation, optimization, normalization, and analysis
 shall be performed during compilation.
@@ -56,50 +56,39 @@ The runtime should execute decisions rather than interpret XML or FEEL.
 ------------------------------------------------------------------------
 
 <a id="contents-section-3"></a>
-## AP-003 --- Layer Isolation
+## 2.3 AP-003 --- Layer Isolation
 
 Each architectural layer has a single responsibility.
 
 Allowed dependencies always point downward.
 
-    XML
-    ↓
-
-    Semantic Model
-    ↓
-
-    FEEL AST
-    ↓
-
-    Runtime IR
-    ↓
-
-    Code Generator
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    xml["XML"] --> semantic["Semantic Model"]
+    semantic --> feel["FEEL AST"]
+    feel --> ir["Runtime IR"]
+    ir --> codegen["Code Generator"]
+```
 
 Reverse dependencies are prohibited.
 
 ------------------------------------------------------------------------
 
 <a id="contents-section-4"></a>
-## AP-004 --- Single Responsibility per Compiler Pass
+## 2.4 AP-004 --- Single Responsibility per Compiler Pass
 
 Each compiler pass performs exactly one transformation.
 
 For example:
 
-    Resolve Imports
-
-    ↓
-
-    Resolve Types
-
-    ↓
-
-    Constant Folding
-
-    ↓
-
-    Runtime IR Generation
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    imports["Resolve Imports"] --> types["Resolve Types"]
+    types --> folding["Constant Folding"]
+    folding --> irgen["Runtime IR Generation"]
+```
 
 Compiler passes should be deterministic, independently testable, and
 composable.
@@ -107,7 +96,7 @@ composable.
 ------------------------------------------------------------------------
 
 <a id="contents-section-5"></a>
-## AP-005 --- Immutable Intermediate Representations
+## 2.5 AP-005 --- Immutable Intermediate Representations
 
 Intermediate representations should be treated as immutable whenever
 practical.
@@ -120,7 +109,7 @@ This improves correctness, testing, debugging, and parallelization.
 ------------------------------------------------------------------------
 
 <a id="contents-section-6"></a>
-## AP-006 --- Runtime Independence
+## 2.6 AP-006 --- Runtime Independence
 
 The runtime must have no dependency on:
 
@@ -135,7 +124,7 @@ Only the Runtime IR is visible to the execution engine.
 ------------------------------------------------------------------------
 
 <a id="contents-section-7"></a>
-## AP-007 --- Performance is a Feature
+## 2.7 AP-007 --- Performance is a Feature
 
 Performance is a primary design objective rather than a later
 optimization.
@@ -154,7 +143,7 @@ Compile-time complexity is acceptable if it improves runtime efficiency.
 ------------------------------------------------------------------------
 
 <a id="contents-section-8"></a>
-## AP-008 --- Deterministic Compilation
+## 2.8 AP-008 --- Deterministic Compilation
 
 Given identical input and compiler version, compilation shall always
 produce identical Runtime IR and generated source code.
@@ -164,7 +153,7 @@ This property simplifies testing, reproducibility, and debugging.
 ------------------------------------------------------------------------
 
 <a id="contents-section-9"></a>
-## AP-009 --- Explicit Dependencies
+## 2.9 AP-009 --- Explicit Dependencies
 
 Dependencies between compiler modules must always be explicit.
 
@@ -177,7 +166,7 @@ No global registries.
 ------------------------------------------------------------------------
 
 <a id="contents-section-10"></a>
-## AP-010 --- Strong Typing
+## 2.10 AP-010 --- Strong Typing
 
 Every compiler phase should use strongly typed models.
 
@@ -187,7 +176,7 @@ whenever possible.
 ------------------------------------------------------------------------
 
 <a id="contents-section-11"></a>
-## AP-011 --- Compiler over Interpreter
+## 2.11 AP-011 --- Compiler over Interpreter
 
 The project is designed as a compiler infrastructure.
 
@@ -197,7 +186,7 @@ is not the primary execution strategy.
 ------------------------------------------------------------------------
 
 <a id="contents-section-12"></a>
-## AP-012 --- Extensible Backend Architecture
+## 2.12 AP-012 --- Extensible Backend Architecture
 
 Adding a new backend should require implementing only a new code
 generator.
@@ -217,7 +206,7 @@ Supported examples include:
 ------------------------------------------------------------------------
 
 <a id="contents-section-13"></a>
-## AP-013 --- Specification Compliance
+## 2.13 AP-013 --- Specification Compliance
 
 The compiler shall remain compliant with the OMG DMN specification.
 
@@ -227,7 +216,7 @@ semantics.
 ------------------------------------------------------------------------
 
 <a id="contents-section-14"></a>
-## AP-014 --- Testability
+## 2.14 AP-014 --- Testability
 
 Every compiler component should be testable in isolation.
 
@@ -238,7 +227,7 @@ The entire pipeline should support round-trip and compliance testing.
 ------------------------------------------------------------------------
 
 <a id="contents-section-15"></a>
-## AP-015 --- Open Architecture
+## 2.15 AP-015 --- Open Architecture
 
 The architecture should remain understandable and approachable.
 
@@ -249,7 +238,7 @@ Prefer simple, explicit designs over clever implementations.
 ------------------------------------------------------------------------
 
 <a id="contents-section-16"></a>
-## AP-016 --- Stable Public APIs
+## 2.16 AP-016 --- Stable Public APIs
 
 Public APIs should evolve conservatively.
 
@@ -258,7 +247,7 @@ Internal implementations may change without affecting users.
 ------------------------------------------------------------------------
 
 <a id="contents-section-17"></a>
-## AP-017 --- Documentation as Part of the Architecture
+## 2.17 AP-017 --- Documentation as Part of the Architecture
 
 Architecture documentation, ADRs, API documentation, and design
 rationale are considered part of the deliverable.
@@ -268,7 +257,7 @@ Documentation should evolve together with the implementation.
 ------------------------------------------------------------------------
 
 <a id="contents-section-18"></a>
-## AP-018 --- Long-Term Maintainability
+## 2.18 AP-018 --- Long-Term Maintainability
 
 Maintainability has priority over short-term implementation convenience.
 
@@ -278,7 +267,7 @@ the initial implementation.
 ------------------------------------------------------------------------
 
 <a id="contents-section-19"></a>
-## AP-019 --- Security by Design
+## 2.19 AP-019 --- Security by Design
 
 The compiler shall safely process untrusted DMN documents.
 
@@ -291,7 +280,7 @@ reflection or dynamic code execution.
 ------------------------------------------------------------------------
 
 <a id="contents-section-20"></a>
-## AP-020 --- Observability
+## 2.20 AP-020 --- Observability
 
 The compiler pipeline should expose sufficient diagnostics, metrics, and
 structured logging to make compilation behavior understandable without

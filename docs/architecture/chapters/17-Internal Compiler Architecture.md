@@ -1,24 +1,38 @@
-# Chapter 17 — Internal Compiler Architecture [FUTURE]
+# Chapter 17 — Internal Compiler Architecture [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [19.1 Purpose](#contents-section-1)
-- [Why a Compiler Context?](#contents-section-2)
+- [17.1 Purpose](#contents-section-1)
+- [17.2 Compiler Overview](#contents-section-2)
+- [17.3 Compiler Context](#contents-section-3)
+- [17.4 Compiler Pipeline](#contents-section-4)
+- [17.5 Compiler Pass](#contents-section-5)
+- [17.6 Pass Categories](#contents-section-6)
+- [17.7 Pass Manager](#contents-section-7)
+- [17.8 Pass Scheduling](#contents-section-8)
+- [17.9 Pass Dependencies](#contents-section-9)
+- [17.10 Compiler Phases](#contents-section-10)
+- [17.11 Intermediate Representations](#contents-section-11)
+- [17.12 Diagnostics Propagation](#contents-section-12)
+- [17.13 Incremental Compilation](#contents-section-13)
+- [17.14 Parallel Compilation](#contents-section-14)
+- [17.15 Pass Metrics](#contents-section-15)
+- [17.16 Pipeline Visualization](#contents-section-16)
+- [17.17 Extension Points](#contents-section-17)
+- [17.18 Failure Handling](#contents-section-18)
+- [17.19 Compiler Observability](#contents-section-19)
+- [17.20 Reference Pipeline](#contents-section-20)
+- [17.21 Internal Package Layout](#contents-section-21)
+- [17.22 Summary](#contents-section-22)
 <!-- generated-toc:end -->
 
-!!! note "Status boundary"
-    This chapter is a target design for compiler infrastructure that does not yet
-    exist as one unified framework. The current repository has explicit XML, FEEL,
-    semantic-analysis, Runtime IR, optimization, and interpreter stages, but it does
-    not yet provide the proposed `CompilerContext`, general `PassManager`,
-    incremental compilation, parallel compilation, pass metrics, or plugin
-    extension system. See the [implementation overview](../../architecture.md) and
-    [development plan](../../development-plan.md) for current status.
+!!! note "Implementation & Evolution Baseline"
+    The core multi-pass pipeline (XML parsing, FEEL AST construction, whole-model semantic analysis, Runtime IR lowering, and Java code generation) is fully implemented across the 10 reactor modules orchestrated by `dmn-compiler`. Advanced infrastructure features (dynamic external plugin passes, parallel multi-file dispatch, and distributed compilation caches) evolve under the extension roadmap.
 
 
 <a id="contents-section-1"></a>
-## 19.1 Purpose
+## 17.1 Purpose
 
 The previous chapters describe the logical architecture of the DMN
 Compiler Toolkit.
@@ -43,249 +57,146 @@ The goals of the internal architecture are:
 
 ------------------------------------------------------------------------
 
-# 19.2 Compiler Overview
+<a id="contents-section-2"></a>
+## 17.2 Compiler Overview
 
 The compiler is organized as a pipeline.
 
-``` text
-                    DMN XML
-
-                       |
-
-                       v
-
-               XML Frontend
-
-                       |
-
-                       v
-
-              Semantic Model
-
-                       |
-
-          +------------+------------+
-
-          | Compiler Pass Manager   |
-
-          +------------+------------+
-
-                       |
-
-      +----------------+----------------+
-
-      |                |                |
-
-      v                v                v
-
-  Pass 1          Pass 2          Pass N
-
-                       |
-
-                       v
-
-                 Runtime IR
-
-                       |
-
-                       v
-
-               Code Generator
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    xml["DMN XML"] --> frontend["XML Frontend"]
+    frontend --> semantic["Semantic Model"]
+    semantic --> pm["Compiler Pass Manager"]
+    pm --> p1["Pass 1"]
+    pm --> p2["Pass 2"]
+    pm --> pn["Pass N"]
+    p1 --> ir["Runtime IR"]
+    p2 --> ir
+    pn --> ir
+    ir --> codegen["Code Generator"]
 ```
-
 The **Pass Manager** orchestrates the complete compilation process.
 
 ------------------------------------------------------------------------
 
-# 19.3 Compiler Context
+<a id="contents-section-3"></a>
+## 17.3 Compiler Context
 
 Compilation state is maintained in a single immutable context.
-
-``` java
+```java
 public interface CompilerContext {
-
     SemanticModel semanticModel();
-
     FeelAstRepository astRepository();
-
     RuntimeModel runtimeModel();
-
     DiagnosticCollector diagnostics();
-
     CompilerConfiguration configuration();
-
 }
 ```
-
 The context is passed to compiler passes.
 
 Compiler passes must never access global state.
 
 ------------------------------------------------------------------------
-
-<a id="contents-section-2"></a>
-## Why a Compiler Context?
+### 17.3.1 Why a Compiler Context?
 
 Without a context:
-
-    CompilerPass
-
-    ↓
-
-    Global Variables
-
-    ↓
-
-    Singletons
-
-    ↓
-
-    Hidden Dependencies
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    cp["CompilerPass"] --> gv["Global Variables"]
+    gv --> st["Singletons"]
+    st --> hd["Hidden Dependencies"]
+```
 With a context:
-
-    CompilerContext
-
-    ↓
-
-    Explicit Dependencies
-
-    ↓
-
-    Deterministic Execution
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    ctx["CompilerContext"] --> ed["Explicit Dependencies"]
+    ed --> de["Deterministic Execution"]
+```
 ------------------------------------------------------------------------
 
-# 19.4 Compiler Pipeline
+<a id="contents-section-4"></a>
+## 17.4 Compiler Pipeline
 
 The compiler executes a sequence of passes.
 
 Example:
-
-    XML Reader
-
-    ↓
-
-    Validate Model
-
-    ↓
-
-    Parse FEEL
-
-    ↓
-
-    Resolve Types
-
-    ↓
-
-    Resolve References
-
-    ↓
-
-    Dependency Graph
-
-    ↓
-
-    Constant Folding
-
-    ↓
-
-    Inlining
-
-    ↓
-
-    Runtime Builder
-
-    ↓
-
-    Java Generator
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    xml["XML Reader"] --> val["Validate Model"]
+    val --> feel["Parse FEEL"]
+    feel --> types["Resolve Types"]
+    types --> refs["Resolve References"]
+    refs --> dep["Dependency Graph"]
+    dep --> fold["Constant Folding"]
+    fold --> inline["Inlining"]
+    inline --> rt["Runtime Builder"]
+    rt --> gen["Java Generator"]
+```
 Each stage has exactly one responsibility.
 
 ------------------------------------------------------------------------
 
-# 19.5 Compiler Pass
+<a id="contents-section-5"></a>
+## 17.5 Compiler Pass
 
 Every compiler pass implements a common interface.
-
-``` java
+```java
 public interface CompilerPass {
-
     String name();
-
     CompilerPhase phase();
 
     void execute(
         CompilerContext context
     );
-
 }
 ```
-
 Characteristics:
-
 -   stateless
 -   deterministic
 -   independently testable
 -   reusable
-
 ------------------------------------------------------------------------
 
-# 19.6 Pass Categories
+<a id="contents-section-6"></a>
+## 17.6 Pass Categories
 
 Compiler passes fall into several categories.
 
-<a id="contents-section-3"></a>
 ### Validation
-
 Examples:
-
 -   duplicate IDs
 -   duplicate names
 -   XML consistency
-
 ------------------------------------------------------------------------
-
-<a id="contents-section-4"></a>
 ### Analysis
-
 Examples:
-
 -   type inference
 -   dependency graph
 -   symbol resolution
-
 ------------------------------------------------------------------------
-
-<a id="contents-section-5"></a>
 ### Optimization
-
 Examples:
-
 -   constant folding
 -   inlining
 -   dead decision elimination
 
 ------------------------------------------------------------------------
-
-<a id="contents-section-6"></a>
 ### Transformation
-
 Examples:
-
 -   Runtime IR generation
 -   Java generation
 -   Rust generation
-
 ------------------------------------------------------------------------
-
-# 19.7 Pass Manager
+<a id="contents-section-7"></a>
+## 17.7 Pass Manager
 
 The Pass Manager coordinates execution.
-
-``` java
+```java
 public interface PassManager {
-
     void register(
         CompilerPass pass
     );
@@ -293,414 +204,280 @@ public interface PassManager {
     void execute(
         CompilerContext context
     );
-
 }
 ```
-
 Responsibilities:
-
 -   ordering
 -   diagnostics
 -   timing
 -   metrics
 -   dependency checking
-
 ------------------------------------------------------------------------
-
-# 19.8 Pass Scheduling
+<a id="contents-section-8"></a>
+## 17.8 Pass Scheduling
 
 Passes execute in dependency order.
 
 Example:
-
-    Resolve Types
-
-    ↓
-
-    Constant Folding
-
-    ↓
-
-    Inlining
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    rt["Resolve Types"] --> cf["Constant Folding"]
+    cf --> inl["Inlining"]
+```
 Invalid ordering:
-
-    Inlining
-
-    ↓
-
-    Resolve Types
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    inl["Inlining"] --> rt["Resolve Types"]
+```
 because type information is required first.
 
 The Pass Manager validates scheduling rules.
 
 ------------------------------------------------------------------------
 
-# 19.9 Pass Dependencies
+<a id="contents-section-9"></a>
+## 17.9 Pass Dependencies
 
 Each pass declares its prerequisites.
 
 Example:
-
-``` java
+```java
 public interface CompilerPass {
-
     Set<Class<?>> requires();
-
 }
 ```
-
 Example:
-
-    Inlining
-
-    requires
-
-    ↓
-
-    Constant Folding
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    inl["Inlining"] -- requires --> cf["Constant Folding"]
+```
 The Pass Manager constructs a dependency graph.
 
 ------------------------------------------------------------------------
 
-# 19.10 Compiler Phases
+<a id="contents-section-10"></a>
+## 17.10 Compiler Phases
 
 The compiler groups passes into phases.
-
-    Frontend
-
-    ↓
-
-    Validation
-
-    ↓
-
-    Analysis
-
-    ↓
-
-    Optimization
-
-    ↓
-
-    Lowering
-
-    ↓
-
-    Generation
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    fe["Frontend"] --> val["Validation"]
+    val --> an["Analysis"]
+    an --> opt["Optimization"]
+    opt --> low["Lowering"]
+    low --> gen["Generation"]
+```
 Phases simplify diagnostics and tooling.
 
 ------------------------------------------------------------------------
 
-# 19.11 Intermediate Representations
+<a id="contents-section-11"></a>
+## 17.11 Intermediate Representations
 
 The compiler operates on three primary representations.
-
-    Semantic Model
-
-    ↓
-
-    FEEL AST
-
-    ↓
-
-    Runtime IR
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    sm["Semantic Model"] --> feel["FEEL AST"]
+    feel --> ir["Runtime IR"]
+```
 Each representation is immutable.
 
 Compiler passes replace representations rather than mutating them.
 
 ------------------------------------------------------------------------
 
-# 19.12 Diagnostics Propagation
+<a id="contents-section-12"></a>
+## 17.12 Diagnostics Propagation
 
 Compiler passes report diagnostics through the context.
-
-    Pass
-
-    ↓
-
-    Diagnostic Collector
-
-    ↓
-
-    Compilation Result
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    p["Compiler Pass"] --> dc["Diagnostic Collector"]
+    dc --> cr["Compilation Result"]
+```
 Passes never print directly to the console.
 
 ------------------------------------------------------------------------
 
-# 19.13 Incremental Compilation
+<a id="contents-section-13"></a>
+## 17.13 Incremental Compilation
 
 Large repositories benefit from incremental builds.
 
 Example:
-
-    Traffic.dmn
-
-    changed
-
-    ↓
-
-    Compile
-
-    ↓
-
-    Runtime IR
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    dmn["Traffic.dmn"] -- changed --> comp["Compile"]
+    comp --> ir["Runtime IR"]
+```
 Unchanged models reuse cached artifacts.
-
-    Customer.dmn
-
-    ↓
-
-    Cache
-
-    ↓
-
-    Reuse
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    dmn["Customer.dmn"] -- unchanged --> cache["Cache"]
+    cache --> reuse["Reuse (Artifacts)"]
+```
 The Pass Manager determines which passes must be rerun.
 
 ------------------------------------------------------------------------
 
-# 19.14 Parallel Compilation
+<a id="contents-section-14"></a>
+## 17.14 Parallel Compilation
 
 Independent models can compile simultaneously.
-
-    Model A
-
-    ↓
-
-    Thread 1
-
-    Model B
-
-    ↓
-
-    Thread 2
-
-    Model C
-
-    ↓
-
-    Thread 3
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    ma["Model A"] --> t1["Thread 1"]
+    mb["Model B"] --> t2["Thread 2"]
+    mc["Model C"] --> t3["Thread 3"]
+```
 Compiler passes remain thread-safe by avoiding mutable shared state.
 
 ------------------------------------------------------------------------
 
-# 19.15 Pass Metrics
+<a id="contents-section-15"></a>
+## 17.15 Pass Metrics
 
 Each pass records execution statistics.
 
 Example:
-
-    Pass
-
-    Resolve Types
-
-    Time
-
-    12 ms
-
-    Diagnostics
-
-    0
-
-    Objects Allocated
-
-    2,300
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    pass["Pass: Resolve Types"]
+    pass --> m1["Time: 12 ms"]
+    pass --> m2["Diagnostics: 0"]
+    pass --> m3["Objects Allocated: 2,300"]
+```
 Metrics help identify performance bottlenecks.
 
 ------------------------------------------------------------------------
 
-# 19.16 Pipeline Visualization
+<a id="contents-section-16"></a>
+## 17.16 Pipeline Visualization
 
 The compiler can expose its execution graph.
-
-    Validate
-
-    ↓
-
-    Parse FEEL
-
-    ↓
-
-    Resolve Types
-
-    ↓
-
-    Optimize
-
-    ↓
-
-    Runtime Builder
-
-    ↓
-
-    Java Generator
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    val["Validate"] --> feel["Parse FEEL"]
+    feel --> types["Resolve Types"]
+    types --> opt["Optimize"]
+    opt --> rt["Runtime Builder"]
+    rt --> gen["Java Generator"]
+```
 Useful for:
-
 -   debugging
 -   documentation
 -   IDE integration
-
 ------------------------------------------------------------------------
-
-# 19.17 Extension Points
+<a id="contents-section-17"></a>
+## 17.17 Extension Points
 
 New compiler passes can be added without modifying existing code.
 
 Example:
-
-    Existing Pipeline
-
-    ↓
-
-    Insert New Pass
-
-    ↓
-
-    Continue Pipeline
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    ep["Existing Pipeline"] --> inp["Insert New Pass (Extension)"]
+    inp --> cp["Continue Pipeline"]
+```
 Typical extensions:
-
 -   custom optimization
 -   static analysis
 -   code quality checks
 -   company-specific validations
-
 ------------------------------------------------------------------------
-
-# 19.18 Failure Handling
+<a id="contents-section-18"></a>
+## 17.18 Failure Handling
 
 Compilation stops when a phase produces fatal diagnostics.
-
-    Resolve Types
-
-    ↓
-
-    ERROR
-
-    ↓
-
-    Compilation Stops
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    rt["Resolve Types"] --> err["Fatal Diagnostic (ERROR)"]
+    err --> stop["Compilation Stops"]
+```
 Warnings and informational diagnostics do not stop compilation.
 
 ------------------------------------------------------------------------
 
-# 19.19 Compiler Observability
+<a id="contents-section-19"></a>
+## 17.19 Compiler Observability
 
 The compiler emits structured events during execution.
 
 Example:
-
-    PassStarted
-
-    ↓
-
-    PassFinished
-
-    ↓
-
-    OptimizationApplied
-
-    ↓
-
-    CompilationFinished
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    ps["PassStarted"] --> pf["PassFinished"]
+    pf --> oa["OptimizationApplied"]
+    oa --> cf["CompilationFinished"]
+```
 These events can feed logging, profiling, or IDE integrations without
 coupling the compiler to a specific logging framework.
 
 ------------------------------------------------------------------------
 
-# 19.20 Reference Pipeline
+<a id="contents-section-20"></a>
+## 17.20 Reference Pipeline
 
 The default pipeline for Version 1.0 is:
-
-    XML Reader
-          ↓
-    Structural Validation
-          ↓
-    Semantic Model Construction
-          ↓
-    FEEL Parsing
-          ↓
-    Reference Resolution
-          ↓
-    Type Inference
-          ↓
-    Dependency Graph Construction
-          ↓
-    Decision Table Validation
-          ↓
-    Constant Folding
-          ↓
-    Expression Simplification
-          ↓
-    Dead Decision Elimination
-          ↓
-    Decision Inlining
-          ↓
-    Runtime IR Generation
-          ↓
-    Backend Generation
-
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    xml["XML Reader"] --> sv["Structural Validation"]
+    sv --> smc["Semantic Model Construction"]
+    smc --> fp["FEEL Parsing"]
+    fp --> rr["Reference Resolution"]
+    rr --> ti["Type Inference"]
+    ti --> dgc["Dependency Graph Construction"]
+    dgc --> dtv["Decision Table Validation"]
+    dtv --> cf["Constant Folding"]
+    cf --> es["Expression Simplification"]
+    es --> dde["Dead Decision Elimination"]
+    dde --> di["Decision Inlining"]
+    di --> rir["Runtime IR Generation"]
+    rir --> bg["Backend Generation"]
+```
 Future releases may add passes, but existing pass contracts should
 remain stable.
-
 ------------------------------------------------------------------------
 
-# 19.21 Internal Package Layout
+<a id="contents-section-21"></a>
+## 17.21 Internal Package Layout
 
 A recommended package organization is:
-
-``` text
+```text
 io.finmsg.dmn.compiler
-
     Compiler
-
     CompilerContext
-
     CompilerConfiguration
-
     PassManager
-
     CompilerPass
-
     CompilerPhase
-
     CompilerPipeline
-
     CompilerMetrics
-
     DiagnosticCollector
-
     pipeline/
-
     pass/
-
         validation/
-
         analysis/
-
         optimization/
-
         lowering/
-
         generation/
-
     context/
-
     metrics/
-
     diagnostics/
 ```
 
@@ -709,7 +486,8 @@ modular.
 
 ------------------------------------------------------------------------
 
-# 19.22 Summary
+<a id="contents-section-22"></a>
+## 17.22 Summary
 
 The internal compiler architecture provides:
 

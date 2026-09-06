@@ -3,14 +3,28 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [4.1 Purpose](#contents-section-1)
-- [Responsibility](#contents-section-2)
-- [Responsibility](#contents-section-8)
+- [6.1 Purpose](#contents-section-1)
+- [6.2 Component Overview](#contents-section-2)
+- [6.3 XML Frontend](#contents-section-3)
+- [6.4 Semantic Model](#contents-section-4)
+- [6.5 FEEL Parser](#contents-section-5)
+- [6.6 Model Validator](#contents-section-6)
+- [6.7 Semantic Analyzer](#contents-section-7)
+- [6.8 Dependency Graph Builder](#contents-section-8)
+- [6.9 Compiler Pass Framework](#contents-section-9)
+- [6.10 Runtime Builder](#contents-section-10)
+- [6.11 Runtime IR](#contents-section-11)
+- [6.12 Code Generators](#contents-section-12)
+- [6.13 Runtime Engine](#contents-section-13)
+- [6.14 Diagnostics Framework](#contents-section-14)
+- [6.15 Extension Framework](#contents-section-15)
+- [6.16 Component Interaction Rules](#contents-section-16)
+- [6.17 Component Dependency Matrix](#contents-section-17)
 <!-- generated-toc:end -->
 
 
 <a id="contents-section-1"></a>
-## 4.1 Purpose
+## 6.1 Purpose
 
 The DMN Compiler Toolkit is composed of a set of loosely coupled
 compiler components.
@@ -35,9 +49,11 @@ Current implementation status:
 
 ------------------------------------------------------------------------
 
-# 4.2 Component Overview
+<a id="contents-section-2"></a>
+## 6.2 Component Overview
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Reader["DMN XML Reader"] --> SemModel["Semantic Model"]
     SemModel --> FeelParser["FEEL Parser"]
@@ -56,14 +72,13 @@ flowchart TD
 
 ------------------------------------------------------------------------
 
-# 4.3 XML Frontend
+<a id="contents-section-3"></a>
+## 6.3 XML Frontend
 
-<a id="contents-section-2"></a>
-## Responsibility
+### Responsibility
 
 Read and write DMN XML documents.
 
-<a id="contents-section-3"></a>
 ### Responsibilities
 
 -   XML parsing
@@ -73,7 +88,6 @@ Read and write DMN XML documents.
 -   extension element preservation
 -   XML serialization
 
-<a id="contents-section-4"></a>
 ### Does NOT
 
 -   parse FEEL
@@ -81,33 +95,26 @@ Read and write DMN XML documents.
 -   validate types
 -   optimize expressions
 
-<a id="contents-section-5"></a>
 ### Input
 
-``` text
+```text
 DMN XML
 ```
-
-<a id="contents-section-6"></a>
 ### Output
-
-``` text
+```text
 Semantic Model
 ```
-
 ------------------------------------------------------------------------
 
-# 4.4 Semantic Model
+<a id="contents-section-4"></a>
+## 6.4 Semantic Model
 
 The Semantic Model is the canonical representation of a DMN document.
 
 It represents the specification, not the XML syntax.
 
-<a id="contents-section-7"></a>
 ### Responsibilities
-
 Represent
-
 -   Definitions
 -   Decisions
 -   BKMs
@@ -121,41 +128,36 @@ The Semantic Model is immutable after construction.
 
 ------------------------------------------------------------------------
 
-# 4.5 FEEL Parser
+<a id="contents-section-5"></a>
+## 6.5 FEEL Parser
 
-<a id="contents-section-8"></a>
-## Responsibility
+### Responsibility
 
 Convert FEEL source code into an Abstract Syntax Tree.
 
-<a id="contents-section-9"></a>
 ### Input
-
-``` text
+```text
 "a+b*c"
 ```
-
-<a id="contents-section-10"></a>
 ### Output
-
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Plus["Binary(+)"] --> A["Variable(a)"]
     Plus --> Mult["Binary(*)"]
     Mult --> B["Variable(b)"]
     Mult --> C["Variable(c)"]
 ```
-
 The parser performs syntax analysis only.
 
 ------------------------------------------------------------------------
 
-# 4.6 Model Validator
+<a id="contents-section-6"></a>
+## 6.6 Model Validator
 
 The validator checks structural correctness before semantic analysis.
 
 Examples
-
 -   duplicate IDs
 -   duplicate names
 -   missing references
@@ -166,13 +168,12 @@ Examples
 The validator does not resolve types.
 
 ------------------------------------------------------------------------
-
-# 4.7 Semantic Analyzer
+<a id="contents-section-7"></a>
+## 6.7 Semantic Analyzer
 
 The semantic analyzer enriches the model.
 
 Responsibilities
-
 -   reference resolution
 -   type inference
 -   type checking
@@ -183,34 +184,30 @@ Responsibilities
 -   decision table validation
 
 Output
-
-``` text
+```text
 Validated Semantic Model
 ```
-
 ------------------------------------------------------------------------
 
-# 4.8 Dependency Graph Builder
+<a id="contents-section-8"></a>
+## 6.8 Dependency Graph Builder
 
 Constructs the complete Decision Requirements Graph (DRG).
 
 Produces
-
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     decisionA["Decision A"] --> decisionC["Decision C"] --> decisionD["Decision D"]
 ```
-
 Used for
-
 -   execution ordering
 -   optimization
 -   dead code elimination
 -   incremental compilation
-
 ------------------------------------------------------------------------
-
-# 4.9 Compiler Pass Framework
+<a id="contents-section-9"></a>
+## 6.9 Compiler Pass Framework
 
 All optimizations will be implemented as compiler passes.
 
@@ -222,15 +219,15 @@ Every pass
 No pass mutates its input.
 
 Example
-
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     input["Input"] --> folding["Constant Folding"] --> output["Output"]
 ```
-
 ------------------------------------------------------------------------
 
-# 4.10 Runtime Builder
+<a id="contents-section-10"></a>
+## 6.10 Runtime Builder
 
 Transforms the semantic model into Runtime IR.
 
@@ -244,36 +241,31 @@ Responsibilities
 
 ------------------------------------------------------------------------
 
-# 4.11 Runtime IR
+<a id="contents-section-11"></a>
+## 6.11 Runtime IR
 
 The Runtime IR is the execution model.
 
 Characteristics
-
 -   immutable
 -   compact
 -   cache friendly
 -   serialization friendly
 -   XML free
 -   FEEL free
-
 Contains
-
-``` text
+```text
 RuntimeDecision
-
 RuntimeVariable
-
 RuntimeExpression
-
 RuntimeFunction
-
 ExecutionGraph
 ```
 
 ------------------------------------------------------------------------
 
-# 4.12 Code Generators
+<a id="contents-section-12"></a>
+## 6.12 Code Generators
 
 Every generator consumes Runtime IR.
 
@@ -294,7 +286,8 @@ Generators
 
 ------------------------------------------------------------------------
 
-# 4.13 Runtime
+<a id="contents-section-13"></a>
+## 6.13 Runtime Engine
 
 The runtime executes Runtime IR.
 
@@ -313,7 +306,8 @@ The runtime performs
 
 ------------------------------------------------------------------------
 
-# 4.14 Diagnostics Framework
+<a id="contents-section-14"></a>
+## 6.14 Diagnostics Framework
 
 Diagnostics are collected throughout the pipeline.
 
@@ -334,7 +328,8 @@ Every diagnostic includes
 
 ------------------------------------------------------------------------
 
-# 4.15 Extension Framework
+<a id="contents-section-15"></a>
+## 6.15 Extension Framework
 
 The architecture supports future extensions.
 
@@ -350,7 +345,8 @@ Extensions must never violate the Architecture Principles.
 
 ------------------------------------------------------------------------
 
-# 4.16 Component Interaction Rules
+<a id="contents-section-16"></a>
+## 6.16 Component Interaction Rules
 
 The following rules are mandatory:
 
@@ -365,7 +361,8 @@ The following rules are mandatory:
 
 ------------------------------------------------------------------------
 
-# 4.17 Component Dependency Matrix
+<a id="contents-section-17"></a>
+## 6.17 Component Dependency Matrix
 
 | Component         | Depends On          |
 | ----------------- | ------------------- |

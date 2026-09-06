@@ -18,6 +18,7 @@ The **DMN Compiler Toolkit** achieves **100.00% strict self-verified conformance
 ## 2. Supported Boxed Expressions
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 mindmap
   root((DMN 1.5 Boxed Expressions))
     Decision Tables
@@ -70,7 +71,6 @@ effectiveDate + duration("P30D") > settlementDate
 // Range checks
 creditScore in [650..850]
 age in (18..65]
-
 // Filter expressions
 transactions[amount > 10000.00 and currency = "USD"]
 all(items.isApproved)

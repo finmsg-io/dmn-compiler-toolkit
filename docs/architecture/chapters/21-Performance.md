@@ -1,29 +1,40 @@
-# Chapter 21 — Performance [FUTURE]
+# Chapter 21 — Performance [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [16.1 Purpose](#contents-section-1)
-- [PERF-001 --- Compile Once, Execute Many Times](#contents-section-2)
-- [Object-heavy design](#contents-section-3)
-- [Runtime IR design](#contents-section-4)
-- [Method Inlining](#contents-section-5)
-- [Branch Prediction](#contents-section-6)
-- [Escape Analysis](#contents-section-7)
-- [JIT Compilation](#contents-section-8)
-- [Incremental compilation](#contents-section-9)
-- [Compiler caching](#contents-section-10)
-- [Parallel compilation](#contents-section-11)
-- [Compilation Metrics](#contents-section-12)
-- [Runtime Metrics](#contents-section-13)
-- [Micro Benchmarks](#contents-section-14)
-- [Macro Benchmarks](#contents-section-15)
-- [Comparison Benchmarks](#contents-section-16)
+- [21.1 Purpose](#contents-section-1)
+- [21.2 Performance Philosophy](#contents-section-2)
+- [21.3 Performance Goals](#contents-section-3)
+- [21.4 Performance Principles](#contents-section-4)
+- [21.5 No Runtime XML Processing](#contents-section-5)
+- [21.6 No Runtime FEEL Parsing](#contents-section-6)
+- [21.7 Memory Efficiency](#contents-section-7)
+- [21.8 Integer-Based References](#contents-section-8)
+- [21.9 Immutable Runtime IR](#contents-section-9)
+- [21.10 Zero Reflection](#contents-section-10)
+- [21.11 Generated Code Optimization](#contents-section-11)
+- [21.12 JVM Optimization Strategy](#contents-section-12)
+- [21.13 Runtime IR Memory Layout](#contents-section-13)
+- [21.14 Decision Graph Optimization](#contents-section-14)
+- [21.15 Constant Folding](#contents-section-15)
+- [21.16 Decision Inlining](#contents-section-16)
+- [21.17 Common Subexpression Elimination](#contents-section-17)
+- [21.18 Batch Execution](#contents-section-18)
+- [21.19 Parallel Execution](#contents-section-19)
+- [21.20 Compilation Performance](#contents-section-20)
+- [21.21 Performance Metrics](#contents-section-21)
+- [21.22 Benchmark Strategy](#contents-section-22)
+- [21.23 Performance Testing Rules](#contents-section-23)
+- [21.24 Expected Performance Levels](#contents-section-24)
+- [21.25 Performance Summary](#contents-section-25)
 <!-- generated-toc:end -->
 
+!!! note "Performance Verification Baseline"
+    The performance architectural principles (zero reflection, integer slot dispatch, constant folding, and XML-free execution) are implemented across `dmn-runtime` and `dmn-generator-java`. Latency and memory allocation are continuously tracked and asserted using the JMH microbenchmark suite in `dmn-benchmarks` (`mvn -Pbenchmarks test`).
 
 <a id="contents-section-1"></a>
-## 16.1 Purpose
+## 21.1 Purpose
 
 Performance is a primary architectural objective of the DMN Compiler
 Toolkit.
@@ -50,13 +61,15 @@ The runtime executes only optimized Runtime IR or generated code.
 
 ------------------------------------------------------------------------
 
-# 16.2 Performance Philosophy
+<a id="contents-section-2"></a>
+## 21.2 Performance Philosophy
 
 The architecture follows a compiler-oriented performance model.
 
 Traditional interpreter:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph TraditionalRuntime["Traditional Interpreted Runtime"]
         XML["DMN XML"] --> ParseXML["Parse XML"]
@@ -65,14 +78,12 @@ flowchart TD
         ResolveTypes --> Eval["Evaluate Decision"]
     end
 ```
-
 Every execution repeats work.
 
 ------------------------------------------------------------------------
-
 Compiler approach:
-
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph BuildTime["Build Time"]
         XML["DMN XML"] --> Sem["Semantic Analysis"]
@@ -85,823 +96,472 @@ flowchart TD
     end
     Gen -.-> Exec
 ```
-
 ------------------------------------------------------------------------
-
-# 16.3 Performance Goals
+<a id="contents-section-3"></a>
+## 21.3 Performance Goals
 
 Target characteristics:
-
-  Area               Goal
-  ------------------ --------------------------------------
-  Runtime latency    microsecond to low millisecond range
-  Memory footprint   minimal allocations
-  Throughput         millions of evaluations/sec possible
-  Startup time       immediate execution
-  Predictability     deterministic performance
-  Scalability        horizontal and batch execution
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    subgraph PerformanceGoals["Core Performance Objectives"]
+        lat["Sub-Microsecond Latency<br/>Zero runtime reflection & pre-parsed FEEL"]
+        alloc["Zero-Allocation Hot Paths<br/>Flat primitive arrays & index lookups"]
+        tput["High Throughput<br/>Millions of evaluations / sec"]
+        start["Instant Cold Start<br/>Zero schema or XML parsing overhead"]
+        det["Deterministic Execution<br/>Immutable Runtime IR & thread safety"]
+    end
+```
+| Area | Goal |
+| :--- | :--- |
+| **Runtime latency** | Microsecond to low millisecond range |
+| **Memory footprint** | Minimal allocations (zero-allocation hot paths) |
+| **Throughput** | Millions of evaluations/sec possible |
+| **Startup time** | Immediate execution |
+| **Predictability** | Deterministic performance |
+| **Scalability** | Horizontal scaling and batch execution |
 
 ------------------------------------------------------------------------
+<a id="contents-section-4"></a>
+## 21.4 Performance Principles
 
-# 16.4 Performance Principles
+### PERF-001 --- Compile Once, Execute Many Times
 
-<a id="contents-section-2"></a>
-## PERF-001 --- Compile Once, Execute Many Times
-
-The most important optimization.
-
-Example:
+The most fundamental optimization.
 
 One compilation:
-
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     DMN["traffic.dmn"] --> IR["Runtime IR"]
 ```
-
 Millions of executions:
-
-``` text
+```text
 request 1
 request 2
 request 3
 ...
 request N
 ```
-
 No repeated parsing.
-
 ------------------------------------------------------------------------
-
-# 16.5 No Runtime XML Processing
+<a id="contents-section-5"></a>
+## 21.5 No Runtime XML Processing
 
 Forbidden:
-
-``` java
-Decision execute(){
-
+```java
+Decision execute() {
     parseXml();
-
 }
 ```
-
-------------------------------------------------------------------------
-
 Correct:
-
-``` java
-Decision execute(){
-
+```java
+Decision execute() {
     executeRuntimeIR();
-
 }
 ```
-
-------------------------------------------------------------------------
-
 Benefits:
 
 -   no XML allocations
 -   no parsing overhead
--   no schema handling
+-   no schema validation during evaluation
 
 ------------------------------------------------------------------------
-
-# 16.6 No Runtime FEEL Parsing
+<a id="contents-section-6"></a>
+## 21.6 No Runtime FEEL Parsing
 
 Traditional:
-
 ```mermaid
-flowchart TD
-    expression["speed &gt; 100"] --> parser["Parser"] --> evaluation["Evaluation"]
+%%{init: {'theme':'neutral'}}%%
+flowchart LR
+    expression["speed > 100"] --> parser["Parser"] --> evaluation["Evaluation"]
 ```
-
-Every execution.
+Every execution re-parses expressions.
 
 ------------------------------------------------------------------------
-
 Compiler:
-
 ```mermaid
-flowchart TD
-    expression["speed &gt; 100"] --> ast["FEEL AST"] --> ir["Runtime IR"] --> bytecode["Java bytecode"]
+%%{init: {'theme':'neutral'}}%%
+flowchart LR
+    expression["speed > 100"] --> ast["FEEL AST"] --> ir["Runtime IR"] --> bytecode["Java Bytecode"]
 ```
-
-Once.
-
-------------------------------------------------------------------------
-
-# 16.7 Memory Efficiency
-
-The runtime avoids unnecessary objects.
+Parsed once at compile time.
 
 ------------------------------------------------------------------------
+<a id="contents-section-7"></a>
+## 21.7 Memory Efficiency
 
-<a id="contents-section-3"></a>
-## Object-heavy design
+The runtime avoids heap object churn.
 
-Example:
-
-``` java
-Expression {
-
+### Object-heavy design
+```java
+public class Expression {
     Operator operator;
-
     List<Expression> children;
-
     Metadata metadata;
-
 }
 ```
-
-Many allocations.
+Many allocations per node.
 
 ------------------------------------------------------------------------
 
-<a id="contents-section-4"></a>
-## Runtime IR design
-
-Example:
-
-``` text
+### Runtime IR design
+```text
 ExpressionOpcode
-
 operand1
-
 operand2
 ```
-
-Compact.
-
-------------------------------------------------------------------------
-
-Example:
-
-``` text
+Compact representation:
+```text
 COMPARE_GT
-
-variableId=5
-
-constantId=12
+variableId = 5
+constantId = 12
 ```
-
 ------------------------------------------------------------------------
+<a id="contents-section-8"></a>
+## 21.8 Integer-Based References
 
-# 16.8 Integer-Based References
-
-Runtime IR avoids string lookups.
+Runtime IR avoids string map lookups.
 
 Slow:
-
-``` java
+```java
 variables.get("customer.age");
 ```
-
-------------------------------------------------------------------------
-
 Fast:
-
-``` java
+```java
 variables[12];
 ```
-
-------------------------------------------------------------------------
-
 Runtime representation:
-
-``` text
+```text
 Variable Table
-
 0 -> customerId
-
 1 -> age
-
 2 -> country
 ```
-
-------------------------------------------------------------------------
-
 Expression:
-
-``` text
+```text
 LOAD_VARIABLE 1
 ```
-
-------------------------------------------------------------------------
-
 Benefits:
-
 -   cache friendly
--   faster lookup
--   smaller memory
+-   faster array-index lookup
+-   smaller memory footprint
 
 ------------------------------------------------------------------------
+<a id="contents-section-9"></a>
+## 21.9 Immutable Runtime IR
 
-# 16.9 Immutable Runtime IR
-
-Runtime IR is immutable.
+Runtime IR is completely immutable.
 
 Benefits:
-
 -   thread safe
 -   reusable
 -   cacheable
--   sharable
-
-Example:
-
+-   shareable
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
-    Model["Immutable RuntimeModel"] --> T1["Thread 1"]
-    Model --> T2["Thread 2"]
+    Model["Immutable RuntimeModel"] --> T1["Worker Thread 1"]
+    Model --> T2["Worker Thread 2"]
 ```
-
-No synchronization.
-
+Zero synchronization overhead.
 ------------------------------------------------------------------------
+<a id="contents-section-10"></a>
+## 21.10 Zero Reflection
 
-# 16.10 Zero Reflection
-
-Reflection introduces:
-
--   slower execution
--   poor JIT optimization
--   additional metadata
+Reflection introduces performance degradation, prevents JIT inlining, and creates extra metadata:
 
 Forbidden:
-
-``` java
-method.invoke()
+```java
+method.invoke(target, args);
 ```
-
-------------------------------------------------------------------------
-
-Preferred:
-
-Generated:
-
-``` java
-decision.evaluate()
+Preferred (Generated direct calls):
+```java
+decision.evaluate(input);
 ```
-
-------------------------------------------------------------------------
-
 Benefits:
-
 -   JVM inlining
 -   escape analysis
--   predictable execution
+-   predictable branch execution
 
 ------------------------------------------------------------------------
+<a id="contents-section-11"></a>
+## 21.11 Generated Code Optimization
 
-# 16.11 Generated Code Optimization
-
-Generated Java should look like manually optimized code.
-
-Example:
+Generated Java looks like manually tuned, idiomatic Java code.
 
 Generated:
-
-``` java
-if(input.speed() > 100){
-
+```java
+if (input.speed() > 100) {
     return HIGH;
-
 }
-
 return LOW;
 ```
-
-------------------------------------------------------------------------
-
 Not:
-
-``` java
-Expression.evaluate(
-    tree,
-    context
-);
+```java
+Expression.evaluate(tree, context);
 ```
+The JVM HotSpot JIT compiler can aggressively optimize direct code.
 
 ------------------------------------------------------------------------
+<a id="contents-section-12"></a>
+## 21.12 JVM Optimization Strategy
 
-The JVM can optimize the first form.
+The Java backend leverages key JVM optimization mechanisms:
+
+-   **Method Inlining**: Small decision methods (`calculatePenalty()`) are inlined into callers.
+-   **Branch Prediction**: Direct `if (condition)` branches allow hardware branch prediction.
+-   **Escape Analysis**: Scalar replacement eliminates temporary heap allocations.
+-   **JIT Compilation**: Warm code paths compile directly into optimized native machine instructions.
 
 ------------------------------------------------------------------------
+<a id="contents-section-13"></a>
+## 21.13 Runtime IR Memory Layout
 
-# 16.12 JVM Optimization Strategy
-
-The Java backend benefits from:
-
-<a id="contents-section-5"></a>
-## Method Inlining
-
-Small decision methods:
-
-``` java
-calculatePenalty()
+The Runtime IR layout prioritizes contiguous array storage over pointer-rich node graphs:
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    subgraph RuntimeModel["RuntimeModel Memory Layout<br/>(Flat Array Storage)"]
+        d["Decisions: RuntimeDecision Array"]
+        e["Expressions: RuntimeExpression Array"]
+        c["Constants: ConstantPool (Typed Arrays)"]
+        f["Functions: ExecutableBkm Array"]
+    end
 ```
-
-can be inlined.
-
-------------------------------------------------------------------------
-
-<a id="contents-section-6"></a>
-## Branch Prediction
-
-Simple branches:
-
-``` java
-if(condition)
+Contiguous primitive arrays are preferred over linked heap structures:
+```java
+RuntimeExpression[] expressions;
 ```
-
-allow CPU optimization.
-
-------------------------------------------------------------------------
-
-<a id="contents-section-7"></a>
-## Escape Analysis
-
-Avoid unnecessary temporary objects.
-
-------------------------------------------------------------------------
-
-<a id="contents-section-8"></a>
-## JIT Compilation
-
-Generated code becomes optimized machine code.
-
-------------------------------------------------------------------------
-
-# 16.13 Runtime IR Memory Layout
-
-Recommended design:
-
-    RuntimeModel
-
-    +----------------+
-    | Decisions      |
-    +----------------+
-
-    +----------------+
-    | Expressions    |
-    +----------------+
-
-    +----------------+
-    | Constants      |
-    +----------------+
-
-    +----------------+
-    | Functions      |
-    +----------------+
-
-------------------------------------------------------------------------
-
-Arrays are preferred over linked structures.
-
-Example:
-
-``` java
-RuntimeExpression[]
-```
-
 instead of:
-
-``` java
-List<Node>
+```java
+List<Node> expressionTree;
 ```
-
-------------------------------------------------------------------------
-
 Benefits:
 
--   better locality
--   fewer allocations
--   faster iteration
+-   optimal CPU L1/L2 cache locality
+-   zero pointer chasing
+-   minimal GC overhead and memory fragmentation
 
 ------------------------------------------------------------------------
+<a id="contents-section-14"></a>
+## 21.14 Decision Graph Optimization
 
-# 16.14 Decision Graph Optimization
+DMN decision requirements form an execution graph:
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    inp["InputData"] --> A["Decision A"]
+    A --> B["Decision B"]
+    B --> C["Decision C"]
+```
+### Dead Decision Elimination
 
-DMN decisions form a dependency graph.
-
-Example:
-
-    InputData
-
-       |
-
-       v
-
-    Decision A
-
-       |
-
-       v
-
-    Decision B
-
-       |
-
-       v
-
-    Decision C
-
+Unused decision nodes and unreachable logic branches are pruned at compile time:
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart LR
+    subgraph Before["Before Optimization (Unused Node Present)"]
+        a1["Decision A"] --> b1["Decision B"] --> c1["Decision C"] --> d1["Decision D (Dead / Unused)"]
+    end
+    subgraph After["After Dead Decision Elimination"]
+        a2["Decision A"] --> b2["Decision B"] --> c2["Decision C (Root Output)"]
+    end
+```
 ------------------------------------------------------------------------
+<a id="contents-section-15"></a>
+## 21.15 Constant Folding
 
-Optimization:
-
-Remove unused nodes.
-
-Example:
-
-Before:
-
-    A
-    |
-    B
-    |
-    C
-    |
-    D (unused)
-
-After:
-
-    A
-    |
-    B
-    |
-    C
-
-------------------------------------------------------------------------
-
-# 16.15 Constant Folding
+Expressions with compile-time known constants are evaluated ahead of time:
 
 Compile time:
 
-FEEL:
-
-    10 + 20
-
-Compiler:
-
-    30
+-   FEEL expression: `10 + 20`
+-   Compiler fold: `30`
 
 Runtime:
-
-``` java
+```java
 return 30;
 ```
+Zero evaluation overhead during runtime execution.
 
 ------------------------------------------------------------------------
+<a id="contents-section-16"></a>
+## 21.16 Decision Inlining
 
-No calculation during execution.
-
-------------------------------------------------------------------------
-
-# 16.16 Decision Inlining
-
-Before:
-
-    Decision A
-
-          |
-
-    Decision B
-
-Runtime:
-
-    call A()
-    call B()
-
-------------------------------------------------------------------------
-
-After:
-
-    single optimized expression
-
-------------------------------------------------------------------------
-
+Small intermediate decisions are collapsed directly into downstream expressions:
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart LR
+    subgraph Before["Separate Decision Invocations"]
+        da["Decision A: calculateBase()"] --> db["Decision B: applyMultiplier(base)"]
+    end
+    subgraph After["Inlined Direct Expression"]
+        inlined["Single Inlined Expression<br/>(baseRate * multiplier) + fee"]
+    end
+```
 Benefits:
 
--   fewer calls
--   better JIT optimization
+-   eliminates method invocation frame overhead
+-   exposes broader cross-expression optimization opportunities to the JIT compiler
 
 ------------------------------------------------------------------------
+<a id="contents-section-17"></a>
+## 21.17 Common Subexpression Elimination
 
-# 16.17 Common Subexpression Elimination
-
-Example:
+Redundant identical subexpressions within a decision scope are computed once:
 
 Before:
-
-    customer.age > 18
-
-    customer.age > 18
-
-------------------------------------------------------------------------
-
-After:
-
-    ageCheck = customer.age > 18
-
-Reuse result.
-
-------------------------------------------------------------------------
-
-# 16.18 Batch Execution
-
-For high-volume environments:
-
-Example:
-
-    100000 decisions
-
-should not require:
-
-    100000 object graphs
-
-------------------------------------------------------------------------
-
-Possible future model:
-
-    Input Column Arrays
-
-           |
-
-           v
-
-    Vectorized Runtime
-
-           |
-
-           v
-
-    Output Column Arrays
-
-------------------------------------------------------------------------
-
-Important for:
-
--   Spark
--   Databricks
--   analytics workloads
-
-------------------------------------------------------------------------
-
-# 16.19 Parallel Execution
-
-Decision graphs can expose parallelism.
-
-Example:
-
-            A
-
-           / \
-
-          B   C
-
-           \ /
-
-            D
-
-------------------------------------------------------------------------
-
-B and C can execute independently.
-
-------------------------------------------------------------------------
-
-Future runtime:
-
-``` text
-Virtual Threads
-
-or
-
-ForkJoin execution
+```text
+customer.age > 18
+...
+customer.age > 18
 ```
+After:
+```text
+isAdult = customer.age > 18
+// Reuse isAdult across all downstream rules
+```
+------------------------------------------------------------------------
+<a id="contents-section-18"></a>
+## 21.18 Batch Execution
+
+High-throughput dataset processing avoids per-row object instantiation by evaluating contiguous columnar vectors:
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    subgraph BatchInput["Contiguous Input Arrays (SoA)"]
+        inCols["Input Column Arrays<br/>speeds: int array, ages: int array"]
+    end
+    subgraph VectorEngine["Vectorized Decision Kernel"]
+        vExec["SIMD / Unboxed Stride-1 Evaluation"]
+    end
+    subgraph BatchOutput["Contiguous Output Arrays"]
+        outCols["Output Column Arrays<br/>penalties: byte array"]
+    end
+    BatchInput --> VectorEngine --> BatchOutput
+```
+Essential for distributed processing engines (Spark SQL, Databricks, Flink).
 
 ------------------------------------------------------------------------
+<a id="contents-section-19"></a>
+## 21.19 Parallel Execution
 
-# 16.20 Compilation Performance
-
-Compilation itself must also scale.
-
-Targets:
-
--   large DMN repositories
--   CI/CD builds
--   automated deployment
-
-------------------------------------------------------------------------
-
-Optimization techniques:
-
-<a id="contents-section-9"></a>
-## Incremental compilation
-
-Only changed models compile.
+Independent decision branches within a DAG can execute concurrently across threads:
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    A["Decision A (Root Input)"]
+    A --> B["Decision B (Branch 1)"]
+    A --> C["Decision C (Branch 2)"]
+    B --> D["Decision D (Join / Aggregation)"]
+    C --> D
+```
+Branch `B` and Branch `C` execute concurrently via Java Virtual Threads (Project Loom) or `ForkJoinPool`.
 
 ------------------------------------------------------------------------
+<a id="contents-section-20"></a>
+## 21.20 Compilation Performance
 
-<a id="contents-section-10"></a>
-## Compiler caching
+The compilation pipeline scales horizontally across large enterprise DMN repositories:
 
-Example:
+### Compiler Caching
 
-    DMN Hash
+Models are hashed using SHA-256 to enable instant build caching:
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    dmn["DMN Model Source"] --> hash["Compute SHA-256 Hash"]
+    hash --> cacheCheck{"Cache Lookup"}
+    cacheCheck -- Cache Hit --> reuse["Reuse Cached Runtime IR"]
+    cacheCheck -- Cache Miss --> compile["Compile & Store in Cache"]
+```
+### Parallel Compilation
 
-        |
+Independent DMN files compile simultaneously across available CPU cores:
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    subgraph ParallelCompilation["Parallel Multi-Model Compilation"]
+        m1["Model A"] --> t1["Worker Thread 1"] --> ir1["Runtime IR A"]
+        m2["Model B"] --> t2["Worker Thread 2"] --> ir2["Runtime IR B"]
+        m3["Model C"] --> t3["Worker Thread 3"] --> ir3["Runtime IR C"]
+    end
+```
+------------------------------------------------------------------------
+<a id="contents-section-21"></a>
+## 21.21 Performance Metrics
 
-        v
+The compiler and runtime expose fine-grained telemetry:
 
-    Runtime IR Cache
+### Compilation Metrics
+
+| Stage | Duration |
+| :--- | :--- |
+| **XML Parsing & Validation** | 42 ms |
+| **FEEL AST Construction** | 15 ms |
+| **Semantic Analysis & Type Inference** | 12 ms |
+| **IR Optimization Passes** | 8 ms |
+| **Code Generation** | 20 ms |
+
+### Runtime Metrics
+
+| Metric | Target Profile |
+| :--- | :--- |
+| **Decision Model** | `TrafficViolation` |
+| **Throughput** | 1,000,000 evaluations / sec |
+| **Mean Latency** | 4 µs |
+| **P99 Latency** | 12 µs |
+| **Hot Path Allocations** | 0 bytes |
 
 ------------------------------------------------------------------------
+<a id="contents-section-22"></a>
+## 21.22 Benchmark Strategy
 
-<a id="contents-section-11"></a>
-## Parallel compilation
+Rigorous benchmarking encompasses three distinct scopes:
 
-Example:
-
-    Model A ---- Thread 1
-
-    Model B ---- Thread 2
-
-    Model C ---- Thread 3
+-   **Micro Benchmarks (JMH)**: Measure individual opcode dispatch, function calls, and variable index lookups.
+-   **Macro Benchmarks**: End-to-end evaluation over complex enterprise rule sets (e.g. SWIFT MT564 message validation).
+-   **Comparison Benchmarks**: Cross-target performance tracking (Reference Interpreter vs. Runtime IR vs. Generated Java vs. Native).
 
 ------------------------------------------------------------------------
+<a id="contents-section-23"></a>
+## 21.23 Performance Testing Rules
 
-# 16.21 Performance Metrics
+Every optimization must satisfy three non-negotiable criteria:
 
-The compiler exposes:
-
-<a id="contents-section-12"></a>
-## Compilation Metrics
-
-Example:
-
-    XML parsing:
-
-    42 ms
-
-    FEEL parsing:
-
-    15 ms
-
-    Optimization:
-
-    8 ms
-
-    Code generation:
-
-    20 ms
+1. **Exact Semantic Parity**: 100% test pass rate across TCK test suites.
+2. **Statistically Significant Improvement**: Verified via JMH benchmark runs.
+3. **Bounded Architectural Complexity**: No unmaintainable heuristics or fragile global state.
 
 ------------------------------------------------------------------------
+<a id="contents-section-24"></a>
+## 21.24 Expected Performance Levels
 
-<a id="contents-section-13"></a>
-## Runtime Metrics
-
-Example:
-
-    Decision:
-
-    TrafficViolation
-
-    Executions:
-
-    1,000,000
-
-    Average:
-
-    4 µs
-
-    Allocations:
-
-    0 bytes
-
+Target latency hierarchy across execution targets:
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    p1["1. XML DOM Interpreter (Slowest: ~1-10 ms)"]
+    p2["2. FEEL AST Interpreter (~100-500 µs)"]
+    p3["3. Optimized Runtime IR Interpreter (~10-50 µs)"]
+    p4["4. Generated Java Code (~1-5 µs)"]
+    p5["5. Generated Native / LLVM Machine Code (Fastest: < 1 µs)"]
+    p1 --> p2 --> p3 --> p4 --> p5
+```
 ------------------------------------------------------------------------
+<a id="contents-section-25"></a>
+## 21.25 Performance Summary
 
-# 16.22 Benchmark Strategy
-
-Benchmark categories:
-
-------------------------------------------------------------------------
-
-<a id="contents-section-14"></a>
-## Micro Benchmarks
-
-Examples:
-
--   expression evaluation
--   function calls
--   variable access
-
-Technology:
-
-    JMH
-
-------------------------------------------------------------------------
-
-<a id="contents-section-15"></a>
-## Macro Benchmarks
-
-Examples:
-
--   complete DMN models
--   thousands of decisions
--   realistic workloads
-
-------------------------------------------------------------------------
-
-<a id="contents-section-16"></a>
-## Comparison Benchmarks
-
-Compare:
-
-    Interpreter
-
-    vs
-
-    Runtime IR
-
-    vs
-
-    Generated Java
-
-------------------------------------------------------------------------
-
-# 16.23 Performance Testing Rules
-
-Every optimization must prove:
-
-1.  same semantics
-2.  measurable improvement
-3.  no unacceptable complexity
-
-------------------------------------------------------------------------
-
-Benchmark before:
-
-    optimization
-
-Benchmark after:
-
-    optimization
-
-------------------------------------------------------------------------
-
-# 16.24 Expected Performance Levels
-
-Approximate target hierarchy:
-
-    Slowest
-
-    XML Interpreter
-
-            |
-
-    FEEL Interpreter
-
-            |
-
-    Runtime IR Interpreter
-
-            |
-
-    Generated Java
-
-            |
-
-    Generated Native Code
-
-    Fastest
-
-------------------------------------------------------------------------
-
-# 16.25 Performance Summary
-
-The architecture achieves performance through:
-
--   compile-time analysis
--   immutable Runtime IR
--   integer references
--   zero reflection
--   generated code
--   optimized execution graphs
--   cache-friendly structures
--   deterministic compilation
-
-The core principle:
-
-    Complexity during compilation
-
-                +
-
-    Simplicity during execution
-
-                =
-
-    High-performance DMN execution
+The toolkit achieves predictable, ultra-low latency execution by shifting complexity:
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    comp["Compile-Time Complexity<br/>(Parsing, Typing, Optimization, Inlining)"]
+    exec["Execution-Time Simplicity<br/>(Flat Arrays, Integer Slots, Zero Reflection)"]
+    res["Ultra-High Throughput & Sub-Microsecond Latency"]
+    comp --> res
+    exec --> res
+```
 
 ------------------------------------------------------------------------
