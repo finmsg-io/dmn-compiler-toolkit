@@ -30,8 +30,7 @@ For complete multi-threaded concurrency results across 1, 2, 4, and 8 threads, s
 3. **Scalar Arithmetic**: High-frequency scalar FEEL expression benchmark.
 4. **Originations**: Multi-stage eligibility, affordability, risk-band, and routing benchmark with deterministic DataFaker workloads.
 5. **Ranked Loan Products**: Multi-stage customer segmentation, capacity, term, and product recommendation benchmark.
-6. **SWIFT MT564 Data Quality**: Valid, single-violation, multi-violation, and representative large normalized-message scenarios.
-7. **Compiler Phases**: Isolated XML parsing, semantic analysis, Runtime IR lowering, Runtime IR optimization, and full-pipeline compilation.
+6. **Compiler Phases**: Isolated XML parsing, semantic analysis, Runtime IR lowering, Runtime IR optimization, and full-pipeline compilation.
 
 ## DataFaker Integration
 
@@ -87,10 +86,3 @@ For retained allocation and scalability evidence, run:
 The equivalent Linux command is `./dmn-benchmarks/scripts/run-scalability.sh`. Both use three forks,
 the JMH GC profiler, 1/2/4/8 threads, and write raw JSON plus environment metadata under
 `dmn-benchmarks/results/`.
-
-Run the publication-oriented MT564 matrix with `run-mt564-reference.ps1` or
-`run-mt564-reference.sh`. These scripts retain scenario/path JSON and metadata, validate the complete
-matrix, and generate deterministic Markdown and CSV summaries. The `largeStructure` fixture includes
-128 synthetic option entries, but the current three scalar MT564 rules do not traverse that collection;
-its evidence therefore covers normalized input mapping and output adaptation rather than collection
-validation scaling.
