@@ -19,7 +19,7 @@
 Status: done  
 Owner: compiler and runtime team  
 Requirements: [AR-002](../../architecture/architecture-spec.md#most-important-requirements), [AR-003](../../architecture/architecture-spec.md#most-important-requirements), [AR-007](../../architecture/architecture-spec.md#most-important-requirements), [AR-012](../../architecture/architecture-spec.md#most-important-requirements)  
-Track: DMN conformance accelerator, implementing the first executable portion of TCK.2 and TCK.3 from [IDEA-001](../../ideation/IDEA-001-dmn-conformance-accelerator.md)
+Track: DMN conformance accelerator, implementing the first executable portion of TCK.2 and TCK.3 from IDEA-001 (DMN Conformance Accelerator)
 
 ## Outcome
 

@@ -8,6 +8,10 @@ edit_uri: edit/main/docs/
 
 copyright: Copyright © finmsg.io
 
+exclude_docs: |
+  ideation/*
+  ideation/**/*
+
 theme:
   name: material
   features:
