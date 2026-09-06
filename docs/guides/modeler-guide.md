@@ -70,7 +70,6 @@ effectiveDate + duration("P30D") > settlementDate
 // Range checks
 creditScore in [650..850]
 age in (18..65]
-
 // Filter expressions
 transactions[amount > 10000.00 and currency = "USD"]
 all(items.isApproved)
@@ -100,6 +99,6 @@ You can view the full interactive TCK Conformance Dashboard locally:
 
 1. Generate the dashboard:
    ```bash
-   python tools/generate_tck_dashboard.py
-   ```
+python tools/generate_tck_dashboard.py
+```
 2. Open `docs/tck-dashboard.html` in any web browser to search and filter across all 3,391 test cases, inspect decision table outputs, and review diagnostics.

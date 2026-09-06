@@ -197,28 +197,23 @@ apiVersion: finmsg.io/decision-flow/v1alpha1
 kind: StatelessDecisionFlow
 metadata:
   name: transaction-screening
-
 input: TransactionScreeningRequest
-
 steps:
   - id: normalize
     call: NormalizationService
     with:
       transaction: $input.transaction
-
   - id: sanctions
     call: SanctionsDecisionService
     with:
       customer: $input.customer
       transaction: $normalize.transaction
-
   - id: fraud
     when: $sanctions.action != "block"
     call: FraudDecisionService
     with:
       customer: $input.customer
       transaction: $normalize.transaction
-
 output:
   action: >-
     if $sanctions.action = "block" then "block"
@@ -316,7 +311,6 @@ Offer several views over the same model:
 ```text
 Dependency view
   Exact DRG dependencies
-
 Pipeline view
   Decisions grouped into author-declared or inferred stages
 

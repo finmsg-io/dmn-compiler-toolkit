@@ -95,7 +95,6 @@ A normal specification should fit in an issue, task description, or short `spec.
 
 ```markdown
 # <Outcome-oriented title>
-
 ## Outcome
 Who benefits, what becomes possible, and why does it matter?
 

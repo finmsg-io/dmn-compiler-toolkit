@@ -80,8 +80,8 @@ unsupported capabilities cannot disappear from the report or produce a false 100
 - Assert inventory and terminal-status conservation:
 
   ```text
-  discovered entries = passed + failed + unsupported + invalid + skipped
-  ```
+discovered entries = passed + failed + unsupported + invalid + skipped
+```
 
 - Run the complete pinned CL2/CL3 catalogue and independently compare discovered file/case counts.
 - Run discovery on Windows and Linux and compare the machine-readable inventories.

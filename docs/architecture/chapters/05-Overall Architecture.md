@@ -3,17 +3,17 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [3.1 Pipeline](#contents-section-1)
-- [3.2 Implemented transformations](#contents-section-2)
-- [3.3 Representation strategy](#contents-section-3)
-- [3.4 Dependency direction](#contents-section-4)
-- [3.5 Implemented semantic analysis & runtime execution](#contents-section-5)
-- [3.6 Runtime boundary](#contents-section-6)
+- [5.1 Pipeline](#contents-section-1)
+- [5.2 Implemented Transformations](#contents-section-2)
+- [5.3 Representation Strategy](#contents-section-3)
+- [5.4 Dependency Direction](#contents-section-4)
+- [5.5 Implemented Semantic Analysis and Runtime Execution](#contents-section-5)
+- [5.6 Runtime Boundary](#contents-section-6)
 <!-- generated-toc:end -->
 
 
 <a id="contents-section-1"></a>
-## 3.1 Pipeline
+## 5.1 Pipeline
 
 ```mermaid
 flowchart TD
@@ -32,7 +32,7 @@ flowchart TD
 Each stage has a stable protobuf or IR input/output boundary and treats its input as immutable.
 
 <a id="contents-section-2"></a>
-## 3.2 Implemented transformations
+## 5.2 Implemented Transformations
 
 | Stage | Input | Output | Status |
 | --- | --- | --- | --- |
@@ -45,7 +45,7 @@ Each stage has a stable protobuf or IR input/output boundary and treats its inpu
 | TCK test runner | TCK XML models | execution assertions | Implemented (`dmn-tck-runner`, 100% CL2 & CL3 pass) |
 
 <a id="contents-section-3"></a>
-## 3.3 Representation strategy
+## 5.3 Representation Strategy
 
 The semantic and parsed compiler models share the same protobuf schema. Replaceable nodes use a `oneof`:
 
@@ -57,7 +57,7 @@ flowchart LR
 The XML frontend selects the text branch. `DmnFeelParser` creates a copied model and selects the parsed branch only for successfully parsed nodes. The original semantic model remains unchanged.
 
 <a id="contents-section-4"></a>
-## 3.4 Dependency direction
+## 5.4 Dependency Direction
 
 ```mermaid
 flowchart TD
@@ -75,7 +75,7 @@ flowchart TD
 The parser and XML frontend are test-scoped dependencies of semantic-analysis and runtime integration tests; they are not production dependencies of the runtime or generated Java code.
 
 <a id="contents-section-5"></a>
-## 3.5 Implemented semantic analysis & runtime execution
+## 5.5 Implemented Semantic Analysis and Runtime Execution
 
 Implemented:
 
@@ -97,6 +97,6 @@ Implemented:
 - strict OMG DMN TCK CL2/CL3 accounting and conformance-recovery suite (`dmn-tck-runner`)
 
 <a id="contents-section-6"></a>
-## 3.6 Runtime boundary
+## 5.6 Runtime Boundary
 
 Runtime IR, `dmn-runtime`, and `dmn-generator-java` must remain strictly independent from XML, VTD-XML, ANTLR, source-text nodes, and frontend diagnostics.

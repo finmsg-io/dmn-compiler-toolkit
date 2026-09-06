@@ -104,22 +104,18 @@ apiVersion: finmsg.io/dmn-scenarios/v1alpha1
 kind: DecisionScenarioRequest
 metadata:
   name: provoke-manual-review
-
 model:
   source: models/card-fraud.dmn
   digest: sha256:...
   namespace: https://finmsg.io/dmn/fraud
-
 targets:
   - id: high-risk-review-rule
     decision: ReviewTransaction
     rule: manual-review-high-risk
     fired: true
-
   - id: review-output
     decision: Action
     equals: review
-
 inputDomains:
   transaction.amount: { min: 0, max: 100000, scale: 2 }
   transaction.country: { values: [CH, DE, FR, IT] }
@@ -138,7 +134,6 @@ generation:
   seed: 271828
   timeout: 10s
   maxEvaluations: 100000
-
 output:
   format: jsonl
   includeExpectedResults: true

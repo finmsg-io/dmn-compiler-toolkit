@@ -83,19 +83,12 @@ Every Architecture Decision Record should follow a consistent structure.
 
 ```text
 ADR-XXXX
-
 Title
-
 Status
-
 Context
-
 Decision
-
 Alternatives Considered
-
 Consequences
-
 References
 ```
 

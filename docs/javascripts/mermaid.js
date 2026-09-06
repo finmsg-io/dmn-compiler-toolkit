@@ -1,4 +1,26 @@
-mermaid.initialize({ startOnLoad: false });
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'neutral',
+  themeVariables: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    primaryColor: '#f4f4f5',
+    primaryTextColor: '#18181b',
+    primaryBorderColor: '#71717a',
+    lineColor: '#52525b',
+    secondaryColor: '#e4e4e7',
+    tertiaryColor: '#f4f4f5',
+    clusterBkg: '#fafafa',
+    clusterBorder: '#a1a1aa',
+    edgeLabelBackground: '#ffffff',
+    nodeTextColor: '#18181b',
+    mainBkg: '#f4f4f5'
+  },
+  flowchart: {
+    curve: 'basis',
+    htmlLabels: true,
+    useMaxWidth: true
+  }
+});
 
 document$.subscribe(async () => {
   const diagrams = document.querySelectorAll(".mermaid");

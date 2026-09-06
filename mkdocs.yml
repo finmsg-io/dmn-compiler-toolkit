@@ -149,5 +149,8 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js
   - javascripts/mermaid.js
 
+extra_css:
+  - stylesheets/extra.css
+
 plugins:
   - search

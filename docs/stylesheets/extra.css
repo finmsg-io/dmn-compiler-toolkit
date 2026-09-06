@@ -1,0 +1,20 @@
+/* Mermaid Diagram Global Styling - Neutral / Crisp Gray Architecture Palette */
+.mermaid {
+  text-align: center;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+  font-family: var(--md-text-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif) !important;
+}
+
+.mermaid svg .node rect,
+.mermaid svg .node circle,
+.mermaid svg .node ellipse,
+.mermaid svg .node polygon {
+  rx: 4px;
+  ry: 4px;
+}

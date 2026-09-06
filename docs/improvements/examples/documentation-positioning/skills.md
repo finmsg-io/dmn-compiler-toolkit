@@ -27,11 +27,9 @@ documentation:
   mkdocs build --strict
   internal link and navigation validation
   generated projection check
-
 repository:
   git diff --check
   expected changed-file scope
-
 cross-platform when generators change:
   Windows generation/check
   Linux CI generation/check

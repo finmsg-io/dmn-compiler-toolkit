@@ -39,13 +39,10 @@ import io.finmsg.dmn.compiler.CompilationResult;
 import io.finmsg.dmn.runtime.DmnRuntime;
 import io.finmsg.dmn.runtime.ExecutionContext;
 import io.finmsg.dmn.runtime.DecisionResult;
-
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.Map;
-
 public class LoanApprovalExample {
-
     public static void main(String[] args) throws Exception {
         // 1. Compile DMN XML model to immutable Runtime IR
         CompilationResult compilation = DmnCompiler.compile(
@@ -69,7 +66,6 @@ public class LoanApprovalExample {
 
         // 4. Evaluate decision
         DecisionResult result = runtime.evaluateDecision("LoanEligibility", inputData);
-
         System.out.println("Eligibility Status: " + result.getValue());
     }
 }
@@ -85,9 +81,7 @@ For maximum performance (sub-microsecond execution), compile DMN models to pure 
 import io.finmsg.dmn.compiler.DmnCompiler;
 import io.finmsg.dmn.generator.java.JavaCodeGenerator;
 import io.finmsg.dmn.generator.java.JavaGeneratorConfig;
-
 import java.nio.file.Path;
-
 public class CodeGenBuildTask {
     public static void main(String[] args) throws Exception {
         CompilationResult compilation = DmnCompiler.compile(Path.of("src/main/resources/models/loan-approval.dmn"));
@@ -110,10 +104,8 @@ public class CodeGenBuildTask {
 
 ```java
 import com.mycompany.decisions.LoanApprovalEngine;
-
 public class HighFrequencyScoringApp {
     private final LoanApprovalEngine engine = new LoanApprovalEngine();
-
     public boolean checkLoan(int score, double income, double amount) {
         // Direct method call - 0 reflection, 0 GC overhead, ~180 nanoseconds
         return engine.evaluateLoanEligibility(score, income, amount);

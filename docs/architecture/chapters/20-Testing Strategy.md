@@ -3,15 +3,15 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [15.1 Current test layers](#contents-section-1)
-- [15.2 Traffic Violation pipeline](#contents-section-2)
-- [15.3 Diagnostic tests](#contents-section-3)
-- [15.4 Official OMG DMN 1.5 TCK Conformance Suite](#contents-section-4)
+- [20.1 Current Test Layers](#contents-section-1)
+- [20.2 Traffic Violation Pipeline](#contents-section-2)
+- [20.3 Diagnostic Tests](#contents-section-3)
+- [20.4 Official OMG DMN 1.5 TCK Conformance Suite](#contents-section-4)
 <!-- generated-toc:end -->
 
 
 <a id="contents-section-1"></a>
-## 15.1 Current test layers
+## 20.1 Current test layers
 
 ```text
 1. FEEL grammar conformance tests
@@ -28,7 +28,7 @@
 ```
 
 <a id="contents-section-2"></a>
-## 15.2 Traffic Violation pipeline
+## 20.2 Traffic Violation pipeline
 
 The representative integration path is:
 
@@ -45,7 +45,7 @@ flowchart TD
 Assertions cover input-model immutability, decision-table expressions, unary tests, type constraints, boxed context expressions, AST structure, name resolution, property resolution, and parser idempotency.
 
 <a id="contents-section-3"></a>
-## 15.3 Diagnostic tests
+## 20.3 Diagnostic tests
 
 FEEL diagnostic tests verify:
 
@@ -64,7 +64,7 @@ Semantic-analysis tests verify:
 - successful Traffic Violation resolution
 
 <a id="contents-section-4"></a>
-## 15.4 Official OMG DMN 1.5 TCK Conformance Suite
+## 20.4 Official OMG DMN 1.5 TCK Conformance Suite
 
 The primary correctness oracle for the entire toolkit is the official OMG DMN TCK suite executed by `dmn-tck-runner`:
 

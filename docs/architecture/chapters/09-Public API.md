@@ -1,32 +1,44 @@
-# Chapter 9 — Public API [FUTURE]
+# Chapter 9 — Public API [IMPLEMENTATION-ALIGNED]
 
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [17.1 Purpose](#contents-section-1)
-- [API-001 --- Simple Entry Point](#contents-section-2)
-- [API-002 --- Hide Compiler Internals](#contents-section-3)
-- [API-003 --- Stable Contracts](#contents-section-4)
-- [Generic Input](#contents-section-5)
-- [Generated Input](#contents-section-6)
+- [9.1 Purpose](#contents-section-1)
+- [9.2 API Design Principles](#contents-section-2)
+- [9.3 Public API Modules](#contents-section-3)
+- [9.4 Compiler API](#contents-section-4)
+- [9.5 Compiler Builder](#contents-section-5)
+- [9.6 Compilation Result](#contents-section-6)
+- [9.7 Diagnostics API](#contents-section-7)
+- [9.8 Decision Model API](#contents-section-8)
+- [9.9 Decision Execution API](#contents-section-9)
+- [9.10 Input API](#contents-section-10)
+- [9.11 Result API](#contents-section-11)
+- [9.12 Backend Selection](#contents-section-12)
+- [9.13 Compilation Pipeline API](#contents-section-13)
+- [9.14 Streaming Compilation API](#contents-section-14)
+- [9.15 Incremental Compilation API](#contents-section-15)
+- [9.16 Maven Plugin API](#contents-section-16)
+- [9.17 CLI API](#contents-section-17)
+- [9.18 IDE Integration](#contents-section-18)
+- [9.19 Versioning Strategy](#contents-section-19)
+- [9.20 API Compatibility Rules](#contents-section-20)
+- [9.21 Example Complete Application](#contents-section-21)
+- [9.22 Public API Summary](#contents-section-22)
 <!-- generated-toc:end -->
 
 
 <a id="contents-section-1"></a>
-## 17.1 Purpose
+## 9.1 Purpose
 
-The Public API defines the stable integration boundary between users and
-the DMN Compiler Toolkit.
+The Public API defines the stable, zero-reflection integration boundary between host applications and the DMN Compiler Toolkit. Orchestrated via `io.finmsg.dmn.compiler.DmnCompiler` and `io.finmsg.dmn.runtime.DmnRuntime`, the public interface shields callers from compiler internals (VTD-XML parsing, ANTLR token trees, lowering passes, and AST optimizations).
 
 The architecture separates:
 
 -   internal compiler implementation
--   public developer-facing interfaces
+-   public developer-facing interfaces (`DmnCompiler`, `DmnCompilerOptions`, `DmnCompiledModel`, `DmnEvaluationResult`)
 
-Users should not need to understand:
-
--   XML parsing
--   FEEL parsing
+Users and integrations interact exclusively with high-level immutable contracts:
 -   compiler passes
 -   optimization
 -   Runtime IR internals
@@ -40,16 +52,16 @@ flowchart TD
 
 ------------------------------------------------------------------------
 
-# 17.2 API Design Principles
+## 9.2 API Design Principles
 
 <a id="contents-section-2"></a>
-## API-001 --- Simple Entry Point
+### 9.2.1 API-001 --- Simple Entry Point
 
 The common use case should require minimal code.
 
 Example:
 
-``` java
+```java
 Compiler compiler =
     Compiler.builder()
             .build();
@@ -59,90 +71,60 @@ DecisionModel model =
         Path.of("traffic.dmn")
     );
 ```
-
 ------------------------------------------------------------------------
-
 <a id="contents-section-3"></a>
-## API-002 --- Hide Compiler Internals
+### 9.2.2 API-002 --- Hide Compiler Internals
 
 Application code should never directly access:
-
-``` java
+```java
 XmlReader
-
 FeelParser
-
 SemanticAnalyzer
-
 Optimizer
-
 RuntimeBuilder
 ```
-
 ------------------------------------------------------------------------
-
 Instead:
-
-``` java
+```java
 Compiler
 ```
-
 is the facade.
-
 ------------------------------------------------------------------------
-
 <a id="contents-section-4"></a>
-## API-003 --- Stable Contracts
+### 9.2.3 API-003 --- Stable Contracts
 
 Public interfaces evolve slowly.
 
 Internal modules may change:
-
 ```mermaid
 flowchart TB
     current["VTD-XML"] --> replacement["Different XML parser"]
 ```
-
 without affecting users.
-
 ------------------------------------------------------------------------
-
-# 17.3 Public API Modules
+## 9.3 Public API Modules
 
 Recommended module:
-
-``` text
+```text
 dmn-api
 ```
-
 Dependencies:
-
-``` text
+```text
 dmn-runtime-api
-
 dmn-model-api
 ```
-
 The API module must NOT depend on:
-
-``` text
+```text
 antlr
-
 vtd-xml
-
 compiler passes
 ```
-
 ------------------------------------------------------------------------
-
 Package:
-
-``` text
+```text
 io.finmsg.dmn.api
 ```
-
 Structure:
-
 ```mermaid
 flowchart TD
     API["api"] --> C1["Compiler"]
@@ -154,28 +136,21 @@ flowchart TD
     API --> C7["Backend"]
     API --> C8["Version"]
 ```
-
 ------------------------------------------------------------------------
 
-# 17.4 Compiler API
+## 9.4 Compiler API
 
 Main entry point:
-
-``` java
+```java
 public interface Compiler {
-
     CompilationResult compile(
         Source source
     );
-
 }
 ```
-
 ------------------------------------------------------------------------
-
 Example:
-
-``` java
+```java
 CompilationResult result =
     compiler.compile(
         Source.file(
@@ -183,335 +158,235 @@ CompilationResult result =
         )
     );
 ```
-
 ------------------------------------------------------------------------
 
-# 17.5 Compiler Builder
+## 9.5 Compiler Builder
 
 Configuration is explicit.
-
 Example:
-
-``` java
+```java
 Compiler compiler =
     Compiler.builder()
-
         .backend(
             Backend.JAVA
         )
-
         .optimization(
             OptimizationLevel.MAX
         )
-
         .build();
 ```
-
 ------------------------------------------------------------------------
-
 Possible options:
-
-``` text
+```text
 backend
-
 optimization level
-
 diagnostic mode
-
 cache
-
 security limits
-
 source mapping
 ```
-
 ------------------------------------------------------------------------
 
-# 17.6 Compilation Result
+## 9.6 Compilation Result
 
 Compilation returns a structured result.
 
 Example:
-
-``` java
+```java
 public interface CompilationResult {
-
     boolean successful();
-
     DecisionModel model();
-
     List<Diagnostic> diagnostics();
-
 }
 ```
-
 ------------------------------------------------------------------------
-
 Usage:
-
-``` java
+```java
 if(result.successful()) {
-
     DecisionModel model =
         result.model();
-
 }
 ```
-
 ------------------------------------------------------------------------
 
-# 17.7 Diagnostics API
+## 9.7 Diagnostics API
 
 Compiler errors are first-class objects.
 
 Example:
-
-``` java
+```java
 public record Diagnostic(
-
     Severity severity,
-
     String code,
-
     String message,
-
     SourceLocation location
-
 ){}
 ```
-
 ------------------------------------------------------------------------
-
 Example result:
-
-``` text
+```text
 ERROR DMN-2004
-
 Unknown variable:
-
 speedLimit
-
 traffic.dmn
-
 line 25
 ```
-
 ------------------------------------------------------------------------
 
-# 17.8 Decision Model API
+## 9.8 Decision Model API
 
 The compiled decision model represents executable output.
 
 Example:
-
-``` java
+```java
 public interface DecisionModel {
-
     String name();
-
     DecisionExecutor executor();
-
 }
 ```
-
 ------------------------------------------------------------------------
 
 The application does not know whether the model came from:
-
-``` text
+```text
 Java generation
-
 Bytecode
-
 Interpreter
-
 Native backend
 ```
-
 ------------------------------------------------------------------------
 
-# 17.9 Decision Execution API
+## 9.9 Decision Execution API
 
 Runtime API:
-
-``` java
+```java
 public interface DecisionExecutor {
-
     DecisionResult execute(
         DecisionInput input
     );
-
 }
 ```
-
 ------------------------------------------------------------------------
-
 Example:
-
-``` java
+```java
 DecisionResult result =
     executor.execute(
         input
     );
 ```
-
 ------------------------------------------------------------------------
 
-# 17.10 Input API
+## 9.10 Input API
 
 Two supported modes.
-
 ------------------------------------------------------------------------
-
 <a id="contents-section-5"></a>
-## Generic Input
+### 9.10.1 Generic Input
 
 Flexible:
-
-``` java
+```java
 DecisionInput input =
     DecisionInput.builder()
-
         .put(
             "speed",
             120
         )
-
         .build();
 ```
-
 ------------------------------------------------------------------------
-
 <a id="contents-section-6"></a>
-## Generated Input
+### 9.10.2 Generated Input
 
 High-performance:
-
-``` java
+```java
 TrafficInput input =
     new TrafficInput(
         120
     );
 ```
-
 ------------------------------------------------------------------------
 
-# 17.11 Result API
+## 9.11 Result API
 
 Example:
-
-``` java
+```java
 public interface DecisionResult {
-
     Object value();
-
     Map<String,Object> outputs();
-
 }
 ```
-
 ------------------------------------------------------------------------
-
 Example:
-
-``` java
+```java
 Penalty penalty =
     result.value();
 ```
-
 ------------------------------------------------------------------------
 
-# 17.12 Backend Selection
+## 9.12 Backend Selection
 
 The API supports multiple targets.
 
 Example:
-
-``` java
+```java
 Compiler compiler =
     Compiler.builder()
-
         .backend(
             Backend.RUST
         )
-
         .build();
 ```
-
 ------------------------------------------------------------------------
-
 Available:
-
-``` text
+```text
 JAVA
-
 RUST
-
 GO
-
 SPARK_SQL
-
 WASM
 ```
-
 ------------------------------------------------------------------------
 
-# 17.13 Compilation Pipeline API
+## 9.13 Compilation Pipeline API
 
 Advanced users may access pipeline stages.
 
 Example:
-
-``` java
+```java
 CompilerPipeline pipeline =
     PipelineBuilder.create()
-
         .xmlFrontend()
-
         .feelParser()
-
         .optimizer()
-
         .runtimeBuilder()
-
         .build();
 ```
-
 ------------------------------------------------------------------------
 
 This API is considered advanced.
 
 ------------------------------------------------------------------------
 
-# 17.14 Streaming Compilation API
+## 9.14 Streaming Compilation API
 
 For large environments:
-
 Example:
-
-``` java
+```java
 compiler.compile(
     InputStream stream
 );
 ```
-
 ------------------------------------------------------------------------
-
 Benefits:
-
 -   lower memory
 -   CI/CD integration
 -   repository scanning
-
 ------------------------------------------------------------------------
-
-# 17.15 Incremental Compilation API
+## 9.15 Incremental Compilation API
 
 Large repositories require incremental builds.
 
 Example:
-
-``` java
+```java
 CompilationCache cache =
     new CompilationCache();
 
@@ -520,182 +395,128 @@ compiler.compileIncremental(
     cache
 );
 ```
-
 ------------------------------------------------------------------------
 
 Only changed artifacts are rebuilt.
 
 ------------------------------------------------------------------------
 
-# 17.16 Maven Plugin API
+## 9.16 Maven Plugin API
 
 The compiler integrates into builds.
 
 Example:
-
-``` xml
+```xml
 <plugin>
-
     <groupId>
         io.finmsg.dmn
     </groupId>
-
     <artifactId>
         dmn-maven-plugin
     </artifactId>
-
 </plugin>
 ```
-
 ------------------------------------------------------------------------
-
 Build:
-
-``` text
+```text
 mvn compile
 ```
-
 Pipeline:
-
 ```mermaid
 flowchart TD
     Files["DMN Files"] --> Comp["Compiler"] --> Java["Generated Java"] --> Javac["javac"] --> App["Application"]
 ```
-
 ------------------------------------------------------------------------
 
-# 17.17 CLI API
+## 9.17 CLI API
 
 Command-line access:
-
 Example:
-
-``` bash
+```bash
 dmn compile traffic.dmn
 ```
-
 ------------------------------------------------------------------------
-
 Options:
-
-``` bash
+```bash
 --backend java
-
 --optimize max
-
 --output target/generated
-
 --diagnostics verbose
 ```
-
 ------------------------------------------------------------------------
-
 Example:
-
-``` bash
+```bash
 dmn inspect traffic.dmn
 ```
-
 shows:
-
-``` text
+```text
 Decisions:
-
 Penalty
-
 Dependencies:
-
 SpeedCheck -> Penalty
-
 Runtime IR size:
-
 3.2 KB
 ```
-
 ------------------------------------------------------------------------
 
-# 17.18 IDE Integration
+## 9.18 IDE Integration
 
 Future support:
-
 -   IntelliJ plugin
 -   VS Code extension
 -   Language Server Protocol
 
 The API enables:
-
 ```mermaid
 flowchart TD
     Editor["Editor"] --> DiagAPI["Compiler Diagnostics API"] --> Comp["Compiler"]
 ```
-
 ------------------------------------------------------------------------
 
-# 17.19 Versioning Strategy
+## 9.19 Versioning Strategy
 
 Public API follows semantic versioning.
 
 Example:
-
-``` text
+```text
 1.0.0
 ```
-
 Meaning:
-
-``` text
+```text
 Major
-
 breaking changes
-
 Minor
-
 new features
-
 Patch
-
 bug fixes
 ```
-
 ------------------------------------------------------------------------
 
-# 17.20 API Compatibility Rules
+## 9.20 API Compatibility Rules
 
 Allowed:
-
-``` text
+```text
 Add new methods
-
 Add new backends
-
 Add new diagnostics
 ```
-
 ------------------------------------------------------------------------
-
 Breaking:
-
-``` text
+```text
 Remove interfaces
-
 Change method signatures
-
 Change result semantics
 ```
-
 ------------------------------------------------------------------------
 
-# 17.21 Example Complete Application
+## 9.21 Example Complete Application
 
 Application code:
-
-``` java
+```java
 public class Application {
-
 public static void main(
     String[] args
 ){
-
 Compiler compiler =
     Compiler.builder()
             .build();
@@ -717,15 +538,12 @@ DecisionResult result =
 System.out.println(
     result.value()
 );
-
 }
-
 }
 ```
-
 ------------------------------------------------------------------------
 
-# 17.22 Public API Summary
+## 9.22 Public API Summary
 
 The public API provides:
 
@@ -739,7 +557,6 @@ The public API provides:
 -   future IDE integration
 
 The user sees:
-
 ```mermaid
 flowchart TD
     File["DMN File"] --> API["Compiler API"] --> Res["Decision Result"]

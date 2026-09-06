@@ -98,33 +98,28 @@ apiVersion: finmsg.io/dmn-tuning/v1alpha1
 kind: DmnPolicyTuning
 metadata:
   name: card-fraud-policy
-
 model:
   namespace: https://finmsg.io/dmn/fraud
   name: CardFraudDecision
   baselineDigest: sha256:...
   decision: ReviewTransaction
-
 parameters:
   - id: high_amount_threshold
     target: decisionTable/FraudRules/rule/highAmount/inputEntry/threshold
     type: decimal
     domain: { min: 500, max: 5000, step: 50 }
     baseline: 1500
-
   - id: velocity_count_threshold
     target: decisionTable/FraudRules/rule/highVelocity/inputEntry/threshold
     type: integer
     domain: { min: 2, max: 20, step: 1 }
     baseline: 6
-
 data:
   tuning: datasets/fraud-tuning-v3.parquet
   validation: datasets/fraud-validation-v3.parquet
   temporalHoldout: datasets/fraud-holdout-2026-q2.parquet
   label: confirmedFraud
   eventTime: transactionTime
-
 constraints:
   - metric: falseNegativeCount
     dataset: validation
@@ -136,7 +131,6 @@ constraints:
     value: 0.00001
   - invariant: mandatorySanctionsBlock
   - invariant: noEvaluationErrors
-
 objectives:
   - minimize: expectedBusinessCost
     weights:
@@ -145,7 +139,6 @@ objectives:
       manualReview: 5
   - minimize: distanceFromBaseline
   - minimize: changedParameterCount
-
 validation:
   split: temporal
   confidenceLevel: 0.95

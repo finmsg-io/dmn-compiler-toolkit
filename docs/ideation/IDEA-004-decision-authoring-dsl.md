@@ -133,10 +133,8 @@ type Transaction = {
   cardPresent: boolean
   attempts24h: integer
 }
-
 input transaction: Transaction
 input customerRisk: decimal
-
 decision highVelocity: boolean =
   transaction.attempts24h >= 6
 

@@ -94,10 +94,8 @@ if (!feelResult.isSuccess()) {
   feelResult.diagnostics().forEach(System.out::println);
   return;
 }
-
 DmnSemanticAnalysisResult semanticResult =
     new DmnSemanticAnalyzer().analyze(feelResult.model());
-
 semanticResult.diagnostics().forEach(System.out::println);
 ```
 

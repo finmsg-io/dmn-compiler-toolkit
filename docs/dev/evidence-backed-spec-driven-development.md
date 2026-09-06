@@ -158,13 +158,10 @@ Status: proposed | ready | in progress | blocked | done
 Owner: <person or team, if useful>
 Requirements: <AR IDs and links>
 Milestone: <plan item>
-
 ## Outcome
-
 <One paragraph describing the externally observable result.>
 
 ## In scope
-
 - <behavior or contract included in this slice>
 - <behavior or contract included in this slice>
 
@@ -174,7 +171,6 @@ Milestone: <plan item>
 - <adjacent concern owned by another slice>
 
 ## Architectural constraints
-
 - <module/dependency rule>
 - <determinism, immutability, compatibility, security, or runtime rule>
 
@@ -200,9 +196,7 @@ Milestone: <plan item>
 - Downstream: `<affected modules or “not required”>`
 - Full reactor: required | not required — <reason>
 - Documentation: `<checks>`
-
 ## Completion evidence
-
 - Tests: <links/names>
 - Documentation/API: <links>
 - ADR: <link or not required>
