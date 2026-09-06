@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.finmsg.dmn</groupId>
         <artifactId>dmn-compiler-toolkit</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0-rc.1</version>
     </parent>
     <artifactId>dmn-generator-java</artifactId>
     <name>DMN Generator Java</name>
