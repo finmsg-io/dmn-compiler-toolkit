@@ -12,6 +12,10 @@
     <name>DMN Consumer Smoke Test</name>
     <description>External consumer smoke test verifying packaged artifacts and public API integration</description>
 
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.finmsg.dmn</groupId>

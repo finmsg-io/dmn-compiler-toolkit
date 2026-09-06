@@ -54,11 +54,21 @@ def validate(tag: str, require_artifacts: bool = False) -> list[str]:
             errors.append(f"{pom.relative_to(ROOT)} project version {project_version} does not match {version}")
 
         if require_artifacts:
+            deploy_skip = text(model, "./m:properties/m:maven.deploy.skip")
+            if deploy_skip and deploy_skip.lower() == "true":
+                continue
             artifact_id = text(model, "./m:artifactId")
             packaging = text(model, "./m:packaging") or "jar"
             if packaging == "jar" and artifact_id:
                 target = ROOT / module / "target"
-                for classifier in ("sources", "javadoc"):
+                classifiers = ["sources", "javadoc"]
+                javadoc_skip = text(model, "./m:properties/m:maven.javadoc.skip")
+                if javadoc_skip and javadoc_skip.lower() == "true":
+                    classifiers.remove("javadoc")
+                source_skip = text(model, "./m:properties/m:maven.source.skip")
+                if source_skip and source_skip.lower() == "true":
+                    classifiers.remove("sources")
+                for classifier in classifiers:
                     artifact = target / f"{artifact_id}-{version}-{classifier}.jar"
                     if not artifact.is_file() or artifact.stat().st_size == 0:
                         errors.append(f"missing or empty release artifact: {artifact.relative_to(ROOT)}")
