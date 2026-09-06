@@ -51,6 +51,7 @@ It must never depend on:
 The architecture:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> gen["Java Generator"]
     gen --> src["Java Source"]
@@ -120,6 +121,7 @@ The Java backend supports two modes.
 
 Runtime IR:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> src["Java Source"]
     src --> javac["javac"]
@@ -135,6 +137,7 @@ Advantages:
 
 Runtime IR:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> bc["JVM Bytecode"]
     bc --> cl["ClassLoader"]
@@ -260,6 +263,7 @@ if (input.speed() > 100) {
 ------------------------------------------------------------------------
 The generator performs:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     op["Runtime IR Opcode"] --> jc["Java Construct"]
 ```
@@ -340,6 +344,7 @@ evaluateDecision()
 
 Runtime graph:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     A["Decision A"] --> B["Decision B"]
     B --> C["Decision C"]
@@ -451,6 +456,7 @@ mvn compile
 ```
 executes:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     xml["DMN XML"] --> ir["Runtime IR"] --> source["Java Source"]
     source --> javac["javac"] --> application["Application"]
@@ -480,6 +486,7 @@ skip generation
 ```
 Pipeline:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     input["TrafficViolation.dmn"] --> hash["Compute Hash: abc123"]
     hash --> check{"Hash Changed?"}
@@ -504,6 +511,7 @@ Generated Java
 ### Compilation Tests
 Generated source:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     javac["javac"] --> classFile["Class Files (.class)"]
 ```
@@ -518,6 +526,7 @@ Generated Java
 ```
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     inp["Input Data"] --> ref["Reference Engine"]
     inp --> gen["Generated Java"]
@@ -568,6 +577,7 @@ In high-throughput decision processing (such as batch evaluation over large data
 
 The Java Generator can emit batch evaluation kernels that operate over **columnar primitive buffers (Structure-of-Arrays / SoA)**, enabling hardware-level SIMD execution via JVM HotSpot C2 SuperWord auto-vectorization or the Java Vector API (`jdk.incubator.vector`):
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph InputLayout["Columnar Batch Layout<br/>(Contiguous Memory)"]
         colSpeed["Speed Column<br/>speeds: int array"]
@@ -610,6 +620,7 @@ public static void evaluateBatch(
 
 Architecture allows direct bytecode generation:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> asm["ASM Generator"]
     asm --> cls["Loaded Class Object"]
@@ -664,6 +675,7 @@ It provides:
 
 The complete backend architecture:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> gen["Java Generator"]
     gen --> art["Java Artifact"]

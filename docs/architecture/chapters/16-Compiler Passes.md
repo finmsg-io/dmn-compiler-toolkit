@@ -70,6 +70,7 @@ The pipeline runs `DmnSemanticAnalyzer`, `DmnTypeAnalyzer`, and `DmnDependencyAn
 ## 16.3 Current order
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     reader["DmnXmlReader"] --> parser["DmnFeelParser"]
     parser --> semantic["DmnSemanticAnalyzer"]
@@ -83,6 +84,7 @@ FEEL parsing must precede semantic analysis.
 ## 16.4 Implemented semantic pass order
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     names["Name resolution"] --> namedTypes["Named-type resolution"]
     namedTypes --> inference["Expression type inference"]
@@ -94,6 +96,7 @@ flowchart TB
 Decision-table and other DMN structure validation run within `DmnTypeAnalyzer`. The next semantic work is:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     semantics["Remaining DMN 1.5 semantic edge cases"] --> lowering["Runtime IR lowering"]
 ```

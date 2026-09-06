@@ -34,6 +34,7 @@ The project monitors eight core architectural risks:
 ## 29.3 Risk Governance Lifecycle Pipeline
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph RiskIdentification["1. Risk Identification & Cataloging"]
         DISCOVER["Identify Architecture Risk / Tech Debt"]

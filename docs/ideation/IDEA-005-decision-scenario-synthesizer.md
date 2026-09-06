@@ -155,6 +155,7 @@ targets:
 ## Proposed workflow
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     A["DMN source or portable Runtime IR + scenario request"] --> B["Compile/load and validate model identity"]
     B --> C["Resolve target to stable semantic/IR nodes"]

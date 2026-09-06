@@ -46,6 +46,7 @@ Users and integrations interact exclusively with high-level immutable contracts:
 The public API provides a simple abstraction:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Model["DMN Model"] --> API["Compiler API"] --> Exec["Executable Decision Model"]
 ```
@@ -95,6 +96,7 @@ Public interfaces evolve slowly.
 
 Internal modules may change:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     current["VTD-XML"] --> replacement["Different XML parser"]
 ```
@@ -125,6 +127,7 @@ io.finmsg.dmn.api
 ```
 Structure:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     API["api"] --> C1["Compiler"]
     API --> C2["CompilerConfiguration"]
@@ -433,6 +436,7 @@ mvn compile
 ```
 Pipeline:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Files["DMN Files"] --> Comp["Compiler"] --> Java["Generated Java"] --> Javac["javac"] --> App["Application"]
 ```
@@ -480,6 +484,7 @@ Future support:
 
 The API enables:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Editor["Editor"] --> DiagAPI["Compiler Diagnostics API"] --> Comp["Compiler"]
 ```
@@ -574,6 +579,7 @@ The public API provides:
 
 The user sees:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     File["DMN File"] --> API["Compiler API"] --> Res["Decision Result"]
 ```

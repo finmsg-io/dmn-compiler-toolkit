@@ -19,6 +19,7 @@
 The canonical semantic model is the generated protobuf `Definitions` tree. There is no handwritten domain-model layer.
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     XML["DMN XML"] --> Frontend["dmn-frontend-xml"] --> Defs["io.finmsg.dmn.model.Definitions"]
 ```

@@ -53,6 +53,7 @@ Current implementation status:
 ## 6.2 Component Overview
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Reader["DMN XML Reader"] --> SemModel["Semantic Model"]
     SemModel --> FeelParser["FEEL Parser"]
@@ -140,6 +141,7 @@ Convert FEEL source code into an Abstract Syntax Tree.
 ```
 ### Output
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Plus["Binary(+)"] --> A["Variable(a)"]
     Plus --> Mult["Binary(*)"]
@@ -194,6 +196,7 @@ Constructs the complete Decision Requirements Graph (DRG).
 
 Produces
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     decisionA["Decision A"] --> decisionC["Decision C"] --> decisionD["Decision D"]
 ```
@@ -217,6 +220,7 @@ No pass mutates its input.
 
 Example
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     input["Input"] --> folding["Constant Folding"] --> output["Output"]
 ```

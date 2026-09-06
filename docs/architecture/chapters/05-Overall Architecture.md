@@ -16,6 +16,7 @@
 ## 5.1 Pipeline
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     XML["DMN XML Source Graph"] --> Facade["Compiler Facade & Model Resolver (dmn-compiler)<br/><i>Implemented</i>"]
     Facade --> Frontend["XML Frontend (dmn-frontend-xml)<br/><i>Implemented</i>"]
@@ -50,6 +51,7 @@ Each stage has a stable protobuf or IR input/output boundary and treats its inpu
 The semantic and parsed compiler models share the same protobuf schema. Replaceable nodes use a `oneof`:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     text["Text representation"] --> parsed["Parsed representation"]
 ```
@@ -60,6 +62,7 @@ The XML frontend selects the text branch. `DmnFeelParser` creates a copied model
 ## 5.4 Dependency Direction
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     TCK["dmn-tck-runner"] --> Comp["dmn-compiler"]
     TCK --> JavaGen["dmn-generator-java"]

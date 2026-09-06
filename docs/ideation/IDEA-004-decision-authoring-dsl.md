@@ -18,6 +18,7 @@ with DMN tools and organizations that do not use the DSL.
 The recommended product model is:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     DSL["Concise DSL"] --> Model["Canonical Decision Model"]
     Model --> XML["Valid DMN XML"]
@@ -252,6 +253,7 @@ layout should be a separate product capability from semantic validity.
 ## Compiler architecture
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Src[".decision source"] --> Parser["Lexer / parser"]
     Parser --> AST["DSL syntax tree + comments + exact source ranges"]
@@ -336,6 +338,7 @@ diagnostics, dependency order, and Runtime IR behavior.
 ### DMN export
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     dsl["DSL"] --> canonicalInput["Canonical model"]
     canonicalInput --> xml["DMN XML"] --> reader["XML reader"]

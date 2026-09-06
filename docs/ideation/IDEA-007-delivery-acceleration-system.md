@@ -32,6 +32,7 @@ parallel implementations or weakening verification.
 Optimize the complete value stream:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     A["Idea selected"] --> B["Slice clarified"]
     B --> C["First executable example"]
@@ -250,6 +251,7 @@ been measured and proven insufficient.
 Structure CI as a dependency graph:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Static["format / static / architecture"] --> Tests["affected module tests"]
     Static --> Diff["API / schema diff"]

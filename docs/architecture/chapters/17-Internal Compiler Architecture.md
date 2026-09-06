@@ -63,6 +63,7 @@ The goals of the internal architecture are:
 The compiler is organized as a pipeline.
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     xml["DMN XML"] --> frontend["XML Frontend"]
     frontend --> semantic["Semantic Model"]
@@ -101,6 +102,7 @@ Compiler passes must never access global state.
 
 Without a context:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     cp["CompilerPass"] --> gv["Global Variables"]
     gv --> st["Singletons"]
@@ -108,6 +110,7 @@ flowchart TD
 ```
 With a context:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ctx["CompilerContext"] --> ed["Explicit Dependencies"]
     ed --> de["Deterministic Execution"]
@@ -121,6 +124,7 @@ The compiler executes a sequence of passes.
 
 Example:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     xml["XML Reader"] --> val["Validate Model"]
     val --> feel["Parse FEEL"]
@@ -216,12 +220,14 @@ Passes execute in dependency order.
 
 Example:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     rt["Resolve Types"] --> cf["Constant Folding"]
     cf --> inl["Inlining"]
 ```
 Invalid ordering:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     inl["Inlining"] --> rt["Resolve Types"]
 ```
@@ -244,6 +250,7 @@ public interface CompilerPass {
 ```
 Example:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     inl["Inlining"] -- requires --> cf["Constant Folding"]
 ```
@@ -256,6 +263,7 @@ The Pass Manager constructs a dependency graph.
 
 The compiler groups passes into phases.
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     fe["Frontend"] --> val["Validation"]
     val --> an["Analysis"]
@@ -272,6 +280,7 @@ Phases simplify diagnostics and tooling.
 
 The compiler operates on three primary representations.
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     sm["Semantic Model"] --> feel["FEEL AST"]
     feel --> ir["Runtime IR"]
@@ -287,6 +296,7 @@ Compiler passes replace representations rather than mutating them.
 
 Compiler passes report diagnostics through the context.
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     p["Compiler Pass"] --> dc["Diagnostic Collector"]
     dc --> cr["Compilation Result"]
@@ -302,12 +312,14 @@ Large repositories benefit from incremental builds.
 
 Example:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     dmn["Traffic.dmn"] -- changed --> comp["Compile"]
     comp --> ir["Runtime IR"]
 ```
 Unchanged models reuse cached artifacts.
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     dmn["Customer.dmn"] -- unchanged --> cache["Cache"]
     cache --> reuse["Reuse (Artifacts)"]
@@ -321,6 +333,7 @@ The Pass Manager determines which passes must be rerun.
 
 Independent models can compile simultaneously.
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ma["Model A"] --> t1["Thread 1"]
     mb["Model B"] --> t2["Thread 2"]
@@ -337,6 +350,7 @@ Each pass records execution statistics.
 
 Example:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     pass["Pass: Resolve Types"]
     pass --> m1["Time: 12 ms"]
@@ -352,6 +366,7 @@ Metrics help identify performance bottlenecks.
 
 The compiler can expose its execution graph.
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     val["Validate"] --> feel["Parse FEEL"]
     feel --> types["Resolve Types"]
@@ -371,6 +386,7 @@ New compiler passes can be added without modifying existing code.
 
 Example:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ep["Existing Pipeline"] --> inp["Insert New Pass (Extension)"]
     inp --> cp["Continue Pipeline"]
@@ -386,6 +402,7 @@ Typical extensions:
 
 Compilation stops when a phase produces fatal diagnostics.
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     rt["Resolve Types"] --> err["Fatal Diagnostic (ERROR)"]
     err --> stop["Compilation Stops"]
@@ -401,6 +418,7 @@ The compiler emits structured events during execution.
 
 Example:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ps["PassStarted"] --> pf["PassFinished"]
     pf --> oa["OptimizationApplied"]
@@ -416,6 +434,7 @@ coupling the compiler to a specific logging framework.
 
 The default pipeline for Version 1.0 is:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     xml["XML Reader"] --> sv["Structural Validation"]
     sv --> smc["Semantic Model Construction"]

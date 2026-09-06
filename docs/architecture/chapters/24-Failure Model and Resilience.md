@@ -34,6 +34,7 @@ Failures are categorized into distinct phases, each handled with dedicated diagn
 ## 24.3 Diagnostic Lifecycle Pipeline
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph CompilerPhases["Compilation & Analysis Stages"]
         RESOLVE["Source Resolution"]

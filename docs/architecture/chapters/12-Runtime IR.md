@@ -58,6 +58,7 @@ readability.
 The compiler transforms:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     XML["DMN XML"] --> Model["Semantic Model"] --> AST["FEEL AST"] --> IR["Optimized Runtime IR"]
 ```
@@ -65,6 +66,7 @@ flowchart TD
 At runtime:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     App["Application"] --> IR["Runtime IR"] --> Res["Decision Result"]
 ```
@@ -96,6 +98,7 @@ The Runtime IR is the stable contract between compiler and execution
 targets.
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Opt["Optimizer"] --> IR["Runtime IR"]
     IR --> Java["Java"]
@@ -152,6 +155,7 @@ LOAD_VARIABLE 12
 Example:
 Compilation:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Name["customerAge"] --> Id["VariableId = 12"]
 ```
@@ -191,6 +195,7 @@ io.finmsg.dmn.ir
 ```
 Structure:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     IR["ir"] --> C1["RuntimeModel"]
     IR --> C2["RuntimeDecision"]
@@ -226,6 +231,7 @@ Contains:
 ------------------------------------------------------------------------
 Example:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Model["RuntimeModel"] --> D["Decisions"]
     Model --> E["Expressions"]
@@ -394,6 +400,7 @@ Two possible execution models are supported.
 
 Example:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     gt[">"] --> speed["speed"]
     gt --> c100["100"]
@@ -421,6 +428,7 @@ Recommended architecture:
 Use both.
 Compiler:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     AST["FEEL AST"] --> Graph["Expression Graph"] --> Opt["Optimization"] --> Stream["Instruction Stream"]
 ```
@@ -433,6 +441,7 @@ The Runtime IR contains the Decision Requirements Graph.
 
 Example:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     input["InputData"] --> decA["Decision A"]
     decA --> decB["Decision B"]
@@ -535,6 +544,7 @@ speed > 100 and age < 25
 ```
 FEEL AST:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     andNode["AND"] --> gtNode[">"]
     andNode --> ltNode["<"]
@@ -686,6 +696,7 @@ Runtime IR is immutable.
 
 Therefore:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Model["One RuntimeModel"] --> T1["Thread 1"]
     Model --> T2["Thread 2"]
@@ -699,12 +710,14 @@ No synchronization required.
 Runtime IR tests:
 ### 12.22.1 Compilation correctness
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     dmn["DMN"] --> ir["Runtime IR"]
 ```
 ------------------------------------------------------------------------
 ### 12.22.2 Serialization
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     runtimeInput["Runtime IR"] --> protobuf["Protobuf"] --> runtimeOutput["Runtime IR"]
 ```
@@ -738,6 +751,7 @@ It provides:
 
 The final compiler pipeline is:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     XML["DMN XML"] --> Model["Semantic Model"]
     Model --> AST["FEEL AST"]

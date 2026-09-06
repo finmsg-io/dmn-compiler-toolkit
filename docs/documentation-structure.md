@@ -17,6 +17,7 @@ The goal is to make every document's authority and update cadence obvious.
 ## Proposed structure
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 mindmap
   root((docs/))
     index.md["index.md: Project entry point and summary"]

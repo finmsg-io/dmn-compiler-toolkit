@@ -18,6 +18,7 @@ The **DMN Compiler Toolkit** achieves **100.00% strict self-verified conformance
 ## 2. Supported Boxed Expressions
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 mindmap
   root((DMN 1.5 Boxed Expressions))
     Decision Tables

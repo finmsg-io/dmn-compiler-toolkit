@@ -130,6 +130,7 @@ value, actual value, and a structural difference.
 ## Proposed architecture
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Checkout["Pinned external TCK checkout"] --> Discovery["Catalog and case discovery"]
     Discovery --> Decoder["TCK XML value decoder"]

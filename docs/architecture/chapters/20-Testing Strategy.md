@@ -33,6 +33,7 @@
 The representative integration path is:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     A["TrafficViolation.dmn"] --> B["DmnXmlReader"]
     B --> C["Semantic Definitions with text"]
@@ -69,6 +70,7 @@ Semantic-analysis tests verify:
 The primary correctness oracle for the entire toolkit is the official OMG DMN TCK suite executed by `dmn-tck-runner`:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Root["12. Official OMG DMN 1.5 TCK Conformance Suite"] --> CL2["Compliance Level 2 official test models (CL2)"]
     Root --> CL3["Compliance Level 3 official test models (CL3)"]

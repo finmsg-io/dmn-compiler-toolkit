@@ -20,6 +20,7 @@ This chapter defines the end-to-end data lifecycle, caching invalidation semanti
 The compilation lifecycle transforms raw declarative sources through progressively lower, immutable intermediate representations:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph Stage1["Stage 1: Source Ingestion"]
         SRC["DmnSource (File / Classpath)"]

@@ -17,6 +17,7 @@
 ## 13.1 Boundary
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     xml["DMN XML"] <--> definitions["Definitions with FEEL text"]
 ```

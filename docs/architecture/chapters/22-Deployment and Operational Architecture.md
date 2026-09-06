@@ -31,6 +31,7 @@ The toolkit supports four distinct operational deployment topologies:
 ## 22.3 Deployment Architecture Pipeline
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph BuildPhase["Build-Time & CI/CD Pipeline"]
         DMN["DMN 1.5 XML Files"]

@@ -35,6 +35,7 @@ The toolkit enforces bi-directional traceability from core architecture principl
 ## 28.3 Conformance Verification Architecture
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph ArchitectureSpecs["Architectural Specifications"]
         PRIN["Architecture Principles (AP-001 to AP-008)"]

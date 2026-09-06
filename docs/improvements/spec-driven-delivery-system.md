@@ -22,6 +22,7 @@ The practical goal is:
 ## The minimal model
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     principles["Reusable principles"] --> instructions["Repository instructions"]
     instructions --> specification["Short outcome specification"]
@@ -77,6 +78,7 @@ Use this ownership model:
 Recommended status flow:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     idea["Idea"] --> decision["Improvement/decision"]
     decision --> outcome["Accepted development-plan outcome"]
@@ -223,6 +225,7 @@ example rather than completing all process, release, and documentation infrastru
 The pilot should prove the delivery method and the product path together:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Scenario["One reviewed normalized MT564 scenario"] --> BKM["Small reusable DQ BKM contract"]
     BKM --> Rule["One imported MT564 rule model"]

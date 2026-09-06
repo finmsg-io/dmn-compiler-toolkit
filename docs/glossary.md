@@ -35,6 +35,7 @@ The AST represents the syntactic structure of an expression while removing the c
 Example:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Plus["Binary(+)"] --> A["Variable(a)"]
     Plus --> Mult["Binary(*)"]
@@ -94,6 +95,7 @@ The compiler stage that converts Runtime IR into executable artifacts.
 Example:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     ir["Runtime IR"] --> java["Java Source"]
 ```
@@ -107,6 +109,7 @@ The complete transformation from DMN XML into executable output.
 Example:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     xml["DMN XML"] --> pipeline["Compiler Pipeline"]
     pipeline --> ir["Runtime IR"]
@@ -148,6 +151,7 @@ An optimization that evaluates constant expressions during compilation.
 Example:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     expression["10 + 20"] --> result["30"]
 ```
@@ -296,6 +300,7 @@ The process of transforming a high-level representation into a lower-level repre
 Example:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     semantic["Semantic Model"] --> ir["Runtime IR"]
 ```
@@ -367,6 +372,7 @@ The compiler process that connects symbolic references with their targets.
 Example:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     decision["Decision A"] --> input["InputData X"]
 ```
@@ -510,6 +516,7 @@ The XML Frontend is not part of the runtime.
 The following terms describe the progression of a DMN model through the compiler.
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     XML["DMN XML"] --> Front["XML Frontend"]
     Front --> Sem["Semantic Model"]

@@ -30,6 +30,7 @@ documentation affected by the result.
 ## Core principle
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Req["Architectural requirement"] --> Item["Milestone work item"]
     Item --> Scenarios["Acceptance scenarios"]

@@ -290,6 +290,7 @@ Dependency direction must always follow the architecture.
 Each compiler stage has exactly one responsibility.
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     xml["XML"] --> semantic["Semantic Model"] --> feel["FEEL AST"]
     feel --> analysis["Semantic Analysis"] --> optimization["Optimization"]
@@ -312,6 +313,7 @@ Every compiler pass
 Preferred
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     input["Input Model"] --> pass["Compiler Pass"] --> output["Output Model"]
 ```
@@ -437,6 +439,7 @@ Every public API includes examples.
 Allowed
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     generator["Generator"] --> runtime["Runtime"] --> semantic["Semantic"]
     semantic --> feel["FEEL"] --> model["Model"] --> xml["XML"]
@@ -445,6 +448,7 @@ flowchart TB
 Forbidden
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TB
     runtime["Runtime"] --> xml["XML"]
 ```

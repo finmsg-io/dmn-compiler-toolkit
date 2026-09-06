@@ -20,6 +20,7 @@
 ## 7.1 Current project structure
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Root["dmn-compiler-toolkit"] --> Pom["pom.xml (Parent POM)"]
     Root --> Proto["dmn-protobuf"]

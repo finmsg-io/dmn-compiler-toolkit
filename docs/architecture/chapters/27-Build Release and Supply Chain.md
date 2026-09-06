@@ -28,6 +28,7 @@ This chapter defines the multi-module build system, continuous integration (CI) 
 The automated continuous integration pipeline executes across discrete quality gates:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph Commit["1. Commit & Formatting Gate"]
         SPOTLESS["Spotless Check<br/>(Palantir Java Format)"]

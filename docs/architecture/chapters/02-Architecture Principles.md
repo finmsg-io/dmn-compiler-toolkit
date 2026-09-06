@@ -63,6 +63,7 @@ Each architectural layer has a single responsibility.
 Allowed dependencies always point downward.
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     xml["XML"] --> semantic["Semantic Model"]
     semantic --> feel["FEEL AST"]
@@ -82,6 +83,7 @@ Each compiler pass performs exactly one transformation.
 For example:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     imports["Resolve Imports"] --> types["Resolve Types"]
     types --> folding["Constant Folding"]

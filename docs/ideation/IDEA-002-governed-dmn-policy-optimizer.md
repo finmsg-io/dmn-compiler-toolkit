@@ -158,6 +158,7 @@ conditional parameter dependencies, immutable parameters, and domain-specific in
 ## Proposed workflow
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     A["Approved DMN baseline + tuning declaration + versioned labeled data"] --> B["Validate identities, data, and constraints"]
     B --> C["Compile immutable baseline Runtime IR"]

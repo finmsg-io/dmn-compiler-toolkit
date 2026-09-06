@@ -67,6 +67,7 @@ The architecture enforces seven core quality attributes, each verified by automa
 ## 3.4 Quality Gate Verification Matrix
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph QualityAttributes["Normative Quality Attributes"]
         QA1["QA-001: Conformance"]

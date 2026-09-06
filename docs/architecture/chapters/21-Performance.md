@@ -69,6 +69,7 @@ The architecture follows a compiler-oriented performance model.
 Traditional interpreter:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph TraditionalRuntime["Traditional Interpreted Runtime"]
         XML["DMN XML"] --> ParseXML["Parse XML"]
@@ -82,6 +83,7 @@ Every execution repeats work.
 ------------------------------------------------------------------------
 Compiler approach:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph BuildTime["Build Time"]
         XML["DMN XML"] --> Sem["Semantic Analysis"]
@@ -100,6 +102,7 @@ flowchart TD
 
 Target characteristics:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph PerformanceGoals["Core Performance Objectives"]
         lat["Sub-Microsecond Latency<br/>Zero runtime reflection & pre-parsed FEEL"]
@@ -128,6 +131,7 @@ The most fundamental optimization.
 
 One compilation:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     DMN["traffic.dmn"] --> IR["Runtime IR"]
 ```
@@ -168,6 +172,7 @@ Benefits:
 
 Traditional:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     expression["speed > 100"] --> parser["Parser"] --> evaluation["Evaluation"]
 ```
@@ -176,6 +181,7 @@ Every execution re-parses expressions.
 ------------------------------------------------------------------------
 Compiler:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     expression["speed > 100"] --> ast["FEEL AST"] --> ir["Runtime IR"] --> bytecode["Java Bytecode"]
 ```
@@ -253,6 +259,7 @@ Benefits:
 -   cacheable
 -   shareable
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Model["Immutable RuntimeModel"] --> T1["Worker Thread 1"]
     Model --> T2["Worker Thread 2"]
@@ -313,6 +320,7 @@ The Java backend leverages key JVM optimization mechanisms:
 
 The Runtime IR layout prioritizes contiguous array storage over pointer-rich node graphs:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph RuntimeModel["RuntimeModel Memory Layout<br/>(Flat Array Storage)"]
         d["Decisions: RuntimeDecision Array"]
@@ -341,6 +349,7 @@ Benefits:
 
 DMN decision requirements form an execution graph:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     inp["InputData"] --> A["Decision A"]
     A --> B["Decision B"]
@@ -350,6 +359,7 @@ flowchart TD
 
 Unused decision nodes and unreachable logic branches are pruned at compile time:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     subgraph Before["Before Optimization (Unused Node Present)"]
         a1["Decision A"] --> b1["Decision B"] --> c1["Decision C"] --> d1["Decision D (Dead / Unused)"]
@@ -381,6 +391,7 @@ Zero evaluation overhead during runtime execution.
 
 Small intermediate decisions are collapsed directly into downstream expressions:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     subgraph Before["Separate Decision Invocations"]
         da["Decision A: calculateBase()"] --> db["Decision B: applyMultiplier(base)"]
@@ -417,6 +428,7 @@ isAdult = customer.age > 18
 
 High-throughput dataset processing avoids per-row object instantiation by evaluating contiguous columnar vectors:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph BatchInput["Contiguous Input Arrays (SoA)"]
         inCols["Input Column Arrays<br/>speeds: int array, ages: int array"]
@@ -437,6 +449,7 @@ Essential for distributed processing engines (Spark SQL, Databricks, Flink).
 
 Independent decision branches within a DAG can execute concurrently across threads:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     A["Decision A (Root Input)"]
     A --> B["Decision B (Branch 1)"]
@@ -456,6 +469,7 @@ The compilation pipeline scales horizontally across large enterprise DMN reposit
 
 Models are hashed using SHA-256 to enable instant build caching:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     dmn["DMN Model Source"] --> hash["Compute SHA-256 Hash"]
     hash --> cacheCheck{"Cache Lookup"}
@@ -466,6 +480,7 @@ flowchart TD
 
 Independent DMN files compile simultaneously across available CPU cores:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph ParallelCompilation["Parallel Multi-Model Compilation"]
         m1["Model A"] --> t1["Worker Thread 1"] --> ir1["Runtime IR A"]
@@ -525,6 +540,7 @@ Every optimization must satisfy three non-negotiable criteria:
 
 Target latency hierarchy across execution targets:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     p1["1. XML DOM Interpreter (Slowest: ~1-10 ms)"]
     p2["2. FEEL AST Interpreter (~100-500 µs)"]
@@ -539,6 +555,7 @@ flowchart TD
 
 The toolkit achieves predictable, ultra-low latency execution by shifting complexity:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     comp["Compile-Time Complexity<br/>(Parsing, Typing, Optimization, Inlining)"]
     exec["Execution-Time Simplicity<br/>(Flat Arrays, Integer Slots, Zero Reflection)"]

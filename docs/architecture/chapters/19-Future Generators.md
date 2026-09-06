@@ -47,6 +47,7 @@ A new backend must not require:
 The architecture:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> java["Java Generator"]
     ir --> rust["Rust Generator"]
@@ -63,6 +64,7 @@ flowchart TD
 
 Every backend consumes **only Runtime IR**.
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph Allowed["Universal Contract"]
         ir["Runtime IR"] --> bg["Target Generator (e.g. Rust)"]
@@ -79,6 +81,7 @@ Example: Adding a Rust backend
 
 Requires:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> rust["Rust Generator"]
 ```
@@ -103,6 +106,7 @@ dmn-generator-wasm
 ------------------------------------------------------------------------
 Dependency rule:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> java["Java Generator"]
     ir --> rust["Rust Generator"]
@@ -110,6 +114,7 @@ flowchart TD
 ```
 Forbidden dependency:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     rust["Rust Generator"] -. "forbidden dependency" .-> feel["FEEL Parser"]
 ```
@@ -164,6 +169,7 @@ public interface BackendCapabilities {
 
 Compiler validates capabilities before emission:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> check{"Backend Capability Check"}
     check -- Supported --> gen["Emit Target Code"]
@@ -183,6 +189,7 @@ Generate native high-performance decision engines.
 
 Architecture:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> gen["Rust Generator"]
     gen --> src["Rust Source Code"]
@@ -223,6 +230,7 @@ Generate cloud-native, statically compiled decision services with minimal memory
 
 Architecture:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> gen["Go Generator"]
     gen --> src["Go Source (.go)"]
@@ -274,6 +282,7 @@ Generate distributed decision execution pipelines for massive tabular datasets a
 
 Architecture:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> gen["Spark SQL Generator"]
     gen --> sql["Catalyst Expression Tree"]
@@ -316,6 +325,7 @@ Runtime IR enables advanced distributed query optimizations:
 
 Filter upstream partitions and parquet row groups before evaluating decisions:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     subgraph Before["Without Predicate Pushdown"]
         scan1["Read All Partitions"] --> dec1["Evaluate Decision"] --> flt1["Filter: active = true"]
@@ -328,6 +338,7 @@ flowchart LR
 ### Column Pruning
 Only required decision inputs are loaded into memory:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     tbl["Parquet Table<br/>(50 columns)"] --> pruner["Column Pruner"]
     pruner --> read["Read 2 columns:<br/>speed, age"]
@@ -337,6 +348,7 @@ flowchart LR
 ### Vectorized Execution
 Emits columnar batch operations targeting Spark Tungsten and Apache Arrow memory:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph RowOriented["Row-by-Row Interpretation (Slow)"]
         r1["Row 0"] --> r2["Row 1"] --> r3["Row 2"]
@@ -353,6 +365,7 @@ Generate bare-metal, native machine code via LLVM compiler infrastructure.
 
 Architecture:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> gen["LLVM IR Generator"]
     gen --> llvm["LLVM IR (.ll Module)"]
@@ -392,6 +405,7 @@ Execute decisions in client-side browsers, edge workers, and sandboxed runtimes.
 
 Architecture:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR"] --> gen["WASM Generator"]
     gen --> wasm[".wasm Module"]
@@ -427,6 +441,7 @@ Every backend target must satisfy 100% semantic equivalence against the referenc
 
 ### Semantic Equivalence Tests
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     inp["Input Data<br/>speed: 120"] --> ref["Reference Interpreter"]
     inp --> gen["Target Generator (Rust / Go / Spark / LLVM)"]
@@ -460,6 +475,7 @@ public final class BackendRegistry {
 
 A contributor creating a new backend implements four discrete stages:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     s1["Step 1<br/>Read RuntimeModel"] --> s2["Step 2<br/>Map Opcodes to Target"]
     s2 --> s3["Step 3<br/>Emit Artifact Source"]
@@ -476,6 +492,7 @@ flowchart LR
 
 Adding a new target backend requires **zero modifications** to frontend parsing, FEEL AST construction, or semantic analysis:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     ir["Runtime IR (Unchanged)"] --> py["Python Generator"]
     py --> mod["Python Decision Module"]
@@ -537,6 +554,7 @@ Benefits:
 
 The DMN Compiler Toolkit follows the multi-target architectural paradigm established by modern compiler frameworks like LLVM:
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph LLVMCompiler["LLVM Compiler Architecture"]
         srcLang["C / C++ / Rust Source"] --> llvmIr["LLVM IR"]
@@ -559,6 +577,7 @@ The universal Runtime IR enables:
 -   backend innovation and specialized code generation
 -   future extensibility without compiler pipeline regressions
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     dmn["DMN Models"] --> comp["Compiler Pipeline"]
     comp --> rir["Runtime IR"]

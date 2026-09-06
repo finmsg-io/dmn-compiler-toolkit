@@ -20,6 +20,7 @@ the [ADR guide](architecture/adr/generall-adr.md), and project terminology is de
 The toolkit is a staged compiler rather than an XML-centric interpreter.
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     XML["DMN XML Source Graph"] --> Facade["Model Resolver & DmnCompiler Facade"]
     Facade --> Frontend["XML Frontend (VTD-XML)"]

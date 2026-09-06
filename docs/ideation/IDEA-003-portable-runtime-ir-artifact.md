@@ -108,6 +108,7 @@ binary compatibility is owned by its backend and platform.
 ## Proposed delivery architecture
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Root["Root DMN + imports"] --> Comp["Trusted Java compiler<br/>(XML → FEEL → semantics → Runtime IR → optimizer)"]
     Comp --> Enc["Portable IR encoder + canonical verifier"]
@@ -200,6 +201,7 @@ semantic model and executable artifact have different purposes, consumers, and e
 Use explicit bidirectional mapping:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     runtime["Java Runtime IR"] -->|encode| wire["Protobuf wire IR"]
     wire -->|decode| runtime
@@ -212,6 +214,7 @@ not be distributable until it has a stable wire representation and declared capa
 Round-trip requirements:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     runtimeInput["Runtime IR"] --> wire["Wire IR"] --> runtimeOutput["Runtime IR"]
 ```
@@ -219,6 +222,7 @@ flowchart LR
 must preserve observable behavior and stable identities, while:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     input["Wire bytes"] --> decode["Decode"] --> encode["Encode"] --> output["Wire bytes"]
 ```

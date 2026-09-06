@@ -20,6 +20,7 @@ This chapter defines the system context and external integration boundaries of t
 The compiler toolkit operates as a deterministic transformation pipeline and high-performance runtime engine:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph Sources["DMN Sources & Providers"]
         XML["DMN 1.5 XML Files"]

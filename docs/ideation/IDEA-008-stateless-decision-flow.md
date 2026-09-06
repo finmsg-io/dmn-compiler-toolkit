@@ -103,6 +103,7 @@ engine, while retaining standard DMN interchange and generated-code options.
 Treat a decision service as the public pipeline boundary and its internal DRG as the executable flow:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Inputs["<b>Inputs</b><br/>transaction<br/>customer"] --> Norm["<b>Normalize and derive facts</b><br/>normalizedAmount<br/>customerRisk"]
     Norm --> Eval["<b>Evaluate policy</b><br/>sanctionsResult<br/>fraudRisk<br/>eligibility"]
@@ -119,6 +120,7 @@ results.
 Optional stage metadata can improve readability:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     derive["Derive"] --> derived["normalizedAmount, customerRisk"]
     screen["Screen"] --> screened["sanctionsResult, fraudRisk"]

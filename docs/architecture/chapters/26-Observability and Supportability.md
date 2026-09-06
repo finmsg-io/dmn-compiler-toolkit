@@ -20,6 +20,7 @@ This chapter defines the observability architecture, performance profiling hooks
 During model compilation, the compiler tracks structured phase timings and model cardinality metrics:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph CompilationPipeline["Compiler Execution Pipeline"]
         P1["Phase 1: Source Resolution & XML Parsing"]

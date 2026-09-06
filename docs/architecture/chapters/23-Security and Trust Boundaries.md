@@ -21,6 +21,7 @@ This chapter establishes normative security controls, trust boundaries, and thre
 The toolkit partitions data flow across four distinct security trust domains:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     subgraph UntrustedZone["Zone 0: Untrusted Inputs (External)"]
         RAW_XML["External DMN XML / FEEL Text"]

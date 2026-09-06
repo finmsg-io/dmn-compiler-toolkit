@@ -49,6 +49,7 @@ special cases, stale plans, or speculative infrastructure.
 ## Operating loop
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Observe["<b>Observe</b><br/>Gather repository, test, dependency, API, benchmark, documentation, and workflow evidence"] --> Reflect["<b>Reflect</b><br/>Compare intent with reality; identify drift, friction, duplication, and obsolete assumptions"]
     Reflect --> Decide["<b>Decide</b><br/>Keep, simplify, fix, experiment, defer, or remove—with an owner and expected outcome"]
@@ -386,6 +387,7 @@ cost—not lines of code removed alone.
 ## Finding lifecycle
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     observed["Observed"] --> validated["Validated"] --> selected["Selected"]
     selected --> progress["In progress"] --> verified["Verified"] --> closed["Closed"]
@@ -556,6 +558,7 @@ commitment source; this stewardship loop keeps it aligned with evidence.
 The ideation portfolio should gain explicit lifecycle states such as:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart LR
     exploring["Exploring"] --> evidence["Evidence gathering"] --> candidate["Candidate"]
     candidate --> promoted["Promoted"]

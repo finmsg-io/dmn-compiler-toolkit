@@ -25,6 +25,7 @@ Contains all Java classes generated from the protobuf schemas, including `Defini
 ## 8.2 XML frontend
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Root["io.finmsg.dmn.frontend.xml"] --> C1["XmlCursor"]
     Root --> C2["XmlEmitter"]
@@ -51,6 +52,7 @@ io.finmsg.dmn.frontend.xml.dmn.writer
 ## 8.3 FEEL parser
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Root["io.finmsg.dmn.feel.parser"] --> C1["FeelParserFacade"]
     Root --> C2["FeelAstBuilder"]
@@ -67,6 +69,7 @@ ANTLR-generated sources use the same parser package below `src/gen/java`.
 ## 8.4 Semantic analysis
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     Root["io.finmsg.dmn.semantic.analysis"] --> C1["DmnSemanticAnalyzer"]
     Root --> C2["DmnSemanticAnalysisResult"]

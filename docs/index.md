@@ -27,6 +27,7 @@ functionality. This page intentionally does not duplicate that inventory.
 The implemented pipeline is:
 
 ```mermaid
+%%{init: {'theme':'neutral'}}%%
 flowchart TD
     XML["DMN XML Source Graph"] --> Facade["DmnCompiler Facade / Model Resolver"]
     Facade --> XMLReader["Definitions with FEEL text (DmnXmlReader)"]
