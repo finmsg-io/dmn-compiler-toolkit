@@ -29,7 +29,7 @@ Detailed breakdown and example specifications:
 
 Related implemented evidence:
 
-- [P9 development-plan section](../development-plan.md#p9--production-data-quality-dmn-corpus)
+- [Roadmap](../roadmap.md)
 
 ## Summary
 

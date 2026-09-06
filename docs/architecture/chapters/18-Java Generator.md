@@ -293,12 +293,12 @@ a + b
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-11"></a>
 ## 18.11 Generated Code Optimization
 
 The generator should produce JVM-friendly code.
 
 ------------------------------------------------------------------------
-<a id="contents-section-4"></a>
 ### 18.11.1 Avoid Boxing
 
 Bad:
@@ -310,7 +310,6 @@ Good:
 int speed;
 ```
 ------------------------------------------------------------------------
-<a id="contents-section-5"></a>
 ### 18.11.2 Avoid Reflection
 
 Forbidden:
@@ -323,7 +322,6 @@ Preferred:
 input.speed()
 ```
 ------------------------------------------------------------------------
-<a id="contents-section-6"></a>
 ### 18.11.3 Avoid Generic Dispatch
 
 Bad:
@@ -337,6 +335,7 @@ evaluateDecision()
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-12"></a>
 ## 18.12 Decision Graph Generation
 
 Runtime graph:

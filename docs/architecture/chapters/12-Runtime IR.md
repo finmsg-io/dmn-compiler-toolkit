@@ -73,6 +73,7 @@ No XML processing, FEEL parsing, or semantic analysis occurs.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-2"></a>
 ## 12.2 Design Goals
 
 The Runtime IR is optimized for:
@@ -88,6 +89,7 @@ The Runtime IR is optimized for:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-3"></a>
 ## 12.3 Architectural Position
 
 The Runtime IR is the stable contract between compiler and execution
@@ -104,9 +106,9 @@ flowchart TD
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-4"></a>
 ## 12.4 Runtime IR Principles
 
-<a id="contents-section-2"></a>
 ### 12.4.1 RIR-001 --- No Source Language Concepts
 
 Runtime IR must not contain:
@@ -180,6 +182,7 @@ Benefits:
 -   sharing between requests
 -   safe caching
 ------------------------------------------------------------------------
+<a id="contents-section-5"></a>
 ## 12.5 Runtime IR Package
 
 Package:
@@ -201,6 +204,7 @@ flowchart TD
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-6"></a>
 ## 12.6 Runtime Model
 
 The root execution artifact.
@@ -231,6 +235,7 @@ flowchart TD
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-7"></a>
 ## 12.7 Runtime Decision
 
 Represents an executable decision.
@@ -259,6 +264,7 @@ public record RuntimeDecision(
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-8"></a>
 ## 12.8 Runtime Variable
 
 Variables are resolved during compilation.
@@ -288,6 +294,7 @@ Object value =
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-9"></a>
 ## 12.9 Runtime Expression
 
 Expressions are represented as executable operations.
@@ -314,6 +321,7 @@ public final class RuntimeExpression {
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-10"></a>
 ## 12.10 Instruction Model
 
 The Runtime IR can use an instruction-based design.
@@ -343,6 +351,7 @@ public record Instruction(
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-11"></a>
 ## 12.11 Opcode Design
 
 Opcodes represent executable operations.
@@ -375,12 +384,12 @@ FEEL operator >
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-12"></a>
 ## 12.12 Expression Graph vs Instruction Stream
 
 Two possible execution models are supported.
 
 ------------------------------------------------------------------------
-<a id="contents-section-3"></a>
 ### 12.12.1 Model A --- Expression Graph
 
 Example:
@@ -394,7 +403,6 @@ Advantages:
 -   common subexpression elimination
 -   graph analysis
 ------------------------------------------------------------------------
-<a id="contents-section-4"></a>
 ### 12.12.2 Model B --- Instruction Stream
 
 Example:
@@ -418,6 +426,7 @@ flowchart TD
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-13"></a>
 ## 12.13 Execution Graph
 
 The Runtime IR contains the Decision Requirements Graph.
@@ -447,6 +456,7 @@ public final class ExecutionGraph {
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-14"></a>
 ## 12.14 Constant Pool
 
 Constants are stored separately.
@@ -473,6 +483,7 @@ Benefits:
 -   sharing
 -   serialization efficiency
 ------------------------------------------------------------------------
+<a id="contents-section-15"></a>
 ## 12.15 Runtime IR Serialization
 
 Current policy: Runtime IR is process-local. The Java records are immutable compiler/runtime
@@ -515,6 +526,7 @@ ADR covering that consumer's compatibility lifetime and deployment constraints.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-16"></a>
 ## 12.16 Example Transformation
 
 Input FEEL:
@@ -544,6 +556,7 @@ Runtime IR:
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-17"></a>
 ## 12.17 Runtime Execution Loop
 
 A simple interpreter:
@@ -576,13 +589,13 @@ Later this can be replaced by:
 -   GraalVM native image
 -   LLVM backend
 ------------------------------------------------------------------------
+<a id="contents-section-18"></a>
 ## 12.18 Runtime IR Optimization
 
 Optimizations target the Runtime IR.
 
 Examples:
 ------------------------------------------------------------------------
-<a id="contents-section-5"></a>
 ### 12.18.1 Dead instruction elimination
 
 Before:
@@ -597,7 +610,6 @@ After:
 removed
 ```
 ------------------------------------------------------------------------
-<a id="contents-section-6"></a>
 ### 12.18.2 Constant folding
 
 Before:
@@ -611,7 +623,6 @@ After:
 LOAD 30
 ```
 ------------------------------------------------------------------------
-<a id="contents-section-7"></a>
 ### 12.18.3 Variable slot optimization
 
 Before:
@@ -625,10 +636,10 @@ slot 12
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-19"></a>
 ## 12.19 Code Generation
 
 Runtime IR becomes:
-<a id="contents-section-8"></a>
 ### 12.19.1 Java
 ```java
 if(speed > 100){
@@ -636,7 +647,6 @@ if(speed > 100){
 }
 ```
 ------------------------------------------------------------------------
-<a id="contents-section-9"></a>
 ### 12.19.2 Spark SQL
 ```sql
 CASE
@@ -645,7 +655,6 @@ THEN 'HIGH'
 END
 ```
 ------------------------------------------------------------------------
-<a id="contents-section-10"></a>
 ### 12.19.3 Rust
 ```rust
 if speed > 100 {
@@ -654,6 +663,7 @@ if speed > 100 {
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-20"></a>
 ## 12.20 Performance Considerations
 
 Runtime IR avoids:
@@ -669,6 +679,7 @@ Runtime IR avoids:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-21"></a>
 ## 12.21 Thread Safety
 
 Runtime IR is immutable.
@@ -682,24 +693,22 @@ flowchart TD
 ```
 No synchronization required.
 ------------------------------------------------------------------------
+<a id="contents-section-22"></a>
 ## 12.22 Testing Strategy
 
 Runtime IR tests:
-<a id="contents-section-11"></a>
 ### 12.22.1 Compilation correctness
 ```mermaid
 flowchart TB
     dmn["DMN"] --> ir["Runtime IR"]
 ```
 ------------------------------------------------------------------------
-<a id="contents-section-12"></a>
 ### 12.22.2 Serialization
 ```mermaid
 flowchart TB
     runtimeInput["Runtime IR"] --> protobuf["Protobuf"] --> runtimeOutput["Runtime IR"]
 ```
 ------------------------------------------------------------------------
-<a id="contents-section-13"></a>
 ### 12.22.3 Execution equivalence
 
 Compare:
@@ -709,7 +718,6 @@ vs
 Runtime IR Execution
 ```
 ------------------------------------------------------------------------
-<a id="contents-section-14"></a>
 ### 12.22.4 Performance
 Measure:
 -   execution latency
@@ -717,6 +725,7 @@ Measure:
 -   memory allocation
 -   startup time
 ------------------------------------------------------------------------
+<a id="contents-section-23"></a>
 ## 12.23 Summary
 Runtime IR is the key architectural differentiator.
 

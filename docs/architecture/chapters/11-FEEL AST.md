@@ -4,12 +4,12 @@
 ## Table of contents
 
 - [11.1 Purpose](#contents-section-1)
-- [11.2 AST Root](#contents-section-2)
-- [11.3 Implemented Nodes](#contents-section-3)
-- [11.4 Text and Parsed Separation](#contents-section-4)
+- [11.2 AST root](#contents-section-2)
+- [11.3 Implemented nodes](#contents-section-3)
+- [11.4 Text and parsed separation](#contents-section-4)
 - [11.5 Traversal](#contents-section-5)
-- [11.6 Semantic State](#contents-section-6)
-- [11.7 Design Rules](#contents-section-7)
+- [11.6 Semantic state](#contents-section-6)
+- [11.7 Design rules](#contents-section-7)
 <!-- generated-toc:end -->
 
 

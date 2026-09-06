@@ -3,9 +3,9 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [20.1 Current Test Layers](#contents-section-1)
-- [20.2 Traffic Violation Pipeline](#contents-section-2)
-- [20.3 Diagnostic Tests](#contents-section-3)
+- [20.1 Current test layers](#contents-section-1)
+- [20.2 Traffic Violation pipeline](#contents-section-2)
+- [20.3 Diagnostic tests](#contents-section-3)
 - [20.4 Official OMG DMN 1.5 TCK Conformance Suite](#contents-section-4)
 <!-- generated-toc:end -->
 

@@ -52,9 +52,9 @@ flowchart TD
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-2"></a>
 ## 9.2 API Design Principles
 
-<a id="contents-section-2"></a>
 ### 9.2.1 API-001 --- Simple Entry Point
 
 The common use case should require minimal code.
@@ -72,7 +72,6 @@ DecisionModel model =
     );
 ```
 ------------------------------------------------------------------------
-<a id="contents-section-3"></a>
 ### 9.2.2 API-002 --- Hide Compiler Internals
 
 Application code should never directly access:
@@ -90,7 +89,6 @@ Compiler
 ```
 is the facade.
 ------------------------------------------------------------------------
-<a id="contents-section-4"></a>
 ### 9.2.3 API-003 --- Stable Contracts
 
 Public interfaces evolve slowly.
@@ -102,6 +100,7 @@ flowchart TB
 ```
 without affecting users.
 ------------------------------------------------------------------------
+<a id="contents-section-3"></a>
 ## 9.3 Public API Modules
 
 Recommended module:
@@ -138,6 +137,7 @@ flowchart TD
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-4"></a>
 ## 9.4 Compiler API
 
 Main entry point:
@@ -160,6 +160,7 @@ CompilationResult result =
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-5"></a>
 ## 9.5 Compiler Builder
 
 Configuration is explicit.
@@ -187,6 +188,7 @@ source mapping
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-6"></a>
 ## 9.6 Compilation Result
 
 Compilation returns a structured result.
@@ -209,6 +211,7 @@ if(result.successful()) {
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-7"></a>
 ## 9.7 Diagnostics API
 
 Compiler errors are first-class objects.
@@ -233,6 +236,7 @@ line 25
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-8"></a>
 ## 9.8 Decision Model API
 
 The compiled decision model represents executable output.
@@ -255,6 +259,7 @@ Native backend
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-9"></a>
 ## 9.9 Decision Execution API
 
 Runtime API:
@@ -275,11 +280,11 @@ DecisionResult result =
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-10"></a>
 ## 9.10 Input API
 
 Two supported modes.
 ------------------------------------------------------------------------
-<a id="contents-section-5"></a>
 ### 9.10.1 Generic Input
 
 Flexible:
@@ -293,7 +298,6 @@ DecisionInput input =
         .build();
 ```
 ------------------------------------------------------------------------
-<a id="contents-section-6"></a>
 ### 9.10.2 Generated Input
 
 High-performance:
@@ -305,6 +309,7 @@ TrafficInput input =
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-11"></a>
 ## 9.11 Result API
 
 Example:
@@ -322,6 +327,7 @@ Penalty penalty =
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-12"></a>
 ## 9.12 Backend Selection
 
 The API supports multiple targets.
@@ -346,6 +352,7 @@ WASM
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-13"></a>
 ## 9.13 Compilation Pipeline API
 
 Advanced users may access pipeline stages.
@@ -366,6 +373,7 @@ This API is considered advanced.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-14"></a>
 ## 9.14 Streaming Compilation API
 
 For large environments:
@@ -381,6 +389,7 @@ Benefits:
 -   CI/CD integration
 -   repository scanning
 ------------------------------------------------------------------------
+<a id="contents-section-15"></a>
 ## 9.15 Incremental Compilation API
 
 Large repositories require incremental builds.
@@ -401,6 +410,7 @@ Only changed artifacts are rebuilt.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-16"></a>
 ## 9.16 Maven Plugin API
 
 The compiler integrates into builds.
@@ -428,6 +438,7 @@ flowchart TD
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-17"></a>
 ## 9.17 CLI API
 
 Command-line access:
@@ -459,6 +470,7 @@ Runtime IR size:
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-18"></a>
 ## 9.18 IDE Integration
 
 Future support:
@@ -473,6 +485,7 @@ flowchart TD
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-19"></a>
 ## 9.19 Versioning Strategy
 
 Public API follows semantic versioning.
@@ -492,6 +505,7 @@ bug fixes
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-20"></a>
 ## 9.20 API Compatibility Rules
 
 Allowed:
@@ -509,6 +523,7 @@ Change result semantics
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-21"></a>
 ## 9.21 Example Complete Application
 
 Application code:
@@ -543,6 +558,7 @@ System.out.println(
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-22"></a>
 ## 9.22 Public API Summary
 
 The public API provides:

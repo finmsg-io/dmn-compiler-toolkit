@@ -2,7 +2,7 @@
 
 This directory contains product and technical ideas that are not yet committed delivery-plan
 items. An idea must pass its decision gates before it is promoted into
-[`development-plan.md`](../development-plan.md).
+[`roadmap.md`](../roadmap.md).
 
 | ID | Idea | Status | Product outcome |
 | --- | --- | --- | --- |

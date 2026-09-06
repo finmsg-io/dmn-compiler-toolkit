@@ -5,11 +5,11 @@
 
 - [13.1 Boundary](#contents-section-1)
 - [13.2 Reader API](#contents-section-2)
-- [13.3 Namespace and Version Behavior](#contents-section-3)
-- [13.4 Symmetric Reader/Writer Coverage](#contents-section-4)
-- [13.5 Source Locations and Extensions](#contents-section-5)
-- [13.6 Explicit Model Boundary](#contents-section-6)
-- [13.7 Completion Status](#contents-section-7)
+- [13.3 Namespace and version behavior](#contents-section-3)
+- [13.4 Symmetric reader/writer coverage](#contents-section-4)
+- [13.5 Source locations and extensions](#contents-section-5)
+- [13.6 Explicit model boundary](#contents-section-6)
+- [13.7 Completion status](#contents-section-7)
 <!-- generated-toc:end -->
 
 

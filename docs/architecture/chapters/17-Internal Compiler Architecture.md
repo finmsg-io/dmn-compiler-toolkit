@@ -57,6 +57,7 @@ The goals of the internal architecture are:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-2"></a>
 ## 17.2 Compiler Overview
 
 The compiler is organized as a pipeline.
@@ -78,6 +79,7 @@ The **Pass Manager** orchestrates the complete compilation process.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-3"></a>
 ## 17.3 Compiler Context
 
 Compilation state is maintained in a single immutable context.
@@ -95,7 +97,6 @@ The context is passed to compiler passes.
 Compiler passes must never access global state.
 
 ------------------------------------------------------------------------
-<a id="contents-section-2"></a>
 ### 17.3.1 Why a Compiler Context?
 
 Without a context:
@@ -113,6 +114,7 @@ flowchart TD
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-4"></a>
 ## 17.4 Compiler Pipeline
 
 The compiler executes a sequence of passes.
@@ -134,6 +136,7 @@ Each stage has exactly one responsibility.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-5"></a>
 ## 17.5 Compiler Pass
 
 Every compiler pass implements a common interface.
@@ -154,25 +157,23 @@ Characteristics:
 -   reusable
 ------------------------------------------------------------------------
 
+<a id="contents-section-6"></a>
 ## 17.6 Pass Categories
 
 Compiler passes fall into several categories.
 
-<a id="contents-section-3"></a>
 ### Validation
 Examples:
 -   duplicate IDs
 -   duplicate names
 -   XML consistency
 ------------------------------------------------------------------------
-<a id="contents-section-4"></a>
 ### Analysis
 Examples:
 -   type inference
 -   dependency graph
 -   symbol resolution
 ------------------------------------------------------------------------
-<a id="contents-section-5"></a>
 ### Optimization
 Examples:
 -   constant folding
@@ -180,13 +181,13 @@ Examples:
 -   dead decision elimination
 
 ------------------------------------------------------------------------
-<a id="contents-section-6"></a>
 ### Transformation
 Examples:
 -   Runtime IR generation
 -   Java generation
 -   Rust generation
 ------------------------------------------------------------------------
+<a id="contents-section-7"></a>
 ## 17.7 Pass Manager
 
 The Pass Manager coordinates execution.
@@ -208,6 +209,7 @@ Responsibilities:
 -   metrics
 -   dependency checking
 ------------------------------------------------------------------------
+<a id="contents-section-8"></a>
 ## 17.8 Pass Scheduling
 
 Passes execute in dependency order.
@@ -229,6 +231,7 @@ The Pass Manager validates scheduling rules.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-9"></a>
 ## 17.9 Pass Dependencies
 
 Each pass declares its prerequisites.
@@ -248,6 +251,7 @@ The Pass Manager constructs a dependency graph.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-10"></a>
 ## 17.10 Compiler Phases
 
 The compiler groups passes into phases.
@@ -263,6 +267,7 @@ Phases simplify diagnostics and tooling.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-11"></a>
 ## 17.11 Intermediate Representations
 
 The compiler operates on three primary representations.
@@ -277,6 +282,7 @@ Compiler passes replace representations rather than mutating them.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-12"></a>
 ## 17.12 Diagnostics Propagation
 
 Compiler passes report diagnostics through the context.
@@ -289,6 +295,7 @@ Passes never print directly to the console.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-13"></a>
 ## 17.13 Incremental Compilation
 
 Large repositories benefit from incremental builds.
@@ -309,6 +316,7 @@ The Pass Manager determines which passes must be rerun.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-14"></a>
 ## 17.14 Parallel Compilation
 
 Independent models can compile simultaneously.
@@ -322,6 +330,7 @@ Compiler passes remain thread-safe by avoiding mutable shared state.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-15"></a>
 ## 17.15 Pass Metrics
 
 Each pass records execution statistics.
@@ -338,6 +347,7 @@ Metrics help identify performance bottlenecks.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-16"></a>
 ## 17.16 Pipeline Visualization
 
 The compiler can expose its execution graph.
@@ -354,6 +364,7 @@ Useful for:
 -   documentation
 -   IDE integration
 ------------------------------------------------------------------------
+<a id="contents-section-17"></a>
 ## 17.17 Extension Points
 
 New compiler passes can be added without modifying existing code.
@@ -370,6 +381,7 @@ Typical extensions:
 -   code quality checks
 -   company-specific validations
 ------------------------------------------------------------------------
+<a id="contents-section-18"></a>
 ## 17.18 Failure Handling
 
 Compilation stops when a phase produces fatal diagnostics.
@@ -382,6 +394,7 @@ Warnings and informational diagnostics do not stop compilation.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-19"></a>
 ## 17.19 Compiler Observability
 
 The compiler emits structured events during execution.
@@ -398,6 +411,7 @@ coupling the compiler to a specific logging framework.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-20"></a>
 ## 17.20 Reference Pipeline
 
 The default pipeline for Version 1.0 is:
@@ -421,6 +435,7 @@ Future releases may add passes, but existing pass contracts should
 remain stable.
 ------------------------------------------------------------------------
 
+<a id="contents-section-21"></a>
 ## 17.21 Internal Package Layout
 
 A recommended package organization is:
@@ -452,6 +467,7 @@ modular.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-22"></a>
 ## 17.22 Summary
 
 The internal compiler architecture provides:

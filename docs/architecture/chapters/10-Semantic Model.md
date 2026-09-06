@@ -3,13 +3,13 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [10.1 Canonical Representation](#contents-section-1)
-- [10.2 Protobuf Organization](#contents-section-2)
-- [10.3 Replaceable Representation Pattern](#contents-section-3)
+- [10.1 Canonical representation](#contents-section-1)
+- [10.2 Protobuf organization](#contents-section-2)
+- [10.3 Replaceable representation pattern](#contents-section-3)
 - [10.4 Immutability](#contents-section-4)
-- [10.5 Type Model](#contents-section-5)
-- [10.6 FEEL Representation](#contents-section-6)
-- [10.7 Current Completeness Boundaries](#contents-section-7)
+- [10.5 Type model](#contents-section-5)
+- [10.6 FEEL representation](#contents-section-6)
+- [10.7 Current completeness boundaries](#contents-section-7)
 <!-- generated-toc:end -->
 
 

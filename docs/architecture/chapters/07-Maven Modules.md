@@ -3,16 +3,16 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [7.1 Current Project Structure](#contents-section-1)
-- [7.2 dmn-protobuf](#contents-section-2)
-- [7.3 dmn-frontend-xml](#contents-section-3)
-- [7.4 dmn-feel-parser](#contents-section-4)
-- [7.5 dmn-semantic-analysis](#contents-section-5)
-- [7.6 dmn-runtime-ir](#contents-section-6)
-- [7.7 dmn-runtime](#contents-section-7)
-- [7.8 dmn-compiler](#contents-section-8)
-- [7.9 Target Modules](#contents-section-9)
-- [7.10 Module Rules](#contents-section-10)
+- [7.1 Current project structure](#contents-section-1)
+- [7.2 `dmn-protobuf`](#contents-section-2)
+- [7.3 `dmn-frontend-xml`](#contents-section-3)
+- [7.4 `dmn-feel-parser`](#contents-section-4)
+- [7.5 `dmn-semantic-analysis`](#contents-section-5)
+- [7.6 `dmn-runtime-ir`](#contents-section-6)
+- [7.7 `dmn-runtime`](#contents-section-7)
+- [7.8 `dmn-compiler`](#contents-section-8)
+- [7.9 Target modules](#contents-section-9)
+- [7.10 Module rules](#contents-section-10)
 <!-- generated-toc:end -->
 
 

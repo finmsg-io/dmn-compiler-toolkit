@@ -49,6 +49,7 @@ Current implementation status:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-2"></a>
 ## 6.2 Component Overview
 
 ```mermaid
@@ -70,14 +71,13 @@ flowchart TD
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-3"></a>
 ## 6.3 XML Frontend
 
-<a id="contents-section-2"></a>
 ### Responsibility
 
 Read and write DMN XML documents.
 
-<a id="contents-section-3"></a>
 ### Responsibilities
 
 -   XML parsing
@@ -87,7 +87,6 @@ Read and write DMN XML documents.
 -   extension element preservation
 -   XML serialization
 
-<a id="contents-section-4"></a>
 ### Does NOT
 
 -   parse FEEL
@@ -95,26 +94,24 @@ Read and write DMN XML documents.
 -   validate types
 -   optimize expressions
 
-<a id="contents-section-5"></a>
 ### Input
 
 ```text
 DMN XML
 ```
-<a id="contents-section-6"></a>
 ### Output
 ```text
 Semantic Model
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-4"></a>
 ## 6.4 Semantic Model
 
 The Semantic Model is the canonical representation of a DMN document.
 
 It represents the specification, not the XML syntax.
 
-<a id="contents-section-7"></a>
 ### Responsibilities
 Represent
 -   Definitions
@@ -130,19 +127,17 @@ The Semantic Model is immutable after construction.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-5"></a>
 ## 6.5 FEEL Parser
 
-<a id="contents-section-8"></a>
 ### Responsibility
 
 Convert FEEL source code into an Abstract Syntax Tree.
 
-<a id="contents-section-9"></a>
 ### Input
 ```text
 "a+b*c"
 ```
-<a id="contents-section-10"></a>
 ### Output
 ```mermaid
 flowchart TD
@@ -155,6 +150,7 @@ The parser performs syntax analysis only.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-6"></a>
 ## 6.6 Model Validator
 
 The validator checks structural correctness before semantic analysis.
@@ -170,6 +166,7 @@ Examples
 The validator does not resolve types.
 
 ------------------------------------------------------------------------
+<a id="contents-section-7"></a>
 ## 6.7 Semantic Analyzer
 
 The semantic analyzer enriches the model.
@@ -190,6 +187,7 @@ Validated Semantic Model
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-8"></a>
 ## 6.8 Dependency Graph Builder
 
 Constructs the complete Decision Requirements Graph (DRG).
@@ -205,6 +203,7 @@ Used for
 -   dead code elimination
 -   incremental compilation
 ------------------------------------------------------------------------
+<a id="contents-section-9"></a>
 ## 6.9 Compiler Pass Framework
 
 All optimizations will be implemented as compiler passes.
@@ -223,6 +222,7 @@ flowchart TB
 ```
 ------------------------------------------------------------------------
 
+<a id="contents-section-10"></a>
 ## 6.10 Runtime Builder
 
 Transforms the semantic model into Runtime IR.
@@ -237,6 +237,7 @@ Responsibilities
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-11"></a>
 ## 6.11 Runtime IR
 
 The Runtime IR is the execution model.
@@ -259,6 +260,7 @@ ExecutionGraph
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-12"></a>
 ## 6.12 Code Generators
 
 Every generator consumes Runtime IR.
@@ -280,6 +282,7 @@ Generators
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-13"></a>
 ## 6.13 Runtime Engine
 
 The runtime executes Runtime IR.
@@ -299,6 +302,7 @@ The runtime performs
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-14"></a>
 ## 6.14 Diagnostics Framework
 
 Diagnostics are collected throughout the pipeline.
@@ -320,6 +324,7 @@ Every diagnostic includes
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-15"></a>
 ## 6.15 Extension Framework
 
 The architecture supports future extensions.
@@ -336,6 +341,7 @@ Extensions must never violate the Architecture Principles.
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-16"></a>
 ## 6.16 Component Interaction Rules
 
 The following rules are mandatory:
@@ -351,6 +357,7 @@ The following rules are mandatory:
 
 ------------------------------------------------------------------------
 
+<a id="contents-section-17"></a>
 ## 6.17 Component Dependency Matrix
 
 | Component         | Depends On          |

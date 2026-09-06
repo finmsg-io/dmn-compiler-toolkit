@@ -3,12 +3,12 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-- [8.1 Generated Model](#contents-section-1)
-- [8.2 XML Frontend](#contents-section-2)
-- [8.3 FEEL Parser](#contents-section-3)
-- [8.4 Semantic Analysis](#contents-section-4)
-- [8.5 Public Entry Points](#contents-section-5)
-- [8.6 Package Rules](#contents-section-6)
+- [8.1 Generated model](#contents-section-1)
+- [8.2 XML frontend](#contents-section-2)
+- [8.3 FEEL parser](#contents-section-3)
+- [8.4 Semantic analysis](#contents-section-4)
+- [8.5 Public entry points](#contents-section-5)
+- [8.6 Package rules](#contents-section-6)
 <!-- generated-toc:end -->
 
 
