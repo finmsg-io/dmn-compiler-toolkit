@@ -7,7 +7,7 @@
 - [Next planned work](#contents-section-2)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-08-07
+Last reviewed: 2026-09-06
 
 Runtime IR is immutable, protobuf-free, and namespace-free at execution time (`RuntimeModel`). It covers all modeled FEEL expressions, boxed decision logic, decision tables, and BKM functions. Model-set lowering (`RuntimeIrLowerer`), lexical frames, dependency topological schedules, indexed contexts, constant pooling, and stable built-in operation IDs (`RuntimeIrOptimizer`) are fully implemented.
 
@@ -20,10 +20,11 @@ Runtime IR is immutable, protobuf-free, and namespace-free at execution time (`R
 | P0 | Semantic-to-IR lowering pass | `done` | `RuntimeIrLowerer` lowers protobuf models to IR |
 | P0 | Constant pool & built-in ID optimizer | `done` | `RuntimeIrOptimizer` produces `RuntimeOptimizedModel` |
 | P1 | Dual-backend consumer interface | `done` | Consumed by `DmnRuntime` and `dmn-generator-java` |
+| P8 | Static constant folding & optimization passes | `done` | Integrated with `dmn-optimizer` passes |
 
 <a id="contents-section-2"></a>
 ## Next planned work
 
-| Priority | Work item | Status |
-| --- | --- | --- |
-| P1 | Constant folding & expression simplification pass (`dmn-optimizer`) | `proposed` |
+| Priority | Work item | Status | Target / Evidence |
+| --- | --- | --- | --- |
+| P20 | Native IR serialization / bytecode emission for zero-GC runtimes | `proposed` | Native execution engine lowering |

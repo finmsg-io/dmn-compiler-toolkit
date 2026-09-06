@@ -3,28 +3,46 @@
 <!-- generated-toc:start -->
 ## Table of contents
 
-
+- [Core Reactor Modules](#contents-section-1)
+- [Verification & Benchmark Modules](#contents-section-2)
+- [Incubator Modules](#contents-section-3)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-08-07
+Last reviewed: 2026-09-06
 
-This directory contains the current work list per active Maven module. These documents track module-local gaps; cross-module delivery sequencing belongs in the [development plan](../development-plan.md).
+This directory contains the current work list and status per Maven module. These documents track module-local gaps and completed deliverables; cross-module delivery sequencing belongs in the [roadmap](../roadmap.md).
 
-| Module | Current Status & Roadmap |
-| --- | --- |
-| `dmn-compiler` | [Compiler facade and resolution](dmn-compiler.md) — implemented core; evidence hardening tracked separately (`done`) |
-| `dmn-protobuf` | [Protobuf semantic contracts](dmn-protobuf.md) — Stable Core (`done`) |
-| `dmn-frontend-xml` | [XML frontend](dmn-frontend-xml.md) — Round-Trip Symmetric (`done`) |
-| `dmn-feel-parser` | [FEEL parser](dmn-feel-parser.md) — FEEL 1.5 AST Builder (`done`) |
-| `dmn-semantic-analysis` | [Semantic analysis](dmn-semantic-analysis.md) — Symbol & Scoped Analysis (`done`) |
-| `dmn-runtime-ir` | [Runtime IR](dmn-runtime-ir.md) — Immutable Runtime IR & Optimizer (`done`) |
-| `dmn-runtime` | [Runtime interpreter](dmn-runtime.md) — Deterministic Interpreter (`done`) |
-| `dmn-generator-java` | [Java code generator](../modules.md#contents-section-9) — Zero-Reflection AOT Java (`done`) |
-| `dmn-tck-runner` | [TCK runner](../modules.md#contents-section-10) — self-verified execution implemented; catalogue accounting remains in the cross-module plan (`done`) |
-| `dmn-benchmarks` | [JMH benchmarks](dmn-benchmarks.md) — DataFaker Workloads & Phase Isolation Benchmarks (`in progress`) |
-| `dmn-optimizer` | [Optimizer pass](dmn-optimizer.md) — Constant Folding & Rule Pruning (`done`) |
-| `dmn-grpc` | [gRPC adapter](dmn-grpc.md) — Transport-Neutral Pure gRPC Java (`done`) |
-| `dmn-generator-sparksql` | [Spark SQL generator](dmn-generator-sparksql.md) — Pure Spark / Databricks SQL CTE Generator (`done`) |
-| `dmn-models` | [Models & Streaming API](dmn-models.md) — Multi-file DMN sample suites & streaming ingestion (`done`) |
+<a id="contents-section-1"></a>
+## Core Reactor Modules
+
+| Module | Purpose & Subsystem | Current Status | Details |
+| --- | --- | --- | --- |
+| `dmn-protobuf` | Protobuf semantic model definitions & Java bindings | `done` | [dmn-protobuf.md](dmn-protobuf.md) |
+| `dmn-frontend-xml` | Namespace-aware VTD-XML reader & round-trip writer | `done` | [dmn-frontend-xml.md](dmn-frontend-xml.md) |
+| `dmn-feel-parser` | ANTLR4 FEEL 1.5 parser & AST builder | `done` | [dmn-feel-parser.md](dmn-feel-parser.md) |
+| `dmn-semantic-analysis` | Scoped symbol resolution, validation, & dependency ordering | `done` | [dmn-semantic-analysis.md](dmn-semantic-analysis.md) |
+| `dmn-runtime-ir` | Immutable Runtime IR lowering & frame layout | `done` | [dmn-runtime-ir.md](dmn-runtime-ir.md) |
+| `dmn-runtime` | Deterministic process-local Runtime IR interpreter | `done` | [dmn-runtime.md](dmn-runtime.md) |
+| `dmn-optimizer` | Constant folding, algebraic simplification, & rule pruning | `done` | [dmn-optimizer.md](dmn-optimizer.md) |
+| `dmn-compiler` | Multi-model orchestration, resolvers, & diagnostic facade | `done` | [dmn-compiler.md](dmn-compiler.md) |
+| `dmn-generator-java` | High-performance AOT Java bytecode generator | `done` | [dmn-generator-java.md](dmn-generator-java.md) |
+| `dmn-smoke-test` | External consumer & outside-reactor verification suite | `done` | [dmn-smoke-test.md](dmn-smoke-test.md) |
+
+<a id="contents-section-2"></a>
+## Verification & Benchmark Modules
+
+| Module | Purpose & Subsystem | Current Status | Details |
+| --- | --- | --- | --- |
+| `dmn-tck-runner` | Official OMG DMN 1.5 TCK runner (3,391/3,391 cases passing) | `done` | [dmn-tck-runner.md](dmn-tck-runner.md) |
+| `dmn-benchmarks` | Multi-threaded JMH scalability benchmarks & GC profiling | `done` | [dmn-benchmarks.md](dmn-benchmarks.md) |
+| `dmn-models` | Multi-file DMN sample suites & Java streaming ingestion | `done` | [dmn-models.md](dmn-models.md) |
+
+<a id="contents-section-3"></a>
+## Incubator Modules
+
+| Module | Purpose & Subsystem | Current Status | Details |
+| --- | --- | --- | --- |
+| `dmn-grpc` | Pure Java gRPC service stub & dynamic value adapter generator | `done` | [dmn-grpc.md](dmn-grpc.md) |
+| `dmn-generator-sparksql` | Pure Spark / Databricks SQL CTE query generator (Spark 4.2.0) | `done` | [dmn-generator-sparksql.md](dmn-generator-sparksql.md) |
 
 An item is marked `done` when completed and verified with test evidence; Git history records completed work.

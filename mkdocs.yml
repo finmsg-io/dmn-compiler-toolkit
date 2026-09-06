@@ -90,7 +90,6 @@ nav:
 
   - Modules: modules.md
   - Development:
-      - Living Development Plan: development-plan.md
       - "P0: Full TCK Conformance Recovery": improvements/examples/conformance-accelerator/full-tck-conformance-recovery-spec.md
       - Documentation Structure: documentation-structure.md
       - Documentation and Positioning Improvement Proposal: improvements/documentation-and-positioning.md
@@ -100,13 +99,21 @@ nav:
       - Capability Maturity and Incubation: improvements/capability-maturity-and-incubation.md
       - Module TODOs:
           - Overview: todos/index.md
-          - Compiler: todos/dmn-compiler.md
           - Protobuf: todos/dmn-protobuf.md
           - XML Frontend: todos/dmn-frontend-xml.md
           - FEEL Parser: todos/dmn-feel-parser.md
           - Semantic Analysis: todos/dmn-semantic-analysis.md
           - Runtime IR: todos/dmn-runtime-ir.md
           - Runtime: todos/dmn-runtime.md
+          - Optimizer: todos/dmn-optimizer.md
+          - Compiler: todos/dmn-compiler.md
+          - Java Generator: todos/dmn-generator-java.md
+          - Consumer Smoke Test: todos/dmn-smoke-test.md
+          - TCK Runner: todos/dmn-tck-runner.md
+          - Benchmarks: todos/dmn-benchmarks.md
+          - Models: todos/dmn-models.md
+          - gRPC Adapter: todos/dmn-grpc.md
+          - Spark SQL Generator: todos/dmn-generator-sparksql.md
       - Style Guide: dev/style.md
       - Evidence-Backed Spec-Driven Development: dev/evidence-backed-spec-driven-development.md
       - Development Slices:
