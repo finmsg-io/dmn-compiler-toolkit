@@ -11,6 +11,19 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [1.0.0-rc.3] — 2026-09-07
+
+### Added
+- Standardized compile-time constant folding for `between` expressions (`RuntimeBetweenExpression`) in `ConstantFoldingPass`.
+- Added single-evaluation supplier lambda binding for non-trivial compound `between` expressions in `JavaExpressionEmitter` to prevent redundant evaluation.
+
+### Changed
+- Upgraded `ConstantFoldingPass` division precision to IEEE 754R `MathContext.DECIMAL128` (34 decimal digits).
+- Normalized numeric literal parsing in `AlgebraicSimplificationPass` (`isZeroConstant`, `isOneConstant`) using `BigDecimal.compareTo` to recognize and simplify decimal representations (`0.00`, `1.000`).
+- Bumped reactor version to `1.0.0-rc.3` across all Maven modules.
+
+---
+
 ## [1.0.0-rc.2] — 2026-09-07
 
 ### Changed

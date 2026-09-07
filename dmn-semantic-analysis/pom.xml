@@ -8,7 +8,7 @@
     <parent>
         <groupId>io.finmsg.dmn</groupId>
         <artifactId>dmn-compiler-toolkit</artifactId>
-        <version>1.0.0-rc.2</version>
+        <version>1.0.0-rc.3</version>
     </parent>
 
     <artifactId>dmn-semantic-analysis</artifactId>
