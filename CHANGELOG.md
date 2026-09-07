@@ -25,7 +25,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Security Policy & Vulnerability Intake**: Created `SECURITY.md` defining supported versions (`1.0.x`), private disclosure paths, and SLA guidelines.
 - **Multi-Threaded Scalability & Benchmarks (`dmn-benchmarks`)**: JMH benchmark suite with multi-threaded throughput and latency metrics across standard reference models.
 - **Hostile Input & Parser Fuzzing Test Suite**: `FeelParserFuzzAndHostileInputTest` verifying safe syntax error recovery, 200-depth recursion resilience, adversarial Unicode handling, and randomized token fuzzing without crashes.
-- **External Consumer Verification Project**: Standalone Maven verification project `examples/consumer-verification/` demonstrating clean compilation, evaluation, and Java generation outside the Maven reactor.
+- **External Consumer Smoke Test Suite (`dmn-smoke-test`)**: Dedicated reactor module verifying end-to-end consumer compilation, dynamic evaluation, and in-memory Java code generation via public API contracts.
 - **Architecture Decision Records (ADR-0016 – ADR-0019, ADR-0025)**: Documenting naming policies, dependency boundaries, schema evolution, dynamic gRPC models, and Runtime IR persistence.
 - **GitHub Governance & Issue Templates**: Added `.github/ISSUE_TEMPLATE/bug_report.yml`, `feature_request.yml`, `config.yml`, and `.github/PULL_REQUEST_TEMPLATE.md`.
 - **Automated Release Train & Checksum Tooling**: Cryptographic checksum manifests (SHA-256 / SHA-512) and release note generators.

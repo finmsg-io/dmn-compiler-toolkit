@@ -16,8 +16,7 @@ The `dmn-smoke-test` module validates external consumer usage, verifying clean c
 
 | Priority | Work item | Status | Evidence |
 | --- | --- | --- | --- |
-| P14.6 | External consumer verification test suite | `done` | `ConsumerSmokeTest` |
-| P14.6 | Standalone sample consumer project | `done` | `examples/consumer-verification/` |
+| P14.6 | External consumer verification test suite | `done` | `ConsumerInterpretationSmokeTest`, `ConsumerJavaCodegenSmokeTest` (`dmn-smoke-test`) |
 | P14.6 | Outside-reactor compilation & runtime evaluation | `done` | Verified clean compilation and decision evaluation without reactor parent POM |
 | P14.6 | Generated Java execution in isolated classloader | `done` | Verified dynamic compilation and invocation of generated engine classes |
 

@@ -163,7 +163,7 @@ The candidate records:
 | **Semantics** | `PASS` | 100% strict self-verified TCK conformance (3,391/3,391 cases, 6,782/6,782 outcomes across CL2 & CL3) documented in [`docs/tck-conformance.md`](../../../tck-conformance.md) and `dmn-tck-runner/tck-accounting.json`. |
 | **Hostile input** | `PASS` | FEEL parser fuzzing and recursion bounds (`FeelParserFuzzAndHostileInputTest.java`), XML XXE and depth protection (`DmnXmlConformanceSecurityTest.java`), and trusted-model boundary in `SECURITY.md`. |
 | **Concurrency** | `PASS` | Thread-safe, multi-threaded evaluation across shared compiled model instances (`DmnCompiledModelTest.java`). |
-| **Consumer** | `PASS` | External Maven project compiling and evaluating DMN models outside the reactor context (`examples/consumer-verification/`). |
+| **Consumer** | `PASS` | External Maven consumer verification suite compiling and evaluating DMN models via public API contracts (`dmn-smoke-test`). |
 | **Security** | `PASS` | Public `SECURITY.md` policy, vulnerability intake SLA, OWASP scan profile (`-Psecurity-scan`), and GitHub issue templates. |
 | **Coverage** | `PASS` | Automated JaCoCo aggregate coverage reporting profile in CI. |
 | **Performance** | `PASS` | Reproducible benchmark harness and regression evidence (`dmn-benchmarks`, [`BENCH-001`](../benchmark-evidence/refine-execution-benchmarks-spec.md)). |
