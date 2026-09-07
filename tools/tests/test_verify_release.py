@@ -25,7 +25,7 @@ class VerifyReleaseTest(unittest.TestCase):
         self.assertIn("release Maven version must not be a snapshot: 1.0.0-SNAPSHOT", errors)
 
     def test_release_validation_on_current_reactor(self) -> None:
-        errors = verify_release.validate("v1.0.0-rc.1", require_artifacts=False)
+        errors = verify_release.validate("v1.0.0-rc.2", require_artifacts=False)
         self.assertEqual([], errors)
 
 

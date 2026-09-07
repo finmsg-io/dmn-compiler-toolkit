@@ -11,6 +11,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [1.0.0-rc.2] — 2026-09-07
+
+### Changed
+- Removed orphaned `examples/consumer-verification/` standalone directory and centralized external consumer integration verification inside `dmn-smoke-test`.
+- Reconciled `dmn-smoke-test/pom.xml` with `<maven.deploy.skip>true</maven.deploy.skip>` to prevent non-deployable test harness artifacts from being published.
+- Bumped reactor version to `1.0.0-rc.2` across all Maven modules.
+
+---
+
 ## [1.0.0-rc.1] — 2026-09-06
 
 ### Added
