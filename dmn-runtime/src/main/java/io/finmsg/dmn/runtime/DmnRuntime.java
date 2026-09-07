@@ -202,9 +202,11 @@ public final class DmnRuntime {
 					yield new RuntimeRangeValue(low, up, it.lowerBoundary(), it.upperBoundary(), lowerAbsent,
 							upperAbsent);
 				}
-				case RuntimeBetweenExpression it ->
-					compare(expression(it.value(), frame), expression(it.lower(), frame)) >= 0
-							&& compare(expression(it.value(), frame), expression(it.upper(), frame)) <= 0;
+				case RuntimeBetweenExpression it -> {
+					Object val = expression(it.value(), frame);
+					yield compare(val, expression(it.lower(), frame)) >= 0
+							&& compare(val, expression(it.upper(), frame)) <= 0;
+				}
 				case RuntimeInExpression it -> {
 					Object val = expression(it.value(), frame);
 					if (val == null)
