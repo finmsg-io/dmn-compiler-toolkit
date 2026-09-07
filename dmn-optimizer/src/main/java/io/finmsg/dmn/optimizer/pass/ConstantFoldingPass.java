@@ -2,6 +2,7 @@ package io.finmsg.dmn.optimizer.pass;
 
 import io.finmsg.dmn.ir.*;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
@@ -61,6 +62,14 @@ public class ConstantFoldingPass implements OptimizerPass {
 			case RuntimeFunctionCall call -> foldFunctionCall(call);
 			case RuntimeContextExpression ctx -> foldContext(ctx);
 			case RuntimeFilterExpression filter -> foldFilter(filter);
+			case RuntimeBetweenExpression btn -> foldBetween(btn);
+			case RuntimeRangeExpression range -> new RuntimeRangeExpression(
+					range.lower().map(this::transformExpression), range.upper().map(this::transformExpression),
+					range.lowerBoundary(), range.upperBoundary(), range.type());
+			case RuntimePathExpression path ->
+				new RuntimePathExpression(transformExpression(path.source()), path.member(), path.type());
+			case RuntimeInstanceOfExpression inst ->
+				new RuntimeInstanceOfExpression(transformExpression(inst.expression()), inst.testedType(), inst.type());
 			default -> expr;
 		};
 	}
@@ -156,7 +165,12 @@ public class ConstantFoldingPass implements OptimizerPass {
 						}
 						case DIVIDE -> {
 							if (n2.compareTo(BigDecimal.ZERO) != 0) {
-								BigDecimal res = n1.divide(n2, 10, RoundingMode.HALF_UP).stripTrailingZeros();
+								BigDecimal res;
+								try {
+									res = n1.divide(n2, MathContext.DECIMAL128).stripTrailingZeros();
+								} catch (ArithmeticException e) {
+									res = n1.divide(n2, 34, RoundingMode.HALF_UP).stripTrailingZeros();
+								}
 								return new RuntimeConstant(RuntimeConstantKind.NUMBER, res.toPlainString(),
 										binary.type());
 							}
@@ -275,5 +289,27 @@ public class ConstantFoldingPass implements OptimizerPass {
 		RuntimeExpression source = transformExpression(filter.source());
 		RuntimeExpression predicate = transformExpression(filter.filter());
 		return new RuntimeFilterExpression(source, filter.localSlot(), predicate, filter.type());
+	}
+
+	private RuntimeExpression foldBetween(RuntimeBetweenExpression btn) {
+		RuntimeExpression val = transformExpression(btn.value());
+		RuntimeExpression lower = transformExpression(btn.lower());
+		RuntimeExpression upper = transformExpression(btn.upper());
+
+		if (val instanceof RuntimeConstant cv && lower instanceof RuntimeConstant cl
+				&& upper instanceof RuntimeConstant cu) {
+			if (cv.kind() == RuntimeConstantKind.NUMBER && cl.kind() == RuntimeConstantKind.NUMBER
+					&& cu.kind() == RuntimeConstantKind.NUMBER) {
+				try {
+					BigDecimal nv = new BigDecimal(cv.value());
+					BigDecimal nl = new BigDecimal(cl.value());
+					BigDecimal nu = new BigDecimal(cu.value());
+					boolean inRange = nv.compareTo(nl) >= 0 && nv.compareTo(nu) <= 0;
+					return new RuntimeConstant(RuntimeConstantKind.BOOLEAN, String.valueOf(inRange), btn.type());
+				} catch (Exception ignored) {
+				}
+			}
+		}
+		return new RuntimeBetweenExpression(val, lower, upper, btn.type());
 	}
 }

@@ -120,4 +120,81 @@ class DmnOptimizerTest {
 		RuntimeExpression result = pass.simplifyExpression(outer);
 		assertThat(result).isEqualTo(ref);
 	}
+
+	@Test
+	@DisplayName("Algebraic simplification: x + 0.0 -> x and 0.00 + x -> x with decimal normalization")
+	void testAlgebraicSimplificationDecimalZero() {
+		AlgebraicSimplificationPass pass = new AlgebraicSimplificationPass();
+
+		RuntimeLocalReference ref = new RuntimeLocalReference(0, 0, NUMBER_TYPE);
+		RuntimeConstant zeroPointZero = new RuntimeConstant(RuntimeConstantKind.NUMBER, "0.00", NUMBER_TYPE);
+		RuntimeBinaryExpression addRight = new RuntimeBinaryExpression(RuntimeBinaryOperator.ADD, ref, zeroPointZero,
+				NUMBER_TYPE);
+		RuntimeBinaryExpression addLeft = new RuntimeBinaryExpression(RuntimeBinaryOperator.ADD, zeroPointZero, ref,
+				NUMBER_TYPE);
+		RuntimeBinaryExpression subRight = new RuntimeBinaryExpression(RuntimeBinaryOperator.SUBTRACT, ref,
+				zeroPointZero, NUMBER_TYPE);
+
+		assertThat(pass.simplifyExpression(addRight)).isEqualTo(ref);
+		assertThat(pass.simplifyExpression(addLeft)).isEqualTo(ref);
+		assertThat(pass.simplifyExpression(subRight)).isEqualTo(ref);
+	}
+
+	@Test
+	@DisplayName("Algebraic simplification: x * 1.00 -> x and x / 1.0 -> x with decimal normalization")
+	void testAlgebraicSimplificationDecimalOne() {
+		AlgebraicSimplificationPass pass = new AlgebraicSimplificationPass();
+
+		RuntimeLocalReference ref = new RuntimeLocalReference(0, 0, NUMBER_TYPE);
+		RuntimeConstant onePointZero = new RuntimeConstant(RuntimeConstantKind.NUMBER, "1.000", NUMBER_TYPE);
+		RuntimeBinaryExpression mulRight = new RuntimeBinaryExpression(RuntimeBinaryOperator.MULTIPLY, ref,
+				onePointZero, NUMBER_TYPE);
+		RuntimeBinaryExpression mulLeft = new RuntimeBinaryExpression(RuntimeBinaryOperator.MULTIPLY, onePointZero, ref,
+				NUMBER_TYPE);
+		RuntimeBinaryExpression divRight = new RuntimeBinaryExpression(RuntimeBinaryOperator.DIVIDE, ref, onePointZero,
+				NUMBER_TYPE);
+
+		assertThat(pass.simplifyExpression(mulRight)).isEqualTo(ref);
+		assertThat(pass.simplifyExpression(mulLeft)).isEqualTo(ref);
+		assertThat(pass.simplifyExpression(divRight)).isEqualTo(ref);
+	}
+
+	@Test
+	@DisplayName("Constant folding: division uses DECIMAL128 precision")
+	void testConstantFoldingDivisionDecimal128() {
+		ConstantFoldingPass pass = new ConstantFoldingPass();
+
+		RuntimeConstant c1 = new RuntimeConstant(RuntimeConstantKind.NUMBER, "1", NUMBER_TYPE);
+		RuntimeConstant c3 = new RuntimeConstant(RuntimeConstantKind.NUMBER, "3", NUMBER_TYPE);
+		RuntimeBinaryExpression expr = new RuntimeBinaryExpression(RuntimeBinaryOperator.DIVIDE, c1, c3, NUMBER_TYPE);
+
+		RuntimeExpression result = pass.transformExpression(expr);
+		assertThat(result).isInstanceOf(RuntimeConstant.class);
+
+		RuntimeConstant folded = (RuntimeConstant) result;
+		assertThat(folded.kind()).isEqualTo(RuntimeConstantKind.NUMBER);
+		assertThat(folded.value()).startsWith("0.3333333333333333333333333333333333");
+	}
+
+	@Test
+	@DisplayName("Constant folding: between expression 5 between 1 and 10 -> true, 15 between 1 and 10 -> false")
+	void testConstantFoldingBetween() {
+		ConstantFoldingPass pass = new ConstantFoldingPass();
+
+		RuntimeConstant c5 = new RuntimeConstant(RuntimeConstantKind.NUMBER, "5", NUMBER_TYPE);
+		RuntimeConstant c15 = new RuntimeConstant(RuntimeConstantKind.NUMBER, "15", NUMBER_TYPE);
+		RuntimeConstant lower = new RuntimeConstant(RuntimeConstantKind.NUMBER, "1", NUMBER_TYPE);
+		RuntimeConstant upper = new RuntimeConstant(RuntimeConstantKind.NUMBER, "10", NUMBER_TYPE);
+
+		RuntimeBetweenExpression inRange = new RuntimeBetweenExpression(c5, lower, upper, BOOLEAN_TYPE);
+		RuntimeBetweenExpression outOfRange = new RuntimeBetweenExpression(c15, lower, upper, BOOLEAN_TYPE);
+
+		RuntimeExpression resTrue = pass.transformExpression(inRange);
+		assertThat(resTrue).isInstanceOf(RuntimeConstant.class);
+		assertThat(((RuntimeConstant) resTrue).value()).isEqualTo("true");
+
+		RuntimeExpression resFalse = pass.transformExpression(outOfRange);
+		assertThat(resFalse).isInstanceOf(RuntimeConstant.class);
+		assertThat(((RuntimeConstant) resFalse).value()).isEqualTo("false");
+	}
 }

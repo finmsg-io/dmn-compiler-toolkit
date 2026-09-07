@@ -68,11 +68,7 @@ public final class JavaExpressionEmitter {
 			case RuntimeForExpression forExpr -> emitForB(forExpr, bkmBySlot, fnIds);
 			case RuntimeRangeExpression range -> emitRangeB(range, bkmBySlot, fnIds);
 			case RuntimeFunctionDefinition fnDef -> emitFunctionDefinition(fnDef, bkmBySlot, fnIds);
-			case RuntimeBetweenExpression btn -> "(" + emitWithBkms(btn.value(), bkmBySlot, fnIds)
-					+ " != null && compare(" + emitWithBkms(btn.value(), bkmBySlot, fnIds) + ", "
-					+ emitWithBkms(btn.lower(), bkmBySlot, fnIds) + ") >= 0 && compare("
-					+ emitWithBkms(btn.value(), bkmBySlot, fnIds) + ", " + emitWithBkms(btn.upper(), bkmBySlot, fnIds)
-					+ ") <= 0)";
+			case RuntimeBetweenExpression btn -> emitBetweenB(btn, bkmBySlot, fnIds);
 			case RuntimeInExpression inExpr -> emitInExpression(inExpr, bkmBySlot, fnIds);
 			case RuntimeInstanceOfExpression inst ->
 				"io.finmsg.dmn.runtime.DmnRuntime.instanceOf(" + emitWithBkms(inst.expression(), bkmBySlot, fnIds)
@@ -126,6 +122,26 @@ public final class JavaExpressionEmitter {
 	}
 
 	private static final java.util.concurrent.atomic.AtomicInteger VAR_SEQ = new java.util.concurrent.atomic.AtomicInteger();
+
+	private static String emitBetweenB(RuntimeBetweenExpression btn, Map<Integer, RuntimeBkm> bkmBySlot,
+			List<Integer> fnIds) {
+		String lower = emitWithBkms(btn.lower(), bkmBySlot, fnIds);
+		String upper = emitWithBkms(btn.upper(), bkmBySlot, fnIds);
+		if (isTrivialExpression(btn.value())) {
+			String val = emitWithBkms(btn.value(), bkmBySlot, fnIds);
+			return "(" + val + " != null && compare(" + val + ", " + lower + ") >= 0 && compare(" + val + ", " + upper
+					+ ") <= 0)";
+		}
+		String tempVar = "_btnVal_" + VAR_SEQ.incrementAndGet();
+		return "((java.util.function.Supplier<Boolean>) () -> { Object " + tempVar + " = "
+				+ emitWithBkms(btn.value(), bkmBySlot, fnIds) + "; return " + tempVar + " != null && compare(" + tempVar
+				+ ", " + lower + ") >= 0 && compare(" + tempVar + ", " + upper + ") <= 0; }).get()";
+	}
+
+	private static boolean isTrivialExpression(RuntimeExpression expr) {
+		return expr instanceof RuntimeConstant || expr instanceof RuntimeValueReference
+				|| expr instanceof RuntimeLocalReference;
+	}
 
 	private static String emitInExpression(RuntimeInExpression inExpr, Map<Integer, RuntimeBkm> bkmBySlot,
 			List<Integer> fnIds) {

@@ -87,6 +87,40 @@ class DmnJavaGeneratorTest {
 		}
 	}
 
+	@Test
+	void testBetweenExpressionEmissionTrivialAndNonTrivial() {
+		RuntimeType numType = RuntimeType.scalar(RuntimeTypeKind.NUMBER);
+		RuntimeType boolType = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+
+		// Trivial operand: local reference
+		RuntimeLocalReference valRef = new RuntimeLocalReference(0, 0, numType);
+		RuntimeConstant lower = new RuntimeConstant(RuntimeConstantKind.NUMBER, "10", numType);
+		RuntimeConstant upper = new RuntimeConstant(RuntimeConstantKind.NUMBER, "20", numType);
+		RuntimeBetweenExpression trivialBetween = new RuntimeBetweenExpression(valRef, lower, upper, boolType);
+
+		String emittedTrivial = JavaExpressionEmitter.emit(trivialBetween);
+		assertThat(emittedTrivial).contains(
+				"local_0 != null && compare(local_0, new BigDecimal(\"10\")) >= 0 && compare(local_0, new BigDecimal(\"20\")) <= 0");
+		assertThat(emittedTrivial).doesNotContain("Supplier");
+
+		// Trivial operand: slot value reference
+		RuntimeValueReference slotRef = new RuntimeValueReference(0, numType);
+		RuntimeBetweenExpression slotBetween = new RuntimeBetweenExpression(slotRef, lower, upper, boolType);
+		String emittedSlot = JavaExpressionEmitter.emit(slotBetween);
+		assertThat(emittedSlot).contains(
+				"slots[0] != null && compare(slots[0], new BigDecimal(\"10\")) >= 0 && compare(slots[0], new BigDecimal(\"20\")) <= 0");
+		assertThat(emittedSlot).doesNotContain("Supplier");
+
+		// Non-trivial operand: binary addition (slots[0] + 5)
+		RuntimeConstant five = new RuntimeConstant(RuntimeConstantKind.NUMBER, "5", numType);
+		RuntimeBinaryExpression addExpr = new RuntimeBinaryExpression(RuntimeBinaryOperator.ADD, valRef, five, numType);
+		RuntimeBetweenExpression nonTrivialBetween = new RuntimeBetweenExpression(addExpr, lower, upper, boolType);
+
+		String emittedNonTrivial = JavaExpressionEmitter.emit(nonTrivialBetween);
+		assertThat(emittedNonTrivial).contains("java.util.function.Supplier<Boolean>");
+		assertThat(emittedNonTrivial).contains("_btnVal_");
+	}
+
 	private Class<?> compileJavaSource(Path tempDir, String fqcn, String sourceCode) throws Exception {
 		String relativePath = fqcn.replace('.', '/') + ".java";
 		Path sourceFile = tempDir.resolve(relativePath);

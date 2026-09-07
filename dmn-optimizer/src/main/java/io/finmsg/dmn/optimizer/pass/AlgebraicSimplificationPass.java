@@ -59,6 +59,15 @@ public class AlgebraicSimplificationPass implements OptimizerPass {
 			case RuntimeFunctionCall call -> simplifyFunctionCall(call);
 			case RuntimeContextExpression ctx -> simplifyContext(ctx);
 			case RuntimeFilterExpression filter -> simplifyFilter(filter);
+			case RuntimeBetweenExpression btn -> new RuntimeBetweenExpression(simplifyExpression(btn.value()),
+					simplifyExpression(btn.lower()), simplifyExpression(btn.upper()), btn.type());
+			case RuntimeRangeExpression range -> new RuntimeRangeExpression(range.lower().map(this::simplifyExpression),
+					range.upper().map(this::simplifyExpression), range.lowerBoundary(), range.upperBoundary(),
+					range.type());
+			case RuntimePathExpression path ->
+				new RuntimePathExpression(simplifyExpression(path.source()), path.member(), path.type());
+			case RuntimeInstanceOfExpression inst ->
+				new RuntimeInstanceOfExpression(simplifyExpression(inst.expression()), inst.testedType(), inst.type());
 			default -> expr;
 		};
 	}
@@ -164,10 +173,24 @@ public class AlgebraicSimplificationPass implements OptimizerPass {
 	}
 
 	private boolean isZeroConstant(RuntimeExpression expr) {
-		return expr instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NUMBER && "0".equals(c.value());
+		if (expr instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NUMBER && c.value() != null) {
+			try {
+				return new java.math.BigDecimal(c.value()).compareTo(java.math.BigDecimal.ZERO) == 0;
+			} catch (Exception ignored) {
+				return "0".equals(c.value());
+			}
+		}
+		return false;
 	}
 
 	private boolean isOneConstant(RuntimeExpression expr) {
-		return expr instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NUMBER && "1".equals(c.value());
+		if (expr instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NUMBER && c.value() != null) {
+			try {
+				return new java.math.BigDecimal(c.value()).compareTo(java.math.BigDecimal.ONE) == 0;
+			} catch (Exception ignored) {
+				return "1".equals(c.value());
+			}
+		}
+		return false;
 	}
 }
