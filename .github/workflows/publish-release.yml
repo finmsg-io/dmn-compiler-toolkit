@@ -96,6 +96,8 @@ jobs:
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+      SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
 
     steps:
       - name: Checkout verified release tag
@@ -105,15 +107,21 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Set up JDK 25 and Maven publication credentials
+      - name: Set up JDK 25 and Sonatype Central publication credentials
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "25"
           cache: maven
-          server-id: github
-          server-username: GITHUB_ACTOR
-          server-password: GITHUB_TOKEN
+          server-id: central
+          server-username: SONATYPE_USERNAME
+          server-password: SONATYPE_PASSWORD
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.MAVEN_GPG_KEY }}
+          passphrase: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
       - name: Reconfirm immutable publication authority
         shell: bash
@@ -121,5 +129,5 @@ jobs:
           python tools/verify_release.py --tag "$RELEASE_TAG"
           test "$(git rev-parse HEAD)" = "${{ needs.verify-release.outputs.commit }}"
 
-      - name: Publish immutable Maven artifacts
-        run: mvn --batch-mode -Prelease -DskipTests deploy
+      - name: Publish immutable Maven artifacts to Central Portal
+        run: mvn --batch-mode -Prelease -Dgpg.skip=false -DskipTests deploy

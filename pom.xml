@@ -14,6 +14,37 @@
 
     <name>DMN Compiler Toolkit</name>
     <description>High-performance DMN Compiler Toolkit</description>
+    <url>https://github.com/finmsg-io/dmn-compiler-toolkit</url>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>konrad-link</id>
+            <name>Konrad Link</name>
+            <email>konrad.link@gmail.com</email>
+            <organization>finmsg.io</organization>
+            <organizationUrl>https://finmsg.io</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/finmsg-io/dmn-compiler-toolkit.git</connection>
+        <developerConnection>scm:git:git@github.com:finmsg-io/dmn-compiler-toolkit.git</developerConnection>
+        <url>https://github.com/finmsg-io/dmn-compiler-toolkit</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/finmsg-io/dmn-compiler-toolkit/issues</url>
+    </issueManagement>
 
     <modules>
         <module>dmn-protobuf</module>
@@ -52,6 +83,9 @@
         <maven.surefire.plugin.version>3.2.5</maven.surefire.plugin.version>
         <maven.source.plugin.version>3.3.1</maven.source.plugin.version>
         <maven.javadoc.plugin.version>3.11.2</maven.javadoc.plugin.version>
+        <maven.gpg.plugin.version>3.2.7</maven.gpg.plugin.version>
+        <central.publishing.plugin.version>0.7.0</central.publishing.plugin.version>
+        <gpg.skip>true</gpg.skip>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
 
@@ -373,7 +407,35 @@
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-deploy-plugin</artifactId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven.gpg.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${gpg.skip}</skip>
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central.publishing.plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>
