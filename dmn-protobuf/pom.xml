@@ -17,9 +17,6 @@
 
     <name>DMN Protobuf</name>
     <description>DMN 1.6 Protobuf schema definitions</description>
-    <properties>
-        <maven.javadoc.skip>true</maven.javadoc.skip>
-    </properties>
 
     <dependencies>
         <dependency>
