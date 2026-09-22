@@ -11,6 +11,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [1.0.0] — 2026-09-22
+
+### Added
+- **First General Availability (GA) Production Release**: Full production-ready DMN Compiler Toolkit for high-throughput JVM decision evaluation and code generation.
+- **Differential Parity Test Suite**: Added `DmnOptimizerDifferentialParityTest` verifying execution parity between optimized IR and baseline runtime evaluations across decision expressions.
+- **Optimized Between Operator Evaluation**: Streamlined runtime evaluation in `DmnRuntime` for range / between boundary checks.
+- **100% OMG DMN 1.5 Conformance**: 3,391/3,391 CL2/CL3 test cases verified with 100% pass rate on both the interpreter and ahead-of-time (AOT) Java source generator (`dmn-generator-java`).
+- **Comprehensive Documentation & CI Automation**: Complete 31-chapter architectural guide, multi-persona developer tutorials, automated documentation verification, and cryptographic artifact signing.
+
+---
+
 ## [1.0.0-rc.3] — 2026-09-07
 
 ### Added
@@ -59,9 +70,3 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Enforced strict code formatting via Spotless (`palantir-java-format`) across all Java source files.
 - Upgraded Jacoco coverage plugin (0.8.14) with full JDK 25 bytecode analysis support.
 - Configured Maven Enforcer to require Maven ≥ 3.9 and JDK 25 LTS.
-
----
-
-## [1.0.0] — planned
-
-First production release. See [roadmap](docs/roadmap.md).
