@@ -9,7 +9,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.finmsg.dmn</groupId>
+        <groupId>io.github.finmsg-io</groupId>
         <artifactId>dmn-compiler-toolkit</artifactId>
         <version>1.0.0</version>
     </parent>
@@ -23,7 +23,7 @@
 
         <!-- Semantic protobuf model -->
         <dependency>
-            <groupId>io.finmsg.dmn</groupId>
+            <groupId>io.github.finmsg-io</groupId>
             <artifactId>dmn-protobuf</artifactId>
             <version>${project.version}</version>
         </dependency>

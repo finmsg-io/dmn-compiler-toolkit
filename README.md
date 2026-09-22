@@ -124,6 +124,34 @@ Snapshot and release artifacts are published to GitHub Packages.
 
 Repository:
 
+
+<a id="contents-section-6"></a>
+## Generate FEEL parser sources
+
+The FEEL parser module generates Java sources from ANTLR grammars.
+
+```bash
+mvn -Pgenerate-code clean verify
+```
+
+<a id="contents-section-7"></a>
+## Use a single module
+
+Example:
+
+```bash
+mvn -pl dmn-feel-parser -am test
+```
+
+`-am` also builds required upstream modules.
+
+<a id="contents-section-8"></a>
+## GitHub Packages
+
+Snapshot and release artifacts are published to GitHub Packages.
+
+Repository:
+
 ```text
 https://maven.pkg.github.com/finmsg-io/dmn-compiler-toolkit
 ```
@@ -143,15 +171,13 @@ Example dependency:
 
 ```xml
 <dependency>
-    <groupId>io.finmsg.dmn</groupId>
-    <artifactId>dmn-feel-parser</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <groupId>io.github.finmsg-io</groupId>
+    <artifactId>dmn-compiler</artifactId>
+    <version>1.0.0</version>
 </dependency>
 ```
 
-GitHub Packages requires authentication, including for package downloads.
-
-Add credentials to `~/.m2/settings.xml`:
+GitHub Packages requires authentication. Add credentials to `~/.m2/settings.xml`:
 
 ```xml
 <settings>
@@ -165,7 +191,7 @@ Add credentials to `~/.m2/settings.xml`:
 </settings>
 ```
 
-The token requires package read permission.
+The token requires package read permission. Published releases on Maven Central require no configuration or authentication.
 
 <a id="contents-section-9"></a>
 ## Continuous Integration

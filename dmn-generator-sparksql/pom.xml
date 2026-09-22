@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>io.finmsg.dmn</groupId>
+        <groupId>io.github.finmsg-io</groupId>
         <artifactId>dmn-compiler-toolkit</artifactId>
         <version>1.0.0</version>
     </parent>
@@ -14,17 +14,17 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.finmsg.dmn</groupId>
+            <groupId>io.github.finmsg-io</groupId>
             <artifactId>dmn-runtime-ir</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.finmsg.dmn</groupId>
+            <groupId>io.github.finmsg-io</groupId>
             <artifactId>dmn-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.finmsg.dmn</groupId>
+            <groupId>io.github.finmsg-io</groupId>
             <artifactId>dmn-protobuf</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -35,7 +35,7 @@
         </dependency>
 
         <dependency>
-            <groupId>io.finmsg.dmn</groupId>
+            <groupId>io.github.finmsg-io</groupId>
             <artifactId>dmn-compiler</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
