@@ -434,7 +434,7 @@
                         <configuration>
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>true</autoPublish>
-                            <waitUntil>published</waitUntil>
+                            <waitUntil>uploaded</waitUntil>
                             <excludeArtifacts>
                                 <exclude>dmn-smoke-test</exclude>
                             </excludeArtifacts>
