@@ -171,7 +171,7 @@ Example dependency:
 
 ```xml
 <dependency>
-    <groupId>io.github.finmsg-io</groupId>
+    <groupId>io.finmsg.dmn</groupId>
     <artifactId>dmn-compiler</artifactId>
     <version>1.0.0</version>
 </dependency>
