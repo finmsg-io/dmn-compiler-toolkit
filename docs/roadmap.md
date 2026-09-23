@@ -8,7 +8,7 @@
 - [v1.0.0 MVP: TCK 100%, Core Optimizers, and Benchmarks](#contents-section-3)
 - [v1.1.0: Incubating Module Graduation & Cloud Data Engine Ecosystem](#contents-section-4)
 - [Decision Authoring DSL and Canonical Model (IDEA-004)](#contents-section-5)
-- [Later stages & Native Code Generation](#contents-section-6)
+- [DMN XML Synthesis & Export from Optimized IR (DMN 1.5/1.6)](#contents-section-6)
 <!-- generated-toc:end -->
 
 
@@ -100,8 +100,9 @@
 - [ ] Standalone compiler CLI binary (`dmnc`)
 
 <a id="contents-section-6"></a>
-## Later stages & Native Code Generation
+## DMN XML Synthesis & Export from Optimized IR (DMN 1.5/1.6)
 
-- [ ] Native multi-language code generation (Rust zero-allocation binaries, Go handlers, C++ engines)
-- [ ] WebAssembly (Wasm) evaluation backend for edge decision execution
-- [ ] Interactive Visual Decision Model Inspector and graphical debugger
+- [ ] Reverse lowering and decompiler pass: Runtime IR / Optimized Model $\rightarrow$ Standards-Compliant DMN 1.5 / 1.6 XML
+- [ ] Synthesize normalized decision tables, boxed expressions, and FEEL logic from folded / simplified IR trees
+- [ ] Retain and reconstruct semantic metadata (item definitions, input data, decision topology) into standard DMN XML
+- [ ] Deterministic round-trip interchange with third-party visual DMN modelers and BPMN/DMN workflow engines
