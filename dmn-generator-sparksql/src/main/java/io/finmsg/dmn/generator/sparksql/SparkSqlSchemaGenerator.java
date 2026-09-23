@@ -11,10 +11,14 @@ import org.apache.spark.sql.types.*;
 public final class SparkSqlSchemaGenerator {
 
 	public static StructType generateInputSchema(RuntimeModel model) {
+		return generateInputSchema(model, java.util.Map.of());
+	}
+
+	public static StructType generateInputSchema(RuntimeModel model, java.util.Map<Integer, String> slotNames) {
 		List<StructField> fields = new ArrayList<>();
 		for (RuntimeInput input : model.inputs()) {
 			DataType dataType = mapType(input.type());
-			String name = "input_" + input.valueSlot();
+			String name = slotNames.getOrDefault(input.valueSlot(), "input_" + input.valueSlot());
 			fields.add(DataTypes.createStructField(name, dataType, true));
 		}
 		return DataTypes.createStructType(fields);

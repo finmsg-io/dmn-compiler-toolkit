@@ -12,11 +12,11 @@
 - [dmn-optimizer](#contents-section-7)
 - [dmn-compiler](#contents-section-8)
 - [dmn-generator-java](#contents-section-9)
-- [dmn-smoke-test](#contents-section-10)
-- [Opt-in: dmn-tck-runner](#contents-section-11)
-- [Opt-in: dmn-benchmarks](#contents-section-12)
-- [Incubating: dmn-grpc](#contents-section-13)
-- [Incubating: dmn-generator-sparksql](#contents-section-14)
+- [dmn-generator-sparksql](#contents-section-10)
+- [dmn-smoke-test](#contents-section-11)
+- [Opt-in: dmn-tck-runner](#contents-section-12)
+- [Opt-in: dmn-benchmarks](#contents-section-13)
+- [Incubating: dmn-grpc](#contents-section-14)
 - [Opt-in: dmn-models](#contents-section-15)
 - [Planned modules](#contents-section-16)
 <!-- generated-toc:end -->
@@ -165,12 +165,18 @@ Options (`DmnJavaGeneratorOptions`) allow customizing the generated package name
 
 
 <a id="contents-section-10"></a>
+## `dmn-generator-sparksql`
+
+Provides pure native Spark / Databricks SQL query generation directly from Runtime IR models without UDF overhead. `DmnSparkSqlGenerator` lowers FEEL expressions and decision tables into standard Common Table Expression (CTE) query files (`<decision-name>.sql`) and native Spark `StructType` input schemas (`SparkSqlSchemaGenerator`), delegating query optimization and execution tuning entirely to Spark's Catalyst engine and Databricks Photon. Includes an optional zero-dependency Java runner (`DmnSparkSqlRunner`) for direct integration with `SparkSession` and `Dataset<Row>`.
+
+
+<a id="contents-section-11"></a>
 ## `dmn-smoke-test`
 
 Provides downstream consumer integration smoke tests validating packaged artifacts, clean runtime dependency isolation, and public API stability. Tests compile external DMN models via `DmnCompiler` and evaluate via `DmnRuntime` and dynamically compiled Java bytecode (`dmn-generator-java`) with zero repository test harness leakage.
 
 
-<a id="contents-section-11"></a>
+<a id="contents-section-12"></a>
 ## Opt-in: `dmn-tck-runner`
 
 Provides a conformance runner for OMG DMN Technology Compatibility Kit (TCK) test cases.
@@ -184,7 +190,7 @@ Embeds the official vendor-neutral [OMG DMN TCK repository](https://dmn-tck.gith
   maintained in the [TCK conformance record](tck-conformance.md).
 
 
-<a id="contents-section-12"></a>
+<a id="contents-section-13"></a>
 ## Opt-in: `dmn-benchmarks`
 
 Provides JMH microbenchmarks and reference model workloads comparing `DmnRuntime` vs `dmn-generator-java`. Uses DataFaker (`net.datafaker:datafaker`) to generate realistic input payloads and includes `ReferenceModelRegistry` for pluggable DMN model discovery (`credit-approval.dmn`, `traffic-violation.dmn`, `dq-field-validation.dmn`, `dq-cross-field-consistency.dmn`, `dq-scoring.dmn`).
@@ -200,16 +206,10 @@ in the [benchmark evidence plan](improvements/benchmark-evidence-and-scalability
 - **Scalar Arithmetic**: `dmn-generator-java` achieves **12.0M ops/sec** (124.5 ns/op) vs `DmnRuntime` interpreter **3.88M ops/sec** (258 ns/op) — **~2.1x speedup**.
 
 
-<a id="contents-section-13"></a>
+<a id="contents-section-14"></a>
 ## Incubating: `dmn-grpc`
 
 Provides transport-neutral gRPC service contract definitions (`evaluation.proto`), Java gRPC service adapter generators (`DmnGrpcGenerator`), and bidirectional Proto-to-Java value converters (`DmnGrpcValueConverter`) backed by compiled Java decision engines (`dmn-generator-java`). Built using pure `grpc-java` without framework overhead.
-
-
-<a id="contents-section-14"></a>
-## Incubating: `dmn-generator-sparksql`
-
-Provides pure native Spark / Databricks SQL query generation directly from Runtime IR models without UDF overhead. `DmnSparkSqlGenerator` lowers FEEL expressions and decision tables into standard Common Table Expression (CTE) query files (`<decision-name>.sql`) and native Spark `StructType` input schemas (`SparkSqlSchemaGenerator`), delegating query optimization and execution tuning entirely to Spark's Catalyst engine and Databricks Photon. Includes an optional zero-dependency Java runner (`DmnSparkSqlRunner`) for direct integration with `SparkSession` and `Dataset<Row>`.
 
 
 <a id="contents-section-15"></a>

@@ -56,6 +56,7 @@
         <module>dmn-optimizer</module>
         <module>dmn-compiler</module>
         <module>dmn-generator-java</module>
+        <module>dmn-generator-sparksql</module>
         <module>dmn-smoke-test</module>
     </modules>
 
@@ -339,7 +340,6 @@
             <id>incubator</id>
             <modules>
                 <module>dmn-grpc</module>
-                <module>dmn-generator-sparksql</module>
             </modules>
         </profile>
 

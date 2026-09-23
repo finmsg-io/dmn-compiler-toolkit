@@ -17,15 +17,18 @@ public final class DmnSparkSqlGenerator {
 		Objects.requireNonNull(options, "options");
 
 		RuntimeModel model = optimizedModel.model();
-		StructType inputSchema = SparkSqlSchemaGenerator.generateInputSchema(model);
-
 		Map<Integer, String> slotNames = new HashMap<>();
 		for (RuntimeInput input : model.inputs()) {
-			slotNames.put(input.valueSlot(), "input_" + input.valueSlot());
+			String rawName = options.customSlotNames().getOrDefault(input.valueSlot(), "input_" + input.valueSlot());
+			slotNames.put(input.valueSlot(), sanitizeIdentifier(rawName));
 		}
 		for (RuntimeDecision decision : model.decisions()) {
-			slotNames.put(decision.resultSlot(), sanitizeIdentifier("decision_" + decision.resultSlot()));
+			String rawName = options.customSlotNames().getOrDefault(decision.resultSlot(),
+					"decision_" + decision.resultSlot());
+			slotNames.put(decision.resultSlot(), sanitizeIdentifier(rawName));
 		}
+
+		StructType inputSchema = SparkSqlSchemaGenerator.generateInputSchema(model, slotNames);
 
 		Map<Integer, RuntimeDecision> decisionMap = new HashMap<>();
 		for (RuntimeDecision decision : model.decisions()) {

@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 440" width="100%" height="100%">
+  <defs>
+    <filter id="soft-shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="5" stdDeviation="10" flood-color="#0F172A" flood-opacity="0.05"/>
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="100%" height="100%" fill="#FFFFFF" />
+
+  <!-- Envelope Container -->
+  <g transform="translate(75, 35)">
+    <!-- Envelope Base Card -->
+    <rect x="0" y="0" width="450" height="280" rx="10" ry="10" 
+          fill="#FFFFFF" stroke="#94A3B8" stroke-width="4" filter="url(#soft-shadow)" />
+
+    <!-- 1. SENDER: Financial Institution (Top-Left) -->
+    <g transform="translate(34, 30)">
+      <!-- Bank Roof / Pediment -->
+      <polygon points="22,0 0,15 44,15" fill="#0F172A" />
+      <rect x="0" y="16" width="44" height="3" rx="1" fill="#0F172A" />
+      
+      <!-- 3 Columns -->
+      <rect x="6" y="21" width="5.5" height="20" rx="1" fill="#0F172A" />
+      <rect x="19.25" y="21" width="5.5" height="20" rx="1" fill="#0F172A" />
+      <rect x="32.5" y="21" width="5.5" height="20" rx="1" fill="#0F172A" />
+      
+      <!-- Bank Base / Foundation -->
+      <rect x="0" y="43" width="44" height="4" rx="1" fill="#0F172A" />
+
+      <!-- Sender Address Lines -->
+      <line x1="62" y1="18" x2="155" y2="18" stroke="#94A3B8" stroke-width="4" stroke-linecap="round" />
+      <line x1="62" y1="34" x2="125" y2="34" stroke="#94A3B8" stroke-width="4" stroke-linecap="round" />
+    </g>
+
+    <!-- 2. RECIPIENT: Financial Institution & Address (Lower-Right) -->
+    <g transform="translate(185, 160)">
+      <!-- Recipient Bank Icon -->
+      <polygon points="22,0 0,15 44,15" fill="#0F172A" />
+      <rect x="0" y="16" width="44" height="3" rx="1" fill="#0F172A" />
+      
+      <!-- 3 Columns -->
+      <rect x="6" y="21" width="5.5" height="20" rx="1" fill="#0F172A" />
+      <rect x="19.25" y="21" width="5.5" height="20" rx="1" fill="#0F172A" />
+      <rect x="32.5" y="21" width="5.5" height="20" rx="1" fill="#0F172A" />
+      
+      <!-- Bank Base / Foundation -->
+      <rect x="0" y="43" width="44" height="4" rx="1" fill="#0F172A" />
+
+      <!-- Recipient Address Lines -->
+      <line x1="62" y1="14" x2="225" y2="14" stroke="#94A3B8" stroke-width="4" stroke-linecap="round" />
+      <line x1="62" y1="30" x2="225" y2="30" stroke="#94A3B8" stroke-width="4" stroke-linecap="round" />
+      <line x1="62" y1="46" x2="165" y2="46" stroke="#94A3B8" stroke-width="4" stroke-linecap="round" />
+    </g>
+
+    <!-- 3. INTERNET / INTERBANKING: Frameless Globe (Top-Right) -->
+    <g transform="translate(372, 65)">
+      <!-- Outer Globe Circle -->
+      <circle cx="0" cy="0" r="38" fill="none" stroke="#0066FF" stroke-width="4" />
+      
+      <!-- Equator Line -->
+      <line x1="-38" y1="0" x2="38" y2="0" stroke="#0066FF" stroke-width="3" />
+      
+      <!-- Latitude Upper & Lower Lines -->
+      <path d="M -32,-19 Q 0,-6 32,-19" fill="none" stroke="#0066FF" stroke-width="2.5" />
+      <path d="M -32,19 Q 0,6 32,19" fill="none" stroke="#0066FF" stroke-width="2.5" />
+      
+      <!-- Central Meridian -->
+      <ellipse cx="0" cy="0" rx="18" ry="38" fill="none" stroke="#0066FF" stroke-width="3" />
+      
+      <!-- Internet Data Nodes (Vertices) -->
+      <circle cx="-18" cy="0" r="4.5" fill="#0066FF" />
+      <circle cx="18" cy="0" r="4.5" fill="#0066FF" />
+      <circle cx="0" cy="-19" r="4.5" fill="#0066FF" />
+      <circle cx="0" cy="19" r="4.5" fill="#0066FF" />
+      <circle cx="-14" cy="-15" r="3.5" fill="#0066FF" />
+      <circle cx="14" cy="15" r="3.5" fill="#0066FF" />
+    </g>
+  </g>
+
+  <!-- Typography: finmsg.io (Clean, Non-Bold / Regular Weight) -->
+  <g transform="translate(300, 390)" text-anchor="middle" font-family="'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text font-size="52" font-weight="400" letter-spacing="-0.5">
+      <tspan fill="#0F172A">finmsg</tspan><tspan fill="#0066FF" font-weight="500">.io</tspan>
+    </text>
+  </g>
+</svg>
