@@ -5,8 +5,10 @@
 
 - [Completed foundation](#contents-section-1)
 - [XML frontend completion gate](#contents-section-2)
-- [Next: MVP completion, gRPC, Spark SQL, and load validation](#contents-section-3)
-- [Later stages](#contents-section-4)
+- [v1.0.0 MVP: TCK 100%, Core Optimizers, and Benchmarks](#contents-section-3)
+- [v1.1.0: Incubating Module Graduation & Cloud Data Engine Ecosystem](#contents-section-4)
+- [Decision Authoring DSL and Canonical Model (IDEA-004)](#contents-section-5)
+- [Later stages & Native Code Generation](#contents-section-6)
 <!-- generated-toc:end -->
 
 
@@ -68,19 +70,38 @@
 - [x] Publish the supported-subset contract and explicit model-extension boundary
 
 <a id="contents-section-3"></a>
-## Next: MVP completion, gRPC, Spark SQL, and load validation
+## v1.0.0 MVP: TCK 100%, Core Optimizers, and Benchmarks
 
-- [x] Full OMG DMN TCK CL2/CL3 conformance for `DmnInterpreter` and `dmn-generator-java` (3,391/3,391 cases, 6,782/6,782 backend outcomes)
-- [x] JMH performance benchmark suite (`dmn-benchmarks`) with DataFaker payloads & reference model registry
-- [x] Generic gRPC service adapter generator in Java (`dmn-grpc`) backed by compiled Java decisions
-- [x] Pure Spark / Databricks SQL expression generator (`dmn-generator-sparksql`, zero UDFs, CTE queries, delegating query tuning to engine)
-- [x] Production Data Quality DMN decision check corpus (field hygiene, cross-field validation, scoring)
-- [x] Constant folding and expression simplification pass (`dmn-optimizer`)
+- [x] Full OMG DMN 1.5 TCK CL2/CL3 conformance for `DmnInterpreter` and `dmn-generator-java` (3,391/3,391 cases, 6,782/6,782 backend outcomes)
+- [x] Zero-dependency reflection-free AOT Java Generator (`dmn-generator-java`)
+- [x] Static optimization pipeline (`dmn-optimizer`): constant folding, algebraic simplification, range/between evaluation optimization
+- [x] Differential parity test harness verifying execution equivalence between optimized IR and baseline runtime
+- [x] JMH performance benchmark suite (`dmn-benchmarks`) with multi-threaded throughput/latency metrics
 - [x] Multi-file DMN sample model suites & Java streaming ingestion/resolution API (`dmn-models`, `DmnStreamBundle`)
+- [x] General Availability (GA) publication on Maven Central under `io.finmsg.dmn`
 
 <a id="contents-section-4"></a>
-## Later stages
+## v1.1.0: Incubating Module Graduation & Cloud Data Engine Ecosystem
 
-- [x] Strongly typed Protobuf and gRPC contract generation from DMN `ItemDefinition` schemas (`DmnTypedGrpcGenerator`)
+- [ ] Promote pure Spark / Databricks SQL CTE generator (`dmn-generator-sparksql`, zero UDFs, CTE query graphs) to Tier-1 Core Reactor
+- [ ] Finalize strongly-typed Protobuf schema and gRPC service contract generator (`dmn-grpc`, `DmnTypedGrpcGenerator`)
+- [ ] Add Spark SQL batch and streaming integration test harness against complex multi-table DMN models
+- [ ] Benchmark Spark SQL generated CTE queries against equivalent native PySpark / Scala Spark implementations
+
+<a id="contents-section-5"></a>
+## Decision Authoring DSL and Canonical Model (IDEA-004)
+
+- [ ] Design and implement concise textual `.decision` DSL grammar for authoring decision models without DMN XML boilerplate
+- [ ] Establish authoring-preserving Canonical Decision Model intermediate representation
+- [ ] Bi-directional lossless compilation: `.decision` DSL $\rightarrow$ Canonical Model $\rightarrow$ Standards-Compliant DMN XML
+- [ ] Direct compilation: `.decision` DSL $\rightarrow$ Runtime IR $\rightarrow$ Interpreters & Code Generators
+- [ ] Embedded policy tests & invariant examples within DSL specifications
+- [ ] Standalone Language Server Protocol (LSP) engine for IDE syntax highlighting, diagnostics, and auto-completion
+- [ ] Standalone compiler CLI binary (`dmnc`)
+
+<a id="contents-section-6"></a>
+## Later stages & Native Code Generation
+
 - [ ] Native multi-language code generation (Rust zero-allocation binaries, Go handlers, C++ engines)
-- [ ] Standalone compiler CLI binary and Language Server Protocol (LSP) integration
+- [ ] WebAssembly (Wasm) evaluation backend for edge decision execution
+- [ ] Interactive Visual Decision Model Inspector and graphical debugger
