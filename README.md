@@ -1,5 +1,10 @@
 # DMN Compiler Toolkit
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.finmsg.dmn/dmn-compiler.svg?color=blue)](https://central.sonatype.com/artifact/io.finmsg.dmn/dmn-compiler)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![TCK Conformance](https://img.shields.io/badge/OMG%20DMN%201.5%20TCK-100%25-brightgreen.svg)](docs/tck/index.md)
+
+
 High-performance compiler infrastructure for Decision Model and Notation (DMN).
 
 The project compiles DMN models into an internal semantic representation that can later be validated, optimized, and translated into efficient runtime code.
