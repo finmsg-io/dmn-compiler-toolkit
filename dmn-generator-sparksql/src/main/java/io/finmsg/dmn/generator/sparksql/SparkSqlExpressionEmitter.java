@@ -183,11 +183,107 @@ public final class SparkSqlExpressionEmitter {
 			case STRING -> "'" + escapeSqlString(constant.value()) + "'";
 			case NUMBER -> constant.value();
 			case DATE -> "DATE '" + escapeSqlString(constant.value()) + "'";
-			case TIME -> "cast('" + escapeSqlString(constant.value()) + "' as timestamp)";
-			case DATE_TIME -> "TIMESTAMP '" + escapeSqlString(constant.value().replace("T", " ")) + "'";
+			case TIME -> {
+				String val = constant.value();
+				if (val.contains("@")) {
+					val = val.substring(0, val.indexOf("@"));
+				}
+				yield "try_to_timestamp(concat('1970-01-01 ', '" + escapeSqlString(val) + "'))";
+			}
+			case DATE_TIME -> {
+				String val = constant.value();
+				if (val.contains("@")) {
+					val = val.substring(0, val.indexOf("@"));
+				}
+				yield "try_to_timestamp('" + escapeSqlString(val.replace("T", " ")) + "')";
+			}
 			case DURATION -> "'" + escapeSqlString(constant.value()) + "'";
 			default -> "'" + escapeSqlString(constant.value()) + "'";
 		};
+	}
+
+	private static RuntimeTypeKind resolveTypeKind(RuntimeExpression expr) {
+		if (expr == null)
+			return RuntimeTypeKind.ANY;
+		if (expr.type() != null && expr.type().kind() != null) {
+			return expr.type().kind();
+		}
+		if (expr instanceof RuntimeConstant c) {
+			return switch (c.kind()) {
+				case BOOLEAN -> RuntimeTypeKind.BOOLEAN;
+				case STRING -> RuntimeTypeKind.STRING;
+				case NUMBER -> RuntimeTypeKind.NUMBER;
+				case DATE -> RuntimeTypeKind.DATE;
+				case TIME -> RuntimeTypeKind.TIME;
+				case DATE_TIME -> RuntimeTypeKind.DATE_TIME;
+				case DURATION -> RuntimeTypeKind.DURATION;
+				case NULL -> RuntimeTypeKind.ANY;
+				default -> RuntimeTypeKind.ANY;
+			};
+		}
+		if (expr instanceof RuntimeListExpression) {
+			return RuntimeTypeKind.LIST;
+		}
+		if (expr instanceof RuntimeContextExpression) {
+			return RuntimeTypeKind.CONTEXT;
+		}
+		if (expr instanceof RuntimeRangeExpression) {
+			return RuntimeTypeKind.RANGE;
+		}
+		if (expr instanceof RuntimeFilterExpression) {
+			return RuntimeTypeKind.LIST;
+		}
+		if (expr instanceof RuntimeForExpression) {
+			return RuntimeTypeKind.LIST;
+		}
+		if (expr instanceof RuntimeQuantifiedExpression) {
+			return RuntimeTypeKind.BOOLEAN;
+		}
+		if (expr instanceof RuntimeUnaryExpression u) {
+			if (u.operator() == RuntimeUnaryOperator.NOT) {
+				return RuntimeTypeKind.BOOLEAN;
+			}
+			return resolveTypeKind(u.operand());
+		}
+		if (expr instanceof RuntimeBinaryExpression b) {
+			RuntimeBinaryOperator op = b.operator();
+			if (op == RuntimeBinaryOperator.AND || op == RuntimeBinaryOperator.OR || op == RuntimeBinaryOperator.EQUAL
+					|| op == RuntimeBinaryOperator.NOT_EQUAL || op == RuntimeBinaryOperator.LESS
+					|| op == RuntimeBinaryOperator.LESS_EQUAL || op == RuntimeBinaryOperator.GREATER
+					|| op == RuntimeBinaryOperator.GREATER_EQUAL) {
+				return RuntimeTypeKind.BOOLEAN;
+			}
+			return RuntimeTypeKind.ANY;
+		}
+		if (expr instanceof RuntimeFunctionCall fc) {
+			String name = fc.function().toLowerCase();
+			return switch (name) {
+				case "string length", "length", "upper case", "upper", "lower case", "lower", "substring",
+						"substring before", "substring after", "replace", "trim", "concat", "string", "string join" ->
+					RuntimeTypeKind.STRING;
+				case "number", "abs", "floor", "ceiling", "ceil", "round", "round up", "round_up", "round down",
+						"round_down", "round half up", "round_half_up", "round half down", "round_half_down",
+						"round half even", "round_half_even", "sqrt", "exp", "ln", "log", "modulo", "mod", "min", "max",
+						"sum", "product", "mean", "avg", "median", "mode", "stddev", "pmt", "pmt2", "count", "year",
+						"month", "day", "weekday", "day of year", "day_of_year", "week of year", "week_of_year", "hour",
+						"minute", "second" ->
+					RuntimeTypeKind.NUMBER;
+				case "date" -> RuntimeTypeKind.DATE;
+				case "time" -> RuntimeTypeKind.TIME;
+				case "date and time" -> RuntimeTypeKind.DATE_TIME;
+				case "duration", "years and months duration", "years_and_months_duration", "day and time duration",
+						"day_and_time_duration" ->
+					RuntimeTypeKind.DURATION;
+				case "is", "contains", "starts with", "startswith", "ends with", "endswith", "matches", "odd", "even",
+						"list contains", "all", "any" ->
+					RuntimeTypeKind.BOOLEAN;
+				case "split", "reverse", "flatten", "distinct values", "union", "append", "concatenate", "sublist" ->
+					RuntimeTypeKind.LIST;
+				case "range" -> RuntimeTypeKind.RANGE;
+				default -> RuntimeTypeKind.ANY;
+			};
+		}
+		return RuntimeTypeKind.ANY;
 	}
 
 	private static String emitBinary(RuntimeBinaryExpression binary, Map<Integer, RuntimeBkm> bkmBySlot,
@@ -195,10 +291,8 @@ public final class SparkSqlExpressionEmitter {
 		String left = emitWithBkms(binary.left(), bkmBySlot, slotNameResolver);
 		String right = emitWithBkms(binary.right(), bkmBySlot, slotNameResolver);
 
-		RuntimeType lt = binary.left().type();
-		RuntimeType rt = binary.right().type();
-		RuntimeTypeKind lk = lt != null ? lt.kind() : RuntimeTypeKind.ANY;
-		RuntimeTypeKind rk = rt != null ? rt.kind() : RuntimeTypeKind.ANY;
+		RuntimeTypeKind lk = resolveTypeKind(binary.left());
+		RuntimeTypeKind rk = resolveTypeKind(binary.right());
 
 		RuntimeBinaryOperator op = binary.operator();
 
@@ -239,53 +333,72 @@ public final class SparkSqlExpressionEmitter {
 			if (lk == RuntimeTypeKind.STRING && rk == RuntimeTypeKind.STRING) {
 				return "concat(" + left + ", " + right + ")";
 			}
-			if (lk == RuntimeTypeKind.LIST && rk == RuntimeTypeKind.LIST) {
-				return "concat(" + left + ", " + right + ")";
-			}
 			if (lk == RuntimeTypeKind.NUMBER && rk == RuntimeTypeKind.NUMBER) {
 				return "(" + left + " + " + right + ")";
 			}
-			if (lk == RuntimeTypeKind.DATE && rk == RuntimeTypeKind.DURATION) {
+			if ((lk == RuntimeTypeKind.DATE || lk == RuntimeTypeKind.DATE_TIME) && rk == RuntimeTypeKind.DURATION) {
 				return "(CASE WHEN " + right + " LIKE '%Y%' OR " + right + " LIKE '%M%' THEN add_months(" + left
 						+ ", cast(coalesce(try_cast(regexp_extract(" + right
-						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 1) as int), 0) * 12 + coalesce(try_cast(regexp_extract("
-						+ right + ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 2) as int), 0) as int)) ELSE date_add(" + left
+						+ ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 1) as int), 0) * 12 + coalesce(try_cast(regexp_extract("
+						+ right + ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 2) as int), 0) as int)) ELSE date_add(" + left
 						+ ", cast(coalesce(try_cast(regexp_extract(" + right
-						+ ", 'P(?:([0-9]+)D)?', 1) as int), 0) as int)) END)";
+						+ ", 'P(?:(-?[0-9]+)D)?', 1) as int), 0) as int)) END)";
 			}
-			if (lk == RuntimeTypeKind.DURATION && rk == RuntimeTypeKind.DATE) {
+			if (lk == RuntimeTypeKind.DURATION && (rk == RuntimeTypeKind.DATE || rk == RuntimeTypeKind.DATE_TIME)) {
 				return "(CASE WHEN " + left + " LIKE '%Y%' OR " + left + " LIKE '%M%' THEN add_months(" + right
 						+ ", cast(coalesce(try_cast(regexp_extract(" + left
-						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 1) as int), 0) * 12 + coalesce(try_cast(regexp_extract("
-						+ left + ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 2) as int), 0) as int)) ELSE date_add(" + right
+						+ ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 1) as int), 0) * 12 + coalesce(try_cast(regexp_extract("
+						+ left + ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 2) as int), 0) as int)) ELSE date_add(" + right
 						+ ", cast(coalesce(try_cast(regexp_extract(" + left
-						+ ", 'P(?:([0-9]+)D)?', 1) as int), 0) as int)) END)";
+						+ ", 'P(?:(-?[0-9]+)D)?', 1) as int), 0) as int)) END)";
+			}
+			if (lk == RuntimeTypeKind.TIME && rk == RuntimeTypeKind.DURATION) {
+				return "to_timestamp(from_unixtime(unix_timestamp(" + left
+						+ ") + cast((coalesce(try_cast(regexp_extract(" + right
+						+ ", 'P(?:(-?[0-9]+)D)?', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract("
+						+ right + ", 'T(?:(-?[0-9]+)H)?', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract("
+						+ right
+						+ ", 'T(?:.*?)?(-?[0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract("
+						+ right + ", 'T(?:.*?)?(-?[0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) as bigint)))";
+			}
+			if (lk == RuntimeTypeKind.DURATION && rk == RuntimeTypeKind.TIME) {
+				return "to_timestamp(from_unixtime(unix_timestamp(" + right
+						+ ") + cast((coalesce(try_cast(regexp_extract(" + left
+						+ ", 'P(?:(-?[0-9]+)D)?', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:(-?[0-9]+)H)?', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:.*?)?(-?[0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:.*?)?(-?[0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) as bigint)))";
 			}
 			if (lk == RuntimeTypeKind.DURATION && rk == RuntimeTypeKind.DURATION) {
 				return "(CASE WHEN " + left + " LIKE '%Y%' OR " + left + " LIKE '%M%' THEN (CASE WHEN " + right
 						+ " LIKE '%Y%' OR " + right
 						+ " LIKE '%M%' THEN concat('P', cast((coalesce(try_cast(regexp_extract(" + left
-						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 1) as bigint), 0L) * 12 + coalesce(try_cast(regexp_extract("
+						+ ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 1) as bigint), 0L) * 12 + coalesce(try_cast(regexp_extract("
 						+ left
-						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 2) as bigint), 0L)) + (coalesce(try_cast(regexp_extract("
+						+ ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 2) as bigint), 0L)) + (coalesce(try_cast(regexp_extract("
 						+ right
-						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 1) as bigint), 0L) * 12 + coalesce(try_cast(regexp_extract("
+						+ ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 1) as bigint), 0L) * 12 + coalesce(try_cast(regexp_extract("
 						+ right
-						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 2) as bigint), 0L)) as string), 'M') ELSE NULL END) ELSE (CASE WHEN "
+						+ ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 2) as bigint), 0L)) as string), 'M') ELSE NULL END) ELSE (CASE WHEN "
 						+ right + " LIKE '%Y%' OR " + right
 						+ " LIKE '%M%' THEN NULL ELSE concat('PT', cast((coalesce(try_cast(regexp_extract(" + left
-						+ ", 'P(?:([0-9]+)D)?', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract(" + left
-						+ ", 'T(?:([0-9]+)H)?', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract(" + left
-						+ ", 'T(?:.*?)?([0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract(" + left
-						+ ", 'T(?:.*?)?([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) + (coalesce(try_cast(regexp_extract("
-						+ right + ", 'P(?:([0-9]+)D)?', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract("
-						+ right + ", 'T(?:([0-9]+)H)?', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract("
-						+ right + ", 'T(?:.*?)?([0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract("
+						+ ", 'P(?:(-?[0-9]+)D)?', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:(-?[0-9]+)H)?', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:.*?)?(-?[0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:.*?)?(-?[0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) + (coalesce(try_cast(regexp_extract("
 						+ right
-						+ ", 'T(?:.*?)?([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) as string), 'S') END) END)";
+						+ ", 'P(?:(-?[0-9]+)D)?', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract("
+						+ right + ", 'T(?:(-?[0-9]+)H)?', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract("
+						+ right
+						+ ", 'T(?:.*?)?(-?[0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract("
+						+ right
+						+ ", 'T(?:.*?)?(-?[0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) as string), 'S') END) END)";
 			}
-			if (lk == RuntimeTypeKind.STRING || rk == RuntimeTypeKind.STRING) {
-				return "concat(" + left + ", " + right + ")";
+			if (lk == RuntimeTypeKind.LIST || rk == RuntimeTypeKind.LIST || lk == RuntimeTypeKind.DURATION
+					|| rk == RuntimeTypeKind.DURATION || lk == RuntimeTypeKind.DATE || rk == RuntimeTypeKind.DATE
+					|| lk == RuntimeTypeKind.DATE_TIME || rk == RuntimeTypeKind.DATE_TIME || lk == RuntimeTypeKind.TIME
+					|| rk == RuntimeTypeKind.TIME || lk == RuntimeTypeKind.STRING || rk == RuntimeTypeKind.STRING) {
+				return "NULL";
 			}
 			return "(" + left + " + " + right + ")";
 		}
@@ -297,36 +410,61 @@ public final class SparkSqlExpressionEmitter {
 			if (lk == RuntimeTypeKind.DATE && rk == RuntimeTypeKind.DATE) {
 				return "concat('P', cast(datediff(" + left + ", " + right + ") as string), 'D')";
 			}
-			if (lk == RuntimeTypeKind.DATE && rk == RuntimeTypeKind.DURATION) {
+			if (lk == RuntimeTypeKind.DATE_TIME && rk == RuntimeTypeKind.DATE_TIME) {
+				return "concat('PT', cast((coalesce(unix_timestamp(" + left + "), 0) - coalesce(unix_timestamp(" + right
+						+ "), 0)) as string), 'S')";
+			}
+			if (lk == RuntimeTypeKind.TIME && rk == RuntimeTypeKind.TIME) {
+				return "concat('PT', cast((coalesce(unix_timestamp(" + left + "), 0) - coalesce(unix_timestamp(" + right
+						+ "), 0)) as string), 'S')";
+			}
+			if ((lk == RuntimeTypeKind.DATE || lk == RuntimeTypeKind.DATE_TIME) && rk == RuntimeTypeKind.DURATION) {
 				return "(CASE WHEN " + right + " LIKE '%Y%' OR " + right + " LIKE '%M%' THEN add_months(" + left
 						+ ", -cast(coalesce(try_cast(regexp_extract(" + right
-						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 1) as int), 0) * 12 + coalesce(try_cast(regexp_extract("
-						+ right + ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 2) as int), 0) as int)) ELSE date_sub(" + left
+						+ ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 1) as int), 0) * 12 + coalesce(try_cast(regexp_extract("
+						+ right + ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 2) as int), 0) as int)) ELSE date_sub(" + left
 						+ ", cast(coalesce(try_cast(regexp_extract(" + right
-						+ ", 'P(?:([0-9]+)D)?', 1) as int), 0) as int)) END)";
+						+ ", 'P(?:(-?[0-9]+)D)?', 1) as int), 0) as int)) END)";
+			}
+			if (lk == RuntimeTypeKind.TIME && rk == RuntimeTypeKind.DURATION) {
+				return "to_timestamp(from_unixtime(unix_timestamp(" + left
+						+ ") - cast((coalesce(try_cast(regexp_extract(" + right
+						+ ", 'P(?:(-?[0-9]+)D)?', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract("
+						+ right + ", 'T(?:(-?[0-9]+)H)?', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract("
+						+ right
+						+ ", 'T(?:.*?)?(-?[0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract("
+						+ right + ", 'T(?:.*?)?(-?[0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) as bigint)))";
 			}
 			if (lk == RuntimeTypeKind.DURATION && rk == RuntimeTypeKind.DURATION) {
 				return "(CASE WHEN " + left + " LIKE '%Y%' OR " + left + " LIKE '%M%' THEN (CASE WHEN " + right
 						+ " LIKE '%Y%' OR " + right
 						+ " LIKE '%M%' THEN concat('P', cast((coalesce(try_cast(regexp_extract(" + left
-						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 1) as bigint), 0L) * 12 + coalesce(try_cast(regexp_extract("
+						+ ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 1) as bigint), 0L) * 12 + coalesce(try_cast(regexp_extract("
 						+ left
-						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 2) as bigint), 0L)) - (coalesce(try_cast(regexp_extract("
+						+ ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 2) as bigint), 0L)) - (coalesce(try_cast(regexp_extract("
 						+ right
-						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 1) as bigint), 0L) * 12 + coalesce(try_cast(regexp_extract("
+						+ ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 1) as bigint), 0L) * 12 + coalesce(try_cast(regexp_extract("
 						+ right
-						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 2) as bigint), 0L)) as string), 'M') ELSE NULL END) ELSE (CASE WHEN "
+						+ ", 'P(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?', 2) as bigint), 0L)) as string), 'M') ELSE NULL END) ELSE (CASE WHEN "
 						+ right + " LIKE '%Y%' OR " + right
 						+ " LIKE '%M%' THEN NULL ELSE concat('PT', cast((coalesce(try_cast(regexp_extract(" + left
-						+ ", 'P(?:([0-9]+)D)?', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract(" + left
-						+ ", 'T(?:([0-9]+)H)?', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract(" + left
-						+ ", 'T(?:.*?)?([0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract(" + left
-						+ ", 'T(?:.*?)?([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) - (coalesce(try_cast(regexp_extract("
-						+ right + ", 'P(?:([0-9]+)D)?', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract("
-						+ right + ", 'T(?:([0-9]+)H)?', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract("
-						+ right + ", 'T(?:.*?)?([0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract("
+						+ ", 'P(?:(-?[0-9]+)D)?', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:(-?[0-9]+)H)?', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:.*?)?(-?[0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:.*?)?(-?[0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) - (coalesce(try_cast(regexp_extract("
 						+ right
-						+ ", 'T(?:.*?)?([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) as string), 'S') END) END)";
+						+ ", 'P(?:(-?[0-9]+)D)?', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract("
+						+ right + ", 'T(?:(-?[0-9]+)H)?', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract("
+						+ right
+						+ ", 'T(?:.*?)?(-?[0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract("
+						+ right
+						+ ", 'T(?:.*?)?(-?[0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) as string), 'S') END) END)";
+			}
+			if (lk == RuntimeTypeKind.LIST || rk == RuntimeTypeKind.LIST || lk == RuntimeTypeKind.STRING
+					|| rk == RuntimeTypeKind.STRING || lk == RuntimeTypeKind.DURATION || rk == RuntimeTypeKind.DURATION
+					|| lk == RuntimeTypeKind.DATE || rk == RuntimeTypeKind.DATE || lk == RuntimeTypeKind.DATE_TIME
+					|| rk == RuntimeTypeKind.DATE_TIME || lk == RuntimeTypeKind.TIME || rk == RuntimeTypeKind.TIME) {
+				return "NULL";
 			}
 			return "(" + left + " - " + right + ")";
 		}
@@ -359,6 +497,12 @@ public final class SparkSqlExpressionEmitter {
 						+ right + ", 'T(?:.*?)?([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) * " + left
 						+ " as bigint) as string), 'S') END)";
 			}
+			if (lk == RuntimeTypeKind.LIST || rk == RuntimeTypeKind.LIST || lk == RuntimeTypeKind.STRING
+					|| rk == RuntimeTypeKind.STRING || lk == RuntimeTypeKind.DURATION || rk == RuntimeTypeKind.DURATION
+					|| lk == RuntimeTypeKind.DATE || rk == RuntimeTypeKind.DATE || lk == RuntimeTypeKind.DATE_TIME
+					|| rk == RuntimeTypeKind.DATE_TIME || lk == RuntimeTypeKind.TIME || rk == RuntimeTypeKind.TIME) {
+				return "NULL";
+			}
 			return "(" + left + " * " + right + ")";
 		}
 
@@ -377,6 +521,33 @@ public final class SparkSqlExpressionEmitter {
 						+ left + ", 'T(?:.*?)?([0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract("
 						+ left + ", 'T(?:.*?)?([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) / " + right
 						+ " as bigint) as string), 'S') END)";
+			}
+			if (lk == RuntimeTypeKind.DURATION && rk == RuntimeTypeKind.DURATION) {
+				return "(CASE WHEN " + left + " LIKE '%Y%' OR " + left + " LIKE '%M%' THEN (CASE WHEN " + right
+						+ " LIKE '%Y%' OR " + right + " LIKE '%M%' THEN ((coalesce(try_cast(regexp_extract(" + left
+						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 1) as double), 0.0) * 12 + coalesce(try_cast(regexp_extract("
+						+ left
+						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 2) as double), 0.0)) / NULLIF(coalesce(try_cast(regexp_extract("
+						+ right
+						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 1) as double), 0.0) * 12 + coalesce(try_cast(regexp_extract("
+						+ right
+						+ ", 'P(?:([0-9]+)Y)?(?:([0-9]+)M)?', 2) as double), 0.0), 0.0)) ELSE NULL END) ELSE (CASE WHEN "
+						+ right + " LIKE '%Y%' OR " + right
+						+ " LIKE '%M%' THEN NULL ELSE ((coalesce(try_cast(regexp_extract(" + left
+						+ ", 'P(?:([0-9]+)D)?', 1) as double), 0.0) * 86400 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:([0-9]+)H)?', 1) as double), 0.0) * 3600 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:.*?)?([0-9]+)M', 1) as double), 0.0) * 60 + coalesce(try_cast(regexp_extract(" + left
+						+ ", 'T(?:.*?)?([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) / NULLIF(coalesce(try_cast(regexp_extract("
+						+ right + ", 'P(?:([0-9]+)D)?', 1) as double), 0.0) * 86400 + coalesce(try_cast(regexp_extract("
+						+ right + ", 'T(?:([0-9]+)H)?', 1) as double), 0.0) * 3600 + coalesce(try_cast(regexp_extract("
+						+ right + ", 'T(?:.*?)?([0-9]+)M', 1) as double), 0.0) * 60 + coalesce(try_cast(regexp_extract("
+						+ right + ", 'T(?:.*?)?([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0), 0.0)) END) END)";
+			}
+			if (lk == RuntimeTypeKind.LIST || rk == RuntimeTypeKind.LIST || lk == RuntimeTypeKind.STRING
+					|| rk == RuntimeTypeKind.STRING || lk == RuntimeTypeKind.DURATION || rk == RuntimeTypeKind.DURATION
+					|| lk == RuntimeTypeKind.DATE || rk == RuntimeTypeKind.DATE || lk == RuntimeTypeKind.DATE_TIME
+					|| rk == RuntimeTypeKind.DATE_TIME || lk == RuntimeTypeKind.TIME || rk == RuntimeTypeKind.TIME) {
+				return "NULL";
 			}
 			return "(CASE WHEN " + right + " = 0 THEN NULL ELSE (" + left + " / " + right + ") END)";
 		}
@@ -510,7 +681,7 @@ public final class SparkSqlExpressionEmitter {
 				: slotNameResolver.apply(slot);
 		String inner = emitNestedFor(iterations, index + 1, resultExpr, bkmBySlot, scopedResolver);
 		String transformed = "transform(" + source + ", " + itemVar + " -> " + inner + ")";
-		return (index > 0 && index < iterations.size() - 1) ? "flatten(" + transformed + ")" : transformed;
+		return (index < iterations.size() - 1) ? "flatten(" + transformed + ")" : transformed;
 	}
 
 	private static String emitRelation(RuntimeRelationExpression rel, Map<Integer, RuntimeBkm> bkmBySlot,
@@ -941,13 +1112,19 @@ public final class SparkSqlExpressionEmitter {
 				if (args.size() == 1) {
 					yield "try_to_timestamp(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
 				}
-				yield "try_to_timestamp(concat(cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver)
-						+ " as string), 'T', cast(" + emitArg(args, 1, bkmBySlot, slotNameResolver) + " as string)))";
+				String d = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				String t = emitArg(args, 1, bkmBySlot, slotNameResolver);
+				yield "make_timestamp(year(" + d + "), month(" + d + "), day(" + d + "), hour(" + t + "), minute(" + t
+						+ "), second(" + t + "))";
 			}
 			case "time" -> {
 				if (args.size() == 1) {
-					yield "try_to_timestamp(concat('1970-01-01T', " + emitArg(args, 0, bkmBySlot, slotNameResolver)
-							+ "))";
+					String arg = emitArg(args, 0, bkmBySlot, slotNameResolver);
+					RuntimeType argType = args.get(0).type();
+					if (argType != null && argType.kind() == RuntimeTypeKind.DATE_TIME) {
+						yield "make_timestamp(1970, 1, 1, hour(" + arg + "), minute(" + arg + "), second(" + arg + "))";
+					}
+					yield "try_to_timestamp(concat('1970-01-01 ', " + arg + "))";
 				} else if (args.size() >= 3) {
 					String h = emitArg(args, 0, bkmBySlot, slotNameResolver);
 					String m = emitArg(args, 1, bkmBySlot, slotNameResolver);
@@ -955,7 +1132,7 @@ public final class SparkSqlExpressionEmitter {
 					yield "make_timestamp(1970, 1, 1, cast(" + h + " as int), cast(" + m + " as int), cast(" + s
 							+ " as double))";
 				}
-				yield "try_to_timestamp(concat('1970-01-01T', " + emitArg(args, 0, bkmBySlot, slotNameResolver) + "))";
+				yield "try_to_timestamp(concat('1970-01-01 ', " + emitArg(args, 0, bkmBySlot, slotNameResolver) + "))";
 			}
 			case "year" -> "year(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
 			case "month" -> "month(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
@@ -974,15 +1151,48 @@ public final class SparkSqlExpressionEmitter {
 			case "now" -> "current_timestamp()";
 
 			// List / Array functions
-			case "list contains" -> "array_contains(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ", "
-					+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")";
+			case "list contains" -> {
+				String list = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				String match = emitArg(args, 1, bkmBySlot, slotNameResolver);
+				RuntimeType matchType = args.size() > 1 ? args.get(1).type() : null;
+				if (matchType != null && matchType.kind() == RuntimeTypeKind.LIST) {
+					yield "(CASE WHEN (" + list + " IS NULL OR " + match + " IS NULL) THEN NULL ELSE FALSE END)";
+				}
+				yield "array_contains(" + list + ", " + match + ")";
+			}
 			case "count" -> "size(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
 			case "reverse" -> "reverse(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
-			case "flatten" -> "flatten(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
+			case "flatten" -> {
+				String arr = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				RuntimeType arrType = !args.isEmpty() ? args.get(0).type() : null;
+				if (arrType != null && arrType.kind() == RuntimeTypeKind.LIST && arrType.elementType() != null
+						&& arrType.elementType().kind() == RuntimeTypeKind.LIST) {
+					yield "flatten(" + arr + ")";
+				}
+				yield arr;
+			}
 			case "distinct values" -> "array_distinct(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
 			case "union" -> "array_union(" + emitArgsJoined(args, bkmBySlot, slotNameResolver) + ")";
-			case "append" -> "concat(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ", array("
-					+ emitArg(args, 1, bkmBySlot, slotNameResolver) + "))";
+			case "append" -> {
+				String list = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				if (args.size() == 2) {
+					RuntimeType itemType = args.get(1).type();
+					String item1 = emitArg(args, 1, bkmBySlot, slotNameResolver);
+					if (itemType != null && itemType.kind() == RuntimeTypeKind.LIST) {
+						yield "concat(" + list + ", " + item1 + ")";
+					} else {
+						yield "concat(" + list + ", array(" + item1 + "))";
+					}
+				}
+				StringBuilder items = new StringBuilder("array(");
+				for (int i = 1; i < args.size(); i++) {
+					if (i > 1)
+						items.append(", ");
+					items.append(emitWithBkms(args.get(i), bkmBySlot, slotNameResolver));
+				}
+				items.append(")");
+				yield "concat(" + list + ", " + items + ")";
+			}
 			case "concatenate" -> "concat(" + emitArgsJoined(args, bkmBySlot, slotNameResolver) + ")";
 			case "sublist" -> {
 				if (args.size() == 2) {
@@ -1016,8 +1226,12 @@ public final class SparkSqlExpressionEmitter {
 				yield "(CASE WHEN array_contains(" + arr + ", true) THEN TRUE WHEN array_contains(" + arr
 						+ ", NULL) THEN NULL ELSE FALSE END)";
 			}
-			case "index of", "indexof" -> "array_position(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ", "
-					+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")";
+			case "index of", "indexof" -> {
+				String list = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				String match = emitArg(args, 1, bkmBySlot, slotNameResolver);
+				yield "filter(transform(" + list + ", (x, i) -> (CASE WHEN x <=> " + match
+						+ " THEN i + 1 ELSE NULL END)), x -> x IS NOT NULL)";
+			}
 			case "remove" -> "concat(slice(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ", 1, "
 					+ emitArg(args, 1, bkmBySlot, slotNameResolver) + " - 1), slice("
 					+ emitArg(args, 0, bkmBySlot, slotNameResolver) + ", "

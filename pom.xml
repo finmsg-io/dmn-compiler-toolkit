@@ -57,6 +57,7 @@
         <module>dmn-compiler</module>
         <module>dmn-generator-java</module>
         <module>dmn-generator-sparksql</module>
+        <module>dmn-grpc</module>
         <module>dmn-smoke-test</module>
     </modules>
 
@@ -335,13 +336,6 @@
             </modules>
         </profile>
 
-        <!-- Incubating backends are intentionally excluded from the fast default reactor. -->
-        <profile>
-            <id>incubator</id>
-            <modules>
-                <module>dmn-grpc</module>
-            </modules>
-        </profile>
 
         <!-- Security scan profile: run manually or in dedicated CI step.
              Usage: mvn -Psecurity-scan verify -->

@@ -207,9 +207,9 @@ in the [benchmark evidence plan](improvements/benchmark-evidence-and-scalability
 
 
 <a id="contents-section-14"></a>
-## Incubating: `dmn-grpc`
+## `dmn-grpc`
 
-Provides transport-neutral gRPC service contract definitions (`evaluation.proto`), Java gRPC service adapter generators (`DmnGrpcGenerator`), and bidirectional Proto-to-Java value converters (`DmnGrpcValueConverter`) backed by compiled Java decision engines (`dmn-generator-java`). Built using pure `grpc-java` without framework overhead.
+Provides transport-neutral gRPC service contract definitions (`evaluation.proto`), Java gRPC service adapter generators (`DmnGrpcGenerator`), strongly-typed protobuf schema generators (`TypedProtoSchemaGenerator`), and bidirectional Proto-to-Java value converters (`DmnGrpcValueConverter`) backed by compiled Java decision engines (`dmn-generator-java`). Built using pure `grpc-java` without framework overhead.
 
 
 <a id="contents-section-15"></a>
