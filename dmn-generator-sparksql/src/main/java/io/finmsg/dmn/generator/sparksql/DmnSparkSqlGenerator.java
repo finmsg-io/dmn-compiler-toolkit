@@ -20,12 +20,18 @@ public final class DmnSparkSqlGenerator {
 		Map<Integer, String> slotNames = new HashMap<>();
 		for (RuntimeInput input : model.inputs()) {
 			String rawName = options.customSlotNames().getOrDefault(input.valueSlot(), "input_" + input.valueSlot());
-			slotNames.put(input.valueSlot(), sanitizeIdentifier(rawName));
+			slotNames.put(input.valueSlot(), rawName);
 		}
 		for (RuntimeDecision decision : model.decisions()) {
 			String rawName = options.customSlotNames().getOrDefault(decision.resultSlot(),
 					"decision_" + decision.resultSlot());
-			slotNames.put(decision.resultSlot(), sanitizeIdentifier(rawName));
+			slotNames.put(decision.resultSlot(), rawName);
+		}
+		Map<Integer, RuntimeBkm> bkmBySlot = new HashMap<>();
+		for (RuntimeBkm bkm : model.businessKnowledgeModels()) {
+			String rawName = options.customSlotNames().getOrDefault(bkm.resultSlot(), "bkm_" + bkm.resultSlot());
+			slotNames.put(bkm.resultSlot(), rawName);
+			bkmBySlot.put(bkm.resultSlot(), bkm);
 		}
 
 		StructType inputSchema = SparkSqlSchemaGenerator.generateInputSchema(model, slotNames);
@@ -38,8 +44,9 @@ public final class DmnSparkSqlGenerator {
 		Map<String, String> sqlFiles = new LinkedHashMap<>();
 
 		for (RuntimeDecision decision : model.decisions()) {
-			String name = sanitizeIdentifier("Decision_" + decision.resultSlot());
-			String sqlQuery = buildCteQuery(model, decision, decisionMap, slotNames, options.inputTableName());
+			String name = "Decision_" + decision.resultSlot();
+			String sqlQuery = buildCteQuery(model, decision, decisionMap, slotNames, bkmBySlot,
+					options.inputTableName());
 			sqlFiles.put(name + ".sql", sqlQuery);
 		}
 
@@ -54,7 +61,8 @@ public final class DmnSparkSqlGenerator {
 	}
 
 	private String buildCteQuery(RuntimeModel model, RuntimeDecision targetDecision,
-			Map<Integer, RuntimeDecision> decisionMap, Map<Integer, String> slotNames, String inputTable) {
+			Map<Integer, RuntimeDecision> decisionMap, Map<Integer, String> slotNames,
+			Map<Integer, RuntimeBkm> bkmBySlot, String inputTable) {
 
 		StringBuilder sb = new StringBuilder();
 		sb.append("-- Generated Spark SQL CTE Query for DMN Decision: ").append(targetDecision.id()).append("\n");
@@ -71,7 +79,7 @@ public final class DmnSparkSqlGenerator {
 		}
 
 		if (orderedDecisions.isEmpty()) {
-			return "SELECT NULL AS " + sanitizeIdentifier("result_" + targetDecision.resultSlot()) + ";";
+			return "SELECT NULL AS `" + targetDecision.resultSlot() + "`;";
 		}
 
 		sb.append("WITH _base_input AS (\n");
@@ -83,12 +91,12 @@ public final class DmnSparkSqlGenerator {
 		for (int idx = 0; idx < orderedDecisions.size(); idx++) {
 			RuntimeDecision dec = orderedDecisions.get(idx);
 			String decName = slotNames.get(dec.resultSlot());
-			String exprCode = emitDecisionExpr(dec, slotNames);
-			String cteName = "_cte_" + decName;
+			String exprCode = emitDecisionExpr(dec, slotNames, bkmBySlot);
+			String cteName = "_cte_" + dec.resultSlot();
 
 			sb.append(",\n").append(cteName).append(" AS (\n");
 			sb.append("  SELECT *,\n");
-			sb.append("    (").append(exprCode).append(") AS `").append(decName).append("`\n");
+			sb.append("    (").append(exprCode).append(") AS `").append(decName.replace("`", "")).append("`\n");
 			sb.append("  FROM ").append(currentTable).append("\n");
 			sb.append(")");
 
@@ -96,7 +104,7 @@ public final class DmnSparkSqlGenerator {
 		}
 
 		String finalName = slotNames.get(targetDecision.resultSlot());
-		sb.append("\nSELECT `").append(finalName).append("` FROM ").append(currentTable).append(";\n");
+		sb.append("\nSELECT `").append(finalName.replace("`", "")).append("` FROM ").append(currentTable).append(";\n");
 
 		return sb.toString();
 	}
@@ -119,11 +127,13 @@ public final class DmnSparkSqlGenerator {
 		return deps;
 	}
 
-	private String emitDecisionExpr(RuntimeDecision decision, Map<Integer, String> slotNames) {
+	private String emitDecisionExpr(RuntimeDecision decision, Map<Integer, String> slotNames,
+			Map<Integer, RuntimeBkm> bkmBySlot) {
 		if (decision.decisionTable().isPresent()) {
-			return SparkSqlExpressionEmitter.emitDecisionTable(decision.decisionTable().get(), slotNames::get);
+			return SparkSqlExpressionEmitter.emitDecisionTable(decision.decisionTable().get(), bkmBySlot,
+					slotNames::get);
 		} else if (decision.expression().isPresent()) {
-			return SparkSqlExpressionEmitter.emit(decision.expression().get(), slotNames::get);
+			return SparkSqlExpressionEmitter.emitWithBkms(decision.expression().get(), bkmBySlot, slotNames::get);
 		}
 		return "NULL";
 	}
@@ -166,9 +176,5 @@ public final class DmnSparkSqlGenerator {
 		sb.append("}\n");
 
 		return sb.toString();
-	}
-
-	private String sanitizeIdentifier(String name) {
-		return name.replaceAll("[^a-zA-Z0-9_]", "_");
 	}
 }

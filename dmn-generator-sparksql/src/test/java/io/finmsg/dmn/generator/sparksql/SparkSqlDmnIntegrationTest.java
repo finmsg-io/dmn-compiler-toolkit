@@ -78,8 +78,10 @@ class SparkSqlDmnIntegrationTest {
 
 	@Test
 	void testTck0001InputDataStringOnSpark() throws Exception {
-		Path dmnPath = Path.of("../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-2/0001-input-data-string/0001-input-data-string.dmn");
-		if (!Files.exists(dmnPath)) return;
+		Path dmnPath = Path.of(
+				"../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-2/0001-input-data-string/0001-input-data-string.dmn");
+		if (!Files.exists(dmnPath))
+			return;
 
 		DmnSource source = new DmnSource(DmnSourceId.of(dmnPath.toUri().toString()), Files.readAllBytes(dmnPath));
 		DmnCompilationResult compilation = compiler.compile(source, new InMemoryDmnModelResolver(List.of()));
@@ -105,8 +107,10 @@ class SparkSqlDmnIntegrationTest {
 
 	@Test
 	void testTck0002InputDataNumberOnSpark() throws Exception {
-		Path dmnPath = Path.of("../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-2/0002-input-data-number/0002-input-data-number.dmn");
-		if (!Files.exists(dmnPath)) return;
+		Path dmnPath = Path.of(
+				"../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-2/0002-input-data-number/0002-input-data-number.dmn");
+		if (!Files.exists(dmnPath))
+			return;
 
 		DmnSource source = new DmnSource(DmnSourceId.of(dmnPath.toUri().toString()), Files.readAllBytes(dmnPath));
 		DmnCompilationResult compilation = compiler.compile(source, new InMemoryDmnModelResolver(List.of()));
@@ -132,8 +136,10 @@ class SparkSqlDmnIntegrationTest {
 
 	@Test
 	void testTck0004SimpleTableUniqueOnSpark() throws Exception {
-		Path dmnPath = Path.of("../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-2/0004-simpletable-U/0004-simpletable-U.dmn");
-		if (!Files.exists(dmnPath)) return;
+		Path dmnPath = Path.of(
+				"../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-2/0004-simpletable-U/0004-simpletable-U.dmn");
+		if (!Files.exists(dmnPath))
+			return;
 
 		DmnSource source = new DmnSource(DmnSourceId.of(dmnPath.toUri().toString()), Files.readAllBytes(dmnPath));
 		DmnCompilationResult compilation = compiler.compile(source, new InMemoryDmnModelResolver(List.of()));
@@ -175,8 +181,10 @@ class SparkSqlDmnIntegrationTest {
 
 	@Test
 	void testTck0010MultiOutputTableOnSpark() throws Exception {
-		Path dmnPath = Path.of("../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-2/0010-multi-output-U/0010-multi-output-U.dmn");
-		if (!Files.exists(dmnPath)) return;
+		Path dmnPath = Path.of(
+				"../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-2/0010-multi-output-U/0010-multi-output-U.dmn");
+		if (!Files.exists(dmnPath))
+			return;
 
 		DmnSource source = new DmnSource(DmnSourceId.of(dmnPath.toUri().toString()), Files.readAllBytes(dmnPath));
 		DmnCompilationResult compilation = compiler.compile(source, new InMemoryDmnModelResolver(List.of()));
@@ -205,8 +213,10 @@ class SparkSqlDmnIntegrationTest {
 
 	@Test
 	void testTck0105FeelMathOnSpark() throws Exception {
-		Path dmnPath = Path.of("../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-2/0105-feel-math/0105-feel-math.dmn");
-		if (!Files.exists(dmnPath)) return;
+		Path dmnPath = Path.of(
+				"../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-2/0105-feel-math/0105-feel-math.dmn");
+		if (!Files.exists(dmnPath))
+			return;
 
 		DmnSource source = new DmnSource(DmnSourceId.of(dmnPath.toUri().toString()), Files.readAllBytes(dmnPath));
 		DmnCompilationResult compilation = compiler.compile(source, new InMemoryDmnModelResolver(List.of()));

@@ -36,6 +36,17 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>io.finmsg.dmn</groupId>
+      <artifactId>dmn-generator-sparksql</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_2.13</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>

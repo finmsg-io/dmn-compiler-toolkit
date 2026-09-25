@@ -4,12 +4,8 @@ import java.util.Map;
 import java.util.Objects;
 
 /** Configuration options for DMN Spark SQL generation. */
-public record DmnSparkSqlGeneratorOptions(
-		String packageName,
-		String className,
-		String inputTableName,
-		boolean includeJavaRunner,
-		Map<Integer, String> customSlotNames) {
+public record DmnSparkSqlGeneratorOptions(String packageName, String className, String inputTableName,
+		boolean includeJavaRunner, Map<Integer, String> customSlotNames) {
 
 	public DmnSparkSqlGeneratorOptions {
 		Objects.requireNonNull(packageName, "packageName");
@@ -26,5 +22,10 @@ public record DmnSparkSqlGeneratorOptions(
 	public static DmnSparkSqlGeneratorOptions defaults() {
 		return new DmnSparkSqlGeneratorOptions("io.finmsg.dmn.spark", "DmnSparkSqlRunner", "input_table", true,
 				Map.of());
+	}
+
+	public static DmnSparkSqlGeneratorOptions of(String inputTableName, Map<Integer, String> customSlotNames) {
+		return new DmnSparkSqlGeneratorOptions("io.finmsg.dmn.spark", "DmnSparkSqlRunner", inputTableName, false,
+				customSlotNames);
 	}
 }
