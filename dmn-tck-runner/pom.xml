@@ -66,6 +66,7 @@
         <version>${maven.surefire.plugin.version}</version>
         <configuration>
           <skipTests>${tck.skip}</skipTests>
+          <argLine>@{argLine} -Xmx4g -XX:+UseG1GC</argLine>
           <useFile>false</useFile>
           <redirectTestOutputToFile>false</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>

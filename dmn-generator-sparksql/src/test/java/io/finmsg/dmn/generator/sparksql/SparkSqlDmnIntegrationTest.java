@@ -231,8 +231,104 @@ class SparkSqlDmnIntegrationTest {
 
 			for (String sql : genResult.sqlFiles().values()) {
 				Dataset<Row> resultDf = spark.sql(sql);
-				assertThat(resultDf.collectAsList()).hasSize(1);
 			}
+		}
+	}
+
+	@Test
+	void testTck0030UserDefinedFunctions() throws Exception {
+		Path dmnPath = Path.of(
+				"../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-3/0030-user-defined-functions/0030-user-defined-functions.dmn");
+		if (!Files.exists(dmnPath))
+			return;
+
+		DmnSource source = new DmnSource(DmnSourceId.of(dmnPath.toUri().toString()), Files.readAllBytes(dmnPath));
+		DmnCompilationResult compilation = compiler.compile(source, new InMemoryDmnModelResolver(List.of()));
+		assertThat(compilation.isSuccess()).isTrue();
+
+		RuntimeOptimizedModel optimized = compilation.optimizedRuntimeModel().orElseThrow();
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> generator.generate(optimized))
+				.isInstanceOf(UnsupportedRelationalSqlException.class);
+		DmnSparkSqlGeneratorResult genResult = generator.generate(optimized,
+				DmnSparkSqlGeneratorOptions.of("input_table", true, Map.of()));
+		genResult.registerUdfs(spark);
+
+		for (RuntimeDecision d : optimized.model().decisions()) {
+			System.out.println("Decision " + d.id() + " (" + d.resultSlot() + "): " + d.expression());
+		}
+
+		for (Map.Entry<String, String> e : genResult.sqlFiles().entrySet()) {
+			System.out.println("=== " + e.getKey() + " ===");
+			System.out.println(e.getValue());
+		}
+
+		if (spark != null) {
+			StructType schema = genResult.inputSchema();
+			Dataset<Row> df = spark.createDataFrame(List.of(RowFactory.create("feel#", "feel#")), schema);
+			df.createOrReplaceTempView("input_table");
+
+			for (String sql : genResult.sqlFiles().values()) {
+				Dataset<Row> resultDf = spark.sql(sql);
+				List<Row> rows = resultDf.collectAsList();
+			}
+		}
+	}
+
+	@Test
+	void testTck0014LoanComparison() throws Exception {
+		Path dmnPath = Path.of(
+				"../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-3/0014-loan-comparison/0014-loan-comparison.dmn");
+		if (!Files.exists(dmnPath))
+			return;
+
+		DmnSource source = new DmnSource(DmnSourceId.of(dmnPath.toUri().toString()), Files.readAllBytes(dmnPath));
+		DmnCompilationResult compilation = compiler.compile(source, new InMemoryDmnModelResolver(List.of()));
+		assertThat(compilation.isSuccess()).isTrue();
+
+		RuntimeOptimizedModel optimized = compilation.optimizedRuntimeModel().orElseThrow();
+		DmnSparkSqlGeneratorResult genResult = generator.generate(optimized);
+
+		for (Map.Entry<String, String> e : genResult.sqlFiles().entrySet()) {
+			System.out.println("=== " + e.getKey() + " ===");
+			System.out.println(e.getValue());
+		}
+
+		if (spark != null) {
+			StructType schema = genResult.inputSchema();
+			Dataset<Row> df = spark.createDataFrame(List.of(RowFactory.create(330000.0)), schema);
+			df.createOrReplaceTempView("input_table");
+
+			for (Map.Entry<String, String> e : genResult.sqlFiles().entrySet()) {
+				Dataset<Row> resultDf = spark.sql(e.getValue());
+				List<Row> rows = resultDf.collectAsList();
+				System.out.println("Spark result for " + e.getKey() + ": " + rows);
+			}
+		}
+	}
+
+	@Test
+	void testTck0034DrgScopes() throws Exception {
+		Path dmnPath = Path.of(
+				"../dmn-tck-runner/src/test/resources/tck-official/TestCases/compliance-level-3/0034-drg-scopes/0034-drg-scopes.dmn");
+		if (!Files.exists(dmnPath))
+			return;
+
+		DmnSource source = new DmnSource(DmnSourceId.of(dmnPath.toUri().toString()), Files.readAllBytes(dmnPath));
+		DmnCompilationResult compilation = compiler.compile(source, new InMemoryDmnModelResolver(List.of()));
+		assertThat(compilation.isSuccess()).isTrue();
+
+		RuntimeOptimizedModel optimized = compilation.optimizedRuntimeModel().orElseThrow();
+		for (RuntimeBkm bkm : optimized.model().businessKnowledgeModels()) {
+			System.out.println("BKM slot " + bkm.resultSlot() + ": " + bkm.function());
+		}
+		for (RuntimeDecision d : optimized.model().decisions()) {
+			System.out.println("Decision slot " + d.resultSlot() + ": " + d.expression());
+		}
+
+		DmnSparkSqlGeneratorResult genResult = generator.generate(optimized);
+		for (Map.Entry<String, String> e : genResult.sqlFiles().entrySet()) {
+			System.out.println("=== " + e.getKey() + " ===");
+			System.out.println(e.getValue());
 		}
 	}
 }

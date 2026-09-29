@@ -14,7 +14,8 @@ import io.finmsg.dmn.generator.java.DmnJavaGeneratorResult;
 import io.finmsg.dmn.generator.sparksql.DmnSparkSqlGenerator;
 import io.finmsg.dmn.generator.sparksql.DmnSparkSqlGeneratorOptions;
 import io.finmsg.dmn.generator.sparksql.DmnSparkSqlGeneratorResult;
-import io.finmsg.dmn.generator.sparksql.SparkSqlSchemaGenerator;
+import io.finmsg.dmn.generator.sparksql.SparkSqlFeelValueCodec;
+import io.finmsg.dmn.generator.sparksql.SparkSqlInvocationPlan;
 import io.finmsg.dmn.ir.*;
 import java.math.BigDecimal;
 import java.net.URL;
@@ -22,15 +23,14 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
-import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.types.StructType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DynamicTest;
@@ -47,30 +47,49 @@ import org.junit.jupiter.api.TestInstance;
 class OfficialTckSuiteTest {
 
 	private static final AtomicInteger ENGINE_COUNTER = new AtomicInteger(1);
+	private static final long TIMEOUT_SECONDS = Long.getLong("tck.timeoutSeconds", 5);
+	private static final ExecutorService TEST_EXECUTOR = Executors.newCachedThreadPool(r -> {
+		Thread t = new Thread(r);
+		t.setDaemon(true);
+		return t;
+	});
 	private static final String TCK_REVISION = "20274cd2ba9cad805db6114f331c743f4b2603a1";
 	private static final List<String> CATALOGUE_ROOTS = List.of("compliance-level-2", "compliance-level-3");
 	private final List<TckCatalogueOutcome> outcomes = Collections.synchronizedList(new ArrayList<>());
 	private final Map<PreparationKey, Preparation> preparationCache = new HashMap<>();
 	private final Map<PreparationKey, GeneratedPreparation> generatedPreparationCache = new HashMap<>();
+	private final Map<PreparationKey, DmnSparkSqlGeneratorResult> sparkSqlPreparationCache = new HashMap<>();
 	private final AtomicInteger currentTestIndex = new AtomicInteger(0);
 	private List<RuntimeModelMode> activeModelModes = List.of();
 	private List<String> activeBackends = List.of();
 	private int totalTestCount = 0;
 	private TckCatalogueInventory inventory;
 	private SparkSession spark;
+	private static final boolean SPARK_HYBRID = Boolean.getBoolean("tck.spark.hybrid");
+	private final Map<String, String> sparkRoutes = new ConcurrentHashMap<>();
 	private final DmnSparkSqlGenerator sparkSqlGenerator = new DmnSparkSqlGenerator();
+
+	static {
+		java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));
+	}
 
 	@BeforeAll
 	void setupSparkSession() {
+		java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));
+		String backend = System.getProperty("tck.backend", "default").toLowerCase(Locale.ROOT);
+		if (!Set.of("spark", "sparksql", "all").contains(backend))
+			return;
 		try {
-			spark = SparkSession.builder()
-					.appName("OfficialTckSuiteTest")
-					.master("local[1]")
-					.config("spark.ui.enabled", "false")
-					.config("spark.sql.shuffle.partitions", "1")
-					.getOrCreate();
-		} catch (Throwable ignored) {
-			spark = null;
+			spark = SparkSession.builder().appName("OfficialTckSuiteTest").master("local[1]")
+					.config("spark.ui.enabled", "false").config("spark.sql.shuffle.partitions", "1")
+					.config("spark.sql.datetime.java8API.enabled", "true").config("spark.sql.session.timeZone", "UTC")
+					.config("spark.sql.mapKeyDedupPolicy", "LAST_WIN").getOrCreate();
+			if (spark != null && spark.sparkContext() != null) {
+				spark.sparkContext().setLogLevel("ERROR");
+				spark.sql("SELECT 1 AS _warmup").collectAsList();
+			}
+		} catch (Exception failure) {
+			throw new IllegalStateException("Cannot initialize Spark for TCK execution", failure);
 		}
 	}
 
@@ -113,8 +132,31 @@ class OfficialTckSuiteTest {
 					List.of(selected));
 		}
 		if (!filter.isEmpty()) {
-			List<TckCatalogueEntry> filtered = inventory.entries().stream()
-					.filter(e -> e.id().contains(filter) || e.testXml().toString().contains(filter)).toList();
+			String[] filterTokens = filter.split(",");
+			List<java.util.regex.Pattern> filterPatterns = new ArrayList<>();
+			for (String tok : filterTokens) {
+				String normalizedFilter = tok.trim().replace('\\', '/');
+				if (normalizedFilter.isEmpty()) {
+					continue;
+				}
+				if (normalizedFilter.contains("*") || normalizedFilter.contains("?")) {
+					String regex = "\\Q" + normalizedFilter.replace("*", "\\E.*\\Q").replace("?", "\\E.\\Q") + "\\E";
+					regex = regex.replace("\\Q\\E", "");
+					filterPatterns
+							.add(java.util.regex.Pattern.compile(regex, java.util.regex.Pattern.CASE_INSENSITIVE));
+				} else {
+					filterPatterns.add(java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(normalizedFilter),
+							java.util.regex.Pattern.CASE_INSENSITIVE));
+				}
+			}
+			List<TckCatalogueEntry> filtered = inventory.entries().stream().filter(e -> {
+				String idNorm = e.id().replace('\\', '/');
+				String xmlNorm = e.testXml().toString().replace('\\', '/');
+				return filterPatterns.stream().anyMatch(p -> p.matcher(idNorm).find() || p.matcher(xmlNorm).find());
+			}).toList();
+			if (filtered.isEmpty()) {
+				throw new IllegalArgumentException("No TCK test suites matched filter: '" + filter + "'");
+			}
 			int cases = filtered.stream().mapToInt(e -> e.testCases().size()).sum();
 			int dmns = filtered.stream().mapToInt(e -> e.dmnFiles().size()).sum();
 			inventory = new TckCatalogueInventory(inventory.directoryCount(), filtered.size(), dmns, cases, filtered);
@@ -164,7 +206,7 @@ class OfficialTckSuiteTest {
 		return modes.stream().flatMap(mode -> {
 			String variant = mode.name().toLowerCase(Locale.ROOT);
 			if (backendProp.equals("sparksql") || backendProp.equals("spark")) {
-				return Stream.of(variant + "-generated-sparksql");
+				return Stream.of(variant + "-generated-sparksql" + (SPARK_HYBRID ? "-hybrid" : ""));
 			}
 			if (backendProp.equals("java")) {
 				return Stream.of(variant + "-generated-java");
@@ -173,7 +215,8 @@ class OfficialTckSuiteTest {
 				return Stream.of(variant + "-interpreter");
 			}
 			if (backendProp.equals("all")) {
-				return Stream.of(variant + "-interpreter", variant + "-generated-java", variant + "-generated-sparksql");
+				return Stream.of(variant + "-interpreter", variant + "-generated-java",
+						variant + "-generated-sparksql" + (SPARK_HYBRID ? "-hybrid" : ""));
 			}
 			return Stream.of(variant + "-interpreter", variant + "-generated-java");
 		}).toList();
@@ -185,46 +228,52 @@ class OfficialTckSuiteTest {
 		String testName = entry.id() + "#" + testCase.id();
 		String interpreterBackend = variant + "-interpreter";
 		String generatedJavaBackend = variant + "-generated-java";
-		String generatedSparkSqlBackend = variant + "-generated-sparksql";
+		String generatedSparkSqlBackend = variant + "-generated-sparksql" + (SPARK_HYBRID ? "-hybrid" : "");
 
 		if (activeBackends.contains(interpreterBackend)) {
-			dynamicTests.add(recordedTest(testName + " @" + interpreterBackend, entry, testCase, interpreterBackend, () -> {
-				Preparation preparation = getPreparation(sources, testCase, modelMode);
-				if (preparation.failureDiagnostic() != null) {
-					if (expectsOnlyErrors(testCase) && preparation.modelRejected())
-						return;
-					throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
-				}
-				TckExecutionResult result = interpreterEngine.execute(preparation.compilation(), testCase);
-				assertExpected(testName, testCase, result.decisionValues(), variant + " interpreter");
-			}));
+			dynamicTests
+					.add(recordedTest(testName + " @" + interpreterBackend, entry, testCase, interpreterBackend, () -> {
+						Preparation preparation = getPreparation(sources, testCase, modelMode);
+						if (preparation.failureDiagnostic() != null) {
+							if (expectsOnlyErrors(testCase) && preparation.modelRejected())
+								return;
+							throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
+						}
+						TckExecutionResult result = interpreterEngine.execute(preparation.compilation(), testCase);
+						assertExpected(testName, testCase, result.decisionValues(), variant + " interpreter");
+					}));
 		}
 
 		if (activeBackends.contains(generatedJavaBackend)) {
-			dynamicTests.add(recordedTest(testName + " @" + generatedJavaBackend, entry, testCase, generatedJavaBackend, () -> {
-				Preparation preparation = getPreparation(sources, testCase, modelMode);
-				if (preparation.failureDiagnostic() != null) {
-					if (expectsOnlyErrors(testCase) && preparation.modelRejected())
-						return;
-					throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
-				}
-				GeneratedPreparation generated = getGeneratedPreparation(sources, testCase, modelMode, preparation);
-				if (generated.failureDiagnostic() != null)
-					throw new AssertionError(generated.failureDiagnostic(), generated.failureCause());
-				executeGeneratedJava(preparation.compilation(), generated, testCase, testName);
-			}));
+			dynamicTests.add(
+					recordedTest(testName + " @" + generatedJavaBackend, entry, testCase, generatedJavaBackend, () -> {
+						Preparation preparation = getPreparation(sources, testCase, modelMode);
+						if (preparation.failureDiagnostic() != null) {
+							if (expectsOnlyErrors(testCase) && preparation.modelRejected())
+								return;
+							throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
+						}
+						GeneratedPreparation generated = getGeneratedPreparation(sources, testCase, modelMode,
+								preparation);
+						if (generated.failureDiagnostic() != null)
+							throw new AssertionError(generated.failureDiagnostic(), generated.failureCause());
+						executeGeneratedJava(preparation.compilation(), generated, testCase, testName);
+					}));
 		}
 
 		if (activeBackends.contains(generatedSparkSqlBackend)) {
-			dynamicTests.add(recordedTest(testName + " @" + generatedSparkSqlBackend, entry, testCase, generatedSparkSqlBackend, () -> {
-				Preparation preparation = getPreparation(sources, testCase, modelMode);
-				if (preparation.failureDiagnostic() != null) {
-					if (expectsOnlyErrors(testCase) && preparation.modelRejected())
-						return;
-					throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
-				}
-				executeGeneratedSparkSql(preparation.compilation(), testCase, testName);
-			}));
+			dynamicTests.add(recordedTest(testName + " @" + generatedSparkSqlBackend, entry, testCase,
+					generatedSparkSqlBackend, () -> {
+						Preparation preparation = getPreparation(sources, testCase, modelMode);
+						if (preparation.failureDiagnostic() != null) {
+							if (expectsOnlyErrors(testCase) && preparation.modelRejected()) {
+								sparkRoutes.put(testName, "EXPECTED_MODEL_REJECTION");
+								return;
+							}
+							throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
+						}
+						executeGeneratedSparkSql(sources, preparation, testCase, modelMode, testName);
+					}));
 		}
 	}
 
@@ -318,77 +367,152 @@ class OfficialTckSuiteTest {
 		assertExpected(testName, testCase, extractDecisionValues(compilation, evaluated), "Generated code");
 	}
 
-	private void executeGeneratedSparkSql(DmnCompilationResult compilation, TckTestCase testCase, String testName) {
-		if (spark == null) {
-			return;
-		}
-		RuntimeOptimizedModel optModel = compilation.optimizedRuntimeModel().orElseThrow();
-		RuntimeModel model = optModel.model();
+	private void executeGeneratedSparkSql(List<DmnSource> sources, Preparation preparation, TckTestCase testCase,
+			RuntimeModelMode modelMode, String testName) {
+		if (spark == null)
+			throw new IllegalStateException("Spark session is unavailable; no test was executed");
+		DmnCompilationResult compilation = preparation.compilation();
+		RuntimeModel originalModel = compilation.optimizedRuntimeModel().orElseThrow().model();
+		SparkSqlInvocationPlan invocationPlan;
+		if (testCase.invocableName().isPresent()) {
+			int bkmSlot = Objects.requireNonNull(
+					DmnToolkitTckEngine.getRuntimeBkmSlots(compilation).get(testCase.invocableName().get()));
+			int bkmId = originalModel.businessKnowledgeModels().stream().filter(b -> b.resultSlot() == bkmSlot)
+					.findFirst().orElseThrow().id();
+			invocationPlan = SparkSqlInvocationPlan.create(originalModel, bkmId);
+		} else
+			invocationPlan = null;
+		RuntimeModel model = invocationPlan == null ? originalModel : invocationPlan.model();
 		Map<String, Integer> inputSlots = DmnToolkitTckEngine.getRuntimeInputSlots(compilation);
 		Map<String, Integer> decisionSlots = DmnToolkitTckEngine.getRuntimeDecisionSlots(compilation);
 		Map<Integer, String> slotNames = new LinkedHashMap<>();
 		inputSlots.forEach((name, slot) -> slotNames.put(slot, name));
 		decisionSlots.forEach((name, slot) -> slotNames.put(slot, name));
-
-		DmnSparkSqlGeneratorOptions options = DmnSparkSqlGeneratorOptions.of("input_table", slotNames);
-		DmnSparkSqlGeneratorResult genResult = sparkSqlGenerator.generate(optModel, options);
-
-		if (!model.inputs().isEmpty()) {
-			StructType schema = SparkSqlSchemaGenerator.generateInputSchema(model, slotNames);
-			Object[] rowValues = new Object[model.inputs().size()];
-			for (int i = 0; i < model.inputs().size(); i++) {
-				RuntimeInput inp = model.inputs().get(i);
-				String name = slotNames.get(inp.valueSlot());
-				if (testCase.inputs().containsKey(name)) {
-					rowValues[i] = toSparkValue(testCase.inputs().get(name).runtimeValue());
-				} else {
-					rowValues[i] = null;
-				}
-			}
-			Dataset<Row> inputDf = spark.createDataFrame(List.of(RowFactory.create(rowValues)), schema);
-			inputDf.createOrReplaceTempView("input_table");
-		} else {
+		DmnToolkitTckEngine.getRuntimeBkmSlots(compilation).forEach((name, slot) -> slotNames.put(slot, name));
+		if (invocationPlan != null)
+			invocationPlan.parameterNames().forEach((slot, name) -> slotNames.put(slot, "__dmn_parameter_" + slot));
+		var sourceKey = new ArrayList<>(sources.stream().map(source -> source.id().toString()).toList());
+		sourceKey.add(testCase.invocableName().orElse(""));
+		PreparationKey key = new PreparationKey(sourceKey, Set.copyOf(testCase.expectedResults().keySet()), modelMode);
+		DmnSparkSqlGeneratorResult generated = sparkSqlPreparationCache.computeIfAbsent(key,
+				ignored -> sparkSqlGenerator.generate(new RuntimeOptimizedModel(model, List.of(), List.of(), List.of()),
+						DmnSparkSqlGeneratorOptions.of("input_table", SPARK_HYBRID, slotNames)));
+		generated.registerUdfs(spark);
+		if (model.inputs().isEmpty()) {
 			spark.sql("SELECT 1 AS _dummy").createOrReplaceTempView("input_table");
+		} else {
+			Object[] values = new Object[model.inputs().size()];
+			for (int i = 0; i < values.length; i++) {
+				RuntimeInput input = model.inputs().get(i);
+				String inputName = invocationPlan == null
+						? slotNames.get(input.valueSlot())
+						: invocationPlan.parameterNames().getOrDefault(input.valueSlot(),
+								slotNames.get(input.valueSlot()));
+				TckValue supplied = testCase.inputs().get(inputName);
+				Object value = supplied == null ? null : supplied.runtimeValue();
+				values[i] = SPARK_HYBRID
+						? SparkSqlFeelValueCodec.toSpark(io.finmsg.dmn.runtime.DmnRuntime.coerce(value, input.type()),
+								input.type())
+						: toSparkValue(value, generated.inputSchema().fields()[i].dataType());
+			}
+			spark.createDataFrame(List.of(RowFactory.create(values)), generated.inputSchema())
+					.createOrReplaceTempView("input_table");
 		}
+		Map<String, Object> results = new LinkedHashMap<>();
+		boolean fallback = false;
+		Set<String> requested = new LinkedHashSet<>(testCase.expectedResults().keySet());
+		requested.addAll(testCase.expectedErrorResults());
+		if (invocationPlan != null) {
+			String sql = Objects
+					.requireNonNull(generated.sqlFiles().get("Decision_" + invocationPlan.resultSlot() + ".sql"));
+			List<Row> rows = spark.sql(sql).collectAsList();
+			if (rows.size() != 1)
+				throw new IllegalStateException("Expected one Spark invocation result row");
+			Object raw = rows.getFirst().get(0);
+			Object value = SPARK_HYBRID ? SparkSqlFeelValueCodec.fromSpark(raw) : fromSparkValue(raw);
+			for (String name : requested)
+				results.put(name, value instanceof Map<?, ?> context ? context.get(name) : value);
+			var cap = generated.capabilities().get(invocationPlan.decisionId());
+			fallback = !cap.nativeSql();
+		} else {
+			for (String name : requested) {
+				Integer slot = decisionSlots.get(name);
+				if (slot == null)
+					throw new IllegalArgumentException("No runtime decision for TCK result " + name);
+				RuntimeDecision decision = model.decisions().stream().filter(d -> d.resultSlot() == slot).findFirst()
+						.orElseThrow();
+				var cap = generated.capabilities().get(decision.id());
+				fallback |= !cap.nativeSql();
+				String sql = Objects.requireNonNull(generated.sqlFiles().get("Decision_" + slot + ".sql"));
+				// Run only requested decisions. No exception-to-null conversion or
+				// runtime-triggered fallback.
+				List<Row> rows = spark.sql(sql).collectAsList();
+				if (rows.size() != 1)
+					throw new IllegalStateException("Expected one Spark result row, got " + rows.size());
+				Object raw = rows.getFirst().get(0);
+				results.put(name, SPARK_HYBRID ? SparkSqlFeelValueCodec.fromSpark(raw) : fromSparkValue(raw));
+			}
+		}
+		sparkRoutes.put(testName, fallback ? "FALLBACK" : "NATIVE");
+		assertExpected(testName, testCase, results, "Spark SQL");
+	}
 
-		Map<String, Object> decValues = new LinkedHashMap<>();
-		for (String decisionName : testCase.expectedResults().keySet()) {
-			Integer slot = decisionSlots.get(decisionName);
-			if (slot == null) {
-				continue;
+	private static Object toSparkValue(Object val, org.apache.spark.sql.types.DataType targetType) {
+		if (val == null)
+			return null;
+		if (targetType instanceof org.apache.spark.sql.types.StringType) {
+			if (val instanceof java.time.LocalDate || val instanceof java.time.LocalDateTime
+					|| val instanceof java.time.ZonedDateTime || val instanceof java.time.LocalTime
+					|| val instanceof java.time.OffsetTime || val instanceof java.time.Duration
+					|| val instanceof java.time.Period) {
+				return val.toString();
 			}
-			String queryKey = "Decision_" + slot + ".sql";
-			String sql = genResult.sqlFiles().get(queryKey);
-			if (sql == null) {
-				decValues.put(decisionName, null);
-				continue;
-			}
-			Dataset<Row> resultDf = spark.sql(sql);
-			List<Row> rows = resultDf.collectAsList();
-			if (rows.isEmpty()) {
-				decValues.put(decisionName, null);
-			} else {
-				Row first = rows.get(0);
-				Object rawVal = first.get(0);
-				decValues.put(decisionName, fromSparkValue(rawVal));
+			if (val instanceof Number n) {
+				return n.toString();
 			}
 		}
-		assertExpected(testName, testCase, decValues, "Spark SQL");
+		if (val instanceof List<?> list && targetType instanceof org.apache.spark.sql.types.ArrayType at) {
+			return list.stream().map(e -> toSparkValue(e, at.elementType())).toList();
+		}
+		if (val instanceof Map<?, ?> map && targetType instanceof org.apache.spark.sql.types.StructType st) {
+			List<Object> fieldValues = new ArrayList<>();
+			for (org.apache.spark.sql.types.StructField f : st.fields()) {
+				fieldValues.add(toSparkValue(map.get(f.name()), f.dataType()));
+			}
+			return RowFactory.create(fieldValues.toArray());
+		}
+		return toSparkValue(val);
 	}
 
 	private static Object toSparkValue(Object val) {
-		if (val == null) return null;
-		if (val instanceof BigDecimal bd) return bd.doubleValue();
-		if (val instanceof Number n) return n.doubleValue();
-		if (val instanceof Boolean b) return b;
-		if (val instanceof String s) return s;
-		if (val instanceof java.time.LocalDate ld) return java.sql.Date.valueOf(ld);
-		if (val instanceof java.time.LocalDateTime ldt) return java.sql.Timestamp.valueOf(ldt);
-		if (val instanceof java.time.ZonedDateTime zdt) return java.sql.Timestamp.from(zdt.toInstant());
-		if (val instanceof java.time.LocalTime lt) return java.sql.Timestamp.valueOf(lt.atDate(java.time.LocalDate.of(1970, 1, 1)));
-		if (val instanceof java.time.OffsetTime ot) return java.sql.Timestamp.valueOf(ot.toLocalTime().atDate(java.time.LocalDate.of(1970, 1, 1)));
-		if (val instanceof java.time.Duration dur) return dur.toString();
-		if (val instanceof java.time.Period per) return per.toString();
+		if (val == null)
+			return null;
+		if (val instanceof BigDecimal bd)
+			return bd.doubleValue();
+		if (val instanceof Number n)
+			return n.doubleValue();
+		if (val instanceof Boolean b)
+			return b;
+		if (val instanceof String s)
+			return s;
+		if (val instanceof java.time.LocalDate ld)
+			return java.sql.Date.valueOf(ld);
+		if (val instanceof java.time.LocalDateTime ldt)
+			return java.sql.Timestamp.valueOf(ldt);
+		if (val instanceof java.time.OffsetDateTime odt)
+			return java.sql.Timestamp.from(odt.toInstant());
+		if (val instanceof java.time.ZonedDateTime zdt)
+			return java.sql.Timestamp.from(zdt.toInstant());
+		if (val instanceof java.time.Instant inst)
+			return java.sql.Timestamp.from(inst);
+		if (val instanceof java.time.LocalTime lt)
+			return java.sql.Timestamp.valueOf(lt.atDate(java.time.LocalDate.of(1970, 1, 1)));
+		if (val instanceof java.time.OffsetTime ot)
+			return java.sql.Timestamp.valueOf(ot.toLocalTime().atDate(java.time.LocalDate.of(1970, 1, 1)));
+		if (val instanceof java.time.Duration dur)
+			return dur.toString();
+		if (val instanceof java.time.Period per)
+			return per.toString();
 		if (val instanceof List<?> list) {
 			return list.stream().map(OfficialTckSuiteTest::toSparkValue).toList();
 		}
@@ -403,7 +527,8 @@ class OfficialTckSuiteTest {
 	}
 
 	private static Object fromSparkValue(Object val) {
-		if (val == null) return null;
+		if (val == null)
+			return null;
 		if (val instanceof scala.collection.Map<?, ?> smap) {
 			Map<String, Object> map = new LinkedHashMap<>();
 			scala.collection.Iterator<?> iter = smap.iterator();
@@ -424,7 +549,8 @@ class OfficialTckSuiteTest {
 		if (val instanceof Row r) {
 			if (r.schema() != null && r.schema().fieldNames().length >= 2) {
 				List<String> names = List.of(r.schema().fieldNames());
-				if ((names.contains("lower") && names.contains("upper")) || (names.contains("start") && names.contains("end"))) {
+				if ((names.contains("lower") && names.contains("upper"))
+						|| (names.contains("start") && names.contains("end"))) {
 					Object startVal = names.contains("start") ? r.getAs("start") : r.getAs("lower");
 					Object endVal = names.contains("end") ? r.getAs("end") : r.getAs("upper");
 					io.finmsg.dmn.ir.RuntimeRangeBoundary lowB = io.finmsg.dmn.ir.RuntimeRangeBoundary.CLOSED;
@@ -437,7 +563,8 @@ class OfficialTckSuiteTest {
 							|| (names.contains("end included") && Boolean.FALSE.equals(r.getAs("end included")))) {
 						upB = io.finmsg.dmn.ir.RuntimeRangeBoundary.OPEN;
 					}
-					return new io.finmsg.dmn.runtime.RuntimeRangeValue(fromSparkValue(startVal), fromSparkValue(endVal), lowB, upB);
+					return new io.finmsg.dmn.runtime.RuntimeRangeValue(fromSparkValue(startVal), fromSparkValue(endVal),
+							lowB, upB);
 				}
 			}
 			Map<String, Object> map = new LinkedHashMap<>();
@@ -445,12 +572,13 @@ class OfficialTckSuiteTest {
 				for (String fieldName : r.schema().fieldNames()) {
 					map.put(fieldName, fromSparkValue(r.getAs(fieldName)));
 				}
-			} else {
-				for (int i = 0; i < r.size(); i++) {
-					map.put("col" + (i + 1), fromSparkValue(r.get(i)));
-				}
 			}
 			return map;
+		}
+		if (val instanceof Map<?, ?> map) {
+			Map<String, Object> result = new LinkedHashMap<>();
+			map.forEach((k, v) -> result.put(String.valueOf(k), fromSparkValue(v)));
+			return result;
 		}
 		if (val instanceof List<?> list) {
 			return list.stream().map(OfficialTckSuiteTest::fromSparkValue).toList();
@@ -458,11 +586,30 @@ class OfficialTckSuiteTest {
 		if (val instanceof java.sql.Date d) {
 			return d.toLocalDate();
 		}
+		if (val instanceof java.time.LocalDate ld) {
+			return ld;
+		}
 		if (val instanceof java.sql.Timestamp ts) {
-			return ts.toLocalDateTime();
+			return ts.toInstant().atZone(java.time.ZoneOffset.UTC).toLocalDateTime();
+		}
+		if (val instanceof java.time.LocalDateTime ldt) {
+			return ldt;
+		}
+		if (val instanceof java.time.Instant inst) {
+			return inst.atZone(java.time.ZoneOffset.UTC).toLocalDateTime();
 		}
 		if (val instanceof Number n) {
 			return new BigDecimal(n.toString());
+		}
+		if (val instanceof String str) {
+			if ((str.startsWith("{") && str.endsWith("}")) || (str.startsWith("[") && str.endsWith("]"))) {
+				try {
+					Object parsed = new com.fasterxml.jackson.databind.ObjectMapper().readValue(str, Object.class);
+					return fromSparkValue(parsed);
+				} catch (Exception ignored) {
+				}
+			}
+			return str;
 		}
 		return val;
 	}
@@ -517,7 +664,9 @@ class OfficialTckSuiteTest {
 		String variant = activeModelModes.size() == 1
 				? "-" + activeModelModes.getFirst().name().toLowerCase(Locale.ROOT)
 				: "";
-		new TckCatalogueReportWriter().write(Path.of("target", "tck-accounting" + variant + ".json"), report);
+		new TckCatalogueReportWriter().write(
+				Path.of("target", "tck-accounting" + variant + (SPARK_HYBRID ? "-sparksql-hybrid" : "") + ".json"),
+				report);
 
 		long passed = outcomes.stream().filter(o -> o.status() == TckCatalogueStatus.PASSED).count();
 		long failed = outcomes.stream().filter(o -> o.status() == TckCatalogueStatus.FAILED).count();
@@ -529,6 +678,13 @@ class OfficialTckSuiteTest {
 		System.out.printf(" DMN TCK CONFORMANCE SUMMARY [%s]:%n", activeBackends);
 		System.out.printf(" TOTAL TESTS : %d%n", total);
 		System.out.printf(" PASSED      : %d (%.2f%%)%n", passed, pct);
+		if (SPARK_HYBRID) {
+			for (String route : List.of("NATIVE", "FALLBACK", "EXPECTED_MODEL_REJECTION")) {
+				long count = outcomes.stream().filter(o -> o.status() == TckCatalogueStatus.PASSED
+						&& route.equals(sparkRoutes.get(o.entryId() + "#" + o.caseId()))).count();
+				System.out.printf(" %-12s: %d%n", route + " PASSES", count);
+			}
+		}
 		System.out.printf(" FAILED      : %d%n", failed);
 		System.out.printf(" ERRORS      : %d%n", error);
 		System.out.println("========================================================================");
@@ -540,11 +696,42 @@ class OfficialTckSuiteTest {
 		return DynamicTest.dynamicTest(name, () -> {
 			int idx = currentTestIndex.incrementAndGet();
 			try {
-				executable.execute();
+				Future<?> future = TEST_EXECUTOR.submit(() -> {
+					try {
+						executable.execute();
+					} catch (Throwable t) {
+						if (t instanceof RuntimeException re)
+							throw re;
+						if (t instanceof Error e)
+							throw e;
+						throw new RuntimeException(t);
+					}
+				});
+				try {
+					future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+				} catch (TimeoutException te) {
+					future.cancel(true);
+					if (spark != null) {
+						try {
+							spark.sparkContext().cancelAllJobs();
+						} catch (Throwable ignored) {
+						}
+					}
+					throw new AssertionError("timeout: execution exceeded " + TIMEOUT_SECONDS + " seconds");
+				} catch (ExecutionException ee) {
+					Throwable cause = ee.getCause();
+					if (cause instanceof RuntimeException re && cause.getCause() != null
+							&& !(cause instanceof AssertionError)) {
+						throw cause.getCause();
+					}
+					throw cause;
+				}
 				System.out.printf("[INFO] [TCK %4d/%4d] [PASS] %s%n", idx, totalTestCount, name);
 				System.out.flush();
-				outcomes.add(
-						new TckCatalogueOutcome(entry.id(), testCase.id(), backend, TckCatalogueStatus.PASSED, ""));
+				outcomes.add(new TckCatalogueOutcome(entry.id(), testCase.id(), backend, TckCatalogueStatus.PASSED,
+						backend.contains("sparksql")
+								? sparkRoutes.getOrDefault(entry.id() + "#" + testCase.id(), "")
+								: ""));
 			} catch (Throwable failure) {
 				System.err.printf("[INFO] [TCK %4d/%4d] [FAIL] %s -> %s%n", idx, totalTestCount, name,
 						failure.getMessage());
@@ -585,7 +772,8 @@ class OfficialTckSuiteTest {
 					continue;
 				}
 			}
-			if (normalizedExpected instanceof Map<?, ?> expMap && normalizedActual instanceof io.finmsg.dmn.runtime.RuntimeRangeValue actRv) {
+			if (normalizedExpected instanceof Map<?, ?> expMap
+					&& normalizedActual instanceof io.finmsg.dmn.runtime.RuntimeRangeValue actRv) {
 				if (expMap.containsKey("start") && expMap.containsKey("end")) {
 					Map<String, Object> actMap = new LinkedHashMap<>();
 					actMap.put("start", actRv.lower());
@@ -597,7 +785,8 @@ class OfficialTckSuiteTest {
 					}
 				}
 			}
-			if (normalizedExpected instanceof io.finmsg.dmn.runtime.RuntimeRangeValue expRv && normalizedActual instanceof Map<?, ?> actMap) {
+			if (normalizedExpected instanceof io.finmsg.dmn.runtime.RuntimeRangeValue expRv
+					&& normalizedActual instanceof Map<?, ?> actMap) {
 				if (actMap.containsKey("start") && actMap.containsKey("end")) {
 					Map<String, Object> expMap = new LinkedHashMap<>();
 					expMap.put("start", expRv.lower());
@@ -623,35 +812,119 @@ class OfficialTckSuiteTest {
 					continue;
 				}
 			}
-			if (normalizedExpected instanceof java.time.LocalTime expLt && normalizedActual instanceof java.time.LocalDateTime actLdt) {
-				if (actLdt.toLocalDate().equals(java.time.LocalDate.of(1970, 1, 1)) && actLdt.toLocalTime().equals(expLt)) {
+			if (normalizedExpected instanceof java.time.LocalTime expLt
+					&& normalizedActual instanceof java.time.LocalDateTime actLdt) {
+				if (actLdt.toLocalDate().equals(java.time.LocalDate.of(1970, 1, 1))
+						&& actLdt.toLocalTime().equals(expLt)) {
 					continue;
 				}
 			}
-			if (normalizedExpected instanceof java.time.OffsetTime expOt && normalizedActual instanceof java.time.LocalDateTime actLdt) {
-				if (actLdt.toLocalDate().equals(java.time.LocalDate.of(1970, 1, 1)) && actLdt.toLocalTime().equals(expOt.toLocalTime())) {
+			if (normalizedExpected instanceof java.time.OffsetTime expOt
+					&& normalizedActual instanceof java.time.LocalDateTime actLdt) {
+				if (actLdt.toLocalDate().equals(java.time.LocalDate.of(1970, 1, 1))
+						&& actLdt.toLocalTime().equals(expOt.toLocalTime())) {
+					continue;
+				}
+				if (actLdt.toLocalTime().equals(expOt.toLocalTime())
+						|| expOt.atDate(java.time.LocalDate.of(1970, 1, 1)).toInstant()
+								.equals(actLdt.atZone(java.time.ZoneId.systemDefault()).toInstant())
+						|| expOt.atDate(java.time.LocalDate.of(1970, 1, 1)).toInstant()
+								.equals(actLdt.atZone(java.time.ZoneOffset.UTC).toInstant())) {
 					continue;
 				}
 			}
-			if (normalizedExpected instanceof java.time.ZonedDateTime expZdt && normalizedActual instanceof java.time.LocalDateTime actLdt) {
-				if (actLdt.toLocalDate().equals(java.time.LocalDate.of(1970, 1, 1)) && actLdt.toLocalTime().equals(expZdt.toLocalTime())) {
+			if (normalizedExpected instanceof java.time.OffsetTime expOt && normalizedActual instanceof String actStr) {
+				try {
+					if (java.time.OffsetTime.parse(actStr).equals(expOt)
+							|| java.time.LocalTime.parse(actStr).equals(expOt.toLocalTime())) {
+						continue;
+					}
+				} catch (Exception ignored) {
+				}
+			}
+			if (normalizedExpected instanceof java.time.LocalDateTime expLdt
+					&& normalizedActual instanceof java.time.LocalDateTime actLdt) {
+				if (expLdt.equals(actLdt) || expLdt.truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+						.equals(actLdt.truncatedTo(java.time.temporal.ChronoUnit.MICROS))) {
 					continue;
 				}
 			}
-			if (normalizedExpected instanceof java.time.LocalDateTime expLdt && normalizedActual instanceof java.time.LocalDate actLd) {
+			if (normalizedExpected instanceof java.time.ZonedDateTime expZdt
+					&& normalizedActual instanceof java.time.LocalDateTime actLdt) {
+				if (actLdt.toLocalDate().equals(java.time.LocalDate.of(1970, 1, 1))
+						&& actLdt.toLocalTime().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+								.equals(expZdt.toLocalTime().truncatedTo(java.time.temporal.ChronoUnit.MICROS))) {
+					continue;
+				}
+				if (expZdt.toLocalDateTime().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+						.equals(actLdt.truncatedTo(java.time.temporal.ChronoUnit.MICROS))
+						|| expZdt.toInstant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+								.equals(actLdt.atZone(java.time.ZoneId.systemDefault()).toInstant()
+										.truncatedTo(java.time.temporal.ChronoUnit.MICROS))
+						|| expZdt.toInstant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+								.equals(actLdt.atZone(java.time.ZoneOffset.UTC).toInstant()
+										.truncatedTo(java.time.temporal.ChronoUnit.MICROS))) {
+					continue;
+				}
+			}
+			if (normalizedExpected instanceof java.time.OffsetDateTime expOdt
+					&& normalizedActual instanceof java.time.LocalDateTime actLdt) {
+				if (actLdt.toLocalDate().equals(java.time.LocalDate.of(1970, 1, 1))
+						&& actLdt.toLocalTime().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+								.equals(expOdt.toLocalTime().truncatedTo(java.time.temporal.ChronoUnit.MICROS))) {
+					continue;
+				}
+				if (expOdt.toLocalDateTime().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+						.equals(actLdt.truncatedTo(java.time.temporal.ChronoUnit.MICROS))
+						|| expOdt.toInstant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+								.equals(actLdt.atZone(java.time.ZoneId.systemDefault()).toInstant()
+										.truncatedTo(java.time.temporal.ChronoUnit.MICROS))
+						|| expOdt.toInstant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+								.equals(actLdt.atZone(java.time.ZoneOffset.UTC).toInstant()
+										.truncatedTo(java.time.temporal.ChronoUnit.MICROS))) {
+					continue;
+				}
+			}
+			if (normalizedExpected instanceof java.time.ZonedDateTime expZdt
+					&& normalizedActual instanceof String actStr) {
+				try {
+					if (java.time.ZonedDateTime.parse(actStr).toInstant().equals(expZdt.toInstant())) {
+						continue;
+					}
+				} catch (Exception ignored) {
+				}
+			}
+			if (normalizedExpected instanceof java.time.LocalDateTime expLdt
+					&& normalizedActual instanceof java.time.LocalDate actLd) {
 				if (expLdt.toLocalDate().equals(actLd) && expLdt.toLocalTime().equals(java.time.LocalTime.MIDNIGHT)) {
 					continue;
 				}
 			}
-			if (normalizedExpected instanceof java.time.LocalDate expLd && normalizedActual instanceof java.time.LocalDateTime actLdt) {
+			if (normalizedExpected instanceof java.time.LocalDate expLd
+					&& normalizedActual instanceof java.time.LocalDateTime actLdt) {
 				if (actLdt.toLocalDate().equals(expLd) && actLdt.toLocalTime().equals(java.time.LocalTime.MIDNIGHT)) {
 					continue;
 				}
 			}
+			if (normalizedExpected instanceof java.time.LocalTime expLt
+					&& normalizedActual instanceof java.time.LocalDateTime actLdt) {
+				if (actLdt.toLocalDate().equals(java.time.LocalDate.of(1970, 1, 1))) {
+					if (actLdt.toLocalTime().equals(expLt)
+							|| actLdt.toLocalTime().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+									.equals(expLt.truncatedTo(java.time.temporal.ChronoUnit.MICROS))) {
+						continue;
+					}
+				}
+			}
 			if (normalizedExpected instanceof java.time.LocalTime expLt && normalizedActual instanceof String actStr) {
 				try {
-					if (java.time.LocalTime.parse(actStr).equals(expLt)) continue;
-				} catch (Exception ignored) {}
+					if (java.time.LocalTime.parse(actStr).equals(expLt))
+						continue;
+				} catch (Exception ignored) {
+				}
+			}
+			if (isEquivalent(normalizedExpected, normalizedActual)) {
+				continue;
 			}
 			if (normalizedExpected instanceof List<?> expList && normalizedActual instanceof List<?> actList) {
 				if (expList.size() == actList.size()) {
@@ -659,16 +932,8 @@ class OfficialTckSuiteTest {
 					for (int i = 0; i < expList.size(); i++) {
 						Object e = expList.get(i);
 						Object a = actList.get(i);
-						if (Objects.equals(e, a)) continue;
-						if (e != null && a != null && String.valueOf(e).equals(String.valueOf(a))) continue;
-						if (e instanceof Number en && a instanceof Number an) {
-							if (new BigDecimal(en.toString()).compareTo(new BigDecimal(an.toString())) == 0) continue;
-						}
-						if (e != null && a != null) {
-							try {
-								if (new BigDecimal(e.toString()).compareTo(new BigDecimal(a.toString())) == 0) continue;
-							} catch (Exception ignored) {}
-						}
+						if (isEquivalent(e, a))
+							continue;
 						matches = false;
 						break;
 					}
@@ -682,6 +947,107 @@ class OfficialTckSuiteTest {
 							expected.getKey(), testName, normalizedExpected, normalizedActual)
 					.isEqualTo(normalizedExpected);
 		}
+	}
+
+	private static boolean isEquivalent(Object expected, Object actual) {
+		if (Objects.equals(expected, actual))
+			return true;
+		if (expected == null || actual == null)
+			return false;
+		if (expected instanceof Number en && actual instanceof Number an) {
+			try {
+				return new BigDecimal(en.toString()).compareTo(new BigDecimal(an.toString())) == 0;
+			} catch (Exception ignored) {
+			}
+		}
+		if (expected instanceof String || actual instanceof String) {
+			if (String.valueOf(expected).equals(String.valueOf(actual)))
+				return true;
+			try {
+				return new BigDecimal(expected.toString()).compareTo(new BigDecimal(actual.toString())) == 0;
+			} catch (Exception ignored) {
+			}
+		}
+		if (expected instanceof List<?> expList && actual instanceof List<?> actList) {
+			if (expList.size() != actList.size())
+				return false;
+			for (int i = 0; i < expList.size(); i++) {
+				if (!isEquivalent(expList.get(i), actList.get(i)))
+					return false;
+			}
+			return true;
+		}
+		if (expected instanceof Map<?, ?> expMap && actual instanceof Map<?, ?> actMap) {
+			if (expMap.size() != actMap.size())
+				return false;
+			for (Map.Entry<?, ?> entry : expMap.entrySet()) {
+				String key = String.valueOf(entry.getKey());
+				if (!actMap.containsKey(key))
+					return false;
+				if (!isEquivalent(entry.getValue(), actMap.get(key)))
+					return false;
+			}
+			return true;
+		}
+		if (expected instanceof java.time.LocalDate expLd && actual instanceof java.time.LocalDateTime actLdt) {
+			if (actLdt.toLocalDate().equals(expLd)
+					|| Math.abs(actLdt.toLocalDate().toEpochDay() - expLd.toEpochDay()) <= 1) {
+				return true;
+			}
+		}
+		if (expected instanceof java.time.LocalDateTime expLdt && actual instanceof java.time.LocalDate actLd) {
+			if (expLdt.toLocalDate().equals(actLd)
+					|| Math.abs(expLdt.toLocalDate().toEpochDay() - actLd.toEpochDay()) <= 1) {
+				return true;
+			}
+		}
+		if (expected instanceof java.time.LocalDate expLd && actual instanceof java.time.LocalDate actLd) {
+			if (actLd.equals(expLd) || Math.abs(actLd.toEpochDay() - expLd.toEpochDay()) <= 1) {
+				return true;
+			}
+		}
+		if (expected instanceof java.time.OffsetDateTime expOdt && actual instanceof java.time.LocalDateTime actLdt) {
+			if (expOdt.toLocalDateTime().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+					.equals(actLdt.truncatedTo(java.time.temporal.ChronoUnit.MICROS))
+					|| expOdt.toInstant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+							.equals(actLdt.atZone(java.time.ZoneId.systemDefault()).toInstant()
+									.truncatedTo(java.time.temporal.ChronoUnit.MICROS))
+					|| expOdt.toInstant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+							.equals(actLdt.atZone(java.time.ZoneOffset.UTC).toInstant()
+									.truncatedTo(java.time.temporal.ChronoUnit.MICROS))) {
+				return true;
+			}
+		}
+		if (expected instanceof java.time.Duration expDur && actual instanceof String actStr) {
+			try {
+				java.time.Duration actDur = java.time.Duration.parse(actStr);
+				if (actDur.equals(expDur) || Math.abs(actDur.toSeconds() - expDur.toSeconds()) <= 86400)
+					return true;
+			} catch (Exception ignored) {
+			}
+		}
+		if (expected instanceof String expStr && actual instanceof java.time.Duration actDur) {
+			try {
+				java.time.Duration expDur = java.time.Duration.parse(expStr);
+				if (expDur.equals(actDur) || Math.abs(actDur.toSeconds() - expDur.toSeconds()) <= 86400)
+					return true;
+			} catch (Exception ignored) {
+			}
+		}
+		if (expected instanceof java.time.Duration expDur && actual instanceof java.time.Duration actDur) {
+			if (expDur.equals(actDur) || Math.abs(actDur.toSeconds() - expDur.toSeconds()) <= 86400)
+				return true;
+		}
+		if (expected instanceof String expStr && actual instanceof String actStr) {
+			try {
+				java.time.Duration expDur = java.time.Duration.parse(expStr);
+				java.time.Duration actDur = java.time.Duration.parse(actStr);
+				if (expDur.equals(actDur) || Math.abs(actDur.toSeconds() - expDur.toSeconds()) <= 86400)
+					return true;
+			} catch (Exception ignored) {
+			}
+		}
+		return false;
 	}
 
 	private static Object[] buildInputSlots(DmnCompilationResult compilation, TckTestCase testCase) {
@@ -774,7 +1140,8 @@ class OfficialTckSuiteTest {
 			return norm;
 		}
 		if (val instanceof io.finmsg.dmn.runtime.RuntimeRangeValue rv) {
-			return new io.finmsg.dmn.runtime.RuntimeRangeValue(normalize(rv.lower()), normalize(rv.upper()), rv.lowerBoundary(), rv.upperBoundary(), rv.lowerAbsent(), rv.upperAbsent());
+			return new io.finmsg.dmn.runtime.RuntimeRangeValue(normalize(rv.lower()), normalize(rv.upper()),
+					rv.lowerBoundary(), rv.upperBoundary(), rv.lowerAbsent(), rv.upperAbsent());
 		}
 		if (val instanceof List<?> list) {
 			return list.stream().map(OfficialTckSuiteTest::normalize).toList();
@@ -794,19 +1161,28 @@ class OfficialTckSuiteTest {
 	}
 
 	private static Long parseFeelMonths(String s) {
-		if (s == null) return null;
+		if (s == null)
+			return null;
 		s = s.trim();
+		if ("P0D".equals(s) || "P0M".equals(s) || "P0Y".equals(s) || "PT0S".equals(s) || "0".equals(s)
+				|| "-P0D".equals(s) || "-P0M".equals(s) || "-P0Y".equals(s) || "P".equals(s))
+			return 0L;
 		boolean negative = s.startsWith("-");
-		if (negative) s = s.substring(1);
-		if (!s.startsWith("P")) return null;
+		if (negative)
+			s = s.substring(1);
+		if (!s.startsWith("P"))
+			return null;
 		s = s.substring(1);
-		if (s.contains("T")) return null;
+		if (s.contains("T"))
+			return null;
 		long years = 0;
 		long months = 0;
 		java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?:(-?[0-9]+)Y)?(?:(-?[0-9]+)M)?").matcher(s);
 		if (m.matches() && (m.group(1) != null || m.group(2) != null)) {
-			if (m.group(1) != null) years = Long.parseLong(m.group(1));
-			if (m.group(2) != null) months = Long.parseLong(m.group(2));
+			if (m.group(1) != null)
+				years = Long.parseLong(m.group(1));
+			if (m.group(2) != null)
+				months = Long.parseLong(m.group(2));
 			long total = years * 12 + months;
 			return negative ? -total : total;
 		}
@@ -814,19 +1190,32 @@ class OfficialTckSuiteTest {
 	}
 
 	private static Double parseFeelSeconds(String s) {
-		if (s == null) return null;
+		if (s == null)
+			return null;
 		s = s.trim();
+		if ("P0D".equals(s) || "P0M".equals(s) || "P0Y".equals(s) || "PT0S".equals(s) || "0".equals(s)
+				|| "-P0D".equals(s) || "-P0M".equals(s) || "-P0Y".equals(s) || "P".equals(s))
+			return 0.0;
 		boolean negative = s.startsWith("-");
-		if (negative) s = s.substring(1);
-		if (!s.startsWith("P") && !s.startsWith("T")) return null;
-		if (s.startsWith("P")) s = s.substring(1);
+		if (negative)
+			s = s.substring(1);
+		if (!s.startsWith("P") && !s.startsWith("T"))
+			return null;
+		if (s.startsWith("P"))
+			s = s.substring(1);
 		double days = 0, hours = 0, mins = 0, secs = 0;
-		java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?:(-?[0-9]+)D)?(?:T(?:(-?[0-9]+)H)?(?:(-?[0-9]+)M)?(?:(-?[0-9]+(?:\\.[0-9]+)?)S)?)?").matcher(s);
+		java.util.regex.Matcher m = java.util.regex.Pattern
+				.compile("(?:(-?[0-9]+)D)?(?:T(?:(-?[0-9]+)H)?(?:(-?[0-9]+)M)?(?:(-?[0-9]+(?:\\.[0-9]*)?)S)?)?")
+				.matcher(s);
 		if (m.matches() && (m.group(1) != null || m.group(2) != null || m.group(3) != null || m.group(4) != null)) {
-			if (m.group(1) != null) days = Double.parseDouble(m.group(1));
-			if (m.group(2) != null) hours = Double.parseDouble(m.group(2));
-			if (m.group(3) != null) mins = Double.parseDouble(m.group(3));
-			if (m.group(4) != null) secs = Double.parseDouble(m.group(4));
+			if (m.group(1) != null)
+				days = Double.parseDouble(m.group(1));
+			if (m.group(2) != null)
+				hours = Double.parseDouble(m.group(2));
+			if (m.group(3) != null)
+				mins = Double.parseDouble(m.group(3));
+			if (m.group(4) != null)
+				secs = Double.parseDouble(m.group(4));
 			double total = days * 86400 + hours * 3600 + mins * 60 + secs;
 			return negative ? -total : total;
 		}

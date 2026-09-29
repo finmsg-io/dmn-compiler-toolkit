@@ -10,6 +10,37 @@ import org.junit.jupiter.api.Test;
 
 class DmnOptimizerTest {
 
+	@Test
+	void namedDurationKeepsBothEndpoints() {
+		var date = RuntimeType.scalar(RuntimeTypeKind.DATE);
+		var duration = RuntimeType.scalar(RuntimeTypeKind.YEARS_MONTHS_DURATION);
+		var call = new RuntimeInvocationExpression(java.util.Optional.of("years and months duration"),
+				java.util.Optional.empty(),
+				java.util.List.of(
+						new RuntimeNamedArgument("from",
+								new RuntimeConstant(RuntimeConstantKind.DATE, "2020-01-01", date)),
+						new RuntimeNamedArgument("to",
+								new RuntimeConstant(RuntimeConstantKind.DATE, "2021-01-01", date))),
+				java.util.List.of(), duration);
+		RuntimeExpression folded = new ConstantFoldingPass().transformExpression(call);
+		assertThat(folded).isInstanceOf(RuntimeInvocationExpression.class);
+		assertThat(((RuntimeInvocationExpression) folded).positionalArguments()).hasSize(2);
+	}
+
+	@Test
+	void unknownNamedArgumentIsNotSilentlyDiscarded() {
+		var listType = RuntimeType.element(RuntimeTypeKind.LIST, STRING_TYPE);
+		var list = new RuntimeListExpression(
+				java.util.List.of(new RuntimeConstant(RuntimeConstantKind.STRING, "a", STRING_TYPE)), listType);
+		var call = new RuntimeInvocationExpression(java.util.Optional.of("string join"), java.util.Optional.empty(),
+				java.util.List.of(new RuntimeNamedArgument("list", list),
+						new RuntimeNamedArgument("delimitr",
+								new RuntimeConstant(RuntimeConstantKind.STRING, "X", STRING_TYPE))),
+				java.util.List.of(), STRING_TYPE);
+		RuntimeExpression folded = new ConstantFoldingPass().transformExpression(call);
+		assertThat(folded).isEqualTo(call);
+	}
+
 	private static final RuntimeType NUMBER_TYPE = RuntimeType.scalar(RuntimeTypeKind.NUMBER);
 	private static final RuntimeType STRING_TYPE = RuntimeType.scalar(RuntimeTypeKind.STRING);
 	private static final RuntimeType BOOLEAN_TYPE = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
