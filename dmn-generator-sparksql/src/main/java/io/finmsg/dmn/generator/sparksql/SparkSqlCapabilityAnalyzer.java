@@ -48,8 +48,17 @@ public final class SparkSqlCapabilityAnalyzer {
 		return new Capability(new ArrayList<>(reasons), new ArrayList<>(limitations));
 	}
 
+	private static final Set<String> NON_NATIVE_FUNCTIONS = Set.of("all", "any", "not", "matches", "get value",
+			"get_value");
+
 	private static void inspect(Object node, boolean hybrid, Set<String> reasons, Set<Integer> staticFunctions) {
 		SparkSqlPayloadCodec.walk(node, value -> {
+			if (value instanceof RuntimeFunctionCall fc) {
+				String fn = fc.function().toLowerCase(Locale.ROOT);
+				if (NON_NATIVE_FUNCTIONS.contains(fn)) {
+					reasons.add("Function " + fc.function() + " requires hybrid UDF evaluation");
+				}
+			}
 			if (value instanceof RuntimeFunctionDefinition f && (f.external()
 					|| f.type().returnType() != null && f.type().returnType().kind() == RuntimeTypeKind.FUNCTION)) {
 				reasons.add(f.external() ? "External function" : "Function definition or closure");
@@ -57,6 +66,12 @@ public final class SparkSqlCapabilityAnalyzer {
 			if (value instanceof RuntimeLocalReference ref && ref.lexicalDepth() > 0)
 				reasons.add("Captured lexical variable");
 			if (value instanceof RuntimeInvocationExpression invocation) {
+				if (invocation.function().isPresent()) {
+					String fn = invocation.function().get().toLowerCase(Locale.ROOT);
+					if (NON_NATIVE_FUNCTIONS.contains(fn)) {
+						reasons.add("Function " + fn + " requires hybrid UDF evaluation");
+					}
+				}
 				if (invocation.function().isEmpty() && (invocation.target().isEmpty()
 						|| !staticTarget(invocation.target().get(), staticFunctions))) {
 					reasons.add("Invocation requires Java function binding");

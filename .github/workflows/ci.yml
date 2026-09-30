@@ -91,8 +91,14 @@ jobs:
           java-version: "25"
           cache: maven
 
-      - name: Verify complete optimized interpreter, generated-Java, and Spark SQL conformance
-        run: mvn --batch-mode -Ptck -Dtck.backend=all -Dtck.spark.hybrid=true -Dtck.timeoutSeconds=30 verify
+      - name: Verify optimized interpreter conformance
+        run: mvn --batch-mode -Ptck -Dtck.backend=interpreter -Dtck.timeoutSeconds=30 verify
+
+      - name: Verify optimized generated-Java conformance
+        run: mvn --batch-mode -Ptck -Dtck.backend=java -Dtck.timeoutSeconds=30 verify
+
+      - name: Verify optimized Spark SQL hybrid conformance
+        run: mvn --batch-mode -Ptck -Dtck.backend=sparksql -Dtck.spark.hybrid=true -Dtck.timeoutSeconds=30 verify
 
       - name: Upload optimized TCK accounting
         if: always()
