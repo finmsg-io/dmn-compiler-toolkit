@@ -16,18 +16,7 @@ public final class SparkSqlFeelValueCodec {
 	}
 
 	public static boolean isNativeType(RuntimeType type) {
-		if (type == null)
-			return false;
-		if (type.kind() == RuntimeTypeKind.STRING || type.kind() == RuntimeTypeKind.BOOLEAN
-				|| type.kind() == RuntimeTypeKind.NUMBER)
-			return true;
-		if (type.kind() == RuntimeTypeKind.CONTEXT && !type.fieldLayout().isEmpty()) {
-			return type.fieldLayout().stream().allMatch(field -> isNativeType(field.type()));
-		}
-		if (type.kind() == RuntimeTypeKind.LIST && type.elementType() != null) {
-			return isNativeType(type.elementType());
-		}
-		return false;
+		return type != null && (type.kind() == RuntimeTypeKind.STRING || type.kind() == RuntimeTypeKind.BOOLEAN);
 	}
 
 	public static DataType sparkType(RuntimeType type) {
@@ -41,18 +30,6 @@ public final class SparkSqlFeelValueCodec {
 			if (type.kind() == RuntimeTypeKind.STRING && value instanceof String
 					|| type.kind() == RuntimeTypeKind.BOOLEAN && value instanceof Boolean)
 				return value;
-			if (type.kind() == RuntimeTypeKind.NUMBER && value instanceof Number n)
-				return n.doubleValue();
-			if (type.kind() == RuntimeTypeKind.CONTEXT && value instanceof Map<?, ?> map) {
-				List<Object> fields = new ArrayList<>();
-				for (RuntimeField f : type.fieldLayout()) {
-					fields.add(toSpark(map.get(f.name()), f.type()));
-				}
-				return RowFactory.create(fields.toArray());
-			}
-			if (type.kind() == RuntimeTypeKind.LIST && value instanceof List<?> list) {
-				return list.stream().map(elem -> toSpark(elem, type.elementType())).toList();
-			}
 			throw new IllegalArgumentException("Value does not match " + type.kind());
 		}
 		return encode(value);
