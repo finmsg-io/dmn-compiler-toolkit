@@ -18,6 +18,7 @@
     <tck.requireFull>false</tck.requireFull>
     <tck.backend>all</tck.backend>
     <tck.spark.hybrid>true</tck.spark.hybrid>
+    <tck.timeoutSeconds>30</tck.timeoutSeconds>
   </properties>
 
   <dependencies>
@@ -77,6 +78,7 @@
             <tck.requireFull>${tck.requireFull}</tck.requireFull>
             <tck.backend>${tck.backend}</tck.backend>
             <tck.spark.hybrid>${tck.spark.hybrid}</tck.spark.hybrid>
+            <tck.timeoutSeconds>${tck.timeoutSeconds}</tck.timeoutSeconds>
           </systemPropertyVariables>
         </configuration>
       </plugin>

@@ -15,9 +15,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  MAVEN_OPTS: "-Xmx4g --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.cs=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED -Djava.security.manager=allow"
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -79,6 +76,7 @@ jobs:
 
   optimized-tck:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -94,7 +92,7 @@ jobs:
           cache: maven
 
       - name: Verify complete optimized interpreter, generated-Java, and Spark SQL conformance
-        run: mvn --batch-mode -Ptck -Dtck.backend=all -Dtck.spark.hybrid=true verify
+        run: mvn --batch-mode -Ptck -Dtck.backend=all -Dtck.spark.hybrid=true -Dtck.timeoutSeconds=30 verify
 
       - name: Upload optimized TCK accounting
         if: always()
