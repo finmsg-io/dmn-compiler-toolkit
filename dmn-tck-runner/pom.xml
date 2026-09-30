@@ -16,6 +16,8 @@
     <tck.skip>true</tck.skip>
     <tck.modelVariant>all</tck.modelVariant>
     <tck.requireFull>false</tck.requireFull>
+    <tck.backend>all</tck.backend>
+    <tck.spark.hybrid>true</tck.spark.hybrid>
   </properties>
 
   <dependencies>
@@ -66,13 +68,15 @@
         <version>${maven.surefire.plugin.version}</version>
         <configuration>
           <skipTests>${tck.skip}</skipTests>
-          <argLine>@{argLine} -Xmx4g -XX:+UseG1GC</argLine>
+          <argLine>@{argLine} ${surefire.jvm.args}</argLine>
           <useFile>false</useFile>
           <redirectTestOutputToFile>false</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
           <systemPropertyVariables>
             <tck.modelVariant>${tck.modelVariant}</tck.modelVariant>
             <tck.requireFull>${tck.requireFull}</tck.requireFull>
+            <tck.backend>${tck.backend}</tck.backend>
+            <tck.spark.hybrid>${tck.spark.hybrid}</tck.spark.hybrid>
           </systemPropertyVariables>
         </configuration>
       </plugin>
@@ -89,6 +93,8 @@
         <tck.skip>false</tck.skip>
         <tck.modelVariant>optimized</tck.modelVariant>
         <tck.requireFull>true</tck.requireFull>
+        <tck.backend>all</tck.backend>
+        <tck.spark.hybrid>true</tck.spark.hybrid>
       </properties>
     </profile>
   </profiles>

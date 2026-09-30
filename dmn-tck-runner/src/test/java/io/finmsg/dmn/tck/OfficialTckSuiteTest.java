@@ -65,7 +65,7 @@ class OfficialTckSuiteTest {
 	private int totalTestCount = 0;
 	private TckCatalogueInventory inventory;
 	private SparkSession spark;
-	private static final boolean SPARK_HYBRID = Boolean.getBoolean("tck.spark.hybrid");
+	private static final boolean SPARK_HYBRID = Boolean.parseBoolean(System.getProperty("tck.spark.hybrid", "true"));
 	private final Map<String, String> sparkRoutes = new ConcurrentHashMap<>();
 	private final DmnSparkSqlGenerator sparkSqlGenerator = new DmnSparkSqlGenerator();
 
@@ -76,7 +76,7 @@ class OfficialTckSuiteTest {
 	@BeforeAll
 	void setupSparkSession() {
 		java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));
-		String backend = System.getProperty("tck.backend", "default").toLowerCase(Locale.ROOT);
+		String backend = System.getProperty("tck.backend", "all").toLowerCase(Locale.ROOT);
 		if (!Set.of("spark", "sparksql", "all").contains(backend))
 			return;
 		try {
@@ -202,7 +202,7 @@ class OfficialTckSuiteTest {
 	}
 
 	private static List<String> configuredBackends(List<RuntimeModelMode> modes) {
-		String backendProp = System.getProperty("tck.backend", "default").trim().toLowerCase(Locale.ROOT);
+		String backendProp = System.getProperty("tck.backend", "all").trim().toLowerCase(Locale.ROOT);
 		return modes.stream().flatMap(mode -> {
 			String variant = mode.name().toLowerCase(Locale.ROOT);
 			if (backendProp.equals("sparksql") || backendProp.equals("spark")) {
@@ -214,11 +214,8 @@ class OfficialTckSuiteTest {
 			if (backendProp.equals("interpreter")) {
 				return Stream.of(variant + "-interpreter");
 			}
-			if (backendProp.equals("all")) {
-				return Stream.of(variant + "-interpreter", variant + "-generated-java",
-						variant + "-generated-sparksql" + (SPARK_HYBRID ? "-hybrid" : ""));
-			}
-			return Stream.of(variant + "-interpreter", variant + "-generated-java");
+			return Stream.of(variant + "-interpreter", variant + "-generated-java",
+					variant + "-generated-sparksql" + (SPARK_HYBRID ? "-hybrid" : ""));
 		}).toList();
 	}
 
@@ -665,8 +662,13 @@ class OfficialTckSuiteTest {
 				? "-" + activeModelModes.getFirst().name().toLowerCase(Locale.ROOT)
 				: "";
 		new TckCatalogueReportWriter().write(
-				Path.of("target", "tck-accounting" + variant + (SPARK_HYBRID ? "-sparksql-hybrid" : "") + ".json"),
+				Path.of("target", "tck-accounting" + variant + ".json"),
 				report);
+		if (SPARK_HYBRID) {
+			new TckCatalogueReportWriter().write(
+					Path.of("target", "tck-accounting" + variant + "-sparksql-hybrid.json"),
+					report);
+		}
 
 		long passed = outcomes.stream().filter(o -> o.status() == TckCatalogueStatus.PASSED).count();
 		long failed = outcomes.stream().filter(o -> o.status() == TckCatalogueStatus.FAILED).count();

@@ -89,6 +89,8 @@
         <central.publishing.plugin.version>0.7.0</central.publishing.plugin.version>
         <gpg.skip>true</gpg.skip>
         <maven.deploy.skip>true</maven.deploy.skip>
+        <argLine></argLine>
+        <surefire.jvm.args>-Xmx4g -XX:+UseG1GC --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.cs=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED -Djava.security.manager=allow</surefire.jvm.args>
     </properties>
 
     <dependencyManagement>
@@ -168,6 +170,7 @@
                     <version>${maven.surefire.plugin.version}</version>
                     <configuration>
                         <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                        <argLine>@{argLine} ${surefire.jvm.args}</argLine>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -305,6 +308,8 @@
                 <tck.skip>false</tck.skip>
                 <tck.modelVariant>optimized</tck.modelVariant>
                 <tck.requireFull>true</tck.requireFull>
+                <tck.backend>all</tck.backend>
+                <tck.spark.hybrid>true</tck.spark.hybrid>
             </properties>
             <modules>
                 <module>dmn-tck-runner</module>
