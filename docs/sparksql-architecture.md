@@ -162,6 +162,81 @@ Instead of relying solely on row-by-row JVM `UDF1` bridges or plain Java interpr
 - **Mechanism:** Managed catalog functions and columnar batch processing with Arrow memory layouts.
 - **DMN Application:** Enables batch-columnar evaluation of remaining complex functions rather than row-by-row invocation.
 
+## DMN FEEL ↔ Spark SQL: Impedance Mismatch
+
+Yes, there is a real mismatch. FEEL is a dynamically typed, expression-level language with its own semantics, and Spark SQL is statically typed with Catalyst's rules. A compiler needs a deliberately restricted subset plus a fallback path. Most decision-table cells, arithmetic, comparisons, and if expressions translate cleanly. The trouble starts in the areas below.
+
+### Where the mismatch is real
+
+#### Type system and typing time
+- FEEL type errors evaluate to `null` at runtime, while Spark rejects them at analysis time.
+- Heterogeneous lists (`[1, "a", null]`) and contexts with dynamic keys have no direct Spark equivalent: arrays are homogeneous and structs need a fixed schema.
+- Anything typed `Any` is a problem. You need static type inference over the FEEL expression, and it can fail.
+
+#### Equality and null semantics
+- In FEEL, `null = null` is `true`; SQL's `=` returns `null` (you'd need `<=>`).
+- FEEL comparisons across incompatible types return `null` instead of erroring.
+- FEEL equality on lists and contexts is deep and structural. Spark supports struct and array equality, but not map equality.
+
+#### Aggregates over lists
+- `max([1, null, 3])` is `null` in FEEL, but Spark's `array_max` skips nulls.
+- Differences like this are the dangerous ones: they produce wrong results silently instead of failing.
+
+#### Numbers and errors
+- FEEL numbers are decimal128. Spark's decimal arithmetic adjusts precision and scale on its own and can truncate or round differently.
+- FEEL division by zero and overflow yield `null`, but Spark 4.0 has ANSI mode on by default and throws. You'd need `try_divide`, `try_cast`, and similar everywhere, or ANSI off.
+- FEEL's default rounding is half-even, while Spark's `round` is half-up (`bround` is half-even).
+
+#### Dates and times
+- FEEL has time-only values, offsets that survive operations, and distinct date, time, and date-time types.
+- Spark has no time-only type, and timestamps are session-timezone-normalized (`TIMESTAMP_NTZ` helps in 3.4+).
+- Duration types map to Spark's interval types, but the arithmetic rules differ.
+
+#### List semantics
+- FEEL indexing is 1-based with negative indexes. `element_at` matches that, but `arr[i]` doesn't.
+- `list[expr]` is either an index or a filter depending on the static type of `expr`.
+- FEEL also has singleton-list coercion rules.
+
+#### Iteration
+- `for x in a, y in b return …` becomes nested `transform` plus `flatten`, which works.
+- `for …` partial referencing earlier results needs `aggregate`.
+- Recursive function definitions have no Spark SQL equivalent. Non-recursive BKMs can be inlined.
+
+#### Strings
+- FEEL `matches` uses XPath/XSD regex flavor; Spark uses Java regex.
+- `string()` formatting of numbers and dates, plus `format number`, differ too.
+
+#### Functions and ranges as values
+- First-class functions, closures, and range values (with `overlaps`, `before`, and so on) have no native Spark type, so they'd need structs plus custom logic.
+
+#### Evaluation order
+- Spark doesn't guarantee short-circuiting for `AND`/`OR`, which matters when guarded expressions can error under ANSI.
+- Wrapping guards in `CASE WHEN` helps.
+
+#### Catalyst practicalities
+- Large decision tables produce huge expression trees, which can mean slow planning, deep-recursion failures, and the 64KB codegen method limit.
+
+### Rough triage
+
+| Category | Examples |
+| --- | --- |
+| **Translates cleanly** | Unary tests, arithmetic, comparisons, `if`, `and`/`or`, most decision tables, `some`/`every`, simple `for` |
+| **Translates with care** | Dates and durations, rounding, string and regex functions, list functions, null-aggregate behavior, hit policies with multiple outputs |
+| **Doesn't translate** | Recursive functions, dynamic contexts, heterogeneous lists, first-class function values, fully dynamic typing |
+
+### Strategies
+
+1. **Define a translatable subset with static type checking**, and fail at compile time with a clear diagnostic. Be explicit about which FEEL features are supported (roughly S-FEEL plus a chosen set of full-FEEL features).
+2. **Fall back to a UDF or embedded FEEL interpreter** for non-translatable expressions. You lose Catalyst optimization and pay serialization cost, but you keep correctness.
+3. **Go hybrid**: translate the pushdown-friendly parts, and isolate the non-translatable remainder into a narrow UDF.
+4. **Write custom Catalyst expressions** for semantics that are close but not equal (FEEL equality, FEEL max, offset-preserving date-times).
+5. **Use `VARIANT` (Spark 4.0)** for genuinely dynamic values, though its operator support is limited.
+6. **Pin down null and error semantics up front** with `try_*` functions, so results don't depend on ANSI settings.
+
+### Testing
+
+A differential test suite that runs the same inputs through a reference FEEL engine (such as the DMN TCK cases) and the compiled Spark output is the best way to catch silent divergences like the `max` example.
+
 ## Verification and status
 
 `SparkSqlHybridTest` covers exact value round trips, mixed lists, serialized UDFs, captured inputs, subgraph isolation, routing, and diagnostics. `SparkSqlHybridIntegrationTest` executes generated SQL with local Spark tasks and checks precision, closures, and nested temporal data.

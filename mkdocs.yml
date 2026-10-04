@@ -36,6 +36,7 @@ nav:
   - Architecture:
       - Overview: architecture.md
       - Architecture Specification: architecture/architecture-spec.md
+      - Spark SQL Architecture & Impedance Mismatch: sparksql-architecture.md
       - Architecture Decisions:
           - ADR Guide and Index: architecture/adr/generall-adr.md
           - ADR-0001 Compiler Architecture: architecture/adr/adr-0001-compiler-architecture-instead-of-interpreter.md
