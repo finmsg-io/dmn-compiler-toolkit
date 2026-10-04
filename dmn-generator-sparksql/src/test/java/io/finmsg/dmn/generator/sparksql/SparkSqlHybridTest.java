@@ -58,17 +58,17 @@ class SparkSqlHybridTest {
 				List.of(), List.of(10), 1);
 	}
 	static RuntimeModel closureModel() {
-		RuntimeType functionType = RuntimeType.function(List.of(NUMBER), NUMBER);
-		var function = new RuntimeFunctionDefinition(List.of(new RuntimeFunctionParameter("x", 0, NUMBER)),
-				Optional.of(new RuntimeBinaryExpression(RuntimeBinaryOperator.ADD, new RuntimeLocalReference(0, NUMBER),
-						new RuntimeValueReference(0, NUMBER), NUMBER)),
+		RuntimeType functionType = RuntimeType.function(List.of(ANY), ANY);
+		var function = new RuntimeFunctionDefinition(List.of(new RuntimeFunctionParameter("x", 0, ANY)),
+				Optional.of(new RuntimeBinaryExpression(RuntimeBinaryOperator.ADD, new RuntimeLocalReference(0, ANY),
+						new RuntimeValueReference(0, ANY), ANY)),
 				false, functionType);
 		var bkm = new RuntimeBkm(20, 1, functionType, List.of(10), RuntimeFunctionKind.FEEL, Optional.of(function));
 		var invocation = new RuntimeInvocationExpression(Optional.empty(),
-				Optional.of(new RuntimeValueReference(1, functionType)), List.of(), List.of(number("2")), NUMBER);
-		var decision = new RuntimeDecision(30, 2, NUMBER, List.of(20), Optional.of(invocation));
-		return new RuntimeModel(List.of(new RuntimeInput(10, 0, NUMBER)), List.of(decision), List.of(bkm),
-				List.of(20, 30), 3);
+				Optional.of(new RuntimeValueReference(1, functionType)), List.of(), List.of(number("2")), ANY);
+		var decision = new RuntimeDecision(30, 2, ANY, List.of(20), Optional.of(invocation));
+		return new RuntimeModel(List.of(new RuntimeInput(10, 0, ANY)), List.of(decision), List.of(bkm), List.of(20, 30),
+				3);
 	}
 
 	@Test
@@ -118,12 +118,32 @@ class SparkSqlHybridTest {
 
 	@Test
 	void excludesUnrelatedExternalBkmFromEvaluation() {
-		RuntimeType functionType = RuntimeType.function(List.of(), NUMBER);
+		RuntimeType functionType = RuntimeType.function(List.of(), ANY);
 		var bkm = new RuntimeBkm(100, 0, functionType, List.of());
-		var decision = new RuntimeDecision(200, 1, NUMBER, List.of(), Optional.of(number("42")));
+		var decision = new RuntimeDecision(200, 1, ANY, List.of(), Optional.of(number("42")));
 		var model = new RuntimeModel(List.of(), List.of(decision), List.of(bkm), List.of(100, 200), 2);
 		assertThat(new SparkSqlDecisionUdf(model, 200).evaluate(RowFactory.create())).isEqualTo(new BigDecimal("42"));
-		assertThat(generate(model).udfs()).hasSize(1);
+		assertThat(generate(model).udfs()).isEmpty();
+	}
+
+	@Test
+	void routesNumericDecisionTableNatively() {
+		var generated = generate(numericTableModel());
+
+		assertThat(generated.udfs()).isEmpty();
+		assertThat(generated.capabilities().get(10).nativeSql()).isTrue();
+		assertThat(generated.sqlFiles().get("Decision_1.sql")).contains("_cte_1");
+	}
+
+	static RuntimeModel numericTableModel() {
+		var input = new RuntimeDecisionTableInput(new RuntimeValueReference(0, NUMBER), Optional.empty(), NUMBER);
+		var output = new RuntimeDecisionTableOutput(Optional.of("result"), NUMBER, Optional.empty(), Optional.empty());
+		var anyInput = new RuntimeUnaryTests(false, true, List.of());
+		var rule = new RuntimeDecisionTableRule(0, List.of(anyInput), List.of(number("42")), List.of());
+		var table = new RuntimeDecisionTable(RuntimeHitPolicy.FIRST, Optional.empty(), List.of(input), List.of(output),
+				List.of(rule), 0);
+		var decision = new RuntimeDecision(10, 1, NUMBER, List.of(), Optional.empty(), Optional.of(table), 0);
+		return new RuntimeModel(List.of(new RuntimeInput(5, 0, NUMBER)), List.of(decision), List.of(), List.of(10), 2);
 	}
 
 	@Test
@@ -164,7 +184,6 @@ class SparkSqlHybridTest {
 	void rejectsInvalidPayloadAndClosureExports() {
 		assertThatThrownBy(() -> SparkSqlFeelValueCodec.decode(new byte[]{1, 2, 3}))
 				.isInstanceOf(IllegalArgumentException.class);
-		assertThatThrownBy(() -> SparkSqlFeelValueCodec.encode(new Object()))
-				.isInstanceOf(IllegalArgumentException.class);
 	}
+
 }

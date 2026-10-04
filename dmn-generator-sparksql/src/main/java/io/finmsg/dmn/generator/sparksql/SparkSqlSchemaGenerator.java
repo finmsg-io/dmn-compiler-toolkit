@@ -33,6 +33,7 @@ public final class SparkSqlSchemaGenerator {
 			case NUMBER -> DataTypes.DoubleType;
 			case STRING -> DataTypes.StringType;
 			case DATE -> DataTypes.DateType;
+			case NULL -> DataTypes.NullType;
 			case TIME, DATE_TIME -> DataTypes.TimestampType;
 			case LIST -> {
 				DataType elemType = type.elementType() != null ? mapType(type.elementType()) : DataTypes.StringType;

@@ -2,6 +2,7 @@ package io.finmsg.dmn.generator.sparksql;
 
 import io.finmsg.dmn.ir.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -16,7 +17,15 @@ public final class SparkSqlFeelValueCodec {
 	}
 
 	public static boolean isNativeType(RuntimeType type) {
-		return type != null && (type.kind() == RuntimeTypeKind.STRING || type.kind() == RuntimeTypeKind.BOOLEAN);
+		if (type == null)
+			return false;
+		return switch (type.kind()) {
+			case STRING, BOOLEAN, NUMBER, NULL -> true;
+			case LIST -> type.elementType() != null && isNativeType(type.elementType());
+			case CONTEXT ->
+				!type.fieldLayout().isEmpty() && type.fieldLayout().stream().allMatch(f -> isNativeType(f.type()));
+			default -> false;
+		};
 	}
 
 	public static DataType sparkType(RuntimeType type) {
@@ -27,9 +36,40 @@ public final class SparkSqlFeelValueCodec {
 		if (value == null)
 			return null;
 		if (isNativeType(type)) {
-			if (type.kind() == RuntimeTypeKind.STRING && value instanceof String
-					|| type.kind() == RuntimeTypeKind.BOOLEAN && value instanceof Boolean)
+			if (type.kind() == RuntimeTypeKind.NULL)
+				return null;
+			if (type.kind() == RuntimeTypeKind.STRING && (value instanceof String || value instanceof CharSequence))
+				return value.toString();
+			if (type.kind() == RuntimeTypeKind.BOOLEAN && value instanceof Boolean)
 				return value;
+			if (type.kind() == RuntimeTypeKind.NUMBER) {
+				if (value instanceof Number n)
+					return n.doubleValue();
+				if (value instanceof String s)
+					return Double.parseDouble(s);
+			}
+			if (type.kind() == RuntimeTypeKind.DATE) {
+				if (value instanceof LocalDate ld)
+					return java.sql.Date.valueOf(ld);
+				if (value instanceof java.sql.Date d)
+					return d;
+				if (value instanceof String s)
+					return java.sql.Date.valueOf(LocalDate.parse(s));
+			}
+			if (type.kind() == RuntimeTypeKind.LIST) {
+				if (value instanceof List<?> list) {
+					return list.stream().map(elem -> toSpark(elem, type.elementType())).toList();
+				}
+			}
+			if (type.kind() == RuntimeTypeKind.CONTEXT) {
+				if (value instanceof Map<?, ?> map) {
+					List<Object> fieldValues = new ArrayList<>();
+					for (RuntimeField field : type.fieldLayout()) {
+						fieldValues.add(toSpark(map.get(field.name()), field.type()));
+					}
+					return RowFactory.create(fieldValues.toArray());
+				}
+			}
 			throw new IllegalArgumentException("Value does not match " + type.kind());
 		}
 		return encode(value);
@@ -53,6 +93,8 @@ public final class SparkSqlFeelValueCodec {
 			return decode(bytes);
 		if (value instanceof java.sql.Date date)
 			return date.toLocalDate();
+		if (value instanceof LocalDate date)
+			return date;
 		if (value instanceof java.sql.Timestamp timestamp)
 			return timestamp.toLocalDateTime();
 		if (value instanceof Row row) {
@@ -90,6 +132,24 @@ public final class SparkSqlFeelValueCodec {
 				result.put((String) key, fromSpark(item));
 			});
 			return result;
+		}
+		if (value instanceof Double d) {
+			if (d.isNaN() || d.isInfinite())
+				return null;
+			BigDecimal bd = BigDecimal.valueOf(d);
+			if (bd.scale() > 0 && bd.remainder(BigDecimal.ONE).compareTo(BigDecimal.ZERO) == 0) {
+				bd = bd.setScale(0);
+			}
+			return bd;
+		}
+		if (value instanceof Float f) {
+			if (f.isNaN() || f.isInfinite())
+				return null;
+			BigDecimal bd = BigDecimal.valueOf(f.doubleValue());
+			if (bd.scale() > 0 && bd.remainder(BigDecimal.ONE).compareTo(BigDecimal.ZERO) == 0) {
+				bd = bd.setScale(0);
+			}
+			return bd;
 		}
 		if (value instanceof Number number && !(value instanceof BigDecimal))
 			return new BigDecimal(number.toString());

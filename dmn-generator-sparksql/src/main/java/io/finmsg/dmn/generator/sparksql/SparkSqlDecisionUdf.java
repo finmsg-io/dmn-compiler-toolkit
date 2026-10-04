@@ -46,6 +46,8 @@ public final class SparkSqlDecisionUdf implements UDF1<Row, Object> {
 	}
 
 	public DataType returnType() {
+		if (decision().type().kind() == io.finmsg.dmn.ir.RuntimeTypeKind.CONTEXT)
+			return org.apache.spark.sql.types.DataTypes.BinaryType;
 		return SparkSqlFeelValueCodec.sparkType(decision().type());
 	}
 
@@ -67,6 +69,8 @@ public final class SparkSqlDecisionUdf implements UDF1<Row, Object> {
 
 	@Override
 	public Object call(Row row) {
+		if (decision().type().kind() == io.finmsg.dmn.ir.RuntimeTypeKind.CONTEXT)
+			return SparkSqlFeelValueCodec.encode(evaluate(row));
 		return SparkSqlFeelValueCodec.toSpark(evaluate(row), decision().type());
 	}
 }

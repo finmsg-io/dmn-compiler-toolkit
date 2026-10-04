@@ -67,6 +67,7 @@ class OfficialTckSuiteTest {
 	private SparkSession spark;
 	private static final boolean SPARK_HYBRID = Boolean.parseBoolean(System.getProperty("tck.spark.hybrid", "true"));
 	private final Map<String, String> sparkRoutes = new ConcurrentHashMap<>();
+	private final Map<String, String> expectedRejectionDiagnostics = new ConcurrentHashMap<>();
 	private final DmnSparkSqlGenerator sparkSqlGenerator = new DmnSparkSqlGenerator();
 
 	static {
@@ -265,6 +266,8 @@ class OfficialTckSuiteTest {
 						if (preparation.failureDiagnostic() != null) {
 							if (expectsOnlyErrors(testCase) && preparation.modelRejected()) {
 								sparkRoutes.put(testName, "EXPECTED_MODEL_REJECTION");
+								expectedRejectionDiagnostics.put(testName + " @" + generatedSparkSqlBackend,
+										preparation.failureDiagnostic());
 								return;
 							}
 							throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
@@ -670,6 +673,10 @@ class OfficialTckSuiteTest {
 					report);
 		}
 
+		Files.write(Path.of("target", "tck-expected-rejections" + variant + ".tsv"),
+				expectedRejectionDiagnostics.entrySet().stream().sorted(Map.Entry.comparingByKey())
+						.map(entry -> entry.getKey() + "\t" + entry.getValue().replace('\n', ' ').replace('\r', ' ').replace('\t', ' '))
+						.toList());
 		long passed = outcomes.stream().filter(o -> o.status() == TckCatalogueStatus.PASSED).count();
 		long failed = outcomes.stream().filter(o -> o.status() == TckCatalogueStatus.FAILED).count();
 		long error = outcomes.stream().filter(o -> o.status() == TckCatalogueStatus.EXECUTION_ERROR).count();

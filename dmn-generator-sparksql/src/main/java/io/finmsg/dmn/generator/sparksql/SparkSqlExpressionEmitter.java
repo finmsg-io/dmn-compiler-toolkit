@@ -13,6 +13,56 @@ public final class SparkSqlExpressionEmitter {
 	private SparkSqlExpressionEmitter() {
 	}
 
+	/**
+	 * Scoped wrapper allowing local lexical bindings (context entries, filter item,
+	 * iterations) to shadow localSlot lookups without colliding with global
+	 * input/decision valueSlot lookups.
+	 */
+	public interface LocalScopeResolver extends IntFunction<String> {
+		String resolveValueSlot(int sourceSlot);
+		String resolveLocalSlot(int localSlot);
+
+		@Override
+		default String apply(int slot) {
+			return resolveLocalSlot(slot);
+		}
+	}
+
+	private static final class ScopedResolver implements LocalScopeResolver {
+		private final IntFunction<String> rootResolver;
+		private final LocalScopeResolver parentScope;
+		private final Map<Integer, String> localBindings;
+
+		private ScopedResolver(IntFunction<String> parent, Map<Integer, String> localBindings) {
+			if (parent instanceof ScopedResolver scoped) {
+				rootResolver = scoped.rootResolver;
+				parentScope = scoped;
+			} else {
+				rootResolver = parent;
+				parentScope = parent instanceof LocalScopeResolver local ? local : null;
+			}
+			this.localBindings = Map.copyOf(localBindings);
+		}
+
+		@Override
+		public String resolveValueSlot(int sourceSlot) {
+			return rootResolver instanceof LocalScopeResolver local
+					? local.resolveValueSlot(sourceSlot)
+					: rootResolver.apply(sourceSlot);
+		}
+
+		@Override
+		public String resolveLocalSlot(int localSlot) {
+			if (localBindings.containsKey(localSlot))
+				return localBindings.get(localSlot);
+			return parentScope != null ? parentScope.resolveLocalSlot(localSlot) : rootResolver.apply(localSlot);
+		}
+	}
+
+	private static LocalScopeResolver scoped(IntFunction<String> parent, Map<Integer, String> localBindings) {
+		return new ScopedResolver(parent, localBindings);
+	}
+
 	public static String emit(RuntimeExpression expr, IntFunction<String> slotNameResolver) {
 		return emitWithBkms(expr, Map.of(), slotNameResolver);
 	}
@@ -32,7 +82,9 @@ public final class SparkSqlExpressionEmitter {
 						yield emitWithBkms(bkm.function().get().body().get(), bkmBySlot, slotNameResolver);
 					}
 				}
-				String resolved = slotNameResolver.apply(ref.sourceSlot());
+				String resolved = (slotNameResolver instanceof LocalScopeResolver lsr)
+						? lsr.resolveValueSlot(ref.sourceSlot())
+						: slotNameResolver.apply(ref.sourceSlot());
 				if (resolved != null) {
 					if (resolved.startsWith("`") && resolved.endsWith("`")) {
 						yield resolved;
@@ -42,7 +94,9 @@ public final class SparkSqlExpressionEmitter {
 				yield "`input_" + ref.sourceSlot() + "`";
 			}
 			case RuntimeLocalReference local -> {
-				String resolved = slotNameResolver.apply(local.localSlot());
+				String resolved = (slotNameResolver instanceof LocalScopeResolver lsr)
+						? lsr.resolveLocalSlot(local.localSlot())
+						: slotNameResolver.apply(local.localSlot());
 				if (resolved != null) {
 					yield resolved;
 				}
@@ -55,6 +109,19 @@ public final class SparkSqlExpressionEmitter {
 						+ emitWithBkms(cond.thenExpression(), bkmBySlot, slotNameResolver) + ") ELSE ("
 						+ emitWithBkms(cond.elseExpression(), bkmBySlot, slotNameResolver) + ") END";
 			case RuntimePathExpression path -> {
+				if (path.source() instanceof RuntimeContextExpression context
+						&& context.entries().stream().noneMatch(e -> e.name().equals(path.member())))
+					yield "NULL";
+				RuntimeType sourceType = path.source().type();
+				RuntimeType contextType = sourceType.kind() == RuntimeTypeKind.LIST
+						? sourceType.elementType()
+						: sourceType;
+				if (contextType != null && contextType.kind() == RuntimeTypeKind.CONTEXT
+						&& !contextType.fieldLayout().isEmpty()
+						&& contextType.fieldLayout().stream().noneMatch(f -> f.name().equals(path.member())))
+					yield sourceType.kind() == RuntimeTypeKind.LIST
+							? "transform(" + emitWithBkms(path.source(), bkmBySlot, slotNameResolver) + ", x -> NULL)"
+							: "NULL";
 				String src = emitWithBkms(path.source(), bkmBySlot, slotNameResolver);
 				String member = path.member().trim().toLowerCase();
 				if (path.source().type() != null) {
@@ -166,6 +233,8 @@ public final class SparkSqlExpressionEmitter {
 					if (exprType.kind() != RuntimeTypeKind.ANY && exprType.kind() != targetType.kind()) {
 						yield "FALSE";
 					}
+					if (!compatibleStructure(exprType, targetType))
+						yield "FALSE";
 				}
 				yield "(" + exprCode + " IS NOT NULL)";
 			}
@@ -515,9 +584,14 @@ public final class SparkSqlExpressionEmitter {
 	}
 
 	private static RuntimeTypeKind resolveTypeKind(RuntimeExpression expr) {
+		return resolveTypeKind(expr, Map.of(), x -> null);
+	}
+
+	private static RuntimeTypeKind resolveTypeKind(RuntimeExpression expr, Map<Integer, RuntimeBkm> bkmBySlot,
+			IntFunction<String> slotNameResolver) {
 		if (expr == null)
 			return RuntimeTypeKind.ANY;
-		if (expr.type() != null && expr.type().kind() != null) {
+		if (expr.type() != null && expr.type().kind() != null && expr.type().kind() != RuntimeTypeKind.ANY) {
 			return expr.type().kind();
 		}
 		if (expr instanceof RuntimeConstant c) {
@@ -555,7 +629,14 @@ public final class SparkSqlExpressionEmitter {
 			if (u.operator() == RuntimeUnaryOperator.NOT) {
 				return RuntimeTypeKind.BOOLEAN;
 			}
-			return resolveTypeKind(u.operand());
+			return resolveTypeKind(u.operand(), bkmBySlot, slotNameResolver);
+		}
+		if (expr instanceof RuntimeConditionalExpression cond) {
+			RuntimeTypeKind tk = resolveTypeKind(cond.thenExpression(), bkmBySlot, slotNameResolver);
+			RuntimeTypeKind ek = resolveTypeKind(cond.elseExpression(), bkmBySlot, slotNameResolver);
+			if (tk == ek)
+				return tk;
+			return tk != RuntimeTypeKind.ANY ? tk : ek;
 		}
 		if (expr instanceof RuntimeBinaryExpression b) {
 			RuntimeBinaryOperator op = b.operator();
@@ -565,29 +646,114 @@ public final class SparkSqlExpressionEmitter {
 					|| op == RuntimeBinaryOperator.GREATER_EQUAL) {
 				return RuntimeTypeKind.BOOLEAN;
 			}
+			if (op == RuntimeBinaryOperator.ADD) {
+				RuntimeTypeKind lk = resolveTypeKind(b.left(), bkmBySlot, slotNameResolver);
+				RuntimeTypeKind rk = resolveTypeKind(b.right(), bkmBySlot, slotNameResolver);
+				if (lk == RuntimeTypeKind.STRING || rk == RuntimeTypeKind.STRING)
+					return RuntimeTypeKind.STRING;
+				if (lk == RuntimeTypeKind.NUMBER && rk == RuntimeTypeKind.NUMBER)
+					return RuntimeTypeKind.NUMBER;
+			}
 			return RuntimeTypeKind.ANY;
+		}
+		if (expr instanceof RuntimePathExpression p) {
+			if (p.source() instanceof RuntimeContextExpression context) {
+				for (RuntimeContextEntry entry : context.entries()) {
+					if (entry.name().equals(p.member())) {
+						RuntimeExpression selected = entry.expression();
+						if (selected instanceof RuntimeLocalReference local) {
+							for (RuntimeContextEntry binding : context.entries()) {
+								if (binding.localSlot() == local.localSlot()) {
+									selected = binding.expression();
+									break;
+								}
+							}
+						}
+						return resolveTypeKind(selected, bkmBySlot, slotNameResolver);
+					}
+				}
+			}
 		}
 		if (expr instanceof RuntimeFunctionCall fc) {
 			return resolveFunctionTypeKind(fc.function());
 		}
-		if (expr instanceof RuntimeInvocationExpression inv && inv.function().isPresent()) {
-			return resolveFunctionTypeKind(inv.function().get());
+		if (expr instanceof RuntimeInvocationExpression inv) {
+			if (inv.function().isPresent()) {
+				String fnName = inv.function().get();
+				for (Map.Entry<Integer, RuntimeBkm> entry : bkmBySlot.entrySet()) {
+					String bkmName = (slotNameResolver instanceof LocalScopeResolver lsr)
+							? lsr.resolveValueSlot(entry.getKey())
+							: slotNameResolver.apply(entry.getKey());
+					if (entry.getValue().type() != null && entry.getValue().type().kind() == RuntimeTypeKind.FUNCTION
+							&& bkmName != null && fnName.equalsIgnoreCase(bkmName.replace("`", ""))) {
+						RuntimeBkm bkm = entry.getValue();
+						return resolveBkmReturnKind(bkm, bkmBySlot, slotNameResolver);
+					}
+				}
+				return resolveFunctionTypeKind(fnName);
+			}
+			if (inv.target().isPresent()) {
+				RuntimeExpression target = inv.target().get();
+				if (target instanceof RuntimeValueReference ref && bkmBySlot.containsKey(ref.sourceSlot())) {
+					RuntimeBkm bkm = bkmBySlot.get(ref.sourceSlot());
+					return resolveBkmReturnKind(bkm, bkmBySlot, slotNameResolver);
+				}
+			}
 		}
 		return RuntimeTypeKind.ANY;
+	}
+
+	private static RuntimeType declaredBkmReturnType(RuntimeBkm bkm) {
+		if (bkm.type() != null) {
+			if (bkm.type().kind() == RuntimeTypeKind.FUNCTION && bkm.type().returnType() != null
+					&& bkm.type().returnType().kind() != RuntimeTypeKind.ANY) {
+				return bkm.type().returnType();
+			}
+			if (bkm.type().kind() != RuntimeTypeKind.FUNCTION && bkm.type().kind() != RuntimeTypeKind.ANY) {
+				return bkm.type();
+			}
+		}
+		if (bkm.function().isPresent()) {
+			RuntimeFunctionDefinition fn = bkm.function().get();
+			if (fn.type() != null) {
+				if (fn.type().kind() == RuntimeTypeKind.FUNCTION && fn.type().returnType() != null
+						&& fn.type().returnType().kind() != RuntimeTypeKind.ANY) {
+					return fn.type().returnType();
+				}
+				if (fn.type().kind() != RuntimeTypeKind.FUNCTION && fn.type().kind() != RuntimeTypeKind.ANY) {
+					return fn.type();
+				}
+			}
+		}
+		return null;
+	}
+
+	private static RuntimeTypeKind resolveBkmReturnKind(RuntimeBkm bkm, Map<Integer, RuntimeBkm> bkmBySlot,
+			IntFunction<String> slotNameResolver) {
+		RuntimeType decl = declaredBkmReturnType(bkm);
+		if (decl != null && decl.kind() != RuntimeTypeKind.ANY) {
+			return decl.kind();
+		}
+		if (bkm.function().isEmpty() || bkm.function().get().body().isEmpty())
+			return RuntimeTypeKind.ANY;
+		// Remove the current BKM from inference so recursive call graphs terminate.
+		Map<Integer, RuntimeBkm> remaining = new HashMap<>(bkmBySlot);
+		remaining.values().removeIf(value -> value == bkm);
+		return resolveTypeKind(bkm.function().get().body().get(), remaining, slotNameResolver);
 	}
 
 	private static RuntimeTypeKind resolveFunctionTypeKind(String fnName) {
 		String name = fnName.toLowerCase();
 		return switch (name) {
-			case "string length", "length", "upper case", "upper", "lower case", "lower", "substring",
-					"substring before", "substring after", "replace", "trim", "concat", "string", "string join" ->
+			case "upper case", "upper", "lower case", "lower", "substring", "substring before", "substring after",
+					"replace", "trim", "concat", "string", "string join" ->
 				RuntimeTypeKind.STRING;
-			case "number", "abs", "floor", "ceiling", "ceil", "round", "round up", "round_up", "round down",
-					"round_down", "round half up", "round_half_up", "round half down", "round_half_down",
-					"round half even", "round_half_even", "sqrt", "exp", "ln", "log", "modulo", "mod", "min", "max",
-					"sum", "product", "mean", "avg", "median", "mode", "stddev", "pmt", "pmt2", "count", "year",
-					"month", "day", "weekday", "day of year", "day_of_year", "week of year", "week_of_year", "hour",
-					"minute", "second" ->
+			case "string length", "length", "number", "abs", "floor", "ceiling", "ceil", "round", "round up",
+					"round_up", "round down", "round_down", "round half up", "round_half_up", "round half down",
+					"round_half_down", "round half even", "round_half_even", "sqrt", "exp", "ln", "log", "modulo",
+					"mod", "min", "max", "sum", "product", "mean", "avg", "median", "mode", "stddev", "pmt", "pmt2",
+					"count", "year", "month", "day", "weekday", "day of year", "day_of_year", "week of year",
+					"week_of_year", "hour", "minute", "second" ->
 				RuntimeTypeKind.NUMBER;
 			case "date" -> RuntimeTypeKind.DATE;
 			case "time" -> RuntimeTypeKind.TIME;
@@ -610,16 +776,38 @@ public final class SparkSqlExpressionEmitter {
 		String left = emitWithBkms(binary.left(), bkmBySlot, slotNameResolver);
 		String right = emitWithBkms(binary.right(), bkmBySlot, slotNameResolver);
 
-		RuntimeTypeKind lk = resolveTypeKind(binary.left());
-		RuntimeTypeKind rk = resolveTypeKind(binary.right());
+		RuntimeTypeKind lk = resolveTypeKind(binary.left(), bkmBySlot, slotNameResolver);
+		RuntimeTypeKind rk = resolveTypeKind(binary.right(), bkmBySlot, slotNameResolver);
 
 		RuntimeBinaryOperator op = binary.operator();
 
 		// Comparison and Boolean operators
-		if (op == RuntimeBinaryOperator.AND)
+		if (op == RuntimeBinaryOperator.AND) {
+			if (lk != RuntimeTypeKind.BOOLEAN && lk != RuntimeTypeKind.ANY && lk != null) {
+				if (rk == RuntimeTypeKind.BOOLEAN)
+					return "(CASE WHEN " + right + " IS FALSE THEN false ELSE NULL END)";
+				return "CAST(NULL AS BOOLEAN)";
+			}
+			if (rk != RuntimeTypeKind.BOOLEAN && rk != RuntimeTypeKind.ANY && rk != null) {
+				if (lk == RuntimeTypeKind.BOOLEAN)
+					return "(CASE WHEN " + left + " IS FALSE THEN false ELSE NULL END)";
+				return "CAST(NULL AS BOOLEAN)";
+			}
 			return "(" + left + " AND " + right + ")";
-		if (op == RuntimeBinaryOperator.OR)
+		}
+		if (op == RuntimeBinaryOperator.OR) {
+			if (lk != RuntimeTypeKind.BOOLEAN && lk != RuntimeTypeKind.ANY && lk != null) {
+				if (rk == RuntimeTypeKind.BOOLEAN)
+					return "(CASE WHEN " + right + " IS TRUE THEN true ELSE NULL END)";
+				return "CAST(NULL AS BOOLEAN)";
+			}
+			if (rk != RuntimeTypeKind.BOOLEAN && rk != RuntimeTypeKind.ANY && rk != null) {
+				if (lk == RuntimeTypeKind.BOOLEAN)
+					return "(CASE WHEN " + left + " IS TRUE THEN true ELSE NULL END)";
+				return "CAST(NULL AS BOOLEAN)";
+			}
 			return "(" + left + " OR " + right + ")";
+		}
 		if (lk == RuntimeTypeKind.RANGE || rk == RuntimeTypeKind.RANGE) {
 			String eq = "((" + left + ").startIncluded <=> (" + right + ").startIncluded AND (" + left
 					+ ").endIncluded <=> (" + right + ").endIncluded AND (" + left + ").start <=> (" + right
@@ -660,9 +848,10 @@ public final class SparkSqlExpressionEmitter {
 		}
 
 		if (op == RuntimeBinaryOperator.ADD) {
-			// STRING + STRING → concat
-			if (lk == RuntimeTypeKind.STRING && rk == RuntimeTypeKind.STRING) {
-				return "concat(" + left + ", " + right + ")";
+			// STRING + STRING → concat (or if either side is STRING or a string literal)
+			if (lk == RuntimeTypeKind.STRING || rk == RuntimeTypeKind.STRING
+					|| (left.startsWith("'") && left.endsWith("'")) || (right.startsWith("'") && right.endsWith("'"))) {
+				return "concat(cast(" + left + " as string), cast(" + right + " as string))";
 			}
 			// NUMBER + NUMBER
 			if (lk == RuntimeTypeKind.NUMBER && rk == RuntimeTypeKind.NUMBER) {
@@ -698,12 +887,22 @@ public final class SparkSqlExpressionEmitter {
 			if (lk == RuntimeTypeKind.LIST || rk == RuntimeTypeKind.LIST || isDuration(lk) || isDuration(rk)
 					|| lk == RuntimeTypeKind.DATE || rk == RuntimeTypeKind.DATE || lk == RuntimeTypeKind.DATE_TIME
 					|| rk == RuntimeTypeKind.DATE_TIME || lk == RuntimeTypeKind.TIME || rk == RuntimeTypeKind.TIME
-					|| lk == RuntimeTypeKind.STRING || rk == RuntimeTypeKind.STRING || isLikelyDateTimeOrDateSql(left)
-					|| isLikelyDateTimeOrDateSql(right) || isLikelyTimeSql(left) || isLikelyTimeSql(right)
-					|| isLikelyDurationSql(left) || isLikelyDurationSql(right)) {
+					|| isLikelyDateTimeOrDateSql(left) || isLikelyDateTimeOrDateSql(right) || isLikelyTimeSql(left)
+					|| isLikelyTimeSql(right) || isLikelyDurationSql(left) || isLikelyDurationSql(right)) {
 				return "NULL";
 			}
-			return "(" + left + " + " + right + ")";
+			// Inlined BKMs can lose their declared return type while retaining a clear
+			// string-producing expression in SQL. Prefer FEEL string addition when
+			// either operand contains such an operation; a CASE around raw string `+`
+			// is still rejected by Spark Catalyst during analysis.
+			if ((lk == RuntimeTypeKind.ANY || rk == RuntimeTypeKind.ANY)
+					&& (containsStringSqlOperation(left) || containsStringSqlOperation(right))) {
+				return "concat(cast(" + left + " as string), cast(" + right + " as string))";
+			}
+			// If at runtime one of the operands is string, concatenate; otherwise add
+			// numerically
+			return "(CASE WHEN typeof(" + left + ") = 'string' OR typeof(" + right + ") = 'string' THEN concat(cast("
+					+ left + " as string), cast(" + right + " as string)) ELSE (" + left + " + " + right + ") END)";
 		}
 
 		if (op == RuntimeBinaryOperator.SUBTRACT) {
@@ -877,13 +1076,25 @@ public final class SparkSqlExpressionEmitter {
 		return "NULL";
 	}
 
+	private static boolean containsStringSqlOperation(String sql) {
+		String normalized = sql.toLowerCase(Locale.ROOT);
+		return normalized.contains("concat(") || normalized.contains("upper(") || normalized.contains("lower(")
+				|| normalized.contains("substring(") || normalized.contains("regexp_replace(");
+	}
+
 	private static String emitUnary(RuntimeUnaryExpression unary, Map<Integer, RuntimeBkm> bkmBySlot,
 			IntFunction<String> slotNameResolver) {
 		String op = emitWithBkms(unary.operand(), bkmBySlot, slotNameResolver);
 		return switch (unary.operator()) {
 			case POSITIVE -> op;
 			case NEGATE -> "(-" + op + ")";
-			case NOT -> "(NOT " + op + ")";
+			case NOT -> {
+				RuntimeTypeKind kind = resolveTypeKind(unary.operand());
+				if (kind != RuntimeTypeKind.BOOLEAN && kind != RuntimeTypeKind.ANY && kind != null) {
+					yield "CAST(NULL AS BOOLEAN)";
+				}
+				yield "(NOT " + op + ")";
+			}
 		};
 	}
 
@@ -893,6 +1104,8 @@ public final class SparkSqlExpressionEmitter {
 		String upperStr = range.upper().map(e -> emitWithBkms(e, bkmBySlot, slotNameResolver)).orElse("NULL");
 		boolean startInc = range.lowerBoundary() == RuntimeRangeBoundary.CLOSED;
 		boolean endInc = range.upperBoundary() == RuntimeRangeBoundary.CLOSED;
+		if (range.upper().isEmpty() && range.lower().isPresent() && startInc && endInc)
+			upperStr = lowerStr;
 		return "named_struct('start', " + lowerStr + ", 'end', " + upperStr + ", 'start included', " + startInc
 				+ ", 'end included', " + endInc + ", 'startIncluded', " + startInc + ", 'endIncluded', " + endInc + ")";
 	}
@@ -909,12 +1122,10 @@ public final class SparkSqlExpressionEmitter {
 
 		for (RuntimeContextEntry entry : ctx.entries()) {
 			final Map<Integer, String> bindingsSnapshot = new HashMap<>(localBindings);
-			IntFunction<String> scopedResolver = slot -> {
-				if (bindingsSnapshot.containsKey(slot))
-					return bindingsSnapshot.get(slot);
-				return slotNameResolver.apply(slot);
-			};
+			LocalScopeResolver scopedResolver = scoped(slotNameResolver, bindingsSnapshot);
 			String emittedExpr = emitWithBkms(entry.expression(), bkmBySlot, scopedResolver);
+			if (entry.name().isEmpty() && entry.localSlot() == -1)
+				return emittedExpr;
 			emittedExprs.add(emittedExpr);
 			if (entry.localSlot() >= 0) {
 				localBindings.put(entry.localSlot(), "(" + emittedExpr + ")");
@@ -957,12 +1168,16 @@ public final class SparkSqlExpressionEmitter {
 		}
 		String source = emitWithBkms(filter.source(), bkmBySlot, slotNameResolver);
 		String itemVar = "_item_" + Math.abs(filter.localSlot());
-		IntFunction<String> scopedResolver = slot -> (slot == filter.localSlot())
-				? itemVar
-				: slotNameResolver.apply(slot);
+		LocalScopeResolver scopedResolver = scoped(slotNameResolver, Map.of(filter.localSlot(), itemVar));
 		String filterExpr = emitWithBkms(filter.filter(), bkmBySlot, scopedResolver);
 		if (isNumericIndex) {
-			return "element_at(" + source + ", cast(" + filterExpr + " as int))";
+			if (srcKind != RuntimeTypeKind.LIST && srcKind != RuntimeTypeKind.ANY) {
+				return "(CASE WHEN cast(" + filterExpr + " as int) = 1 OR cast(" + filterExpr + " as int) = -1 THEN "
+						+ source + " ELSE NULL END)";
+			}
+			return "(CASE WHEN typeof(" + source + ") LIKE 'array%' THEN element_at(" + source + ", cast(" + filterExpr
+					+ " as int)) WHEN cast(" + filterExpr + " as int) = 1 OR cast(" + filterExpr + " as int) = -1 THEN "
+					+ source + " ELSE NULL END)";
 		}
 		return "(CASE WHEN " + source + " IS NULL THEN NULL ELSE filter(" + source + ", " + itemVar + " -> "
 				+ filterExpr + ") END)";
@@ -990,9 +1205,7 @@ public final class SparkSqlExpressionEmitter {
 		}
 		String source = emitWithBkms(binding.source(), bkmBySlot, slotNameResolver);
 		String itemVar = "_q_" + Math.abs(binding.localSlot());
-		IntFunction<String> scopedResolver = slot -> (slot == binding.localSlot())
-				? itemVar
-				: slotNameResolver.apply(slot);
+		LocalScopeResolver scopedResolver = scoped(slotNameResolver, Map.of(binding.localSlot(), itemVar));
 		String inner = emitNestedQuantified(isEvery, bindings, index + 1, satisfies, bkmBySlot, scopedResolver);
 		String func = isEvery ? "forall" : "exists";
 		return "(CASE WHEN " + source + " IS NULL THEN NULL ELSE " + func + "(" + source + ", " + itemVar + " -> "
@@ -1020,9 +1233,7 @@ public final class SparkSqlExpressionEmitter {
 							+ emitWithBkms(iter.end().get(), bkmBySlot, slotNameResolver) + ")"
 					: emitWithBkms(iter.source(), bkmBySlot, slotNameResolver);
 			String itemVar = "_for_" + Math.abs(iter.localSlot());
-			IntFunction<String> scopedResolver = slot -> (slot == iter.localSlot())
-					? itemVar
-					: slotNameResolver.apply(slot);
+			LocalScopeResolver scopedResolver = scoped(slotNameResolver, Map.of(iter.localSlot(), itemVar));
 			String result = emitWithBkms(forExpr.result(), bkmBySlot, scopedResolver);
 			return "(CASE WHEN " + source + " IS NULL THEN NULL ELSE transform(" + source + ", " + itemVar + " -> "
 					+ result + ") END)";
@@ -1041,9 +1252,7 @@ public final class SparkSqlExpressionEmitter {
 						+ emitWithBkms(iter.end().get(), bkmBySlot, slotNameResolver) + ")"
 				: emitWithBkms(iter.source(), bkmBySlot, slotNameResolver);
 		String itemVar = "_for_" + Math.abs(iter.localSlot());
-		IntFunction<String> scopedResolver = slot -> (slot == iter.localSlot())
-				? itemVar
-				: slotNameResolver.apply(slot);
+		LocalScopeResolver scopedResolver = scoped(slotNameResolver, Map.of(iter.localSlot(), itemVar));
 		String inner = emitNestedFor(iterations, index + 1, resultExpr, bkmBySlot, scopedResolver);
 		String transformed = "transform(" + source + ", " + itemVar + " -> " + inner + ")";
 		return (index < iterations.size() - 1) ? "flatten(" + transformed + ")" : transformed;
@@ -1079,8 +1288,19 @@ public final class SparkSqlExpressionEmitter {
 			String fnName = inv.function().get();
 			// Check if function name matches any BKM
 			for (Map.Entry<Integer, RuntimeBkm> entry : bkmBySlot.entrySet()) {
-				String bkmName = slotNameResolver.apply(entry.getKey());
-				if (bkmName != null && fnName.equalsIgnoreCase(bkmName.replace("`", ""))) {
+				String bkmName = (slotNameResolver instanceof LocalScopeResolver lsr)
+						? lsr.resolveValueSlot(entry.getKey())
+						: slotNameResolver.apply(entry.getKey());
+				if (entry.getValue().type() != null && entry.getValue().type().kind() == RuntimeTypeKind.FUNCTION
+						&& bkmName != null && fnName.equalsIgnoreCase(bkmName.replace("`", ""))) {
+					if (inv.type() != null && inv.type().kind() != RuntimeTypeKind.ANY) {
+						RuntimeTypeKind returnKind = resolveBkmReturnKind(entry.getValue(), bkmBySlot,
+								slotNameResolver);
+						if (returnKind != RuntimeTypeKind.ANY && returnKind != RuntimeTypeKind.NULL
+								&& returnKind != inv.type().kind()) {
+							return "NULL";
+						}
+					}
 					return inlineBkm(entry.getValue(), inv.positionalArguments(), inv.namedArguments(), bkmBySlot,
 							slotNameResolver);
 				}
@@ -1097,6 +1317,13 @@ public final class SparkSqlExpressionEmitter {
 			RuntimeExpression target = inv.target().get();
 			if (target instanceof RuntimeValueReference ref && bkmBySlot.containsKey(ref.sourceSlot())) {
 				RuntimeBkm bkm = bkmBySlot.get(ref.sourceSlot());
+				if (inv.type() != null && inv.type().kind() != RuntimeTypeKind.ANY) {
+					RuntimeTypeKind returnKind = resolveBkmReturnKind(bkm, bkmBySlot, slotNameResolver);
+					if (returnKind != RuntimeTypeKind.ANY && returnKind != RuntimeTypeKind.NULL
+							&& returnKind != inv.type().kind()) {
+						return "NULL";
+					}
+				}
 				return inlineBkm(bkm, inv.positionalArguments(), inv.namedArguments(), bkmBySlot, slotNameResolver);
 			}
 			return emitWithBkms(target, bkmBySlot, slotNameResolver);
@@ -1112,7 +1339,10 @@ public final class SparkSqlExpressionEmitter {
 		}
 		RuntimeFunctionDefinition fn = bkm.function().get();
 		List<RuntimeFunctionParameter> params = fn.parameters();
+		if (posArgs.size() + (namedArgs == null ? 0 : namedArgs.size()) != params.size())
+			return "NULL";
 		Map<Integer, String> paramValues = new HashMap<>();
+		RuntimeType expectedReturn = declaredBkmReturnType(bkm);
 
 		for (int i = 0; i < params.size(); i++) {
 			RuntimeFunctionParameter param = params.get(i);
@@ -1128,15 +1358,60 @@ public final class SparkSqlExpressionEmitter {
 				}
 			}
 			String emittedArg = (argExpr != null) ? emitWithBkms(argExpr, bkmBySlot, slotNameResolver) : "NULL";
+			if (argExpr != null && param.type().kind() != RuntimeTypeKind.ANY) {
+				if (param.type().kind() == RuntimeTypeKind.CONTEXT
+						&& !compatibleStructure(argExpr.type(), param.type()))
+					return "NULL";
+				RuntimeTypeKind actual = resolveTypeKind(argExpr, bkmBySlot, slotNameResolver);
+				if (actual == RuntimeTypeKind.LIST && param.type().kind() != RuntimeTypeKind.LIST) {
+					emittedArg = "(CASE WHEN size(" + emittedArg + ") = 1 THEN element_at(" + emittedArg
+							+ ", 1) ELSE NULL END)";
+				} else if (actual != RuntimeTypeKind.ANY && actual != RuntimeTypeKind.NULL
+						&& actual != param.type().kind()) {
+					return "NULL";
+				}
+			}
 			paramValues.put(param.localSlot(), "(" + emittedArg + ")");
+			if (argExpr != null && fn.body().get() instanceof RuntimeLocalReference ref
+					&& ref.localSlot() == param.localSlot() && expectedReturn != null
+					&& expectedReturn.kind() != RuntimeTypeKind.ANY) {
+				RuntimeTypeKind actualKind = resolveTypeKind(argExpr, bkmBySlot, slotNameResolver);
+				if (actualKind != RuntimeTypeKind.ANY && actualKind != RuntimeTypeKind.NULL) {
+					if (expectedReturn.kind() == RuntimeTypeKind.LIST) {
+						if (actualKind != RuntimeTypeKind.LIST) {
+							if (expectedReturn.elementType() != null
+									&& expectedReturn.elementType().kind() != RuntimeTypeKind.ANY
+									&& actualKind != expectedReturn.elementType().kind()) {
+								return "NULL";
+							}
+						} else if (argExpr.type() != null && !compatibleStructure(argExpr.type(), expectedReturn)) {
+							return "NULL";
+						}
+					} else if (actualKind != RuntimeTypeKind.LIST && actualKind != expectedReturn.kind()) {
+						return "NULL";
+					}
+				}
+			}
 		}
 
-		IntFunction<String> bkmResolver = slot -> {
-			if (paramValues.containsKey(slot)) {
-				return paramValues.get(slot);
+		LocalScopeResolver bkmResolver = scoped(slotNameResolver, paramValues);
+
+		if (expectedReturn != null && expectedReturn.kind() != RuntimeTypeKind.ANY) {
+			RuntimeTypeKind bodyKind = resolveTypeKind(fn.body().get(), bkmBySlot, bkmResolver);
+			if (bodyKind != RuntimeTypeKind.ANY && bodyKind != RuntimeTypeKind.NULL) {
+				if (expectedReturn.kind() == RuntimeTypeKind.LIST) {
+					if (bodyKind != RuntimeTypeKind.LIST) {
+						if (expectedReturn.elementType() != null
+								&& expectedReturn.elementType().kind() != RuntimeTypeKind.ANY
+								&& bodyKind != expectedReturn.elementType().kind()) {
+							return "NULL";
+						}
+					}
+				} else if (bodyKind != RuntimeTypeKind.LIST && bodyKind != expectedReturn.kind()) {
+					return "NULL";
+				}
 			}
-			return slotNameResolver.apply(slot);
-		};
+		}
 
 		return "(" + emitWithBkms(fn.body().get(), bkmBySlot, bkmResolver) + ")";
 	}
@@ -1148,10 +1423,50 @@ public final class SparkSqlExpressionEmitter {
 		return "transform(" + src + ", x -> x." + member + ")";
 	}
 
+	private static boolean compatibleStructure(RuntimeType actual, RuntimeType expected) {
+		if (expected.kind() == RuntimeTypeKind.ANY || actual.kind() == RuntimeTypeKind.ANY
+				|| actual.kind() == RuntimeTypeKind.NULL)
+			return true;
+		if (actual.kind() != expected.kind())
+			return false;
+		if (expected.kind() == RuntimeTypeKind.LIST && actual.elementType() != null && expected.elementType() != null)
+			return compatibleStructure(actual.elementType(), expected.elementType());
+		for (RuntimeField field : expected.fieldLayout()) {
+			Optional<RuntimeField> source = actual.fieldLayout().stream().filter(f -> f.name().equals(field.name()))
+					.findFirst();
+			if (source.isEmpty() || !compatibleStructure(source.get().type(), field.type()))
+				return false;
+		}
+		return true;
+	}
+
 	private static String emitFunctionCall(RuntimeFunctionCall fn, Map<Integer, RuntimeBkm> bkmBySlot,
 			IntFunction<String> slotNameResolver) {
 		String name = fn.function().toLowerCase();
 		List<RuntimeExpression> args = fn.arguments();
+		if (Set.of("day of year", "day of week", "month of year", "week of year").contains(name)) {
+			if (args.size() != 1)
+				return "NULL";
+			String date = "try_cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " as date)";
+			return switch (name) {
+				case "day of year" -> "dayofyear(" + date + ")";
+				case "week of year" -> "weekofyear(" + date + ")";
+				case "day of week" -> "date_format(" + date + ", 'EEEE')";
+				default -> "date_format(" + date + ", 'MMMM')";
+			};
+		}
+		if (Set.of("floor", "ceiling", "ceil", "round", "decimal", "round up", "round_up", "round down", "round_down",
+				"round half up", "round_half_up", "round half down", "round_half_down", "round half even",
+				"round_half_even").contains(name)) {
+			if (args.isEmpty() || args.size() > 2)
+				return "NULL";
+			for (RuntimeExpression arg : args) {
+				RuntimeTypeKind kind = resolveTypeKind(arg, bkmBySlot, slotNameResolver);
+				if ((kind != RuntimeTypeKind.NUMBER && kind != RuntimeTypeKind.ANY)
+						|| arg instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)
+					return "NULL";
+			}
+		}
 
 		return switch (name) {
 			// String functions
@@ -1185,41 +1500,90 @@ public final class SparkSqlExpressionEmitter {
 						+ match + ") + length(" + match + ")) ELSE '' END)";
 			}
 			case "replace" -> {
-				if (args.size() == 3) {
-					yield "regexp_replace(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ", "
-							+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ", "
-							+ emitArg(args, 2, bkmBySlot, slotNameResolver) + ")";
-				}
 				String in = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				String pat = emitArg(args, 1, bkmBySlot, slotNameResolver);
 				String rep = emitArg(args, 2, bkmBySlot, slotNameResolver);
+				// In FEEL/Java regex, $0 represents the entire match. In Spark regexp_replace
+				// (Java regular expressions),
+				// $0 is also the full match, but literal replacement string syntax might
+				// require replace(rep, '$0', '$0').
+				if (args.size() == 3) {
+					yield "regexp_replace(" + in + ", " + pat + ", " + rep + ")";
+				}
 				String flg = emitArg(args, 3, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN " + flg + " = 'q' THEN replace(" + in + ", " + pat + ", " + rep
 						+ ") ELSE regexp_replace(" + in + ", concat('(?', " + flg + ", ')', " + pat + "), " + rep
 						+ ") END)";
 			}
 			case "matches" -> {
-				if (args.size() == 2) {
-					yield "(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " rlike "
-							+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")";
+				if (args.size() < 2 || args.size() > 3) {
+					yield "CAST(NULL AS BOOLEAN)";
+				}
+				for (RuntimeExpression a : args) {
+					RuntimeTypeKind k = resolveTypeKind(a);
+					if (k != RuntimeTypeKind.STRING && k != RuntimeTypeKind.ANY)
+						yield "CAST(NULL AS BOOLEAN)";
 				}
 				String in = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				String pat = emitArg(args, 1, bkmBySlot, slotNameResolver);
+				if (args.size() == 2) {
+					yield "(" + in + " rlike " + pat + ")";
+				}
 				String flg = emitArg(args, 2, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN " + flg + " = 'q' THEN (instr(" + in + ", " + pat + ") > 0) ELSE (" + in
 						+ " rlike concat('(?', " + flg + ", ')', " + pat + ")) END)";
 			}
-			case "split" -> "split(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ", "
-					+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")";
+			case "split" -> {
+				if (args.size() != 2)
+					yield "NULL";
+				yield "split(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ", "
+						+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")";
+			}
 			case "trim" -> "trim(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
 			case "concat" -> "concat(" + emitArgsJoined(args, bkmBySlot, slotNameResolver) + ")";
-			case "string" -> "cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " as string)";
+			case "string" -> {
+				String value = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				String text = "cast(" + value + " as string)";
+				// Native NUMBER transport uses double. Its integral '.0' suffix is a
+				// Spark representation detail, not part of the FEEL numeric value.
+				// Keep exact decimal scale and string inputs unchanged.
+				yield "(CASE WHEN typeof(" + value + ") IN ('float', 'double') THEN regexp_replace(regexp_replace("
+						+ text + ", '^-?0[.]0+$', '0'), '[.]0+$', '') ELSE " + text + " END)";
+			}
 			case "string join" -> {
-				if (args.size() == 1) {
-					yield "array_join(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ", '')";
+				if (args.isEmpty() || args.size() == 3 || args.size() > 4) {
+					yield "NULL";
 				}
-				yield "array_join(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ", "
-						+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")";
+				RuntimeType listType = args.get(0).type();
+				RuntimeTypeKind inputKind = resolveTypeKind(args.get(0), bkmBySlot, slotNameResolver);
+				if (inputKind != RuntimeTypeKind.LIST && inputKind != RuntimeTypeKind.STRING
+						|| listType.elementType() != null && listType.elementType().kind() != RuntimeTypeKind.STRING
+								&& listType.elementType().kind() != RuntimeTypeKind.ANY) {
+					yield "NULL";
+				}
+				boolean invalidJoinArgument = false;
+				for (int i = 1; i < args.size(); i++) {
+					RuntimeTypeKind kind = resolveTypeKind(args.get(i), bkmBySlot, slotNameResolver);
+					if (kind != RuntimeTypeKind.STRING && kind != RuntimeTypeKind.ANY
+							&& !(args.get(i) instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)) {
+						invalidJoinArgument = true;
+					}
+				}
+				if (invalidJoinArgument) {
+					yield "NULL";
+				}
+				String delimiter = args.size() > 1
+						? "coalesce(" + emitArg(args, 1, bkmBySlot, slotNameResolver) + ", '')"
+						: "''";
+				String items = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				if (inputKind == RuntimeTypeKind.STRING) {
+					items = "array(" + items + ")";
+				}
+				String joined = "array_join(" + items + ", " + delimiter + ")";
+				yield args.size() == 4
+						? "concat(coalesce(" + emitArg(args, 2, bkmBySlot, slotNameResolver) + ", ''), " + joined
+								+ ", coalesce(" + emitArg(args, 3, bkmBySlot, slotNameResolver) + ", ''))"
+						: joined;
 			}
 
 			// Type conversion / General functions
@@ -1229,12 +1593,30 @@ public final class SparkSqlExpressionEmitter {
 				if (args.size() == 1) {
 					yield "try_cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " as double)";
 				} else if (args.size() == 3) {
+					RuntimeTypeKind sourceKind = resolveTypeKind(args.get(0), bkmBySlot, slotNameResolver);
+					RuntimeTypeKind groupKind = resolveTypeKind(args.get(1), bkmBySlot, slotNameResolver);
+					RuntimeTypeKind decimalKind = resolveTypeKind(args.get(2), bkmBySlot, slotNameResolver);
+					if (sourceKind != RuntimeTypeKind.STRING && sourceKind != RuntimeTypeKind.ANY) {
+						yield "NULL";
+					}
+					if (groupKind != RuntimeTypeKind.STRING && groupKind != RuntimeTypeKind.ANY
+							&& !(args.get(1) instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)
+							|| decimalKind != RuntimeTypeKind.STRING && decimalKind != RuntimeTypeKind.ANY
+									&& !(args.get(2) instanceof RuntimeConstant c
+											&& c.kind() == RuntimeConstantKind.NULL)) {
+						yield "NULL";
+					}
 					String val = emitArg(args, 0, bkmBySlot, slotNameResolver);
 					String grp = emitArg(args, 1, bkmBySlot, slotNameResolver);
 					String dec = emitArg(args, 2, bkmBySlot, slotNameResolver);
-					yield "try_cast(replace(replace(" + val + ", " + grp + ", ''), " + dec + ", '.') as double)";
+					yield "(CASE WHEN (" + grp + " IS NULL OR (typeof(" + grp + ") = 'string' AND " + grp
+							+ " IN (' ', '.', ','))) AND (" + dec + " IS NULL OR (typeof(" + dec + ") = 'string' AND "
+							+ dec + " IN ('.', ','))) AND NOT (" + grp + " IS NOT NULL AND " + dec + " IS NOT NULL AND "
+							+ grp + " = " + dec + ") THEN try_cast(replace(replace(" + val + ", coalesce(cast(" + grp
+							+ " as string), ''), ''), coalesce(cast(" + dec
+							+ " as string), '.'), '.') as double) ELSE NULL END)";
 				}
-				yield "try_cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " as double)";
+				yield "NULL";
 			}
 			case "duration", "years and months duration", "years_and_months_duration", "day and time duration",
 					"day_and_time_duration" -> {
@@ -1264,6 +1646,9 @@ public final class SparkSqlExpressionEmitter {
 			}
 			case "range" -> {
 				if (args.size() == 1) {
+					RuntimeTypeKind kind = resolveTypeKind(args.get(0));
+					if (kind != RuntimeTypeKind.STRING && kind != RuntimeTypeKind.ANY)
+						yield "NULL";
 					String str = emitArg(args, 0, bkmBySlot, slotNameResolver);
 					yield "(CASE WHEN " + str + " IS NULL THEN NULL WHEN typeof(" + str + ") = 'string' AND (" + str
 							+ " LIKE '[%' OR " + str + " LIKE '(%' OR " + str + " LIKE ']%') AND (" + str
@@ -1302,10 +1687,12 @@ public final class SparkSqlExpressionEmitter {
 
 			// Math functions
 			case "abs" -> {
+				if (args.size() != 1)
+					yield "NULL";
 				String x = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN typeof(" + x
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN abs(" + x
-						+ ") WHEN typeof(" + x + ") = 'string' AND cast(" + x
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN abs(try_cast("
+						+ x + " as double)) WHEN typeof(" + x + ") = 'string' AND cast(" + x
 						+ " as string) rlike '^-?P' THEN (CASE WHEN cast(" + x
 						+ " as string) LIKE '-%' THEN substring(cast(" + x + " as string), 2) ELSE cast(" + x
 						+ " as string) END) ELSE NULL END)";
@@ -1314,108 +1701,148 @@ public final class SparkSqlExpressionEmitter {
 				String x = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				if (args.size() == 1) {
 					yield "(CASE WHEN typeof(" + x
-							+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN floor("
-							+ x + ") ELSE NULL END)";
+							+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN floor(" + x
+							+ ") ELSE NULL END)";
 				}
 				String scale = emitArg(args, 1, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN typeof(" + x
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN floor(" + x
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN floor(" + x
 						+ " * power(10, " + scale + ")) / power(10, " + scale + ") ELSE NULL END)";
 			}
 			case "ceiling", "ceil" -> {
 				String x = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				if (args.size() == 1) {
 					yield "(CASE WHEN typeof(" + x
-							+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN ceil("
-							+ x + ") ELSE NULL END)";
+							+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN ceil(" + x
+							+ ") ELSE NULL END)";
 				}
 				String scale = emitArg(args, 1, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN typeof(" + x
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN ceil(" + x
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN ceil(" + x
 						+ " * power(10, " + scale + ")) / power(10, " + scale + ") ELSE NULL END)";
 			}
 			case "round", "decimal" -> {
 				String n = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				String rounding = name.equals("decimal") ? "bround" : "round";
 				if (args.size() == 1) {
 					yield "(CASE WHEN typeof(" + n
-							+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN round("
-							+ n + ", 0) ELSE NULL END)";
+							+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN " + rounding
+							+ "(" + n + ", 0) ELSE NULL END)";
 				}
 				String scale = emitArg(args, 1, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN typeof(" + n
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN round(" + n
-						+ ", " + scale + ") ELSE NULL END)";
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN " + rounding
+						+ "(" + n + ", cast(" + scale + " as int)) ELSE NULL END)";
 			}
 			case "round up", "round_up" -> {
 				String n = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				String scale = args.size() > 1 ? emitArg(args, 1, bkmBySlot, slotNameResolver) : "0";
 				yield "(CASE WHEN typeof(" + n
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN (CASE WHEN "
-						+ n + " >= 0 THEN ceil(" + n + " * power(10, " + scale + ")) / power(10, " + scale
-						+ ") ELSE floor(" + n + " * power(10, " + scale + ")) / power(10, " + scale
-						+ ") END) ELSE NULL END)";
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN (CASE WHEN " + n
+						+ " >= 0 THEN ceil(" + n + " * power(10, " + scale + ")) / power(10, " + scale + ") ELSE floor("
+						+ n + " * power(10, " + scale + ")) / power(10, " + scale + ") END) ELSE NULL END)";
 			}
 			case "round down", "round_down" -> {
 				String n = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				String scale = args.size() > 1 ? emitArg(args, 1, bkmBySlot, slotNameResolver) : "0";
 				yield "(CASE WHEN typeof(" + n
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN (CASE WHEN "
-						+ n + " >= 0 THEN floor(" + n + " * power(10, " + scale + ")) / power(10, " + scale
-						+ ") ELSE ceil(" + n + " * power(10, " + scale + ")) / power(10, " + scale
-						+ ") END) ELSE NULL END)";
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN (CASE WHEN " + n
+						+ " >= 0 THEN floor(" + n + " * power(10, " + scale + ")) / power(10, " + scale + ") ELSE ceil("
+						+ n + " * power(10, " + scale + ")) / power(10, " + scale + ") END) ELSE NULL END)";
 			}
 			case "round half up", "round_half_up" -> {
 				String n = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				String scale = args.size() > 1 ? emitArg(args, 1, bkmBySlot, slotNameResolver) : "0";
 				yield "(CASE WHEN typeof(" + n
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN (CASE WHEN ("
-						+ n + " * power(10, " + scale + ")) - floor(" + n + " * power(10, " + scale
-						+ ")) < 0.5 THEN floor(" + n + " * power(10, " + scale + ")) / power(10, " + scale
-						+ ") ELSE ceil(" + n + " * power(10, " + scale + ")) / power(10, " + scale
-						+ ") END) ELSE NULL END)";
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN round(" + n
+						+ ", cast(" + scale + " as int)) ELSE NULL END)";
 			}
-			case "round half down", "round_half_down", "round half even", "round_half_even" -> {
+			case "round half even", "round_half_even" -> {
 				String n = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				String scale = args.size() > 1 ? emitArg(args, 1, bkmBySlot, slotNameResolver) : "0";
 				yield "(CASE WHEN typeof(" + n
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN (CASE WHEN ("
-						+ n + " * power(10, " + scale + ")) - floor(" + n + " * power(10, " + scale
-						+ ")) <= 0.5 THEN floor(" + n + " * power(10, " + scale + ")) / power(10, " + scale
-						+ ") ELSE ceil(" + n + " * power(10, " + scale + ")) / power(10, " + scale
-						+ ") END) ELSE NULL END)";
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN bround(" + n
+						+ ", cast(" + scale + " as int)) ELSE NULL END)";
+			}
+			case "round half down", "round_half_down" -> {
+				String n = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				String scale = args.size() > 1 ? emitArg(args, 1, bkmBySlot, slotNameResolver) : "0";
+				yield "(CASE WHEN typeof(" + n
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN (CASE WHEN ("
+						+ "abs(" + n + ") * power(10, " + scale + ")) - floor(abs(" + n + ") * power(10, " + scale
+						+ ")) <= 0.5 THEN floor(abs(" + n + ") * power(10, " + scale + ")) / power(10, " + scale
+						+ ") ELSE ceil(abs(" + n + ") * power(10, " + scale + ")) / power(10, " + scale
+						+ ") END) * sign(" + n + ") ELSE NULL END)";
 			}
 			case "sqrt" -> {
+				if (args.size() != 1)
+					yield "NULL";
+				RuntimeExpression arg = args.get(0);
+				if (arg.type() != null && arg.type().kind() != RuntimeTypeKind.NUMBER
+						&& arg.type().kind() != RuntimeTypeKind.ANY)
+					yield "NULL";
 				String x = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN typeof(" + x
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') AND " + x
-						+ " >= 0 THEN sqrt(" + x + ") ELSE NULL END)";
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN (CASE WHEN try_cast("
+						+ x + " as double) >= 0 THEN sqrt(try_cast(" + x + " as double)) ELSE NULL END) ELSE NULL END)";
 			}
 			case "exp" -> {
+				if (args.size() != 1)
+					yield "NULL";
+				RuntimeExpression arg = args.get(0);
+				if (arg.type() != null && arg.type().kind() != RuntimeTypeKind.NUMBER
+						&& arg.type().kind() != RuntimeTypeKind.ANY)
+					yield "NULL";
 				String x = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN typeof(" + x
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') THEN exp(" + x
-						+ ") ELSE NULL END)";
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN exp(try_cast("
+						+ x + " as double)) ELSE NULL END)";
 			}
 			case "ln", "log" -> {
+				if (args.size() != 1)
+					yield "NULL";
+				RuntimeExpression arg = args.get(0);
+				if (arg.type() != null && arg.type().kind() != RuntimeTypeKind.NUMBER
+						&& arg.type().kind() != RuntimeTypeKind.ANY)
+					yield "NULL";
 				String x = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN typeof(" + x
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') AND " + x
-						+ " > 0 THEN ln(" + x + ") ELSE NULL END)";
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' THEN (CASE WHEN try_cast("
+						+ x + " as double) > 0 THEN ln(try_cast(" + x + " as double)) ELSE NULL END) ELSE NULL END)";
 			}
 			case "modulo", "mod" -> {
+				if (args.size() != 2)
+					yield "NULL";
+				RuntimeTypeKind dividendKind = resolveTypeKind(args.get(0), bkmBySlot, slotNameResolver);
+				RuntimeTypeKind divisorKind = resolveTypeKind(args.get(1), bkmBySlot, slotNameResolver);
+				if ((dividendKind != RuntimeTypeKind.NUMBER && dividendKind != RuntimeTypeKind.ANY)
+						|| (divisorKind != RuntimeTypeKind.NUMBER && divisorKind != RuntimeTypeKind.ANY))
+					yield "NULL";
 				String a = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				String b = emitArg(args, 1, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN typeof(" + a
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') AND typeof(" + b
-						+ ") IN ('tinyint', 'smallint', 'int', 'bigint', 'float', 'double', 'decimal') AND " + b
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' AND typeof(" + b
+						+ ") RLIKE '^(tinyint|smallint|int|bigint|float|double|decimal[(].*[)])$' AND " + b
 						+ " != 0 THEN (" + a + " - floor(" + a + " / " + b + ") * " + b + ") ELSE NULL END)";
 			}
 			case "odd" -> {
+				if (args.size() != 1)
+					yield "NULL";
+				RuntimeExpression arg = args.get(0);
+				if (arg.type() != null && arg.type().kind() != RuntimeTypeKind.NUMBER
+						&& arg.type().kind() != RuntimeTypeKind.ANY)
+					yield "NULL";
 				String x = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN typeof(" + x + ") IN ('tinyint', 'smallint', 'int', 'bigint') THEN (pmod(cast(" + x
 						+ " as bigint), 2) <> 0) ELSE NULL END)";
 			}
 			case "even" -> {
+				if (args.size() != 1)
+					yield "NULL";
+				RuntimeExpression arg = args.get(0);
+				if (arg.type() != null && arg.type().kind() != RuntimeTypeKind.NUMBER
+						&& arg.type().kind() != RuntimeTypeKind.ANY)
+					yield "NULL";
 				String x = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN typeof(" + x + ") IN ('tinyint', 'smallint', 'int', 'bigint') THEN (pmod(cast(" + x
 						+ " as bigint), 2) = 0) ELSE NULL END)";
@@ -1440,7 +1867,15 @@ public final class SparkSqlExpressionEmitter {
 						args.stream().map(a -> emitWithBkms(a, bkmBySlot, slotNameResolver)).toList()) + ")";
 			}
 			case "product" -> {
+				if (args.isEmpty())
+					yield "NULL";
 				if (args.size() == 1) {
+					RuntimeTypeKind kind = resolveTypeKind(args.get(0));
+					if (kind == RuntimeTypeKind.NUMBER)
+						yield emitArg(args, 0, bkmBySlot, slotNameResolver);
+					if (kind != RuntimeTypeKind.LIST && kind != RuntimeTypeKind.ANY
+							|| args.get(0) instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)
+						yield "NULL";
 					yield "aggregate(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ", 1.0D, (acc, x) -> acc * x)";
 				}
 				yield "(" + String.join(" * ",
@@ -1521,8 +1956,8 @@ public final class SparkSqlExpressionEmitter {
 			case "hour" -> "hour(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
 			case "minute" -> "minute(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
 			case "second" -> "second(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
-			case "today" -> "current_date()";
-			case "now" -> "current_timestamp()";
+			case "today" -> args.isEmpty() ? "current_date()" : "NULL";
+			case "now" -> args.isEmpty() ? "current_timestamp()" : "NULL";
 
 			// List / Array functions
 			case "list contains" -> {
@@ -1579,8 +2014,14 @@ public final class SparkSqlExpressionEmitter {
 						+ emitArg(args, 2, bkmBySlot, slotNameResolver) + ")";
 			}
 			case "all" -> {
+				if (args.isEmpty()
+						|| args.size() > 1 && args.stream().anyMatch(a -> resolveTypeKind(a) != RuntimeTypeKind.BOOLEAN
+								&& !(a instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)))
+					yield "NULL";
 				if (args.size() == 1) {
 					RuntimeTypeKind k0 = resolveTypeKind(args.get(0));
+					if (k0 == RuntimeTypeKind.BOOLEAN)
+						yield emitArg(args, 0, bkmBySlot, slotNameResolver);
 					if (k0 != RuntimeTypeKind.LIST && k0 != RuntimeTypeKind.ANY)
 						yield "NULL";
 					String arr = emitArg(args, 0, bkmBySlot, slotNameResolver);
@@ -1593,8 +2034,14 @@ public final class SparkSqlExpressionEmitter {
 						+ ", x -> x IS NULL) THEN NULL ELSE TRUE END)";
 			}
 			case "any" -> {
+				if (args.isEmpty()
+						|| args.size() > 1 && args.stream().anyMatch(a -> resolveTypeKind(a) != RuntimeTypeKind.BOOLEAN
+								&& !(a instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)))
+					yield "NULL";
 				if (args.size() == 1) {
 					RuntimeTypeKind k0 = resolveTypeKind(args.get(0));
+					if (k0 == RuntimeTypeKind.BOOLEAN)
+						yield emitArg(args, 0, bkmBySlot, slotNameResolver);
 					if (k0 != RuntimeTypeKind.LIST && k0 != RuntimeTypeKind.ANY)
 						yield "NULL";
 					String arr = emitArg(args, 0, bkmBySlot, slotNameResolver);
@@ -1666,13 +2113,8 @@ public final class SparkSqlExpressionEmitter {
 					final int newSlot = lrParams.get(1).localSlot();
 					String newItem = emitArg(args, 2, bkmBySlot, slotNameResolver);
 
-					IntFunction<String> lrResolver = slot -> {
-						if (slot == itemSlot)
-							return itemVar;
-						if (slot == newSlot)
-							return newItem;
-						return slotNameResolver.apply(slot);
-					};
+					LocalScopeResolver lrResolver = scoped(slotNameResolver,
+							Map.of(itemSlot, itemVar, newSlot, newItem));
 					String predSql = emitWithBkms(lrFn.body().get(), bkmBySlot, lrResolver);
 					yield "(CASE WHEN " + list + " IS NULL THEN NULL ELSE transform(" + list + ", " + itemVar
 							+ " -> CASE WHEN (" + predSql + ") THEN " + newItem + " ELSE " + itemVar + " END) END)";
@@ -1706,13 +2148,9 @@ public final class SparkSqlExpressionEmitter {
 					String rightVar = "_sort_r_" + (params.size() > 1 ? Math.abs(params.get(1).localSlot()) : 1);
 					final int leftSlot = params.get(0).localSlot();
 					final int rightSlot = params.size() > 1 ? params.get(1).localSlot() : -999;
-					IntFunction<String> cmpResolver = slot -> {
-						if (slot == leftSlot)
-							return leftVar;
-						if (slot == rightSlot)
-							return rightVar;
-						return slotNameResolver.apply(slot);
-					};
+					LocalScopeResolver cmpResolver = rightSlot == leftSlot
+							? scoped(slotNameResolver, Map.of(leftSlot, leftVar))
+							: scoped(slotNameResolver, Map.of(leftSlot, leftVar, rightSlot, rightVar));
 					// The body is a boolean predicate: "x < y" means "x comes before y"
 					// (ascending).
 					// We must emit a comparator returning -1/0/1 for array_sort.
@@ -1753,22 +2191,152 @@ public final class SparkSqlExpressionEmitter {
 				}
 				yield "map_concat(" + emitArgsJoined(args, bkmBySlot, slotNameResolver) + ")";
 			}
-			case "get entries", "get_entries" -> "map_entries(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
-			case "get value", "get_value" -> "element_at(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ", "
-					+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")";
+			case "get entries", "get_entries" -> {
+				if (args.size() != 1)
+					yield "NULL";
+				RuntimeExpression source = args.get(0);
+				List<String> fields = source instanceof RuntimeContextExpression context
+						? context.entries().stream().map(RuntimeContextEntry::name).toList()
+						: source.type().fieldLayout().stream().map(RuntimeField::name).toList();
+				if (resolveTypeKind(source) != RuntimeTypeKind.CONTEXT)
+					yield "NULL";
+				String contextSql = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				String entries = fields.stream()
+						.map(field -> "named_struct('key', '" + escapeSqlString(field) + "', 'value', (" + contextSql
+								+ ")." + sanitizeColumn(field) + ")")
+						.collect(java.util.stream.Collectors.joining(", "));
+				yield "(CASE WHEN " + contextSql + " IS NULL THEN NULL ELSE array(" + entries + ") END)";
+			}
+			case "get value", "get_value" -> emitGetValue(args, bkmBySlot, slotNameResolver);
 
 			// Comparisons / Interval functions
-			case "before" -> "(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " < "
-					+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")";
-			case "after" -> "(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " > "
-					+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")";
-			case "during" -> "(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " >= "
-					+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ".start AND "
-					+ emitArg(args, 0, bkmBySlot, slotNameResolver) + " <= "
-					+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ".end)";
+			case "before", "after" -> {
+				if (args.size() != 2)
+					yield "NULL";
+				int leftIndex = fn.function().equalsIgnoreCase("after") ? 1 : 0;
+				int rightIndex = 1 - leftIndex;
+				String left = emitArg(args, leftIndex, bkmBySlot, slotNameResolver);
+				String right = emitArg(args, rightIndex, bkmBySlot, slotNameResolver);
+				boolean leftRange = resolveTypeKind(args.get(leftIndex), bkmBySlot,
+						slotNameResolver) == RuntimeTypeKind.RANGE;
+				boolean rightRange = resolveTypeKind(args.get(rightIndex), bkmBySlot,
+						slotNameResolver) == RuntimeTypeKind.RANGE;
+				String upper = leftRange ? "(" + left + ").end" : left;
+				String lower = rightRange ? "(" + right + ").start" : right;
+				String upperIncluded = leftRange ? "(" + left + ").endIncluded" : "TRUE";
+				String lowerIncluded = rightRange ? "(" + right + ").startIncluded" : "TRUE";
+				yield "(" + upper + " < " + lower + " OR (" + upper + " = " + lower + " AND NOT (" + upperIncluded
+						+ " AND " + lowerIncluded + ")))";
+			}
+			case "during", "includes", "meets", "met by" -> {
+				if (args.size() != 2)
+					yield "NULL";
+				String relation = fn.function().toLowerCase(Locale.ROOT);
+				int leftIndex = relation.equals("includes") || relation.equals("met by") ? 1 : 0;
+				int rightIndex = 1 - leftIndex;
+				String left = "(" + emitArg(args, leftIndex, bkmBySlot, slotNameResolver) + ")";
+				String right = "(" + emitArg(args, rightIndex, bkmBySlot, slotNameResolver) + ")";
+				boolean leftRange = resolveTypeKind(args.get(leftIndex), bkmBySlot,
+						slotNameResolver) == RuntimeTypeKind.RANGE;
+				boolean rightRange = resolveTypeKind(args.get(rightIndex), bkmBySlot,
+						slotNameResolver) == RuntimeTypeKind.RANGE;
+				if (!rightRange)
+					yield "FALSE";
+				if (relation.equals("meets") || relation.equals("met by")) {
+					yield leftRange
+							? "coalesce(" + left + ".end = " + right + ".start AND " + left + ".endIncluded AND "
+									+ right + ".startIncluded, FALSE)"
+							: "FALSE";
+				}
+				String lower = leftRange ? left + ".start" : left;
+				String upper = leftRange ? left + ".end" : left;
+				String lowerIncluded = leftRange ? left + ".startIncluded" : "TRUE";
+				String upperIncluded = leftRange ? left + ".endIncluded" : "TRUE";
+				String lowerOk = "(" + right + ".start IS NULL OR (" + lower + " > " + right + ".start OR (" + lower
+						+ " = " + right + ".start AND (NOT " + lowerIncluded + " OR " + right + ".startIncluded))))";
+				String upperOk = "(" + right + ".end IS NULL OR (" + upper + " < " + right + ".end OR (" + upper + " = "
+						+ right + ".end AND (NOT " + upperIncluded + " OR " + right + ".endIncluded))))";
+				yield "coalesce(" + lowerOk + " AND " + upperOk + ", FALSE)";
+			}
+
+			case "starts", "started by", "finishes", "finished by", "coincides" -> {
+				if (args.size() != 2)
+					yield "NULL";
+				String relation = fn.function().toLowerCase(Locale.ROOT);
+				int leftIndex = relation.endsWith(" by") ? 1 : 0;
+				int rightIndex = 1 - leftIndex;
+				String left = "(" + emitArg(args, leftIndex, bkmBySlot, slotNameResolver) + ")";
+				String right = "(" + emitArg(args, rightIndex, bkmBySlot, slotNameResolver) + ")";
+				boolean leftRange = resolveTypeKind(args.get(leftIndex), bkmBySlot,
+						slotNameResolver) == RuntimeTypeKind.RANGE;
+				boolean rightRange = resolveTypeKind(args.get(rightIndex), bkmBySlot,
+						slotNameResolver) == RuntimeTypeKind.RANGE;
+				if (relation.equals("coincides") && !leftRange && !rightRange)
+					yield "coalesce(" + left + " = " + right + ", FALSE)";
+				if (!rightRange || relation.equals("coincides") && !leftRange)
+					yield "FALSE";
+				boolean start = relation.equals("starts") || relation.equals("started by");
+				String endpoint = start ? "start" : "end";
+				if (!leftRange)
+					yield "coalesce(" + left + " = " + right + "." + endpoint + " AND " + right + "." + endpoint
+							+ "Included, FALSE)";
+				String lowerEqual = "((" + left + ".start IS NULL AND " + right + ".start IS NULL) OR (" + left
+						+ ".start = " + right + ".start AND " + left + ".startIncluded = " + right + ".startIncluded))";
+				String upperEqual = "((" + left + ".end IS NULL AND " + right + ".end IS NULL) OR (" + left + ".end = "
+						+ right + ".end AND " + left + ".endIncluded = " + right + ".endIncluded))";
+				if (relation.equals("coincides"))
+					yield "coalesce(" + lowerEqual + " AND " + upperEqual + ", FALSE)";
+				String other = start ? "end" : "start";
+				String comparison = start ? " < " : " > ";
+				String contained = "(" + right + "." + other + " IS NULL OR (" + left + "." + other + comparison + right
+						+ "." + other + " OR (" + left + "." + other + " = " + right + "." + other + " AND (NOT " + left
+						+ "." + other + "Included OR " + right + "." + other + "Included))))";
+				yield "coalesce(" + (start ? lowerEqual : upperEqual) + " AND " + contained + ", FALSE)";
+			}
+
+			case "overlaps before", "overlaps after", "overlaps" -> {
+				if (args.size() != 2)
+					yield "NULL";
+				if (resolveTypeKind(args.get(0), bkmBySlot, slotNameResolver) != RuntimeTypeKind.RANGE
+						|| resolveTypeKind(args.get(1), bkmBySlot, slotNameResolver) != RuntimeTypeKind.RANGE)
+					yield "FALSE";
+				String relation = fn.function().toLowerCase(Locale.ROOT);
+				if (relation.equals("overlaps")) {
+					List<String> predicates = new ArrayList<>();
+					for (String component : List.of("overlaps before", "overlaps after", "during", "includes",
+							"coincides")) {
+						predicates.add(emitFunctionCall(new RuntimeFunctionCall(component, args, fn.type()), bkmBySlot,
+								slotNameResolver));
+					}
+					yield "(" + String.join(" OR ", predicates) + ")";
+				}
+				int leftIndex = relation.equals("overlaps after") ? 1 : 0;
+				String left = "(" + emitArg(args, leftIndex, bkmBySlot, slotNameResolver) + ")";
+				String right = "(" + emitArg(args, 1 - leftIndex, bkmBySlot, slotNameResolver) + ")";
+				String lower = "(" + left + ".start IS NULL OR " + right + ".start IS NULL OR " + left + ".start < "
+						+ right + ".start OR (" + left + ".start = " + right + ".start AND " + left
+						+ ".startIncluded AND NOT " + right + ".startIncluded))";
+				String intersection = "(" + left + ".end > " + right + ".start OR (" + left + ".end = " + right
+						+ ".start AND " + left + ".endIncluded AND " + right + ".startIncluded))";
+				String upper = "(" + left + ".end IS NULL OR " + right + ".end IS NULL OR " + left + ".end < " + right
+						+ ".end OR (" + left + ".end = " + right + ".end AND (NOT " + left + ".endIncluded OR " + right
+						+ ".endIncluded)))";
+				yield "coalesce(" + lower + " AND " + intersection + " AND " + upper + ", FALSE)";
+			}
 
 			// Boolean / Logical functions
-			case "not" -> "(NOT " + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
+			case "not" -> {
+				if (args.isEmpty()) {
+					yield "CAST(NULL AS BOOLEAN)";
+				}
+				RuntimeExpression arg0 = args.get(0);
+				RuntimeTypeKind kind = resolveTypeKind(arg0);
+				if (kind != RuntimeTypeKind.BOOLEAN && kind != RuntimeTypeKind.ANY && kind != null) {
+					yield "CAST(NULL AS BOOLEAN)";
+				}
+				String argSql = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				yield "(CASE WHEN typeof(" + argSql + ") = 'boolean' THEN (NOT " + argSql + ") ELSE NULL END)";
+			}
 
 			default -> {
 				StringBuilder sb = new StringBuilder(sanitizeName(name)).append("(");
@@ -1797,6 +2365,68 @@ public final class SparkSqlExpressionEmitter {
 		return sb.toString();
 	}
 
+	private static String emitGetValue(List<RuntimeExpression> args, Map<Integer, RuntimeBkm> bkms,
+			IntFunction<String> resolver) {
+		if (!nativeGetValue(args))
+			throw new IllegalArgumentException(
+					"Context lookup requires a known field layout and compatible result types");
+		if (args.size() != 2 || args.get(0).type().kind() != RuntimeTypeKind.CONTEXT
+				|| (args.get(1).type().kind() != RuntimeTypeKind.STRING
+						&& args.get(1).type().kind() != RuntimeTypeKind.ANY))
+			return "NULL";
+		List<RuntimeField> fields = contextFields(args.get(0));
+		String source = emitWithBkms(args.get(0), bkms, resolver);
+		if (args.get(1) instanceof RuntimeConstant key) {
+			return fields.stream().anyMatch(field -> field.name().equals(key.value()))
+					? "(" + source + ").`" + key.value().replace("`", "``") + "`"
+					: "NULL";
+		}
+		if (fields.isEmpty())
+			return "NULL";
+		String key = emitWithBkms(args.get(1), bkms, resolver);
+		StringBuilder sql = new StringBuilder("(CASE");
+		for (RuntimeField field : fields)
+			sql.append(" WHEN cast(").append(key).append(" as string) = '").append(escapeSqlString(field.name()))
+					.append("' THEN (").append(source).append(").`").append(field.name().replace("`", "``"))
+					.append("`");
+		return sql.append(" ELSE NULL END)").toString();
+	}
+
+	static boolean nativeGetValue(List<RuntimeExpression> args) {
+		if (args.size() != 2)
+			return true;
+		if (args.get(0).type().kind() == RuntimeTypeKind.ANY
+				&& !(args.get(0) instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL))
+			return false;
+		if (args.get(0).type().kind() != RuntimeTypeKind.CONTEXT)
+			return true;
+		List<RuntimeField> fields = contextFields(args.get(0));
+		if (fields.isEmpty())
+			return true;
+		RuntimeType firstType = fields.get(0).type();
+		return fields.stream().allMatch(field -> compatibleFieldTypes(firstType, field.type()));
+	}
+
+	private static boolean compatibleFieldTypes(RuntimeType left, RuntimeType right) {
+		if (left == null || right == null)
+			return left == right;
+		if (left.equals(right))
+			return true;
+		return SparkSqlFeelValueCodec.isNativeType(left) && SparkSqlFeelValueCodec.isNativeType(right)
+				&& left.kind() == right.kind();
+	}
+
+	private static List<RuntimeField> contextFields(RuntimeExpression context) {
+		RuntimeType type = context.type();
+		if (type != null && !type.fieldLayout().isEmpty())
+			return type.fieldLayout();
+		if (context instanceof RuntimeContextExpression c)
+			return c.entries().stream().filter(entry -> !entry.name().isEmpty())
+					.map(entry -> new RuntimeField(entry.localSlot(), entry.name(), entry.expression().type()))
+					.toList();
+		return List.of();
+	}
+
 	/**
 	 * Produces a copy of {@code predSql} with {@code leftVar} and {@code rightVar}
 	 * swapped. Used to build the "1" branch of the tri-value sort comparator from
@@ -1807,12 +2437,37 @@ public final class SparkSqlExpressionEmitter {
 		return predSql.replace(leftVar, placeholder).replace(rightVar, leftVar).replace(placeholder, rightVar);
 	}
 
-	private static List<RuntimeExpression> reorderNamedArguments(String fnName, List<RuntimeNamedArgument> namedArgs) {
+	static List<RuntimeExpression> reorderNamedArguments(String fnName, List<RuntimeNamedArgument> namedArgs) {
 		Map<String, RuntimeExpression> map = new HashMap<>();
 		for (RuntimeNamedArgument na : namedArgs) {
 			map.put(na.name(), na.expression());
 		}
 		String norm = fnName.toLowerCase();
+		if ("product".equals(norm)) {
+			return namedArgs.size() == 1 && map.containsKey("list") ? List.of(map.get("list")) : List.of();
+		}
+		if ("all".equals(norm) || "any".equals(norm)) {
+			return namedArgs.size() == 1 && map.containsKey("list") ? List.of(map.get("list")) : List.of();
+		}
+		if ("number".equals(norm)) {
+			List<String> names = namedArgs.size() == 1
+					? List.of("from")
+					: namedArgs.size() == 3 ? List.of("from", "grouping separator", "decimal separator") : List.of();
+			return !names.isEmpty() && map.size() == namedArgs.size() && map.keySet().containsAll(names)
+					? names.stream().map(map::get).toList()
+					: List.of();
+		}
+		if ("string join".equals(norm)) {
+			List<String> names = switch (namedArgs.size()) {
+				case 1 -> List.of("list");
+				case 2 -> List.of("list", "delimiter");
+				case 4 -> List.of("list", "delimiter", "prefix", "suffix");
+				default -> List.of();
+			};
+			return !names.isEmpty() && map.size() == namedArgs.size() && map.keySet().containsAll(names)
+					? names.stream().map(map::get).toList()
+					: List.of();
+		}
 		if ("list replace".equals(norm) || "list_replace".equals(norm)) {
 			// Expected signatures: (list, position, newItem) OR (list, match, newItem)
 			if (namedArgs.size() != 3) {
@@ -1861,6 +2516,48 @@ public final class SparkSqlExpressionEmitter {
 				return List.of(map.get("from"));
 			}
 			return List.of(); // invalid named arguments -> yield empty -> NULL
+		} else if ("get value".equals(norm) || "get_value".equals(norm)) {
+			return namedArgs.size() == 2 && map.keySet().equals(Set.of("m", "key"))
+					? List.of(map.get("m"), map.get("key"))
+					: List.of();
+		} else if ("matches".equals(norm)) {
+			if (map.containsKey("input") && map.containsKey("pattern")) {
+				return map.containsKey("flags")
+						? List.of(map.get("input"), map.get("pattern"), map.get("flags"))
+						: List.of(map.get("input"), map.get("pattern"));
+			}
+			return List.of();
+		} else if ("split".equals(norm)) {
+			if (namedArgs.size() == 2 && map.containsKey("string") && map.containsKey("delimiter")) {
+				return List.of(map.get("string"), map.get("delimiter"));
+			}
+			return List.of();
+		} else if (Set.of("decimal", "round up", "round_up", "round down", "round_down", "round half up",
+				"round_half_up", "round half down", "round_half_down", "round half even", "round_half_even")
+				.contains(norm)) {
+			return namedArgs.size() == 2 && map.keySet().equals(Set.of("n", "scale"))
+					? List.of(map.get("n"), map.get("scale"))
+					: List.of();
+		} else if (Set.of("floor", "ceiling", "ceil").contains(norm)) {
+			if (namedArgs.size() == 1 && map.keySet().equals(Set.of("n")))
+				return List.of(map.get("n"));
+			return namedArgs.size() == 2 && map.keySet().equals(Set.of("n", "scale"))
+					? List.of(map.get("n"), map.get("scale"))
+					: List.of();
+		} else if ("modulo".equals(norm) || "mod".equals(norm)) {
+			return namedArgs.size() == 2 && map.keySet().equals(Set.of("dividend", "divisor"))
+					? List.of(map.get("dividend"), map.get("divisor"))
+					: List.of();
+		} else if ("abs".equals(norm)) {
+			if (namedArgs.size() == 1 && map.containsKey("n")) {
+				return List.of(map.get("n"));
+			}
+			return List.of();
+		} else if (Set.of("sqrt", "exp", "ln", "log", "floor", "ceiling", "ceil", "odd", "even").contains(norm)) {
+			if (namedArgs.size() == 1 && map.containsKey("number")) {
+				return List.of(map.get("number"));
+			}
+			return List.of();
 		}
 		return namedArgs.stream().map(RuntimeNamedArgument::expression).toList();
 	}
@@ -2135,7 +2832,7 @@ public final class SparkSqlExpressionEmitter {
 				yield sb.toString();
 			}
 			case MIN -> {
-				StringBuilder sb = new StringBuilder("least(");
+				StringBuilder sb = new StringBuilder("coalesce(least(");
 				for (int r = 0; r < table.rules().size(); r++) {
 					RuntimeDecisionTableRule rule = table.rules().get(r);
 					if (r > 0)
@@ -2145,10 +2842,14 @@ public final class SparkSqlExpressionEmitter {
 							.append(" ELSE NULL END)");
 				}
 				sb.append(")");
+				String defVal = (table.outputs().size() == 1 && table.outputs().get(0).defaultValue().isPresent())
+						? emitWithBkms(table.outputs().get(0).defaultValue().get(), bkmBySlot, slotNameResolver)
+						: "NULL";
+				sb.append(", ").append(defVal).append(")");
 				yield sb.toString();
 			}
 			case MAX -> {
-				StringBuilder sb = new StringBuilder("greatest(");
+				StringBuilder sb = new StringBuilder("coalesce(greatest(");
 				for (int r = 0; r < table.rules().size(); r++) {
 					RuntimeDecisionTableRule rule = table.rules().get(r);
 					if (r > 0)
@@ -2158,6 +2859,10 @@ public final class SparkSqlExpressionEmitter {
 							.append(" ELSE NULL END)");
 				}
 				sb.append(")");
+				String defVal = (table.outputs().size() == 1 && table.outputs().get(0).defaultValue().isPresent())
+						? emitWithBkms(table.outputs().get(0).defaultValue().get(), bkmBySlot, slotNameResolver)
+						: "NULL";
+				sb.append(", ").append(defVal).append(")");
 				yield sb.toString();
 			}
 		};
