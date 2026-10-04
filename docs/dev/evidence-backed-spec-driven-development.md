@@ -127,8 +127,7 @@ running every expensive check for an isolated low-risk edit.
 
 This example applies the process to development-plan item P1.3: load transitive imports with
 deterministic ordering and caching. Its specification, delivery sequence, acceptance scenarios,
-and completion evidence now live in the standalone
-[P1.3 transitive-import slice](slices/P1.3-load-transitive-imports.md).
+and completion evidence live in the historical P1.3 transitive-import slice record.
 
 See the [development slice catalog](slices/index.md) for subsequent examples that apply the same
 process to import diagnostics and shared compiler diagnostic context.
@@ -138,9 +137,7 @@ process to import diagnostics and shared compiler diagnostic context.
 
 Copy the following template into the development-plan work item, an issue, or a temporary design
 note. A separate document is unnecessary for a small slice when the plan entry remains readable.
-For serialized examples, see [P1.3](slices/P1.3-load-transitive-imports.md),
-[P1.4](slices/P1.4-diagnose-invalid-import-structures.md), and
-[P1.5](slices/P1.5-add-shared-diagnostic-context.md).
+For serialized examples, see the [development slice catalog](slices/index.md).
 
 ```markdown
 # <Slice ID> — <Outcome-oriented title>

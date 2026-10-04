@@ -2,7 +2,7 @@
 
 Status: in progress
 Owner: dmn-generator-sparksql
-Requirements: [sparksql-architecture.md](../../sparksql-architecture.md), [actual-task.md](../../../prompts/actual-task.md)
+Requirements: [sparksql-architecture.md](../../sparksql-architecture.md), prompts/actual-task.md
 Milestone: P11 / Hybrid 4
 
 ## Outcome
