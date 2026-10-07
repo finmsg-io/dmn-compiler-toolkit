@@ -132,10 +132,11 @@ public final class SparkSqlExpressionEmitter {
 							case "year" -> "year(" + src + ")";
 							case "month" -> "month(" + src + ")";
 							case "day" -> "day(" + src + ")";
-							case "weekday" -> "dayofweek(" + src + ")";
+							case "weekday" -> "(pmod(dayofweek(" + src + ") + 5, 7) + 1)";
 							case "hour" -> "hour(" + src + ")";
 							case "minute" -> "minute(" + src + ")";
 							case "second" -> "second(" + src + ")";
+							case "timezone" -> "CAST(NULL AS STRING)";
 							case "day of year", "dayofyear" -> "dayofyear(" + src + ")";
 							case "day of week", "dayofweek" -> "date_format(" + src + ", 'EEEE')";
 							case "month of year", "monthofyear" -> "date_format(" + src + ", 'MMMM')";
@@ -252,10 +253,17 @@ public final class SparkSqlExpressionEmitter {
 			case STRING -> "'" + escapeSqlString(constant.value()) + "'";
 			case NUMBER -> constant.value();
 			case DATE -> "DATE '" + escapeSqlString(constant.value()) + "'";
-			case TIME ->
-				// Time literals emitted as raw strings so temporalAddSubSql can detect and
-				// handle them (including zoned variants like '10:10:10+11:00', '10:10:10@Tz')
-				"'" + escapeSqlString(constant.value()) + "'";
+			case TIME -> {
+				try {
+					var time = java.time.LocalTime.parse(constant.value());
+					if (time.getNano() == 0)
+						yield "TIMESTAMP_NTZ '1970-01-01 "
+								+ time.format(java.time.format.DateTimeFormatter.ISO_LOCAL_TIME) + "'";
+				} catch (java.time.DateTimeException ignored) {
+					// Zoned and unverified precision cases retain their existing representation.
+				}
+				yield "'" + escapeSqlString(constant.value()) + "'";
+			}
 			case DATE_TIME -> {
 				String val = constant.value();
 				// T24:00:00 midnight roll
@@ -274,7 +282,7 @@ public final class SparkSqlExpressionEmitter {
 					yield "'" + escapeSqlString(val) + "'";
 				}
 				// Plain local datetime
-				yield "try_to_timestamp('" + escapeSqlString(val.replace("T", " ")) + "')";
+				yield "try_cast('" + escapeSqlString(val.replace("T", " ")) + "' as timestamp_ntz)";
 			}
 			case DURATION -> "'" + escapeSqlString(constant.value()) + "'";
 			default -> "'" + escapeSqlString(constant.value()) + "'";
@@ -751,11 +759,12 @@ public final class SparkSqlExpressionEmitter {
 			case "string length", "length", "number", "abs", "floor", "ceiling", "ceil", "round", "round up",
 					"round_up", "round down", "round_down", "round half up", "round_half_up", "round half down",
 					"round_half_down", "round half even", "round_half_even", "sqrt", "exp", "ln", "log", "modulo",
-					"mod", "min", "max", "sum", "product", "mean", "avg", "median", "mode", "stddev", "pmt", "pmt2",
-					"count", "year", "month", "day", "weekday", "day of year", "day_of_year", "week of year",
-					"week_of_year", "hour", "minute", "second" ->
+					"mod", "min", "max", "sum", "product", "mean", "avg", "median", "stddev", "pmt", "pmt2", "count",
+					"year", "month", "day", "weekday", "day of year", "day_of_year", "week of year", "week_of_year",
+					"hour", "minute", "second" ->
 				RuntimeTypeKind.NUMBER;
 			case "date" -> RuntimeTypeKind.DATE;
+			case "mode" -> RuntimeTypeKind.LIST;
 			case "time" -> RuntimeTypeKind.TIME;
 			case "date and time" -> RuntimeTypeKind.DATE_TIME;
 			case "duration", "years and months duration", "years_and_months_duration", "day and time duration",
@@ -1444,6 +1453,41 @@ public final class SparkSqlExpressionEmitter {
 			IntFunction<String> slotNameResolver) {
 		String name = fn.function().toLowerCase();
 		List<RuntimeExpression> args = fn.arguments();
+		if (Set.of("median", "mode", "stddev").contains(name)) {
+			if (args.isEmpty())
+				return "NULL";
+			String list;
+			if (args.size() == 1 && resolveTypeKind(args.get(0)) == RuntimeTypeKind.LIST) {
+				RuntimeType element = args.get(0).type().elementType();
+				if (element != null && element.kind() != RuntimeTypeKind.NUMBER
+						&& element.kind() != RuntimeTypeKind.ANY)
+					return "NULL";
+				list = emitArg(args, 0, bkmBySlot, slotNameResolver);
+			} else {
+				if (args.stream().anyMatch(arg -> resolveTypeKind(arg) != RuntimeTypeKind.NUMBER))
+					return "NULL";
+				list = "array(" + emitArgsJoined(args, bkmBySlot, slotNameResolver) + ")";
+			}
+			String invalid = list + " IS NULL OR exists(" + list + ", x -> x IS NULL)";
+			if (name.equals("median")) {
+				String sorted = "array_sort(" + list + ")";
+				String lower = "try_element_at(" + sorted + ", cast(ceil(size(" + list + ") / 2.0) as int))";
+				String upper = "try_element_at(" + sorted + ", cast(floor(size(" + list + ") / 2.0) + 1 as int))";
+				return "(CASE WHEN " + invalid + " OR size(" + list + ") = 0 THEN NULL ELSE (" + lower + " + " + upper
+						+ ") / 2.0 END)";
+			}
+			if (name.equals("mode")) {
+				String unique = "array_distinct(" + list + ")";
+				String max = "array_max(transform(" + unique + ", v -> size(filter(" + list + ", x -> x = v))))";
+				return "(CASE WHEN " + invalid + " THEN NULL ELSE array_sort(filter(" + unique + ", v -> size(filter("
+						+ list + ", x -> x = v)) = " + max + ")) END)";
+			}
+			String mean = "try_divide(aggregate(" + list + ", 0.0D, (acc, x) -> acc + cast(x as double)), size(" + list
+					+ "))";
+			return "(CASE WHEN " + invalid + " OR size(" + list + ") < 2 THEN NULL ELSE sqrt(try_divide(aggregate("
+					+ list + ", 0.0D, (acc, x) -> acc + power(cast(x as double) - " + mean + ", 2)), size(" + list
+					+ ") - 1)) END)";
+		}
 		if (Set.of("day of year", "day of week", "month of year", "week of year").contains(name)) {
 			if (args.size() != 1)
 				return "NULL";
@@ -1516,15 +1560,36 @@ public final class SparkSqlExpressionEmitter {
 						+ ") END)";
 			}
 			case "matches" -> {
-				if (args.size() < 2 || args.size() > 3) {
+				if (invalidMatchesArguments(args)) {
 					yield "CAST(NULL AS BOOLEAN)";
 				}
 				for (RuntimeExpression a : args) {
 					RuntimeTypeKind k = resolveTypeKind(a);
-					if (k != RuntimeTypeKind.STRING && k != RuntimeTypeKind.ANY)
+					if (k != RuntimeTypeKind.STRING && k != RuntimeTypeKind.ANY
+							&& !(a instanceof RuntimeConstant constant && constant.kind() == RuntimeConstantKind.NULL))
 						yield "CAST(NULL AS BOOLEAN)";
 				}
 				String in = emitArg(args, 0, bkmBySlot, slotNameResolver);
+				if (nativeMatches(args)) {
+					if (!(args.get(1) instanceof RuntimeConstant pattern)
+							|| pattern.kind() != RuntimeConstantKind.STRING)
+						yield "CAST(NULL AS BOOLEAN)";
+					String flags = args.size() == 3 && args.get(2) instanceof RuntimeConstant flag
+							&& flag.kind() == RuntimeConstantKind.STRING ? flag.value() : "";
+					if (io.finmsg.dmn.runtime.DmnRuntime.feelMatches(Arrays.asList("", pattern.value(), flags)) == null)
+						yield "CAST(NULL AS BOOLEAN)";
+					String translated = pattern.value().replaceAll("\\[([^\\]\\[]+)-\\[([^\\]]+)\\]\\]", "[$1&&[^$2]]");
+					if (flags.contains("x"))
+						translated = stripFeelRegexWhitespace(translated);
+					translated = translated.replace("\\p{IsBasicLatin}", "\\p{InBasic_Latin}");
+					if (flags.contains("q"))
+						translated = java.util.regex.Pattern.quote(translated);
+					String javaFlags = (flags.contains("i") ? "iu" : "") + (flags.contains("m") ? "m" : "")
+							+ (flags.contains("s") ? "s" : "");
+					if (!javaFlags.isEmpty())
+						translated = "(?" + javaFlags + ")" + translated;
+					yield "(" + in + " rlike '" + escapeSqlString(translated) + "')";
+				}
 				String pat = emitArg(args, 1, bkmBySlot, slotNameResolver);
 				if (args.size() == 2) {
 					yield "(" + in + " rlike " + pat + ")";
@@ -1587,8 +1652,10 @@ public final class SparkSqlExpressionEmitter {
 			}
 
 			// Type conversion / General functions
-			case "is" -> "(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " <=> "
-					+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")";
+			case "is" -> args.size() == 1 || args.size() == 2
+					? "(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " <=> "
+							+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")"
+					: "NULL";
 			case "number" -> {
 				if (args.size() == 1) {
 					yield "try_cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " as double)";
@@ -1688,6 +1755,11 @@ public final class SparkSqlExpressionEmitter {
 			// Math functions
 			case "abs" -> {
 				if (args.size() != 1)
+					yield "NULL";
+				RuntimeTypeKind kind = resolveTypeKind(args.get(0), bkmBySlot, slotNameResolver);
+				if (Set.of(RuntimeTypeKind.DATE, RuntimeTypeKind.TIME, RuntimeTypeKind.DATE_TIME,
+						RuntimeTypeKind.BOOLEAN, RuntimeTypeKind.LIST, RuntimeTypeKind.CONTEXT,
+						RuntimeTypeKind.FUNCTION).contains(kind))
 					yield "NULL";
 				String x = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				yield "(CASE WHEN typeof(" + x
@@ -1890,15 +1962,6 @@ public final class SparkSqlExpressionEmitter {
 						args.stream().map(a -> emitWithBkms(a, bkmBySlot, slotNameResolver)).toList()) + ")";
 				yield "(" + sumExpr + " / " + args.size() + ".0)";
 			}
-			case "median" -> "element_at(array_sort(" + emitArg(args, 0, bkmBySlot, slotNameResolver)
-					+ "), cast(ceil(size(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ") / 2.0) as int))";
-			case "mode" -> "element_at(array_sort(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + "), 1)";
-			case "stddev" -> {
-				String list = emitArg(args, 0, bkmBySlot, slotNameResolver);
-				String avg = "(aggregate(" + list + ", 0.0D, (acc, x) -> acc + x) / size(" + list + "))";
-				yield "(CASE WHEN " + list + " IS NULL OR size(" + list + ") <= 1 THEN NULL ELSE sqrt(aggregate(" + list
-						+ ", 0.0D, (acc, x) -> acc + power(x - " + avg + ", 2)) / (size(" + list + ") - 1)) END)";
-			}
 			case "pmt", "pmt2" -> {
 				String rate = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				String nper = emitArg(args, 1, bkmBySlot, slotNameResolver);
@@ -1919,7 +1982,7 @@ public final class SparkSqlExpressionEmitter {
 			}
 			case "date and time" -> {
 				if (args.size() == 1) {
-					yield "try_to_timestamp(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
+					yield "try_cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " as timestamp_ntz)";
 				}
 				String d = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				String t = emitArg(args, 1, bkmBySlot, slotNameResolver);
@@ -1927,18 +1990,21 @@ public final class SparkSqlExpressionEmitter {
 						+ "), second(" + t + "))";
 			}
 			case "time" -> {
+				if (nativeTimeNull(args))
+					yield "CAST(NULL AS TIMESTAMP_NTZ)";
 				if (args.size() == 1) {
 					String arg = emitArg(args, 0, bkmBySlot, slotNameResolver);
 					RuntimeType argType = args.get(0).type();
 					if (argType != null && argType.kind() == RuntimeTypeKind.DATE_TIME) {
-						yield "make_timestamp(1970, 1, 1, hour(" + arg + "), minute(" + arg + "), second(" + arg + "))";
+						yield "make_timestamp_ntz(1970, 1, 1, hour(" + arg + "), minute(" + arg + "), second(" + arg
+								+ "))";
 					}
-					yield "try_to_timestamp(concat('1970-01-01 ', " + arg + "))";
+					yield "try_cast(concat('1970-01-01 ', " + arg + ") as timestamp_ntz)";
 				} else if (args.size() >= 3) {
 					String h = emitArg(args, 0, bkmBySlot, slotNameResolver);
 					String m = emitArg(args, 1, bkmBySlot, slotNameResolver);
 					String s = emitArg(args, 2, bkmBySlot, slotNameResolver);
-					yield "make_timestamp(1970, 1, 1, cast(" + h + " as int), cast(" + m + " as int), cast(" + s
+					yield "make_timestamp_ntz(1970, 1, 1, cast(" + h + " as int), cast(" + m + " as int), cast(" + s
 							+ " as double))";
 				}
 				yield "try_to_timestamp(concat('1970-01-01 ', " + emitArg(args, 0, bkmBySlot, slotNameResolver) + "))";
@@ -2437,12 +2503,70 @@ public final class SparkSqlExpressionEmitter {
 		return predSql.replace(leftVar, placeholder).replace(rightVar, leftVar).replace(placeholder, rightVar);
 	}
 
+	static boolean nativeMatches(List<RuntimeExpression> args) {
+		if (invalidMatchesArguments(args))
+			return true;
+		if (!(args.get(1) instanceof RuntimeConstant))
+			return false;
+		if (args.size() == 2)
+			return true;
+		return args.get(2) instanceof RuntimeConstant;
+	}
+
+	static boolean nativeTimeNull(List<RuntimeExpression> args) {
+		if (args.isEmpty() || args.size() == 2)
+			return true;
+		return args.subList(0, args.size() == 1 ? 1 : 3).stream()
+				.anyMatch(arg -> arg instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL);
+	}
+
+	static boolean invalidMatchesArguments(List<RuntimeExpression> args) {
+		return args.size() < 2 || args.size() > 3 || args.stream().anyMatch(arg -> {
+			RuntimeTypeKind kind = resolveTypeKind(arg);
+			return kind != RuntimeTypeKind.STRING && kind != RuntimeTypeKind.ANY && kind != RuntimeTypeKind.NULL;
+		});
+	}
+
+	private static String stripFeelRegexWhitespace(String pattern) {
+		StringBuilder result = new StringBuilder();
+		boolean inClass = false;
+		for (int index = 0; index < pattern.length(); index++) {
+			char ch = pattern.charAt(index);
+			if (ch == '\\' && index + 1 < pattern.length()) {
+				char next = pattern.charAt(++index);
+				result.append(Character.isWhitespace(next) ? "\\" : "\\" + next);
+				continue;
+			}
+			if (ch == '[')
+				inClass = true;
+			else if (ch == ']')
+				inClass = false;
+			if (!Character.isWhitespace(ch) || inClass)
+				result.append(ch);
+		}
+		return result.toString().replaceAll("(\\\\p\\{[^}]*)\\s+([^}]*})", "$1$2");
+	}
+
 	static List<RuntimeExpression> reorderNamedArguments(String fnName, List<RuntimeNamedArgument> namedArgs) {
 		Map<String, RuntimeExpression> map = new HashMap<>();
 		for (RuntimeNamedArgument na : namedArgs) {
 			map.put(na.name(), na.expression());
 		}
 		String norm = fnName.toLowerCase();
+		if (Set.of("day of year", "day of week", "month of year", "week of year").contains(norm)) {
+			return namedArgs.size() == 1 && map.containsKey("date") ? List.of(map.get("date")) : List.of();
+		}
+		if ("is".equals(norm)) {
+			if (namedArgs.size() == 1 && (map.containsKey("value1") || map.containsKey("value2"))) {
+				return List.of(namedArgs.get(0).expression());
+			}
+			return namedArgs.size() == 2 && map.size() == 2 && map.keySet().containsAll(List.of("value1", "value2"))
+					? List.of(map.get("value1"), map.get("value2"))
+					: List.of();
+		}
+		if (Set.of("median", "mode", "stddev").contains(norm)) {
+			return namedArgs.size() == 1 && map.containsKey("list") ? List.of(map.get("list")) : List.of();
+		}
 		if ("product".equals(norm)) {
 			return namedArgs.size() == 1 && map.containsKey("list") ? List.of(map.get("list")) : List.of();
 		}
@@ -2521,7 +2645,8 @@ public final class SparkSqlExpressionEmitter {
 					? List.of(map.get("m"), map.get("key"))
 					: List.of();
 		} else if ("matches".equals(norm)) {
-			if (map.containsKey("input") && map.containsKey("pattern")) {
+			if ((namedArgs.size() == 2 || namedArgs.size() == 3) && map.size() == namedArgs.size() && map.keySet()
+					.equals(namedArgs.size() == 2 ? Set.of("input", "pattern") : Set.of("input", "pattern", "flags"))) {
 				return map.containsKey("flags")
 						? List.of(map.get("input"), map.get("pattern"), map.get("flags"))
 						: List.of(map.get("input"), map.get("pattern"));

@@ -83,6 +83,20 @@ public final class SparkSqlFeelValueCodec {
 	}
 
 	/**
+	 * Decode a native result using its declared FEEL type. Local TIME uses
+	 * timestamp-without-timezone anchored at 1970-01-01 in generated SQL.
+	 */
+	public static Object fromSpark(Object value, RuntimeType type) {
+		Object decoded = fromSpark(value);
+		if (type != null && type.kind() == RuntimeTypeKind.TIME && decoded instanceof java.time.LocalDateTime time) {
+			if (!time.toLocalDate().equals(LocalDate.of(1970, 1, 1)))
+				throw new IllegalArgumentException("Native TIME must use the 1970-01-01 anchor");
+			return time.toLocalTime();
+		}
+		return decoded;
+	}
+
+	/**
 	 * Converts a native Spark value, or a value previously encoded with
 	 * {@link #encode}.
 	 */

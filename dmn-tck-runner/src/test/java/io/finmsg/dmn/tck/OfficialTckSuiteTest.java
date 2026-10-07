@@ -429,7 +429,9 @@ class OfficialTckSuiteTest {
 			if (rows.size() != 1)
 				throw new IllegalStateException("Expected one Spark invocation result row");
 			Object raw = rows.getFirst().get(0);
-			Object value = SPARK_HYBRID ? SparkSqlFeelValueCodec.fromSpark(raw) : fromSparkValue(raw);
+			RuntimeType resultType = model.decisions().stream().filter(d -> d.id() == invocationPlan.decisionId())
+					.findFirst().orElseThrow().type();
+			Object value = SPARK_HYBRID ? SparkSqlFeelValueCodec.fromSpark(raw, resultType) : fromSparkValue(raw);
 			for (String name : requested)
 				results.put(name, value instanceof Map<?, ?> context ? context.get(name) : value);
 			var cap = generated.capabilities().get(invocationPlan.decisionId());
@@ -450,7 +452,8 @@ class OfficialTckSuiteTest {
 				if (rows.size() != 1)
 					throw new IllegalStateException("Expected one Spark result row, got " + rows.size());
 				Object raw = rows.getFirst().get(0);
-				results.put(name, SPARK_HYBRID ? SparkSqlFeelValueCodec.fromSpark(raw) : fromSparkValue(raw));
+				results.put(name,
+						SPARK_HYBRID ? SparkSqlFeelValueCodec.fromSpark(raw, decision.type()) : fromSparkValue(raw));
 			}
 		}
 		sparkRoutes.put(testName, fallback ? "FALLBACK" : "NATIVE");
@@ -664,18 +667,18 @@ class OfficialTckSuiteTest {
 		String variant = activeModelModes.size() == 1
 				? "-" + activeModelModes.getFirst().name().toLowerCase(Locale.ROOT)
 				: "";
-		new TckCatalogueReportWriter().write(
-				Path.of("target", "tck-accounting" + variant + ".json"),
-				report);
+		new TckCatalogueReportWriter().write(Path.of("target", "tck-accounting" + variant + ".json"), report);
 		if (SPARK_HYBRID) {
-			new TckCatalogueReportWriter().write(
-					Path.of("target", "tck-accounting" + variant + "-sparksql-hybrid.json"),
-					report);
+			new TckCatalogueReportWriter()
+					.write(Path.of("target", "tck-accounting" + variant + "-sparksql-hybrid.json"), report);
 		}
 
-		Files.write(Path.of("target", "tck-expected-rejections" + variant + ".tsv"),
+		Files.write(
+				Path.of("target", "tck-expected-rejections" + variant
+						+ ".tsv"),
 				expectedRejectionDiagnostics.entrySet().stream().sorted(Map.Entry.comparingByKey())
-						.map(entry -> entry.getKey() + "\t" + entry.getValue().replace('\n', ' ').replace('\r', ' ').replace('\t', ' '))
+						.map(entry -> entry.getKey() + "\t"
+								+ entry.getValue().replace('\n', ' ').replace('\r', ' ').replace('\t', ' '))
 						.toList());
 		long passed = outcomes.stream().filter(o -> o.status() == TckCatalogueStatus.PASSED).count();
 		long failed = outcomes.stream().filter(o -> o.status() == TckCatalogueStatus.FAILED).count();

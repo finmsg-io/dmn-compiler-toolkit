@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Versioned, type-tagged transport for IR and FEEL values; never Java object
@@ -48,18 +49,24 @@ final class SparkSqlPayloadCodec {
 	}
 
 	static void walk(Object value, Consumer<Object> visitor) {
+		walk(value, visitor, ignored -> true);
+	}
+
+	static void walk(Object value, Consumer<Object> visitor, Predicate<Object> descend) {
 		if (value == null)
 			return;
 		visitor.accept(value);
+		if (!descend.test(value))
+			return;
 		if (value instanceof Optional<?> optional)
-			optional.ifPresent(v -> walk(v, visitor));
+			optional.ifPresent(v -> walk(v, visitor, descend));
 		else if (value instanceof List<?> list)
-			list.forEach(v -> walk(v, visitor));
+			list.forEach(v -> walk(v, visitor, descend));
 		else if (value.getClass().isRecord()
 				&& value.getClass().getPackageName().equals(RuntimeModel.class.getPackageName())) {
 			try {
 				for (RecordComponent component : value.getClass().getRecordComponents()) {
-					walk(component.getAccessor().invoke(value), visitor);
+					walk(component.getAccessor().invoke(value), visitor, descend);
 				}
 			} catch (ReflectiveOperationException e) {
 				throw new IllegalArgumentException("Cannot inspect Runtime IR", e);

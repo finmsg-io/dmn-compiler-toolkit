@@ -31,6 +31,54 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	void nativeTimeResultsPreserveLocalIdentityWithoutUdfs() {
+		var timeType = RuntimeType.scalar(RuntimeTypeKind.TIME);
+		var expression = new RuntimeFunctionCall("time", List.of(SparkSqlHybridTest.string("10:30:08")), timeType);
+		var model = new RuntimeModel(List.of(),
+				List.of(new RuntimeDecision(10, 0, timeType, List.of(), Optional.of(expression))), List.of(),
+				List.of(10), 1);
+		var generated = SparkSqlHybridTest.generate(model);
+		assertThat(generated.udfs()).isEmpty();
+		spark.range(1).createOrReplaceTempView("hybrid_inputs");
+		for (String zone : List.of("UTC", "Europe/Zurich")) {
+			spark.conf().set("spark.sql.session.timeZone", zone);
+			Row row = spark.sql(generated.sqlFiles().get("Decision_0.sql")).head();
+			assertThat(SparkSqlFeelValueCodec.fromSpark(row.get(0), timeType))
+					.isEqualTo(java.time.LocalTime.parse("10:30:08"));
+		}
+		assertThat(SparkSqlFeelValueCodec
+				.fromSpark(SparkSqlFeelValueCodec.encode(java.time.OffsetTime.parse("10:30:08+02:00")), timeType))
+				.isEqualTo(java.time.OffsetTime.parse("10:30:08+02:00"));
+		assertThatThrownBy(
+				() -> SparkSqlFeelValueCodec.fromSpark(java.time.LocalDateTime.parse("2021-03-28T10:30:08"), timeType))
+				.isInstanceOf(IllegalArgumentException.class);
+		spark.conf().set("spark.sql.session.timeZone", "UTC");
+	}
+
+	@Test
+	void nullTimeArgumentsDoNotEvaluateUnsupportedOffsets() {
+		var timeType = RuntimeType.scalar(RuntimeTypeKind.TIME);
+		var durationType = RuntimeType.scalar(RuntimeTypeKind.DAYS_TIME_DURATION);
+		var offset = new RuntimeFunctionCall("duration", List.of(SparkSqlHybridTest.string("P0D")), durationType);
+		var nullValue = new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
+		var expression = new RuntimeFunctionCall("time",
+				List.of(nullValue, SparkSqlHybridTest.number("11"), SparkSqlHybridTest.number("45"), offset), timeType);
+		var model = new RuntimeModel(List.of(),
+				List.of(new RuntimeDecision(10, 0, timeType, List.of(), Optional.of(expression))), List.of(),
+				List.of(10), 1);
+		var generated = SparkSqlHybridTest.generate(model);
+		assertThat(generated.udfs()).isEmpty();
+		spark.range(1).createOrReplaceTempView("hybrid_inputs");
+		assertThat(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0)).isNull();
+		var folded = new RuntimeModel(List.of(),
+				List.of(new RuntimeDecision(10, 0, timeType, List.of(), Optional.of(nullValue))), List.of(),
+				List.of(10), 1);
+		var foldedSql = SparkSqlHybridTest.generate(folded);
+		assertThat(foldedSql.udfs()).isEmpty();
+		assertThat(spark.sql(foldedSql.sqlFiles().get("Decision_0.sql")).head().get(0)).isNull();
+	}
+
+	@Test
 	void evaluatesMixedListOnExecutors() {
 		var model = SparkSqlHybridTest.mixedModel();
 		var generated = SparkSqlHybridTest.generate(model);
@@ -41,6 +89,120 @@ class SparkSqlHybridIntegrationTest {
 		for (Row row : rows)
 			assertThat(SparkSqlFeelValueCodec.fromSpark(row.get(0)))
 					.isEqualTo(Arrays.asList(BigDecimal.ONE, "1", true, null));
+	}
+
+	@Test
+	void matchesStaticFeelPatternsAgainstDynamicInputWithoutUdfs() {
+		var bool = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+		for (String[] sample : List.of(new String[]{"k", "i", "\u212A", "true"},
+				new String[]{"[A-Z-[OI]]", "i", "O", "false"}, new String[]{"x[y-z]", "qi", "X[y-Z]", "true"},
+				new String[]{"he ll o[ ]worl d", "x", "hello world", "true"},
+				new String[]{"\\p{ I s B a s i c L a t i n }+", "x", "hello world", "true"},
+				new String[]{"a [ ] b", "x", "ab", "false"}, new String[]{"(.)\\3", "", "h", "null"},
+				new String[]{"k", "p", "k", "null"})) {
+			var expression = new RuntimeFunctionCall("matches",
+					List.of(new RuntimeValueReference(0, SparkSqlHybridTest.STRING),
+							SparkSqlHybridTest.string(sample[0]), SparkSqlHybridTest.string(sample[1])),
+					bool);
+			var model = new RuntimeModel(List.of(new RuntimeInput(5, 0, SparkSqlHybridTest.STRING)),
+					List.of(new RuntimeDecision(10, 1, bool, List.of(5), Optional.of(expression))), List.of(),
+					List.of(10), 2);
+			var generated = SparkSqlHybridTest.generate(model);
+			assertThat(generated.udfs()).isEmpty();
+			spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, Map.of(0, sample[2]))),
+					generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
+			Object actual = SparkSqlFeelValueCodec
+					.fromSpark(spark.sql(generated.sqlFiles().get("Decision_1.sql")).head().get(0));
+			assertThat(actual).isEqualTo(sample[3].equals("null") ? null : Boolean.valueOf(sample[3]));
+		}
+	}
+
+	@Test
+	void invalidMatchesArgumentsDoNotSuppressSharedListFallbackChecks() {
+		var listType = RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.ANY);
+		var emptyList = new RuntimeListExpression(List.of(), listType);
+		var bool = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+		for (List<RuntimeExpression> args : List.<List<RuntimeExpression>>of(
+				List.of(SparkSqlHybridTest.string("input"), emptyList),
+				List.of(SparkSqlHybridTest.string("input"), SparkSqlHybridTest.string("pattern"), emptyList),
+				List.of(SparkSqlHybridTest.string("input"), SparkSqlHybridTest.string("pattern"),
+						SparkSqlHybridTest.string(""), emptyList))) {
+			var invalid = new RuntimeFunctionCall("matches", args, bool);
+			var model = new RuntimeModel(List.of(),
+					List.of(new RuntimeDecision(10, 0, bool, List.of(), Optional.of(invalid)),
+							new RuntimeDecision(20, 1, listType, List.of(), Optional.of(emptyList))),
+					List.of(), List.of(10, 20), 2);
+			var generated = SparkSqlHybridTest.generate(model);
+			assertThat(generated.capabilities().get(10).nativeSql()).isTrue();
+			assertThat(generated.capabilities().get(20).nativeSql()).isFalse();
+			spark.range(1).createOrReplaceTempView("hybrid_inputs");
+			assertThat(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0)).isNull();
+		}
+	}
+
+	@Test
+	void evaluatesLocalTemporalValuesWithoutSessionTimezoneConversion() {
+		var timeType = RuntimeType.scalar(RuntimeTypeKind.TIME);
+		var dateTimeType = RuntimeType.scalar(RuntimeTypeKind.DATE_TIME);
+		var booleanType = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+		var literalTime = new RuntimeConstant(RuntimeConstantKind.TIME, "10:30:08", timeType);
+		var constructedTime = new RuntimeFunctionCall("time", List.of(SparkSqlHybridTest.string("10:30:08")), timeType);
+		var equality = new RuntimeBinaryExpression(RuntimeBinaryOperator.EQUAL, literalTime, constructedTime,
+				booleanType);
+		var dateTime = new RuntimeFunctionCall("date and time",
+				List.of(SparkSqlHybridTest.string("2021-03-28T02:30:00")), dateTimeType);
+		var model = new RuntimeModel(List.of(),
+				List.of(new RuntimeDecision(10, 0, booleanType, List.of(), Optional.of(equality)),
+						new RuntimeDecision(20, 1, dateTimeType, List.of(), Optional.of(dateTime))),
+				List.of(), List.of(10, 20), 2);
+		var generated = SparkSqlHybridTest.generate(model);
+		assertThat(generated.udfs()).isEmpty();
+		String originalTimezone = spark.conf().get("spark.sql.session.timeZone");
+		try {
+			for (String timezone : List.of("UTC", "Europe/Zurich")) {
+				spark.conf().set("spark.sql.session.timeZone", timezone);
+				spark.range(1).createOrReplaceTempView("hybrid_inputs");
+				assertThat(SparkSqlFeelValueCodec
+						.fromSpark(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0)))
+						.isEqualTo(true);
+				assertThat(SparkSqlFeelValueCodec
+						.fromSpark(spark.sql(generated.sqlFiles().get("Decision_1.sql")).head().get(0)))
+						.isEqualTo(java.time.LocalDateTime.of(2021, 3, 28, 2, 30));
+			}
+		} finally {
+			spark.conf().set("spark.sql.session.timeZone", originalTimezone);
+		}
+		for (RuntimeExpression value : List.of(literalTime, dateTime)) {
+			var invalidAbs = new RuntimeFunctionCall("abs", List.of(value), SparkSqlHybridTest.NUMBER);
+			var invalidAbsModel = new RuntimeModel(List.of(),
+					List.of(new RuntimeDecision(10, 0, SparkSqlHybridTest.NUMBER, List.of(), Optional.of(invalidAbs))),
+					List.of(), List.of(10), 1);
+			var invalidAbsGenerated = SparkSqlHybridTest.generate(invalidAbsModel);
+			assertThat(invalidAbsGenerated.udfs()).isEmpty();
+			spark.range(1).createOrReplaceTempView("hybrid_inputs");
+			assertThat(spark.sql(invalidAbsGenerated.sqlFiles().get("Decision_0.sql")).head().get(0)).isNull();
+		}
+		for (String value : List.of("2021-03-28T02:30:00Z", "2021-03-28T02:30:00.000000001", "1500-01-01T00:00:00")) {
+			var unverified = new RuntimeFunctionCall("date and time", List.of(SparkSqlHybridTest.string(value)),
+					dateTimeType);
+			var fallbackModel = new RuntimeModel(List.of(),
+					List.of(new RuntimeDecision(10, 0, dateTimeType, List.of(), Optional.of(unverified))), List.of(),
+					List.of(10), 1);
+			assertThat(SparkSqlHybridTest.generate(fallbackModel).capabilities().get(10).nativeSql()).isFalse();
+		}
+		var midnight = new RuntimeConstant(RuntimeConstantKind.TIME, "00:00:00", timeType);
+		var epochDateTime = new RuntimeConstant(RuntimeConstantKind.DATE_TIME, "1970-01-01T00:00:00", dateTimeType);
+		var mixedEquality = new RuntimeBinaryExpression(RuntimeBinaryOperator.EQUAL, midnight, epochDateTime,
+				booleanType);
+		var mixedModel = new RuntimeModel(List.of(),
+				List.of(new RuntimeDecision(10, 0, booleanType, List.of(), Optional.of(mixedEquality))), List.of(),
+				List.of(10), 1);
+		var mixedGenerated = SparkSqlHybridTest.generate(mixedModel);
+		assertThat(mixedGenerated.capabilities().get(10).nativeSql()).isFalse();
+		mixedGenerated.registerUdfs(spark);
+		spark.range(1).createOrReplaceTempView("hybrid_inputs");
+		assertThat(SparkSqlFeelValueCodec
+				.fromSpark(spark.sql(mixedGenerated.sqlFiles().get("Decision_0.sql")).head().get(0))).isNull();
 	}
 
 	@Test

@@ -48,22 +48,38 @@ public final class SparkSqlCapabilityAnalyzer {
 		return new Capability(new ArrayList<>(reasons), new ArrayList<>(limitations));
 	}
 
-	private static final Map<String, String> NON_NATIVE_FUNCTIONS = Map.of("matches",
-			"FEEL regex syntax and flags require conformant evaluation", "context",
+	private static final Map<String, String> NON_NATIVE_FUNCTIONS = Map.of("context",
 			"Native context construction does not preserve heterogeneous struct values", "context put",
 			"Native map updates are incompatible with the context struct representation", "context merge",
-			"Native map merging is incompatible with the context struct representation", "median",
-			"Native median does not preserve even-length and invalid-list semantics", "mode",
-			"Native mode does not preserve the list-valued frequency result", "stddev",
-			"Native standard deviation does not preserve invalid-list semantics");
+			"Native map merging is incompatible with the context struct representation");
 
 	private static void inspect(Object node, boolean hybrid, Set<String> reasons, Set<Integer> staticFunctions) {
+		Set<RuntimeTypeKind> temporalKinds = EnumSet.noneOf(RuntimeTypeKind.class);
 		SparkSqlPayloadCodec.walk(node, value -> {
+			if (value instanceof RuntimeExpression expression && expression.type() != null) {
+				RuntimeTypeKind kind = expression.type().kind();
+				if (value instanceof RuntimeConstant constant) {
+					kind = switch (constant.kind()) {
+						case DATE -> RuntimeTypeKind.DATE;
+						case TIME -> RuntimeTypeKind.TIME;
+						case DATE_TIME -> RuntimeTypeKind.DATE_TIME;
+						default -> kind;
+					};
+				}
+				if (Set.of(RuntimeTypeKind.DATE, RuntimeTypeKind.TIME, RuntimeTypeKind.DATE_TIME).contains(kind))
+					temporalKinds.add(kind);
+			}
 			if (value instanceof RuntimeFunctionCall fc) {
 				String fn = fc.function().toLowerCase(Locale.ROOT);
 				inspectBooleanArguments(fn, fc.arguments(), reasons);
 				inspectContextLookup(fn, fc.arguments(), reasons);
 				inspectRoundingScale(fn, fc.arguments(), reasons);
+				inspectStatistics(fn, fc.arguments(), reasons);
+				if (fn.equals("matches") && !SparkSqlExpressionEmitter.nativeMatches(fc.arguments()))
+					reasons.add("Native matches requires constant patterns and flags");
+				if (fn.equals("date") && !nativeDate(fc))
+					reasons.add(
+							"Date requires lossless representation or constructor validation outside the verified native bounds");
 				if (NON_NATIVE_FUNCTIONS.containsKey(fn)) {
 					reasons.add("Function " + fc.function() + ": " + NON_NATIVE_FUNCTIONS.get(fn));
 				}
@@ -77,6 +93,23 @@ public final class SparkSqlCapabilityAnalyzer {
 			if (value instanceof RuntimeInvocationExpression invocation) {
 				if (invocation.function().isPresent()) {
 					String fn = invocation.function().get().toLowerCase(Locale.ROOT);
+					if (fn.equals("matches")
+							&& !SparkSqlExpressionEmitter.nativeMatches(invocation.namedArguments().isEmpty()
+									? invocation.positionalArguments()
+									: SparkSqlExpressionEmitter.reorderNamedArguments(fn, invocation.namedArguments())))
+						reasons.add("Native matches requires constant patterns and flags");
+					if (fn.equals("date") && !nativeDate(new RuntimeFunctionCall(fn,
+							invocation.namedArguments().isEmpty()
+									? invocation.positionalArguments()
+									: SparkSqlExpressionEmitter.reorderNamedArguments(fn, invocation.namedArguments()),
+							invocation.type())))
+						reasons.add(
+								"Date requires lossless representation or constructor validation outside the verified native bounds");
+					inspectStatistics(fn,
+							invocation.namedArguments().isEmpty()
+									? invocation.positionalArguments()
+									: SparkSqlExpressionEmitter.reorderNamedArguments(fn, invocation.namedArguments()),
+							reasons);
 					inspectContextLookup(fn,
 							invocation.namedArguments().isEmpty()
 									? invocation.positionalArguments()
@@ -114,7 +147,8 @@ public final class SparkSqlCapabilityAnalyzer {
 						&& !(expression instanceof RuntimeRangeExpression)
 						&& !(expression instanceof RuntimeConstant c
 								&& ("null".equals(c.value()) || c.kind() == RuntimeConstantKind.NULL))
-						&& !SparkSqlFeelValueCodec.isNativeType(expression.type()))
+						&& !SparkSqlFeelValueCodec.isNativeType(expression.type()) && !nativeDate(expression)
+						&& !nativeLocalTemporal(expression))
 					reasons.add("Expression requires lossless FEEL transport");
 				if (!(expression instanceof RuntimeConstant || expression instanceof RuntimeValueReference
 						|| (expression instanceof RuntimeLocalReference ref && ref.lexicalDepth() == 0)
@@ -134,10 +168,131 @@ public final class SparkSqlCapabilityAnalyzer {
 			}
 			if (hybrid && value instanceof RuntimeDecision decision) {
 				if (decision.type() != null && decision.type().kind() != RuntimeTypeKind.ANY
-						&& !SparkSqlFeelValueCodec.isNativeType(decision.type()))
+						&& !SparkSqlFeelValueCodec.isNativeType(decision.type())
+						&& !decision.expression().map(SparkSqlCapabilityAnalyzer::nativeDate).orElse(false)
+						&& !(Set.of(RuntimeTypeKind.DATE_TIME, RuntimeTypeKind.TIME).contains(decision.type().kind())
+								&& decision.expression().map(SparkSqlCapabilityAnalyzer::nativeLocalTemporal)
+										.orElse(false)))
 					reasons.add("Decision result requires lossless FEEL transport");
 			}
-		});
+		}, SparkSqlCapabilityAnalyzer::inspectChildren);
+		if (hybrid && temporalKinds.size() > 1)
+			reasons.add("Mixed temporal kinds require FEEL type identity checks before native timestamp comparison");
+	}
+
+	private static boolean inspectChildren(Object node) {
+		if (node instanceof RuntimeFunctionCall call && call.function().equalsIgnoreCase("time"))
+			return !SparkSqlExpressionEmitter.nativeTimeNull(call.arguments());
+		if (node instanceof RuntimeInvocationExpression invocation && invocation.namedArguments().isEmpty()
+				&& invocation.function().filter("time"::equalsIgnoreCase).isPresent())
+			return !SparkSqlExpressionEmitter.nativeTimeNull(invocation.positionalArguments());
+		// Invalid matches signatures emit SQL NULL without evaluating their arguments.
+		if (node instanceof RuntimeFunctionCall call && call.function().equalsIgnoreCase("matches"))
+			return !SparkSqlExpressionEmitter.invalidMatchesArguments(call.arguments());
+		if (node instanceof RuntimeInvocationExpression invocation
+				&& invocation.function().filter("matches"::equalsIgnoreCase).isPresent())
+			return !SparkSqlExpressionEmitter.invalidMatchesArguments(invocation.namedArguments().isEmpty()
+					? invocation.positionalArguments()
+					: SparkSqlExpressionEmitter.reorderNamedArguments("matches", invocation.namedArguments()));
+		return true;
+	}
+
+	private static boolean nativeDate(RuntimeExpression expression) {
+		try {
+			java.time.LocalDate date;
+			if (expression instanceof RuntimeConstant constant && constant.kind() == RuntimeConstantKind.DATE) {
+				date = java.time.LocalDate.parse(constant.value());
+			} else if (expression instanceof RuntimeFunctionCall call && call.function().equalsIgnoreCase("date")) {
+				List<RuntimeExpression> args = call.arguments();
+				if (args.size() == 1 && args.get(0) instanceof RuntimeConstant constant
+						&& constant.kind() == RuntimeConstantKind.STRING) {
+					date = java.time.LocalDate.parse(constant.value());
+				} else if (args.size() == 1 && args.get(0).type().kind() != RuntimeTypeKind.LIST
+						&& nativeDate(args.get(0))) {
+					return true;
+				} else if (args.size() == 3 && args.stream().allMatch(arg -> arg instanceof RuntimeConstant constant
+						&& constant.kind() == RuntimeConstantKind.NUMBER)) {
+					int year = new java.math.BigDecimal(((RuntimeConstant) args.get(0)).value()).intValueExact();
+					int month = new java.math.BigDecimal(((RuntimeConstant) args.get(1)).value()).intValueExact();
+					int day = new java.math.BigDecimal(((RuntimeConstant) args.get(2)).value()).intValueExact();
+					date = java.time.LocalDate.of(year, month, day);
+				} else {
+					return false;
+				}
+			} else if (expression instanceof RuntimeInvocationExpression invocation
+					&& invocation.function().filter("date"::equalsIgnoreCase).isPresent()) {
+				return nativeDate(new RuntimeFunctionCall("date",
+						invocation.namedArguments().isEmpty()
+								? invocation.positionalArguments()
+								: SparkSqlExpressionEmitter.reorderNamedArguments("date", invocation.namedArguments()),
+						invocation.type()));
+			} else if (expression instanceof RuntimeListExpression list && !list.elements().isEmpty()) {
+				return list.elements().stream().allMatch(SparkSqlCapabilityAnalyzer::nativeDate);
+			} else {
+				return false;
+			}
+			// Keep historical-calendar and extreme-year cases in lossless evaluation.
+			return date.getYear() >= 1583 && date.getYear() <= 9999;
+		} catch (java.time.DateTimeException | ArithmeticException ignored) {
+			return false;
+		}
+	}
+
+	private static boolean nativeLocalTemporal(RuntimeExpression expression) {
+		try {
+			if (expression instanceof RuntimeConstant constant) {
+				if (constant.kind() == RuntimeConstantKind.NULL)
+					return true;
+				if (constant.kind() == RuntimeConstantKind.TIME)
+					return java.time.LocalTime.parse(constant.value()).getNano() == 0;
+				if (constant.kind() == RuntimeConstantKind.DATE_TIME) {
+					var dateTime = java.time.LocalDateTime.parse(constant.value());
+					return dateTime.getYear() >= 1583 && dateTime.getYear() <= 9999 && dateTime.getNano() == 0;
+				}
+			} else if (expression instanceof RuntimeFunctionCall call) {
+				String function = call.function().toLowerCase(Locale.ROOT);
+				List<RuntimeExpression> args = call.arguments();
+				if (function.equals("time") && SparkSqlExpressionEmitter.nativeTimeNull(args))
+					return true;
+				if (args.size() == 1 && args.get(0) instanceof RuntimeConstant constant
+						&& constant.kind() == RuntimeConstantKind.STRING) {
+					if (function.equals("time"))
+						return java.time.LocalTime.parse(constant.value()).getNano() == 0;
+					if (function.equals("date and time")) {
+						var dateTime = java.time.LocalDateTime.parse(constant.value());
+						return dateTime.getYear() >= 1583 && dateTime.getYear() <= 9999 && dateTime.getNano() == 0;
+					}
+				}
+				if (function.equals("time") && args.size() == 3
+						&& args.stream().allMatch(arg -> arg instanceof RuntimeConstant constant
+								&& constant.kind() == RuntimeConstantKind.NUMBER)) {
+					java.time.LocalTime.of(
+							new java.math.BigDecimal(((RuntimeConstant) args.get(0)).value()).intValueExact(),
+							new java.math.BigDecimal(((RuntimeConstant) args.get(1)).value()).intValueExact(),
+							new java.math.BigDecimal(((RuntimeConstant) args.get(2)).value()).intValueExact());
+					return true;
+				}
+			} else if (expression instanceof RuntimeInvocationExpression invocation
+					&& invocation.function().isPresent()) {
+				String function = invocation.function().get();
+				return nativeLocalTemporal(new RuntimeFunctionCall(function, invocation.namedArguments().isEmpty()
+						? invocation.positionalArguments()
+						: SparkSqlExpressionEmitter.reorderNamedArguments(function, invocation.namedArguments()),
+						invocation.type()));
+			} else if (expression instanceof RuntimeListExpression list && !list.elements().isEmpty()) {
+				return list.elements().stream().allMatch(SparkSqlCapabilityAnalyzer::nativeLocalTemporal);
+			}
+			return false;
+		} catch (java.time.DateTimeException | ArithmeticException ignored) {
+			return false;
+		}
+	}
+
+	private static void inspectStatistics(String function, List<RuntimeExpression> arguments, Set<String> reasons) {
+		if (Set.of("median", "mode", "stddev").contains(function)
+				&& arguments.stream().anyMatch(arg -> arg.type().kind() == RuntimeTypeKind.ANY
+						&& !(arg instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)))
+			reasons.add("Statistical argument requires runtime numeric type validation");
 	}
 
 	private static void inspectRoundingScale(String function, List<RuntimeExpression> arguments, Set<String> reasons) {
