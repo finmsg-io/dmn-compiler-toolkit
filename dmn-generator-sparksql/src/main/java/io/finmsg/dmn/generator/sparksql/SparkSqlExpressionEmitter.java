@@ -218,8 +218,13 @@ public final class SparkSqlExpressionEmitter {
 					+ emitWithBkms(btn.lower(), bkmBySlot, slotNameResolver) + " AND "
 					+ emitWithBkms(btn.value(), bkmBySlot, slotNameResolver) + " <= "
 					+ emitWithBkms(btn.upper(), bkmBySlot, slotNameResolver) + ")";
-			case RuntimeInExpression inExpr -> emitUnaryTests(emitWithBkms(inExpr.value(), bkmBySlot, slotNameResolver),
-					inExpr.tests(), bkmBySlot, slotNameResolver);
+			case RuntimeInExpression inExpr -> {
+				String nativeSql = membershipSql(inExpr, bkmBySlot, slotNameResolver);
+				yield nativeSql != null
+						? nativeSql
+						: emitUnaryTests(emitWithBkms(inExpr.value(), bkmBySlot, slotNameResolver), inExpr.tests(),
+								bkmBySlot, slotNameResolver);
+			}
 			case RuntimeUnaryTestsExpression testsExpr ->
 				emitUnaryTests("?", testsExpr.tests(), bkmBySlot, slotNameResolver);
 			case RuntimeDescendantExpression desc -> emitDescendant(desc, bkmBySlot, slotNameResolver);
@@ -1687,6 +1692,18 @@ public final class SparkSqlExpressionEmitter {
 			}
 			case "duration", "years and months duration", "years_and_months_duration", "day and time duration",
 					"day_and_time_duration" -> {
+				if ((name.equals("years and months duration") || name.equals("years_and_months_duration"))
+						&& args.size() == 2) {
+					String from = "cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " as date)";
+					String to = "cast(" + emitArg(args, 1, bkmBySlot, slotNameResolver) + " as date)";
+					String months = "((year(" + to + ") - year(" + from + ")) * 12 + month(" + to + ") - month(" + from
+							+ "))";
+					String wholeMonths = "(" + months + " + CASE WHEN " + months + " > 0 AND day(" + to + ") < day("
+							+ from + ") THEN -1 WHEN " + months + " < 0 AND day(" + to + ") > day(" + from
+							+ ") THEN 1 ELSE 0 END)";
+					yield "(CASE WHEN " + from + " IS NULL OR " + to + " IS NULL THEN NULL ELSE "
+							+ formatYearMonthDurationSql(wholeMonths) + " END)";
+				}
 				if (args.size() == 1) {
 					yield "try_cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " as string)";
 				}
@@ -2503,6 +2520,186 @@ public final class SparkSqlExpressionEmitter {
 		return predSql.replace(leftVar, placeholder).replace(rightVar, leftVar).replace(placeholder, rightVar);
 	}
 
+	private record MembershipScalar(RuntimeTypeKind kind, String sql) {
+	}
+
+	static boolean nativeMembership(RuntimeInExpression expression) {
+		return membershipSql(expression, Map.of(), slot -> "_membership_" + slot) != null;
+	}
+
+	private static MembershipScalar membershipScalar(RuntimeExpression expression, Map<Integer, RuntimeBkm> bkms,
+			IntFunction<String> names) {
+		if (expression instanceof RuntimeLocalReference local && local.lexicalDepth() != 0)
+			return null;
+		if (expression instanceof RuntimeFunctionCall call && call.arguments().size() == 1
+				&& call.arguments().get(0) instanceof RuntimeConstant argument
+				&& argument.kind() == RuntimeConstantKind.STRING) {
+			RuntimeConstantKind kind = switch (call.function().toLowerCase(Locale.ROOT)) {
+				case "duration" -> RuntimeConstantKind.DURATION;
+				case "date" -> RuntimeConstantKind.DATE;
+				case "time" -> RuntimeConstantKind.TIME;
+				case "date and time" -> RuntimeConstantKind.DATE_TIME;
+				default -> null;
+			};
+			if (kind != null)
+				return membershipScalar(new RuntimeConstant(kind, argument.value(), call.type()), bkms, names);
+		}
+		if (expression instanceof RuntimeConstant constant) {
+			try {
+				if (constant.kind() == RuntimeConstantKind.DURATION) {
+					Object duration = io.finmsg.dmn.runtime.DmnRuntime.parseDuration(constant.value());
+					if (duration == null)
+						return new MembershipScalar(RuntimeTypeKind.NULL, "NULL");
+					if (duration instanceof java.time.Period period)
+						return new MembershipScalar(RuntimeTypeKind.YEARS_MONTHS_DURATION,
+								Long.toString(period.toTotalMonths()));
+					if (duration instanceof java.time.Duration time) {
+						var seconds = java.math.BigDecimal.valueOf(time.getSeconds())
+								.add(java.math.BigDecimal.valueOf(time.getNano(), 9));
+						return new MembershipScalar(RuntimeTypeKind.DAYS_TIME_DURATION,
+								"CAST('" + seconds.toPlainString() + "' AS DECIMAL(38,9))");
+					}
+				}
+				RuntimeTypeKind kind = switch (constant.kind()) {
+					case BOOLEAN -> RuntimeTypeKind.BOOLEAN;
+					case NUMBER -> RuntimeTypeKind.NUMBER;
+					case STRING -> RuntimeTypeKind.STRING;
+					case NULL -> RuntimeTypeKind.NULL;
+					case DATE -> RuntimeTypeKind.DATE;
+					case TIME -> RuntimeTypeKind.TIME;
+					case DATE_TIME -> RuntimeTypeKind.DATE_TIME;
+					default -> null;
+				};
+				if (kind == RuntimeTypeKind.DATE) {
+					int year = java.time.LocalDate.parse(constant.value()).getYear();
+					if (year < 1583 || year > 9999)
+						return null;
+				}
+				if (kind == RuntimeTypeKind.NUMBER) {
+					var number = new java.math.BigDecimal(constant.value()).stripTrailingZeros();
+					int scale = Math.max(0, number.scale());
+					if (scale > 38 || Math.max(0, number.precision() - number.scale()) + scale > 38)
+						return null;
+					return new MembershipScalar(kind,
+							"CAST('" + number.toPlainString() + "' AS DECIMAL(38," + scale + "))");
+				}
+				if (kind == RuntimeTypeKind.TIME && java.time.LocalTime.parse(constant.value()).getNano() != 0)
+					return null;
+				if (kind == RuntimeTypeKind.DATE_TIME) {
+					var time = java.time.LocalDateTime.parse(constant.value());
+					if (time.getYear() < 1583 || time.getYear() > 9999 || time.getNano() != 0)
+						return null;
+				}
+				return kind == null ? null : new MembershipScalar(kind, emitConstant(constant));
+			} catch (java.time.DateTimeException | ArithmeticException ignored) {
+				return null;
+			}
+		}
+		if (expression instanceof RuntimeValueReference || expression instanceof RuntimeLocalReference) {
+			RuntimeTypeKind kind = expression.type().kind();
+			if (Set.of(RuntimeTypeKind.BOOLEAN, RuntimeTypeKind.STRING, RuntimeTypeKind.NULL).contains(kind))
+				return new MembershipScalar(kind, emitWithBkms(expression, bkms, names));
+		}
+		return null;
+	}
+
+	private static String membershipComparison(MembershipScalar left, MembershipScalar right,
+			RuntimeUnaryTestOperator operator) {
+		if (left == null || right == null)
+			return null;
+		if (operator == RuntimeUnaryTestOperator.EQUAL || operator == RuntimeUnaryTestOperator.NOT_EQUAL) {
+			String equal = left.kind() == right.kind()
+					? "(" + left.sql() + " <=> " + right.sql() + ")"
+					: "(" + left.sql() + " IS NULL AND " + right.sql() + " IS NULL)";
+			return operator == RuntimeUnaryTestOperator.EQUAL ? equal : "(NOT " + equal + ")";
+		}
+		if (left.kind() != right.kind() || left.kind() == RuntimeTypeKind.NULL)
+			return "FALSE";
+		String op = switch (operator) {
+			case LESS -> "<";
+			case LESS_EQUAL -> "<=";
+			case GREATER -> ">";
+			case GREATER_EQUAL -> ">=";
+			default -> throw new IllegalArgumentException("Unexpected membership operator");
+		};
+		return "coalesce((" + left.sql() + " " + op + " " + right.sql() + "), FALSE)";
+	}
+
+	private static String membershipMatch(MembershipScalar value, RuntimeExpression expected,
+			Map<Integer, RuntimeBkm> bkms, IntFunction<String> names, boolean listElement) {
+		if (expected instanceof RuntimeListExpression list) {
+			if (listElement)
+				return null;
+			List<String> matches = new ArrayList<>();
+			for (RuntimeExpression element : list.elements()) {
+				String match = membershipMatch(value, element, bkms, names, true);
+				if (match == null)
+					return null;
+				matches.add(match);
+			}
+			return matches.isEmpty() ? "FALSE" : "(" + String.join(" OR ", matches) + ")";
+		}
+		if (expected instanceof RuntimeRangeExpression range) {
+			MembershipScalar lower = range.lower().map(e -> membershipScalar(e, bkms, names)).orElse(null);
+			MembershipScalar upper = range.upper().map(e -> membershipScalar(e, bkms, names)).orElse(null);
+			if (range.lower().isPresent() && lower == null || range.upper().isPresent() && upper == null)
+				return null;
+			if (value.kind() == RuntimeTypeKind.NULL || lower != null && lower.kind() == RuntimeTypeKind.NULL
+					|| upper != null && upper.kind() == RuntimeTypeKind.NULL)
+				return "CAST(NULL AS BOOLEAN)";
+			boolean hasLower = lower != null && lower.kind() != RuntimeTypeKind.NULL;
+			boolean hasUpper = upper != null && upper.kind() != RuntimeTypeKind.NULL;
+			if (!hasLower && !hasUpper)
+				return "FALSE";
+			if (range.upper().isEmpty() && range.lowerBoundary() == range.upperBoundary()) {
+				String match = membershipComparison(value, lower,
+						range.lowerBoundary() == RuntimeRangeBoundary.CLOSED
+								? RuntimeUnaryTestOperator.EQUAL
+								: RuntimeUnaryTestOperator.NOT_EQUAL);
+				return "(CASE WHEN " + value.sql() + " IS NULL THEN CAST(NULL AS BOOLEAN) ELSE " + match + " END)";
+			}
+			String low = hasLower
+					? membershipComparison(value, lower,
+							range.lowerBoundary() == RuntimeRangeBoundary.CLOSED
+									? RuntimeUnaryTestOperator.GREATER_EQUAL
+									: RuntimeUnaryTestOperator.GREATER)
+					: "TRUE";
+			String high = hasUpper
+					? membershipComparison(value, upper,
+							range.upperBoundary() == RuntimeRangeBoundary.CLOSED
+									? RuntimeUnaryTestOperator.LESS_EQUAL
+									: RuntimeUnaryTestOperator.LESS)
+					: "TRUE";
+			return "(CASE WHEN " + value.sql() + " IS NULL THEN CAST(NULL AS BOOLEAN) ELSE (" + low + " AND " + high
+					+ ") END)";
+		}
+		return membershipComparison(value, membershipScalar(expected, bkms, names), RuntimeUnaryTestOperator.EQUAL);
+	}
+
+	private static String membershipSql(RuntimeInExpression expression, Map<Integer, RuntimeBkm> bkms,
+			IntFunction<String> names) {
+		MembershipScalar value = membershipScalar(expression.value(), bkms, names);
+		if (value == null)
+			return null;
+		List<String> matches = new ArrayList<>();
+		for (RuntimeUnaryTest test : expression.tests().tests()) {
+			String match = switch (test) {
+				case RuntimeExpressionUnaryTest item -> membershipMatch(value, item.expression(), bkms, names, false);
+				case RuntimeComparisonUnaryTest item ->
+					membershipComparison(value, membershipScalar(item.endpoint(), bkms, names), item.operator());
+				case RuntimeRangeUnaryTest item -> membershipMatch(value, item.range(), bkms, names, false);
+				default -> null;
+			};
+			if (match == null)
+				return null;
+			matches.add(match);
+		}
+		String result = expression.tests().wildcard()
+				? "TRUE"
+				: matches.isEmpty() ? "FALSE" : "(" + String.join(" OR ", matches) + ")";
+		return expression.tests().negated() ? "(NOT " + result + ")" : result;
+	}
+
 	static boolean nativeMatches(List<RuntimeExpression> args) {
 		if (invalidMatchesArguments(args))
 			return true;
@@ -2553,6 +2750,9 @@ public final class SparkSqlExpressionEmitter {
 			map.put(na.name(), na.expression());
 		}
 		String norm = fnName.toLowerCase();
+		if ((norm.equals("years and months duration") || norm.equals("years_and_months_duration"))
+				&& namedArgs.size() == 2 && map.size() == 2 && map.keySet().equals(Set.of("from", "to")))
+			return List.of(map.get("from"), map.get("to"));
 		if (Set.of("day of year", "day of week", "month of year", "week of year").contains(norm)) {
 			return namedArgs.size() == 1 && map.containsKey("date") ? List.of(map.get("date")) : List.of();
 		}

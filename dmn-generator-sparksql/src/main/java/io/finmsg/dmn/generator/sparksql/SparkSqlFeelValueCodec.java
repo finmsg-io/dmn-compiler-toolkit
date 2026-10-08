@@ -84,10 +84,21 @@ public final class SparkSqlFeelValueCodec {
 
 	/**
 	 * Decode a native result using its declared FEEL type. Local TIME uses
-	 * timestamp-without-timezone anchored at 1970-01-01 in generated SQL.
+	 * timestamp-without-timezone anchored at 1970-01-01 in generated SQL. Validated
+	 * constant duration results use exact ISO text, preserving nanoseconds.
 	 */
 	public static Object fromSpark(Object value, RuntimeType type) {
 		Object decoded = fromSpark(value);
+		if (type != null && decoded instanceof String text && Set
+				.of(RuntimeTypeKind.DURATION, RuntimeTypeKind.YEARS_MONTHS_DURATION, RuntimeTypeKind.DAYS_TIME_DURATION)
+				.contains(type.kind())) {
+			Object duration = io.finmsg.dmn.runtime.DmnRuntime.parseDuration(text);
+			if (duration == null
+					|| type.kind() == RuntimeTypeKind.YEARS_MONTHS_DURATION && !(duration instanceof java.time.Period)
+					|| type.kind() == RuntimeTypeKind.DAYS_TIME_DURATION && !(duration instanceof java.time.Duration))
+				throw new IllegalArgumentException("Native duration result does not match " + type.kind());
+			return duration;
+		}
 		if (type != null && type.kind() == RuntimeTypeKind.TIME && decoded instanceof java.time.LocalDateTime time) {
 			if (!time.toLocalDate().equals(LocalDate.of(1970, 1, 1)))
 				throw new IllegalArgumentException("Native TIME must use the 1970-01-01 anchor");

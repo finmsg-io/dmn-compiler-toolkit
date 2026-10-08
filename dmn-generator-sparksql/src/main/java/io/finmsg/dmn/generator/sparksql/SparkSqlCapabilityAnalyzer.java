@@ -54,6 +54,9 @@ public final class SparkSqlCapabilityAnalyzer {
 			"Native map merging is incompatible with the context struct representation");
 
 	private static void inspect(Object node, boolean hybrid, Set<String> reasons, Set<Integer> staticFunctions) {
+		boolean yearMonthResult = node instanceof RuntimeDecision decision && nativeYearMonthDurationResult(decision);
+		boolean durationResult = node instanceof RuntimeDecision decision
+				&& (nativeConstantDurationResult(decision) || yearMonthResult);
 		Set<RuntimeTypeKind> temporalKinds = EnumSet.noneOf(RuntimeTypeKind.class);
 		SparkSqlPayloadCodec.walk(node, value -> {
 			if (value instanceof RuntimeExpression expression && expression.type() != null) {
@@ -148,7 +151,7 @@ public final class SparkSqlCapabilityAnalyzer {
 						&& !(expression instanceof RuntimeConstant c
 								&& ("null".equals(c.value()) || c.kind() == RuntimeConstantKind.NULL))
 						&& !SparkSqlFeelValueCodec.isNativeType(expression.type()) && !nativeDate(expression)
-						&& !nativeLocalTemporal(expression))
+						&& !nativeLocalTemporal(expression) && !durationResult)
 					reasons.add("Expression requires lossless FEEL transport");
 				if (!(expression instanceof RuntimeConstant || expression instanceof RuntimeValueReference
 						|| (expression instanceof RuntimeLocalReference ref && ref.lexicalDepth() == 0)
@@ -169,6 +172,10 @@ public final class SparkSqlCapabilityAnalyzer {
 			if (hybrid && value instanceof RuntimeDecision decision) {
 				if (decision.type() != null && decision.type().kind() != RuntimeTypeKind.ANY
 						&& !SparkSqlFeelValueCodec.isNativeType(decision.type())
+						&& !nativeConstantDurationResult(decision) && !nativeYearMonthDurationResult(decision)
+						&& !decision.expression()
+								.filter(e -> e instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)
+								.isPresent()
 						&& !decision.expression().map(SparkSqlCapabilityAnalyzer::nativeDate).orElse(false)
 						&& !(Set.of(RuntimeTypeKind.DATE_TIME, RuntimeTypeKind.TIME).contains(decision.type().kind())
 								&& decision.expression().map(SparkSqlCapabilityAnalyzer::nativeLocalTemporal)
@@ -176,11 +183,53 @@ public final class SparkSqlCapabilityAnalyzer {
 					reasons.add("Decision result requires lossless FEEL transport");
 			}
 		}, SparkSqlCapabilityAnalyzer::inspectChildren);
-		if (hybrid && temporalKinds.size() > 1)
+		if (hybrid && temporalKinds.size() > 1 && !yearMonthResult)
 			reasons.add("Mixed temporal kinds require FEEL type identity checks before native timestamp comparison");
 	}
 
+	private static boolean nativeYearMonthDurationResult(RuntimeDecision decision) {
+		if (decision.type() == null || !Set.of(RuntimeTypeKind.DURATION, RuntimeTypeKind.YEARS_MONTHS_DURATION)
+				.contains(decision.type().kind()))
+			return false;
+		RuntimeExpression expression = decision.expression().orElse(null);
+		if (expression instanceof RuntimeInvocationExpression invocation && invocation.function().isPresent()) {
+			if (!invocation.namedArguments().isEmpty() && (invocation.namedArguments().size() != 2
+					|| !invocation.namedArguments().stream().map(RuntimeNamedArgument::name)
+							.collect(java.util.stream.Collectors.toSet()).equals(Set.of("from", "to"))))
+				return false;
+			expression = new RuntimeFunctionCall(invocation.function().get(),
+					invocation.namedArguments().isEmpty()
+							? invocation.positionalArguments()
+							: SparkSqlExpressionEmitter.reorderNamedArguments(invocation.function().get(),
+									invocation.namedArguments()),
+					invocation.type());
+		}
+		if (!(expression instanceof RuntimeFunctionCall call)
+				|| !Set.of("years and months duration", "years_and_months_duration")
+						.contains(call.function().toLowerCase(Locale.ROOT))
+				|| call.arguments().size() != 2)
+			return false;
+		return call.arguments().stream()
+				.allMatch(arg -> arg.type() != null && (arg.type().kind() == RuntimeTypeKind.DATE && nativeDate(arg)
+						|| arg.type().kind() == RuntimeTypeKind.DATE_TIME && nativeLocalTemporal(arg)));
+	}
+
+	private static boolean nativeConstantDurationResult(RuntimeDecision decision) {
+		if (!(decision.expression().orElse(null) instanceof RuntimeConstant constant)
+				|| constant.kind() != RuntimeConstantKind.DURATION || decision.type() == null)
+			return false;
+		Object duration = io.finmsg.dmn.runtime.DmnRuntime.parseDuration(constant.value());
+		return switch (decision.type().kind()) {
+			case DURATION -> duration != null;
+			case YEARS_MONTHS_DURATION -> duration instanceof java.time.Period;
+			case DAYS_TIME_DURATION -> duration instanceof java.time.Duration;
+			default -> false;
+		};
+	}
+
 	private static boolean inspectChildren(Object node) {
+		if (node instanceof RuntimeInExpression expression && SparkSqlExpressionEmitter.nativeMembership(expression))
+			return false;
 		if (node instanceof RuntimeFunctionCall call && call.function().equalsIgnoreCase("time"))
 			return !SparkSqlExpressionEmitter.nativeTimeNull(call.arguments());
 		if (node instanceof RuntimeInvocationExpression invocation && invocation.namedArguments().isEmpty()
