@@ -1705,6 +1705,9 @@ public final class SparkSqlExpressionEmitter {
 			}
 			case "duration", "years and months duration", "years_and_months_duration", "day and time duration",
 					"day_and_time_duration" -> {
+				if (Set.of("years and months duration", "years_and_months_duration").contains(name)
+						&& nativeYearMonthNull(args))
+					yield "CAST(NULL AS STRING)";
 				if ((name.equals("years and months duration") || name.equals("years_and_months_duration"))
 						&& args.size() == 2) {
 					String from = "cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " as date)";
@@ -2011,6 +2014,8 @@ public final class SparkSqlExpressionEmitter {
 				yield "try_to_date(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
 			}
 			case "date and time" -> {
+				if (nativeDateTimeNull(args))
+					yield "CAST(NULL AS TIMESTAMP_NTZ)";
 				if (args.size() == 1) {
 					yield "try_cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " as timestamp_ntz)";
 				}
@@ -2274,6 +2279,24 @@ public final class SparkSqlExpressionEmitter {
 				yield "map_from_entries(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + ")";
 			}
 			case "context put", "context_put" -> {
+				RuntimeType nativeType = nativeContextPutType(args);
+				if (nativeType != null) {
+					if (nativeType.kind() == RuntimeTypeKind.NULL)
+						yield "NULL";
+					RuntimeExpression staticUpdate = staticContextPathUpdate(args);
+					if (staticUpdate != null)
+						yield emitWithBkms(staticUpdate, bkmBySlot, slotNameResolver);
+					String source = emitArg(args, 0, bkmBySlot, slotNameResolver);
+					String keyName = ((RuntimeConstant) args.get(1)).value();
+					String replacement = emitArg(args, 2, bkmBySlot, slotNameResolver);
+					String fields = nativeType.fieldLayout().stream()
+							.map(field -> "'" + escapeSqlString(field.name()) + "', "
+									+ (field.name().equals(keyName)
+											? replacement
+											: "(" + source + ").`" + field.name().replace("`", "``") + "`"))
+							.collect(java.util.stream.Collectors.joining(", "));
+					yield "(CASE WHEN " + source + " IS NULL THEN NULL ELSE named_struct(" + fields + ") END)";
+				}
 				String ctx = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				String key = emitArg(args, 1, bkmBySlot, slotNameResolver);
 				String val = emitArg(args, 2, bkmBySlot, slotNameResolver);
@@ -2513,14 +2536,139 @@ public final class SparkSqlExpressionEmitter {
 	}
 
 	private static List<RuntimeField> contextFields(RuntimeExpression context) {
+		RuntimeType updated = nativeContextPutType(context);
+		if (updated != null && updated.kind() == RuntimeTypeKind.CONTEXT)
+			return updated.fieldLayout();
 		RuntimeType type = context.type();
 		if (type != null && !type.fieldLayout().isEmpty())
 			return type.fieldLayout();
-		if (context instanceof RuntimeContextExpression c)
-			return c.entries().stream().filter(entry -> !entry.name().isEmpty())
-					.map(entry -> new RuntimeField(entry.localSlot(), entry.name(), entry.expression().type()))
-					.toList();
+		if (context instanceof RuntimeContextExpression c) {
+			var fields = new ArrayList<RuntimeField>();
+			c.entries().stream().filter(entry -> !entry.name().isEmpty()).forEach(
+					entry -> fields.add(new RuntimeField(fields.size(), entry.name(), entry.expression().type())));
+			return fields;
+		}
 		return List.of();
+	}
+
+	static RuntimeType nativeContextPutType(RuntimeExpression expression) {
+		if (expression instanceof RuntimeFunctionCall call
+				&& Set.of("context put", "context_put").contains(call.function().toLowerCase(Locale.ROOT)))
+			return nativeContextPutType(call.arguments());
+		if (expression instanceof RuntimeInvocationExpression invocation && invocation.function().isPresent()
+				&& Set.of("context put", "context_put").contains(invocation.function().get().toLowerCase(Locale.ROOT)))
+			return nativeContextPutType(invocation.namedArguments().isEmpty()
+					? invocation.positionalArguments()
+					: reorderNamedArguments(invocation.function().get(), invocation.namedArguments()));
+		return null;
+	}
+
+	static RuntimeType nativeContextPutType(List<RuntimeExpression> args) {
+		var nullType = RuntimeType.scalar(RuntimeTypeKind.NULL);
+		if (args.size() != 3)
+			return nullType;
+		var source = args.get(0);
+		var key = args.get(1);
+		if (source instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL
+				|| key instanceof RuntimeConstant keyConstant && keyConstant.kind() == RuntimeConstantKind.NULL)
+			return nullType;
+		if (source.type().kind() != RuntimeTypeKind.CONTEXT && source.type().kind() != RuntimeTypeKind.ANY)
+			return nullType;
+		if (key.type().kind() != RuntimeTypeKind.STRING && key.type().kind() != RuntimeTypeKind.LIST
+				&& key.type().kind() != RuntimeTypeKind.ANY)
+			return nullType;
+		RuntimeExpression staticUpdate = staticContextPathUpdate(args);
+		if (staticUpdate != null)
+			return nativeContextLayout(staticUpdate.type()) ? staticUpdate.type() : null;
+		if (!(key instanceof RuntimeConstant constant) || constant.kind() != RuntimeConstantKind.STRING)
+			return null;
+		List<RuntimeField> original = contextFields(source);
+		if (original.stream().map(field -> field.name().toLowerCase(Locale.ROOT)).distinct().count() != original.size())
+			return null;
+		if (original.isEmpty() && !(source instanceof RuntimeContextExpression context && context.entries().isEmpty()))
+			return null;
+		if (source instanceof RuntimeContextExpression context
+				&& context.entries().stream().anyMatch(e -> e.name().isEmpty()))
+			return null;
+		if (!nativeContextLayout(args.get(2).type())
+				|| original.stream().anyMatch(field -> !nativeContextLayout(field.type())))
+			return null;
+		var fields = new LinkedHashMap<String, RuntimeType>();
+		original.forEach(field -> fields.put(field.name(), field.type()));
+		fields.put(constant.value(), args.get(2).type());
+		if (fields.keySet().stream().map(name -> name.toLowerCase(Locale.ROOT)).distinct().count() != fields.size())
+			return null;
+		var layout = new ArrayList<RuntimeField>();
+		fields.forEach((name, type) -> layout.add(new RuntimeField(layout.size(), name, type)));
+		return RuntimeType.contextFields(layout);
+	}
+
+	private static boolean nativeContextLayout(RuntimeType type) {
+		if (!SparkSqlFeelValueCodec.isNativeType(type))
+			return false;
+		if (type.kind() == RuntimeTypeKind.LIST)
+			return nativeContextLayout(type.elementType());
+		return type.kind() != RuntimeTypeKind.CONTEXT || type.fieldLayout().stream()
+				.map(field -> field.name().toLowerCase(Locale.ROOT)).distinct().count() == type.fieldLayout().size()
+				&& type.fieldLayout().stream().allMatch(field -> nativeContextLayout(field.type()));
+	}
+
+	private static RuntimeExpression staticContextPathUpdate(List<RuntimeExpression> args) {
+		if (args.size() != 3 || !(args.get(1) instanceof RuntimeListExpression keys))
+			return null;
+		var absent = new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
+		if (keys.elements().isEmpty() || keys.elements().stream()
+				.anyMatch(key -> key instanceof RuntimeConstant c && c.kind() != RuntimeConstantKind.STRING))
+			return absent;
+		if (keys.elements().size() > 32 || keys.elements().stream().anyMatch(key -> key instanceof RuntimeConstant c
+				&& c.kind() == RuntimeConstantKind.STRING && c.value().isEmpty()))
+			return null;
+		if (!keys.elements().stream()
+				.allMatch(key -> key instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.STRING)
+				|| !(args.get(0) instanceof RuntimeContextExpression context) || !staticContextLiteral(context))
+			return null;
+		return updateStaticContext(context,
+				keys.elements().stream().map(key -> ((RuntimeConstant) key).value()).toList(), args.get(2));
+	}
+
+	private static boolean staticContextLiteral(RuntimeExpression expression) {
+		if (expression instanceof RuntimeConstant)
+			return true;
+		if (expression instanceof RuntimeContextExpression context)
+			return context.entries().stream()
+					.allMatch(entry -> !entry.name().isEmpty() && staticContextLiteral(entry.expression()));
+		if (expression instanceof RuntimeListExpression list)
+			return list.elements().stream().allMatch(SparkSqlExpressionEmitter::staticContextLiteral);
+		return false;
+	}
+
+	private static RuntimeExpression updateStaticContext(RuntimeContextExpression source, List<String> keys,
+			RuntimeExpression value) {
+		var entries = new LinkedHashMap<String, RuntimeExpression>();
+		source.entries().forEach(entry -> entries.put(entry.name(), entry.expression()));
+		String key = keys.getFirst();
+		if (keys.size() > 1) {
+			RuntimeExpression current = entries.get(key);
+			RuntimeContextExpression nested;
+			if (current == null || current instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)
+				nested = new RuntimeContextExpression(List.of(), RuntimeType.scalar(RuntimeTypeKind.CONTEXT));
+			else if (current instanceof RuntimeContextExpression context)
+				nested = context;
+			else
+				return new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
+			value = updateStaticContext(nested, keys.subList(1, keys.size()), value);
+			if (value instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)
+				return value;
+		}
+		entries.put(key, value);
+		var updatedEntries = new ArrayList<RuntimeContextEntry>();
+		var fields = new ArrayList<RuntimeField>();
+		entries.forEach((name, expression) -> {
+			int index = updatedEntries.size();
+			updatedEntries.add(new RuntimeContextEntry(name, -1, expression));
+			fields.add(new RuntimeField(index, name, expression.type()));
+		});
+		return new RuntimeContextExpression(updatedEntries, RuntimeType.contextFields(fields));
 	}
 
 	/**
@@ -2824,7 +2972,18 @@ public final class SparkSqlExpressionEmitter {
 	static boolean nativeTimeNull(List<RuntimeExpression> args) {
 		if (args.isEmpty() || args.size() == 2)
 			return true;
+		if (args.size() == 1 && args.getFirst().type().kind() == RuntimeTypeKind.LIST)
+			return true;
 		return args.subList(0, args.size() == 1 ? 1 : 3).stream()
+				.anyMatch(arg -> arg instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL);
+	}
+
+	static boolean nativeDateTimeNull(List<RuntimeExpression> args) {
+		return args.isEmpty() || args.size() == 1 && args.getFirst().type().kind() == RuntimeTypeKind.LIST;
+	}
+
+	static boolean nativeYearMonthNull(List<RuntimeExpression> args) {
+		return args.isEmpty() || args.size() <= 2 && args.stream()
 				.anyMatch(arg -> arg instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL);
 	}
 
@@ -2861,6 +3020,16 @@ public final class SparkSqlExpressionEmitter {
 			map.put(na.name(), na.expression());
 		}
 		String norm = fnName.toLowerCase();
+		if (Set.of("context put", "context_put").contains(norm)) {
+			String keyName = map.containsKey("key") ? "key" : "keys";
+			if (namedArgs.size() != 3 || map.size() != 3 || !map.keySet().equals(Set.of("context", keyName, "value")))
+				return List.of();
+			RuntimeTypeKind keyKind = map.get(keyName).type().kind();
+			if (keyName.equals("key") && keyKind == RuntimeTypeKind.LIST
+					|| keyName.equals("keys") && keyKind != RuntimeTypeKind.LIST && keyKind != RuntimeTypeKind.ANY)
+				return List.of();
+			return List.of(map.get("context"), map.get(keyName), map.get("value"));
+		}
 		if ((norm.equals("years and months duration") || norm.equals("years_and_months_duration"))
 				&& namedArgs.size() == 2 && map.size() == 2 && map.keySet().equals(Set.of("from", "to")))
 			return List.of(map.get("from"), map.get("to"));

@@ -334,6 +334,10 @@ public final class DmnSparkSqlGenerator {
 			return SparkSqlExpressionEmitter.emitDecisionTable(decision.decisionTable().get(), bkmBySlot, resolver);
 		} else if (decision.expression().isPresent()) {
 			RuntimeExpression expr = decision.expression().get();
+			if (SparkSqlCapabilityAnalyzer.nativeConstantTemporalResult(decision)) {
+				var constant = (io.finmsg.dmn.ir.RuntimeConstant) expr;
+				return "'" + constant.value().replace("'", "''") + "'";
+			}
 			String emitted = SparkSqlExpressionEmitter.emitWithBkms(expr, bkmBySlot, resolver);
 			if (decision.type() != null && decision.type().kind() != io.finmsg.dmn.ir.RuntimeTypeKind.LIST
 					&& decision.type().kind() != io.finmsg.dmn.ir.RuntimeTypeKind.ANY) {

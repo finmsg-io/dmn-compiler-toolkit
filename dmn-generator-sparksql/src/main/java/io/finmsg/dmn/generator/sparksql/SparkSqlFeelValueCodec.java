@@ -85,10 +85,29 @@ public final class SparkSqlFeelValueCodec {
 	/**
 	 * Decode a native result using its declared FEEL type. Local TIME uses
 	 * timestamp-without-timezone anchored at 1970-01-01 in generated SQL. Validated
-	 * constant duration results use exact ISO text, preserving nanoseconds.
+	 * constant temporal and duration results use exact ISO text, preserving
+	 * nanoseconds, offsets, named zones and supported FEEL year bounds.
 	 */
 	public static Object fromSpark(Object value, RuntimeType type) {
 		Object decoded = fromSpark(value);
+		if (type != null && decoded instanceof String text && Set
+				.of(RuntimeTypeKind.DATE, RuntimeTypeKind.TIME, RuntimeTypeKind.DATE_TIME).contains(type.kind())) {
+			Object temporal = switch (type.kind()) {
+				case DATE -> {
+					try {
+						yield java.time.LocalDate.parse(text);
+					} catch (java.time.DateTimeException ignored) {
+						yield null;
+					}
+				}
+				case TIME -> io.finmsg.dmn.runtime.DmnRuntime.parseTime(text);
+				case DATE_TIME -> io.finmsg.dmn.runtime.DmnRuntime.parseDateTime(text);
+				default -> throw new IllegalStateException();
+			};
+			if (temporal == null)
+				throw new IllegalArgumentException("Native temporal result does not match " + type.kind());
+			return temporal;
+		}
 		if (type != null && decoded instanceof String text && Set
 				.of(RuntimeTypeKind.DURATION, RuntimeTypeKind.YEARS_MONTHS_DURATION, RuntimeTypeKind.DAYS_TIME_DURATION)
 				.contains(type.kind())) {
