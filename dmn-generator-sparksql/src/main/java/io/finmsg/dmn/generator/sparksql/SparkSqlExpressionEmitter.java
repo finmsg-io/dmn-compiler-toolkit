@@ -229,6 +229,9 @@ public final class SparkSqlExpressionEmitter {
 				emitUnaryTests("?", testsExpr.tests(), bkmBySlot, slotNameResolver);
 			case RuntimeDescendantExpression desc -> emitDescendant(desc, bkmBySlot, slotNameResolver);
 			case RuntimeInstanceOfExpression inst -> {
+				String durationCheck = nativeDurationInstanceOfSql(inst);
+				if (durationCheck != null)
+					yield durationCheck;
 				String exprCode = emitWithBkms(inst.expression(), bkmBySlot, slotNameResolver);
 				RuntimeType exprType = inst.expression().type();
 				RuntimeType targetType = inst.testedType();
@@ -787,6 +790,9 @@ public final class SparkSqlExpressionEmitter {
 
 	private static String emitBinary(RuntimeBinaryExpression binary, Map<Integer, RuntimeBkm> bkmBySlot,
 			IntFunction<String> slotNameResolver) {
+		String yearMonthSql = nativeYearMonthArithmeticSql(binary);
+		if (yearMonthSql != null)
+			return yearMonthSql;
 		String left = emitWithBkms(binary.left(), bkmBySlot, slotNameResolver);
 		String right = emitWithBkms(binary.right(), bkmBySlot, slotNameResolver);
 
@@ -1246,6 +1252,10 @@ public final class SparkSqlExpressionEmitter {
 					? "sequence(" + emitWithBkms(iter.source(), bkmBySlot, slotNameResolver) + ", "
 							+ emitWithBkms(iter.end().get(), bkmBySlot, slotNameResolver) + ")"
 					: emitWithBkms(iter.source(), bkmBySlot, slotNameResolver);
+			if (isRange && SparkSqlCapabilityAnalyzer.nativeFor(forExpr))
+				source = "sequence(CAST(" + emitWithBkms(iter.source(), bkmBySlot, slotNameResolver)
+						+ " AS BIGINT), CAST(" + emitWithBkms(iter.end().get(), bkmBySlot, slotNameResolver)
+						+ " AS BIGINT))";
 			String itemVar = "_for_" + Math.abs(iter.localSlot());
 			LocalScopeResolver scopedResolver = scoped(slotNameResolver, Map.of(iter.localSlot(), itemVar));
 			String result = emitWithBkms(forExpr.result(), bkmBySlot, scopedResolver);
@@ -1657,10 +1667,13 @@ public final class SparkSqlExpressionEmitter {
 			}
 
 			// Type conversion / General functions
-			case "is" -> args.size() == 1 || args.size() == 2
-					? "(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " <=> "
-							+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")"
-					: "NULL";
+			case "is" -> {
+				String staticResult = nativeStaticIsSql(args);
+				yield staticResult != null
+						? staticResult
+						: "(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " <=> "
+								+ emitArg(args, 1, bkmBySlot, slotNameResolver) + ")";
+			}
 			case "number" -> {
 				if (args.size() == 1) {
 					yield "try_cast(" + emitArg(args, 0, bkmBySlot, slotNameResolver) + " as double)";
@@ -2520,7 +2533,94 @@ public final class SparkSqlExpressionEmitter {
 		return predSql.replace(leftVar, placeholder).replace(rightVar, leftVar).replace(placeholder, rightVar);
 	}
 
-	private record MembershipScalar(RuntimeTypeKind kind, String sql) {
+	static String nativeStaticIsSql(List<RuntimeExpression> arguments) {
+		if (arguments.size() != 2)
+			return "CAST(NULL AS BOOLEAN)";
+		if (!(arguments.get(0) instanceof RuntimeConstant left) || !(arguments.get(1) instanceof RuntimeConstant right))
+			return null;
+		return io.finmsg.dmn.runtime.DmnRuntime.isValues(staticConstantValue(left), staticConstantValue(right))
+				? "TRUE"
+				: "FALSE";
+	}
+
+	private static Object staticConstantValue(RuntimeConstant constant) {
+		try {
+			return switch (constant.kind()) {
+				case NULL -> null;
+				case BOOLEAN -> Boolean.valueOf(constant.value());
+				case NUMBER -> new java.math.BigDecimal(constant.value());
+				case STRING -> constant.value();
+				case DATE -> java.time.LocalDate.parse(constant.value());
+				case TIME -> io.finmsg.dmn.runtime.DmnRuntime.parseTime(constant.value());
+				case DATE_TIME -> io.finmsg.dmn.runtime.DmnRuntime.parseDateTime(constant.value());
+				case DURATION -> io.finmsg.dmn.runtime.DmnRuntime.parseDuration(constant.value());
+			};
+		} catch (RuntimeException ignored) {
+			return null;
+		}
+	}
+
+	static String nativeDurationInstanceOfSql(RuntimeInstanceOfExpression expression) {
+		RuntimeExpression operand = expression.expression();
+		if (!(operand instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.DURATION)
+				&& !(operand instanceof RuntimeFunctionCall call && call.function().equalsIgnoreCase("duration")))
+			return null;
+		var scalar = membershipScalar(operand, Map.of(), slot -> "_unused");
+		if (scalar == null)
+			return null;
+		if (scalar.kind() == RuntimeTypeKind.NULL)
+			return "FALSE";
+		if (!Set.of(RuntimeTypeKind.YEARS_MONTHS_DURATION, RuntimeTypeKind.DAYS_TIME_DURATION).contains(scalar.kind()))
+			return null;
+		RuntimeTypeKind target = expression.testedType().kind();
+		return target == RuntimeTypeKind.ANY || target == RuntimeTypeKind.DURATION || target == scalar.kind()
+				? "TRUE"
+				: "FALSE";
+	}
+
+	static String nativeYearMonthArithmeticSql(RuntimeExpression expression) {
+		if (!(expression instanceof RuntimeBinaryExpression binary))
+			return null;
+		var left = membershipScalar(binary.left(), Map.of(), slot -> "_unused");
+		var right = membershipScalar(binary.right(), Map.of(), slot -> "_unused");
+		if (left == null || right == null)
+			return null;
+		boolean leftMonths = left.kind() == RuntimeTypeKind.YEARS_MONTHS_DURATION;
+		boolean rightMonths = right.kind() == RuntimeTypeKind.YEARS_MONTHS_DURATION;
+		String months;
+		double result;
+		if (leftMonths && rightMonths && (binary.operator() == RuntimeBinaryOperator.ADD
+				|| binary.operator() == RuntimeBinaryOperator.SUBTRACT)) {
+			long a = Long.parseLong(left.sql());
+			long b = Long.parseLong(right.sql());
+			boolean add = binary.operator() == RuntimeBinaryOperator.ADD;
+			result = add ? a + b : a - b;
+			months = "(" + a + (add ? " + " : " - ") + b + ")";
+		} else if (binary.operator() == RuntimeBinaryOperator.MULTIPLY
+				&& (leftMonths && right.number() != null || rightMonths && left.number() != null)) {
+			var duration = leftMonths ? left : right;
+			var number = leftMonths ? right.number() : left.number();
+			result = Long.parseLong(duration.sql()) * number.doubleValue();
+			months = "CAST((CAST(" + duration.sql() + " AS DOUBLE) * CAST('" + number.toPlainString()
+					+ "' AS DOUBLE)) AS BIGINT)";
+		} else if (binary.operator() == RuntimeBinaryOperator.DIVIDE && leftMonths && right.number() != null) {
+			if (right.number().doubleValue() == 0)
+				return "CAST(NULL AS STRING)";
+			result = Long.parseLong(left.sql()) / right.number().doubleValue();
+			months = "CAST((CAST(" + left.sql() + " AS DOUBLE) / CAST('" + right.number().toPlainString()
+					+ "' AS DOUBLE)) AS BIGINT)";
+		} else {
+			return null;
+		}
+		if (!Double.isFinite(result) || Math.abs(result) > 12L * Integer.MAX_VALUE)
+			return null;
+		return formatYearMonthDurationSql(months);
+	}
+
+	private record MembershipScalar(RuntimeTypeKind kind, String sql, java.math.BigDecimal number) {
+		MembershipScalar(RuntimeTypeKind kind, String sql) {
+			this(kind, sql, null);
+		}
 	}
 
 	static boolean nativeMembership(RuntimeInExpression expression) {
@@ -2577,11 +2677,9 @@ public final class SparkSqlExpressionEmitter {
 				}
 				if (kind == RuntimeTypeKind.NUMBER) {
 					var number = new java.math.BigDecimal(constant.value()).stripTrailingZeros();
-					int scale = Math.max(0, number.scale());
-					if (scale > 38 || Math.max(0, number.precision() - number.scale()) + scale > 38)
-						return null;
-					return new MembershipScalar(kind,
-							"CAST('" + number.toPlainString() + "' AS DECIMAL(38," + scale + "))");
+					// Numeric operands on this path are literals only. Fold their comparisons
+					// exactly; Spark's common decimal type can truncate two valid literals.
+					return new MembershipScalar(kind, "'" + number.toPlainString() + "'", number);
 				}
 				if (kind == RuntimeTypeKind.TIME && java.time.LocalTime.parse(constant.value()).getNano() != 0)
 					return null;
@@ -2607,6 +2705,18 @@ public final class SparkSqlExpressionEmitter {
 			RuntimeUnaryTestOperator operator) {
 		if (left == null || right == null)
 			return null;
+		if (left.number() != null && right.number() != null) {
+			int comparison = left.number().compareTo(right.number());
+			boolean match = switch (operator) {
+				case EQUAL -> comparison == 0;
+				case NOT_EQUAL -> comparison != 0;
+				case LESS -> comparison < 0;
+				case LESS_EQUAL -> comparison <= 0;
+				case GREATER -> comparison > 0;
+				case GREATER_EQUAL -> comparison >= 0;
+			};
+			return match ? "TRUE" : "FALSE";
+		}
 		if (operator == RuntimeUnaryTestOperator.EQUAL || operator == RuntimeUnaryTestOperator.NOT_EQUAL) {
 			String equal = left.kind() == right.kind()
 					? "(" + left.sql() + " <=> " + right.sql() + ")"
@@ -2697,7 +2807,8 @@ public final class SparkSqlExpressionEmitter {
 		String result = expression.tests().wildcard()
 				? "TRUE"
 				: matches.isEmpty() ? "FALSE" : "(" + String.join(" OR ", matches) + ")";
-		return expression.tests().negated() ? "(NOT " + result + ")" : result;
+		String matched = expression.tests().negated() ? "(NOT " + result + ")" : result;
+		return "(CASE WHEN " + value.sql() + " IS NULL THEN CAST(NULL AS BOOLEAN) ELSE " + matched + " END)";
 	}
 
 	static boolean nativeMatches(List<RuntimeExpression> args) {
@@ -2758,7 +2869,9 @@ public final class SparkSqlExpressionEmitter {
 		}
 		if ("is".equals(norm)) {
 			if (namedArgs.size() == 1 && (map.containsKey("value1") || map.containsKey("value2"))) {
-				return List.of(namedArgs.get(0).expression());
+				var absent = new RuntimeConstant(RuntimeConstantKind.NULL, "null",
+						RuntimeType.scalar(RuntimeTypeKind.NULL));
+				return List.of(map.getOrDefault("value1", absent), map.getOrDefault("value2", absent));
 			}
 			return namedArgs.size() == 2 && map.size() == 2 && map.keySet().containsAll(List.of("value1", "value2"))
 					? List.of(map.get("value1"), map.get("value2"))

@@ -163,6 +163,7 @@ public final class SparkSqlCapabilityAnalyzer {
 						|| expression instanceof RuntimePathExpression || expression instanceof RuntimeContextExpression
 						|| expression instanceof RuntimeListExpression
 						|| expression instanceof RuntimeInstanceOfExpression
+						|| expression instanceof RuntimeForExpression loop && nativeFor(loop)
 						|| expression instanceof RuntimeFunctionDefinition
 						|| expression instanceof RuntimeInvocationExpression
 						|| expression instanceof RuntimeFunctionCall)) {
@@ -192,6 +193,8 @@ public final class SparkSqlCapabilityAnalyzer {
 				.contains(decision.type().kind()))
 			return false;
 		RuntimeExpression expression = decision.expression().orElse(null);
+		if (SparkSqlExpressionEmitter.nativeYearMonthArithmeticSql(expression) != null)
+			return true;
 		if (expression instanceof RuntimeInvocationExpression invocation && invocation.function().isPresent()) {
 			if (!invocation.namedArguments().isEmpty() && (invocation.namedArguments().size() != 2
 					|| !invocation.namedArguments().stream().map(RuntimeNamedArgument::name)
@@ -227,7 +230,39 @@ public final class SparkSqlCapabilityAnalyzer {
 		};
 	}
 
+	static boolean nativeFor(RuntimeForExpression loop) {
+		if (loop.iterations().size() != 1 || loop.partialSlot() >= 0
+				|| !SparkSqlFeelValueCodec.isNativeType(loop.type()))
+			return false;
+		var iteration = loop.iterations().getFirst();
+		if (iteration.end().isEmpty())
+			return iteration.source().type().kind() == RuntimeTypeKind.LIST
+					&& SparkSqlFeelValueCodec.isNativeType(iteration.source().type());
+		if (!(iteration.source() instanceof RuntimeConstant start) || start.kind() != RuntimeConstantKind.NUMBER
+				|| !(iteration.end().get() instanceof RuntimeConstant end) || end.kind() != RuntimeConstantKind.NUMBER)
+			return false;
+		try {
+			long first = new java.math.BigDecimal(start.value()).intValueExact();
+			long last = new java.math.BigDecimal(end.value()).intValueExact();
+			return Math.abs(last - first) < 10_000;
+		} catch (ArithmeticException | NumberFormatException ignored) {
+			return false;
+		}
+	}
+
 	private static boolean inspectChildren(Object node) {
+		if (node instanceof RuntimeFunctionCall call && call.function().equalsIgnoreCase("is")
+				&& SparkSqlExpressionEmitter.nativeStaticIsSql(call.arguments()) != null)
+			return false;
+		if (node instanceof RuntimeInvocationExpression invocation && invocation.function().isPresent()
+				&& invocation.function().get().equalsIgnoreCase("is")
+				&& SparkSqlExpressionEmitter.nativeStaticIsSql(invocation.namedArguments().isEmpty()
+						? invocation.positionalArguments()
+						: SparkSqlExpressionEmitter.reorderNamedArguments("is", invocation.namedArguments())) != null)
+			return false;
+		if (node instanceof RuntimeInstanceOfExpression expression
+				&& SparkSqlExpressionEmitter.nativeDurationInstanceOfSql(expression) != null)
+			return false;
 		if (node instanceof RuntimeInExpression expression && SparkSqlExpressionEmitter.nativeMembership(expression))
 			return false;
 		if (node instanceof RuntimeFunctionCall call && call.function().equalsIgnoreCase("time"))

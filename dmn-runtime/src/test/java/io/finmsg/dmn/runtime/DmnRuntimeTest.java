@@ -11,6 +11,15 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class DmnRuntimeTest {
+	@Test
+	void identityDistinguishesNanosecondsForLocalTemporalValues() {
+		var time = java.time.LocalTime.of(12, 0, 0, 1);
+		var dateTime = java.time.LocalDate.of(2021, 1, 1).atTime(time);
+		assertThat(DmnRuntime.isValues(time, time.plusNanos(1))).isFalse();
+		assertThat(DmnRuntime.isValues(time, time)).isTrue();
+		assertThat(DmnRuntime.isValues(dateTime, dateTime.plusNanos(1))).isFalse();
+		assertThat(DmnRuntime.isValues(dateTime, dateTime)).isTrue();
+	}
 	private static final RuntimeType NUMBER = RuntimeType.scalar(RuntimeTypeKind.NUMBER);
 	private static final RuntimeType BOOLEAN = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
 

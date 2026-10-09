@@ -38,8 +38,12 @@ public class ConstantFoldingPass implements OptimizerPass {
 
 	private RuntimeDecision transformDecision(RuntimeDecision decision) {
 		Optional<RuntimeExpression> newExpr = decision.expression().map(this::transformExpression);
-		return new RuntimeDecision(decision.id(), decision.resultSlot(), decision.type(), decision.dependencies(),
-				newExpr, decision.decisionTable(), decision.localSlotCount());
+		RuntimeType resultType = decision.type();
+		if (resultType.kind() == RuntimeTypeKind.ANY && newExpr.orElse(null) instanceof RuntimeConstant constant
+				&& constant.kind() == RuntimeConstantKind.DURATION)
+			resultType = RuntimeType.scalar(RuntimeTypeKind.DURATION);
+		return new RuntimeDecision(decision.id(), decision.resultSlot(), resultType, decision.dependencies(), newExpr,
+				decision.decisionTable(), decision.localSlotCount());
 	}
 
 	private RuntimeBkm transformBkm(RuntimeBkm bkm) {

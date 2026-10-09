@@ -1907,6 +1907,10 @@ public final class DmnRuntime {
 		if (a instanceof OffsetTime ot1 && b instanceof OffsetTime ot2) {
 			return ot1.getOffset().equals(ot2.getOffset()) && ot1.toLocalTime().equals(ot2.toLocalTime());
 		}
+		if (a instanceof LocalTime t1 && b instanceof LocalTime t2)
+			return t1.equals(t2);
+		if (a instanceof LocalDateTime dt1 && b instanceof LocalDateTime dt2)
+			return dt1.equals(dt2);
 		if (a instanceof Period p1 && b instanceof Period p2) {
 			return p1.toTotalMonths() == p2.toTotalMonths();
 		}

@@ -9,6 +9,19 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class DmnOptimizerTest {
+	@Test
+	void foldedDurationRefinesUnknownDecisionResultWithoutChangingDeclaredTypes() {
+		var duration = RuntimeType.scalar(RuntimeTypeKind.DURATION);
+		var value = new RuntimeConstant(RuntimeConstantKind.DURATION, "P1Y2M", duration);
+		for (RuntimeType declared : java.util.List.of(RuntimeType.scalar(RuntimeTypeKind.ANY), duration, STRING_TYPE)) {
+			var decision = new RuntimeDecision(1, 0, declared, java.util.List.of(), java.util.Optional.of(value));
+			var model = new RuntimeModel(java.util.List.of(), java.util.List.of(decision), java.util.List.of(),
+					java.util.List.of(1), 1);
+			var optimized = new ConstantFoldingPass().transform(model).decisions().getFirst();
+			assertThat(optimized.type()).isEqualTo(declared.kind() == RuntimeTypeKind.ANY ? duration : declared);
+			assertThat(optimized.expression()).contains(value);
+		}
+	}
 
 	@Test
 	void namedDurationKeepsBothEndpoints() {
