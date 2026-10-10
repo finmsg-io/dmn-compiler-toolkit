@@ -346,7 +346,7 @@ class SparkSqlHybridIntegrationTest {
 		var model = new RuntimeModel(List.of(),
 				List.of(new RuntimeDecision(10, 0, resultType, List.of(), Optional.of(unsupported))), List.of(),
 				List.of(10), 1);
-		assertThat(SparkSqlHybridTest.generate(model).capabilities().get(10).nativeSql()).isFalse();
+		assertThat(SparkSqlHybridTest.generate(model).capabilities().get(10).nativeSql()).isTrue();
 	}
 
 	@Test
@@ -688,6 +688,228 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	void staticCalendarDurationsPreserveLocalDatesAcrossZonesAndExtremeYears() {
+		var type = RuntimeType.scalar(RuntimeTypeKind.YEARS_MONTHS_DURATION);
+		var dateTime = RuntimeType.scalar(RuntimeTypeKind.DATE_TIME);
+		try {
+			for (String zone : List.of("UTC", "Europe/Zurich")) {
+				spark.conf().set("spark.sql.session.timeZone", zone);
+				for (String[] pair : List.of(new String[]{"-2016-01-30T09:05:00", "-2017-02-28T02:02:02"},
+						new String[]{"2017-01-31T23:59:59.999999999-12:00", "2017-02-28T00:00:00.000000001+14:00"},
+						new String[]{"2017-03-26T02:30:00@Europe/Paris", "2018-03-26T02:30:00@Etc/UTC"},
+						new String[]{"-999999999-01-01T00:00:00", "999999999-12-31T23:59:59"})) {
+					RuntimeExpression from = new RuntimeConstant(RuntimeConstantKind.DATE_TIME, pair[0], dateTime);
+					RuntimeExpression to = new RuntimeConstant(RuntimeConstantKind.DATE_TIME, pair[1], dateTime);
+					for (RuntimeExpression expression : List.<RuntimeExpression>of(
+							new RuntimeFunctionCall("years and months duration", List.of(from, to), type),
+							new RuntimeInvocationExpression(Optional.of("years and months duration"), Optional.empty(),
+									List.of(new RuntimeNamedArgument("to", to), new RuntimeNamedArgument("from", from)),
+									List.of(), type))) {
+						var model = new RuntimeModel(List.of(),
+								List.of(new RuntimeDecision(10, 0, type, List.of(), Optional.of(expression))),
+								List.of(), List.of(10), 1);
+						var generated = SparkSqlHybridTest.generate(model);
+						assertThat(generated.udfs()).isEmpty();
+						spark.range(1).createOrReplaceTempView("hybrid_inputs");
+						Object actual = SparkSqlFeelValueCodec
+								.fromSpark(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0), type);
+						assertThat(actual).isEqualTo(
+								new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10));
+					}
+				}
+			}
+		} finally {
+			spark.conf().set("spark.sql.session.timeZone", "UTC");
+		}
+	}
+
+	@Test
+	void invalidCalendarConstructorsAndListsReturnNativeNull() {
+		var type = RuntimeType.scalar(RuntimeTypeKind.YEARS_MONTHS_DURATION);
+		RuntimeExpression emptyDate = new RuntimeFunctionCall("date", List.of(SparkSqlHybridTest.string("")),
+				RuntimeType.scalar(RuntimeTypeKind.DATE));
+		RuntimeExpression emptyList = new RuntimeListExpression(List.of(),
+				RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.ANY));
+		for (RuntimeExpression operand : List.of(emptyDate, emptyList)) {
+			var expression = new RuntimeFunctionCall("years and months duration", List.of(operand, operand), type);
+			var model = new RuntimeModel(List.of(),
+					List.of(new RuntimeDecision(10, 0, type, List.of(), Optional.of(expression))), List.of(),
+					List.of(10), 1);
+			var generated = SparkSqlHybridTest.generate(model);
+			assertThat(generated.udfs()).isEmpty();
+			spark.range(1).createOrReplaceTempView("hybrid_inputs");
+			assertThat(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0)).isNull();
+			assertThat(new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10)).isNull();
+		}
+	}
+
+	@Test
+	void literalTemporalPropertiesPreserveDurationPartsAndZoneIdentity() {
+		try {
+			for (String zone : List.of("UTC", "Europe/Zurich")) {
+				spark.conf().set("spark.sql.session.timeZone", zone);
+				for (String[] sample : List.of(
+						new String[]{"DURATION", "-PT25H61M0.123456789S", "days", "hours", "minutes", "seconds",
+								"years"},
+						new String[]{"DURATION", "P13M", "years", "months", "days"},
+						new String[]{"TIME", "10:30:00.123456789+05:30", "hour", "time offset", "timezone"},
+						new String[]{"DATE_TIME", "2017-03-26T02:30:00@Europe/Paris", "hour", "time offset",
+								"timezone"},
+						new String[]{"DATE_TIME", "2018-12-10T10:30:00.000000001", "time offset", "timezone"})) {
+					var kind = RuntimeConstantKind.valueOf(sample[0]);
+					var source = new RuntimeConstant(kind, sample[1],
+							RuntimeType.scalar(RuntimeTypeKind.valueOf(sample[0])));
+					for (int index = 2; index < sample.length; index++) {
+						String member = sample[index];
+						var type = RuntimeType.scalar(member.equals("time offset")
+								? RuntimeTypeKind.DAYS_TIME_DURATION
+								: member.equals("timezone") ? RuntimeTypeKind.STRING : RuntimeTypeKind.NUMBER);
+						var path = new RuntimePathExpression(source, member, type);
+						var model = new RuntimeModel(List.of(),
+								List.of(new RuntimeDecision(10, 0, type, List.of(), Optional.of(path))), List.of(),
+								List.of(10), 1);
+						var generated = SparkSqlHybridTest.generate(model);
+						assertThat(generated.udfs()).isEmpty();
+						spark.range(1).createOrReplaceTempView("hybrid_inputs");
+						Object actual = SparkSqlFeelValueCodec
+								.fromSpark(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0), type);
+						assertThat(actual).isEqualTo(
+								new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10));
+					}
+				}
+			}
+		} finally {
+			spark.conf().set("spark.sql.session.timeZone", "UTC");
+		}
+	}
+
+	@Test
+	void literalContextConstructionAndMergePreserveHeterogeneousValuesAndKeyRules() {
+		var context = RuntimeType.scalar(RuntimeTypeKind.CONTEXT);
+		var list = RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.ANY);
+		var a = nativeContextFixture("key", SparkSqlHybridTest.string("a"), "value", SparkSqlHybridTest.number("1"));
+		var b = nativeContextFixture("key", SparkSqlHybridTest.string("b"), "value",
+				new RuntimeConstant(RuntimeConstantKind.BOOLEAN, "true", RuntimeType.scalar(RuntimeTypeKind.BOOLEAN)));
+		var entries = new RuntimeListExpression(List.of(a, b), list);
+		var mergeInput = new RuntimeListExpression(List.of(nativeContextFixture("a", SparkSqlHybridTest.number("1")),
+				nativeContextFixture("b", SparkSqlHybridTest.string("text"), "a", SparkSqlHybridTest.number("2"))),
+				list);
+		for (RuntimeExpression expression : List
+				.<RuntimeExpression>of(new RuntimeFunctionCall("context", List.of(entries), context),
+						new RuntimeFunctionCall("context", List.of(a), context),
+						new RuntimeFunctionCall("context", List.of(new RuntimeListExpression(List.of(a, a), list)),
+								context),
+						new RuntimeFunctionCall("context merge", List.of(mergeInput), context),
+						new RuntimeFunctionCall("context merge", List.of(nativeContextFixture("a", a)), context),
+						new RuntimeInvocationExpression(Optional.of("context"), Optional.empty(),
+								List.of(new RuntimeNamedArgument("entries", entries)), List.of(), context),
+						new RuntimeInvocationExpression(Optional.of("context merge"), Optional.empty(),
+								List.of(new RuntimeNamedArgument("contexts", mergeInput)), List.of(), context))) {
+			var model = new RuntimeModel(List.of(),
+					List.of(new RuntimeDecision(10, 0, context, List.of(), Optional.of(expression))), List.of(),
+					List.of(10), 1);
+			var generated = SparkSqlHybridTest.generate(model);
+			assertThat(generated.udfs()).isEmpty();
+			spark.range(1).createOrReplaceTempView("hybrid_inputs");
+			Object actual = SparkSqlFeelValueCodec
+					.fromSpark(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0), context);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10);
+			assertThat(actual).isEqualTo(expected);
+			if (actual instanceof Map<?, ?> map)
+				assertThat(new ArrayList<>(map.keySet())).isEqualTo(new ArrayList<>(((Map<?, ?>) expected).keySet()));
+		}
+	}
+
+	@Test
+	void literalContextNullAndEmptyEqualityUseNativeSql() {
+		var context = RuntimeType.scalar(RuntimeTypeKind.CONTEXT);
+		var empty = new RuntimeListExpression(List.of(),
+				RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.ANY));
+		for (String name : List.of("context", "context merge")) {
+			RuntimeExpression constructed = new RuntimeFunctionCall(name, List.of(empty), context);
+			for (RuntimeExpression expression : List.<RuntimeExpression>of(
+					new RuntimeBinaryExpression(RuntimeBinaryOperator.EQUAL, constructed, nativeContextFixture(),
+							RuntimeType.scalar(RuntimeTypeKind.BOOLEAN)),
+					new RuntimeFunctionCall(name, List.of(), context),
+					new RuntimeFunctionCall(name, List.of(SparkSqlHybridTest.string("wrong")), context),
+					new RuntimeInvocationExpression(Optional.of(name), Optional.empty(),
+							List.of(new RuntimeNamedArgument("wrong", empty)), List.of(), context))) {
+				var type = expression.type();
+				var model = new RuntimeModel(List.of(),
+						List.of(new RuntimeDecision(10, 0, type, List.of(), Optional.of(expression))), List.of(),
+						List.of(10), 1);
+				var generated = SparkSqlHybridTest.generate(model);
+				assertThat(generated.udfs()).isEmpty();
+				spark.range(1).createOrReplaceTempView("hybrid_inputs");
+				assertThat(SparkSqlFeelValueCodec
+						.fromSpark(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0), type))
+						.isEqualTo(new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10));
+			}
+		}
+	}
+
+	@Test
+	void literalContextPromotionRetainsAmbiguousLayoutsAndPrecisionFallback() {
+		var context = RuntimeType.scalar(RuntimeTypeKind.CONTEXT);
+		var list = RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.ANY);
+		for (RuntimeExpression source : List.<RuntimeExpression>of(
+				new RuntimeListExpression(List.of(nativeContextFixture("a", SparkSqlHybridTest.number("1")),
+						nativeContextFixture("A", SparkSqlHybridTest.number("2"))), list),
+				nativeContextFixture("a", SparkSqlHybridTest.number("1E-50")),
+				nativeContextFixture("a", SparkSqlHybridTest.number("0E-100")),
+				nativeContextFixture("a", SparkSqlHybridTest.number("1E+2147483647")))) {
+			var expression = new RuntimeFunctionCall("context merge", List.of(source), context);
+			var model = new RuntimeModel(List.of(),
+					List.of(new RuntimeDecision(10, 0, context, List.of(), Optional.of(expression))), List.of(),
+					List.of(10), 1);
+			assertThat(SparkSqlHybridTest.generate(model).capabilities().get(10).nativeSql()).isFalse();
+		}
+	}
+
+	private static RuntimeContextExpression nativeContextFixture(Object... pairs) {
+		var entries = new ArrayList<RuntimeContextEntry>();
+		var fields = new ArrayList<RuntimeField>();
+		for (int index = 0; index < pairs.length; index += 2) {
+			String name = (String) pairs[index];
+			RuntimeExpression value = (RuntimeExpression) pairs[index + 1];
+			entries.add(new RuntimeContextEntry(name, -1, value));
+			fields.add(new RuntimeField(fields.size(), name, value.type()));
+		}
+		return new RuntimeContextExpression(entries, RuntimeType.contextFields(fields));
+	}
+
+	@Test
+	void literalPropertyPromotionDoesNotEnableDynamicTemporalInputs() {
+		var time = RuntimeType.scalar(RuntimeTypeKind.TIME);
+		var path = new RuntimePathExpression(new RuntimeValueReference(0, time), "timezone", SparkSqlHybridTest.STRING);
+		var model = new RuntimeModel(List.of(new RuntimeInput(5, 0, time)),
+				List.of(new RuntimeDecision(10, 1, SparkSqlHybridTest.STRING, List.of(5), Optional.of(path))),
+				List.of(), List.of(10), 2);
+		assertThat(SparkSqlHybridTest.generate(model).capabilities().get(10).nativeSql()).isFalse();
+		var constant = new RuntimeConstant(RuntimeConstantKind.TIME, "10:30:00+05:30", time);
+		var offset = new RuntimePathExpression(constant, "time offset", SparkSqlHybridTest.ANY);
+		var unknownResult = new RuntimeModel(List.of(),
+				List.of(new RuntimeDecision(10, 0, SparkSqlHybridTest.ANY, List.of(), Optional.of(offset))), List.of(),
+				List.of(10), 1);
+		var generated = SparkSqlHybridTest.generate(unknownResult);
+		assertThat(generated.capabilities().get(10).nativeSql()).isFalse();
+		generated.registerUdfs(spark);
+		spark.range(1).createOrReplaceTempView("hybrid_inputs");
+		assertThat(
+				SparkSqlFeelValueCodec.fromSpark(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0)))
+				.isEqualTo(java.time.Duration.ofMinutes(330));
+		var local = new RuntimeConstant(RuntimeConstantKind.TIME, "10:30:00", time);
+		var absentOffset = new RuntimePathExpression(local, "time offset",
+				RuntimeType.scalar(RuntimeTypeKind.DAYS_TIME_DURATION));
+		var nullModel = new RuntimeModel(List.of(),
+				List.of(new RuntimeDecision(10, 0, SparkSqlHybridTest.ANY, List.of(), Optional.of(absentOffset))),
+				List.of(), List.of(10), 1);
+		var nullGenerated = SparkSqlHybridTest.generate(nullModel);
+		assertThat(nullGenerated.udfs()).isEmpty();
+		assertThat(spark.sql(nullGenerated.sqlFiles().get("Decision_0.sql")).head().get(0)).isNull();
+	}
+
+	@Test
 	void foldedNullResultsDoNotRequireLosslessTransport() {
 		var constant = new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
 		for (RuntimeTypeKind kind : List.of(RuntimeTypeKind.DATE, RuntimeTypeKind.DURATION,
@@ -1006,6 +1228,123 @@ class SparkSqlHybridIntegrationTest {
 		assertThat((BigDecimal) SparkSqlFeelValueCodec.fromSpark(
 				spark.sql("SELECT " + SparkSqlExpressionEmitter.emit(reordered, slot -> null)).head().get(0)))
 				.isEqualByComparingTo("2");
+	}
+
+	@Test
+	void positionalListReplacementInfersNativeResultsAndPreservesNullAndFractionalPositions() {
+		var listType = RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.NUMBER);
+		var resultType = RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.ANY);
+		var source = new RuntimeListExpression(
+				List.of(SparkSqlHybridTest.number("1"), SparkSqlHybridTest.number("2"), SparkSqlHybridTest.number("3")),
+				listType);
+		var nil = new RuntimeConstant(RuntimeConstantKind.NULL, "null", SparkSqlHybridTest.ANY);
+		var expressions = new ArrayList<RuntimeExpression>();
+		for (RuntimeExpression position : List.of(SparkSqlHybridTest.number("2"), SparkSqlHybridTest.number("-1"),
+				SparkSqlHybridTest.number("0"), SparkSqlHybridTest.number("4"), SparkSqlHybridTest.number("-4"),
+				SparkSqlHybridTest.number("2.5"), SparkSqlHybridTest.number("-1.5"), SparkSqlHybridTest.string("2"),
+				nil)) {
+			for (RuntimeExpression replacement : List.of(SparkSqlHybridTest.number("4"), nil))
+				expressions.add(
+						new RuntimeFunctionCall("list replace", List.of(source, position, replacement), resultType));
+		}
+		expressions.add(new RuntimeFunctionCall("list replace",
+				List.of(nil, SparkSqlHybridTest.number("1"), SparkSqlHybridTest.number("4")), resultType));
+		expressions.add(new RuntimeFunctionCall("list replace",
+				List.of(SparkSqlHybridTest.number("1"), SparkSqlHybridTest.number("1"), SparkSqlHybridTest.number("5")),
+				resultType));
+		expressions.add(new RuntimeInvocationExpression(Optional.of("list replace"), Optional.empty(),
+				List.of(new RuntimeNamedArgument("newItem", SparkSqlHybridTest.number("4")),
+						new RuntimeNamedArgument("position", SparkSqlHybridTest.number("2")),
+						new RuntimeNamedArgument("list", source)),
+				List.of(), resultType));
+		for (var expression : expressions) {
+			var model = new RuntimeModel(List.of(),
+					List.of(new RuntimeDecision(10, 0, resultType, List.of(), Optional.of(expression))), List.of(),
+					List.of(10), 1);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10);
+			var generated = SparkSqlHybridTest.generate(model);
+			assertThat(generated.capabilities().get(10).nativeSql()).isTrue();
+			assertThat(generated.udfs()).isEmpty();
+			spark.sql("SELECT 1").createOrReplaceTempView("hybrid_inputs");
+			Object actual = SparkSqlFeelValueCodec
+					.fromSpark(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0));
+			assertThat(actual).as("%s", expression).isEqualTo(expected);
+		}
+		var unsafe = new RuntimeFunctionCall("list replace",
+				List.of(source, SparkSqlHybridTest.number("1.9999999999999999999"), SparkSqlHybridTest.number("4")),
+				resultType);
+		assertThat(SparkSqlExpressionEmitter.nativeListReplaceType(unsafe)).isNull();
+	}
+
+	@Test
+	void invalidOperationsExecuteNativelyWithoutCoercingUnsupportedOperands() {
+		var function = new RuntimeFunctionDefinition(List.of(), Optional.of(SparkSqlHybridTest.number("1")), false,
+				RuntimeType.function(List.of(), SparkSqlHybridTest.NUMBER));
+		var expressions = new ArrayList<RuntimeExpression>();
+		for (var operator : List.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT,
+				RuntimeBinaryOperator.MULTIPLY, RuntimeBinaryOperator.DIVIDE, RuntimeBinaryOperator.POWER)) {
+			expressions.add(new RuntimeBinaryExpression(operator, function, SparkSqlHybridTest.string("x"),
+					SparkSqlHybridTest.ANY));
+			expressions.add(new RuntimeBinaryExpression(operator, SparkSqlHybridTest.number("2"), function,
+					SparkSqlHybridTest.ANY));
+		}
+		for (String duration : List.of("P4D", "P4Y")) {
+			var argument = new RuntimeConstant(RuntimeConstantKind.DURATION, duration,
+					RuntimeType.scalar(RuntimeTypeKind.DURATION));
+			for (String name : List.of("sqrt", "exp", "log", "even", "odd", "modulo"))
+				expressions.add(new RuntimeFunctionCall(name,
+						name.equals("modulo") ? List.of(argument, SparkSqlHybridTest.number("4")) : List.of(argument),
+						SparkSqlHybridTest.ANY));
+		}
+		expressions.add(new RuntimeInvocationExpression(Optional.empty(), Optional.of(SparkSqlHybridTest.string("abs")),
+				List.of(), List.of(SparkSqlHybridTest.number("-1")), SparkSqlHybridTest.ANY));
+		expressions.add(new RuntimeFunctionCall("date", List.of(), RuntimeType.scalar(RuntimeTypeKind.DATE)));
+		for (var expression : expressions) {
+			var model = new RuntimeModel(List.of(),
+					List.of(new RuntimeDecision(10, 0, expression.type(), List.of(), Optional.of(expression))),
+					List.of(), List.of(10), 1);
+			assertThat(new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10))
+					.as("runtime %s", expression).isNull();
+			assertThat(new SparkSqlCapabilityAnalyzer().analyze(model, 10, true).nativeSql()).isTrue();
+			assertThat(spark.sql("SELECT " + SparkSqlExpressionEmitter.emit(expression, slot -> null)).head().get(0))
+					.isNull();
+		}
+	}
+
+	@Test
+	void typedFiltersAndQuantifiersPreserveFalseNullAndEmptyPredicates() {
+		var bool = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+		var listType = RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.NUMBER);
+		var source = new RuntimeListExpression(
+				List.of(SparkSqlHybridTest.number("1"), SparkSqlHybridTest.number("2"), SparkSqlHybridTest.number("3")),
+				listType);
+		var empty = new RuntimeListExpression(List.of(),
+				RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.ANY));
+		var comparison = new RuntimeBinaryExpression(RuntimeBinaryOperator.GREATER,
+				new RuntimeLocalReference(0, SparkSqlHybridTest.NUMBER), SparkSqlHybridTest.number("1"), bool);
+		var expressions = new ArrayList<RuntimeExpression>();
+		for (RuntimeExpression predicate : List.of(comparison,
+				new RuntimeConstant(RuntimeConstantKind.BOOLEAN, "true", bool),
+				new RuntimeConstant(RuntimeConstantKind.BOOLEAN, "false", bool),
+				new RuntimeConstant(RuntimeConstantKind.NULL, "null", bool))) {
+			expressions.add(new RuntimeFilterExpression(source, 0, predicate, listType));
+			for (var quantifier : RuntimeQuantifier.values()) {
+				expressions.add(new RuntimeQuantifiedExpression(quantifier,
+						List.of(new RuntimeQuantifiedBinding(0, source)), predicate, bool));
+				expressions.add(new RuntimeQuantifiedExpression(quantifier,
+						List.of(new RuntimeQuantifiedBinding(0, empty)), predicate, bool));
+			}
+		}
+		for (var expression : expressions) {
+			var model = new RuntimeModel(List.of(), List.of(new RuntimeDecision(10, 0, expression.type(), List.of(),
+					Optional.of(expression), Optional.empty(), 1)), List.of(), List.of(10), 1);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10);
+			assertThat(new SparkSqlCapabilityAnalyzer().analyze(model, 10, true).nativeSql()).as("%s", expression)
+					.isTrue();
+			Object actual = SparkSqlFeelValueCodec.fromSpark(
+					spark.sql("SELECT " + SparkSqlExpressionEmitter.emit(expression, slot -> null)).head().get(0));
+			assertThat(actual).as("%s", expression).isEqualTo(expected);
+		}
 	}
 
 	@Test

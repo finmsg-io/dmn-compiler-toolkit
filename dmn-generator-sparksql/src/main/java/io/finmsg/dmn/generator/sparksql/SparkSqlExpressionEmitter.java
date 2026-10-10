@@ -72,6 +72,8 @@ public final class SparkSqlExpressionEmitter {
 		if (expr == null) {
 			return "NULL";
 		}
+		if (nativeInvalidExpression(expr))
+			return "NULL";
 		return switch (expr) {
 			case RuntimeConstant constant -> emitConstant(constant);
 			case RuntimeValueReference ref -> {
@@ -109,6 +111,9 @@ public final class SparkSqlExpressionEmitter {
 						+ emitWithBkms(cond.thenExpression(), bkmBySlot, slotNameResolver) + ") ELSE ("
 						+ emitWithBkms(cond.elseExpression(), bkmBySlot, slotNameResolver) + ") END";
 			case RuntimePathExpression path -> {
+				RuntimeConstant property = nativeTemporalPropertyConstant(path);
+				if (property != null)
+					yield emitConstant(property);
 				if (path.source() instanceof RuntimeContextExpression context
 						&& context.entries().stream().noneMatch(e -> e.name().equals(path.member())))
 					yield "NULL";
@@ -790,6 +795,9 @@ public final class SparkSqlExpressionEmitter {
 
 	private static String emitBinary(RuntimeBinaryExpression binary, Map<Integer, RuntimeBkm> bkmBySlot,
 			IntFunction<String> slotNameResolver) {
+		String contextPredicate = nativeStaticContextPredicate(binary);
+		if (contextPredicate != null)
+			return contextPredicate;
 		String yearMonthSql = nativeYearMonthArithmeticSql(binary);
 		if (yearMonthSql != null)
 			return yearMonthSql;
@@ -1206,6 +1214,8 @@ public final class SparkSqlExpressionEmitter {
 	private static String emitQuantified(RuntimeQuantifiedExpression quant, Map<Integer, RuntimeBkm> bkmBySlot,
 			IntFunction<String> slotNameResolver) {
 		boolean isEvery = quant.quantifier() == RuntimeQuantifier.EVERY;
+		if (SparkSqlCapabilityAnalyzer.nativeEmptyQuantified(quant))
+			return isEvery ? "TRUE" : "FALSE";
 		if (quant.bindings().isEmpty()) {
 			return String.valueOf(isEvery).toUpperCase();
 		}
@@ -1227,6 +1237,11 @@ public final class SparkSqlExpressionEmitter {
 		String itemVar = "_q_" + Math.abs(binding.localSlot());
 		LocalScopeResolver scopedResolver = scoped(slotNameResolver, Map.of(binding.localSlot(), itemVar));
 		String inner = emitNestedQuantified(isEvery, bindings, index + 1, satisfies, bkmBySlot, scopedResolver);
+		// FEEL quantified predicates match only true; Spark otherwise propagates null.
+		if (SparkSqlCapabilityAnalyzer.nativeQuantified(
+				new RuntimeQuantifiedExpression(isEvery ? RuntimeQuantifier.EVERY : RuntimeQuantifier.SOME, bindings,
+						satisfies, RuntimeType.scalar(RuntimeTypeKind.BOOLEAN))))
+			inner = "coalesce(" + inner + ", false)";
 		String func = isEvery ? "forall" : "exists";
 		return "(CASE WHEN " + source + " IS NULL THEN NULL ELSE " + func + "(" + source + ", " + itemVar + " -> "
 				+ inner + ") END)";
@@ -1705,6 +1720,11 @@ public final class SparkSqlExpressionEmitter {
 			}
 			case "duration", "years and months duration", "years_and_months_duration", "day and time duration",
 					"day_and_time_duration" -> {
+				if (Set.of("years and months duration", "years_and_months_duration").contains(name)) {
+					String staticCalendar = nativeStaticCalendarSql(args);
+					if (staticCalendar != null)
+						yield staticCalendar;
+				}
 				if (Set.of("years and months duration", "years_and_months_duration").contains(name)
 						&& nativeYearMonthNull(args))
 					yield "CAST(NULL AS STRING)";
@@ -2273,6 +2293,10 @@ public final class SparkSqlExpressionEmitter {
 
 			// Context functions
 			case "context" -> {
+				RuntimeExpression literal = nativeStaticContextExpression(
+						new RuntimeFunctionCall(name, args, fn.type()));
+				if (literal != null)
+					yield emitWithBkms(literal, bkmBySlot, slotNameResolver);
 				if (args.isEmpty()) {
 					yield "map()";
 				}
@@ -2304,6 +2328,10 @@ public final class SparkSqlExpressionEmitter {
 						+ ", map(" + key + ", " + val + ")) END)";
 			}
 			case "context merge", "context_merge" -> {
+				RuntimeExpression literal = nativeStaticContextExpression(
+						new RuntimeFunctionCall(name, args, fn.type()));
+				if (literal != null)
+					yield emitWithBkms(literal, bkmBySlot, slotNameResolver);
 				if (args.size() == 1) {
 					yield "aggregate(" + emitArg(args, 0, bkmBySlot, slotNameResolver)
 							+ ", map(), (acc, x) -> map_concat(acc, x))";
@@ -2552,6 +2580,9 @@ public final class SparkSqlExpressionEmitter {
 	}
 
 	static RuntimeType nativeContextPutType(RuntimeExpression expression) {
+		RuntimeExpression literal = nativeStaticContextExpression(expression);
+		if (literal != null)
+			return literal.type();
 		if (expression instanceof RuntimeFunctionCall call
 				&& Set.of("context put", "context_put").contains(call.function().toLowerCase(Locale.ROOT)))
 			return nativeContextPutType(call.arguments());
@@ -2560,6 +2591,249 @@ public final class SparkSqlExpressionEmitter {
 			return nativeContextPutType(invocation.namedArguments().isEmpty()
 					? invocation.positionalArguments()
 					: reorderNamedArguments(invocation.function().get(), invocation.namedArguments()));
+		return null;
+	}
+
+	/**
+	 * Statically verified context builtins retain the shared runtime's key and
+	 * merge rules.
+	 */
+	static RuntimeExpression nativeStaticContextExpression(RuntimeExpression expression) {
+		RuntimeFunctionCall call;
+		if (expression instanceof RuntimeFunctionCall function)
+			call = function;
+		else if (expression instanceof RuntimeInvocationExpression invocation && invocation.function().isPresent())
+			call = new RuntimeFunctionCall(invocation.function().get(),
+					invocation.namedArguments().isEmpty()
+							? invocation.positionalArguments()
+							: reorderNamedArguments(invocation.function().get(), invocation.namedArguments()),
+					invocation.type());
+		else
+			return null;
+		if (!Set.of("context", "context merge", "context_merge").contains(call.function().toLowerCase(Locale.ROOT)))
+			return null;
+		if (call.arguments().size() != 1)
+			return new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
+		int[] budget = {2048};
+		if (!boundedContextLiteral(call.arguments().getFirst(), 0, budget))
+			return null;
+		int[] localSlots = {0};
+		SparkSqlPayloadCodec.walk(call, node -> {
+			if (node instanceof RuntimeContextEntry entry) {
+				if (entry.localSlot() >= 2048)
+					budget[0] = -1;
+				localSlots[0] = Math.max(localSlots[0], entry.localSlot() + 1);
+			}
+		});
+		if (budget[0] < 0)
+			return null;
+		var any = RuntimeType.scalar(RuntimeTypeKind.ANY);
+		var decision = new RuntimeDecision(0, 0, any, List.of(), Optional.of(call), Optional.empty(), localSlots[0]);
+		var model = new RuntimeModel(List.of(), List.of(decision), List.of(), List.of(0), 1);
+		Object value = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(0);
+		return nativeContextLiteralValue(value);
+	}
+
+	/**
+	 * Structurally invalid operations whose FEEL result is null, without SQL
+	 * operand coercion.
+	 */
+	static boolean nativeInvalidExpression(RuntimeExpression expression) {
+		if (expression instanceof RuntimeBinaryExpression binary
+				&& Set.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT, RuntimeBinaryOperator.MULTIPLY,
+						RuntimeBinaryOperator.DIVIDE, RuntimeBinaryOperator.POWER).contains(binary.operator())) {
+			return binary.left() instanceof RuntimeFunctionDefinition left && !left.external()
+					|| binary.right() instanceof RuntimeFunctionDefinition right && !right.external();
+		}
+		if (expression instanceof RuntimeInvocationExpression invocation && invocation.function().isEmpty()) {
+			return invocation.target().filter(
+					target -> target instanceof RuntimeConstant && target.type().kind() != RuntimeTypeKind.FUNCTION)
+					.isPresent();
+		}
+		String name;
+		List<RuntimeExpression> args;
+		if (expression instanceof RuntimeFunctionCall call) {
+			name = call.function().toLowerCase(Locale.ROOT);
+			args = call.arguments();
+		} else if (expression instanceof RuntimeInvocationExpression invocation && invocation.function().isPresent()
+				&& invocation.namedArguments().isEmpty()) {
+			name = invocation.function().get().toLowerCase(Locale.ROOT);
+			args = invocation.positionalArguments();
+		} else {
+			return false;
+		}
+		if (name.equals("date"))
+			return args.size() != 1 && args.size() != 3
+					|| args.size() == 1 && args.getFirst() instanceof RuntimeListExpression;
+		int arity = name.equals("modulo") ? 2 : 1;
+		return Set.of("sqrt", "exp", "log", "even", "odd", "modulo").contains(name) && args.size() == arity
+				&& args.getFirst().type() != null
+				&& Set.of(RuntimeTypeKind.DURATION, RuntimeTypeKind.DAYS_TIME_DURATION,
+						RuntimeTypeKind.YEARS_MONTHS_DURATION).contains(args.getFirst().type().kind());
+	}
+
+	static RuntimeType nativeListReplaceType(RuntimeExpression expression) {
+		List<RuntimeExpression> args;
+		if (expression instanceof RuntimeFunctionCall call
+				&& Set.of("list replace", "list_replace").contains(call.function().toLowerCase(Locale.ROOT))) {
+			args = call.arguments();
+		} else if (expression instanceof RuntimeInvocationExpression invocation && invocation.function()
+				.filter(name -> Set.of("list replace", "list_replace").contains(name.toLowerCase(Locale.ROOT)))
+				.isPresent()) {
+			if (!invocation.namedArguments().isEmpty()) {
+				if (invocation.namedArguments().size() != 3 || !invocation.namedArguments().stream()
+						.map(RuntimeNamedArgument::name).collect(java.util.stream.Collectors.toSet())
+						.equals(Set.of("list", "position", "newItem")))
+					return null;
+				args = reorderNamedArguments("list replace", invocation.namedArguments());
+			} else {
+				args = invocation.positionalArguments();
+			}
+		} else {
+			return null;
+		}
+		if (args.size() != 3 || !(args.get(1) instanceof RuntimeConstant position))
+			return null;
+		if (position.kind() == RuntimeConstantKind.NUMBER) {
+			try {
+				var decimal = new java.math.BigDecimal(position.value());
+				if (Math.abs((long) decimal.scale()) > 308 || (long) decimal.precision() - decimal.scale() > 10)
+					return null;
+				int integral = decimal.toBigInteger().intValueExact();
+				if (!Double.isFinite(decimal.doubleValue()) || (long) decimal.doubleValue() != integral)
+					return null;
+			} catch (ArithmeticException | NumberFormatException ignored) {
+				return null;
+			}
+		} else if (position.kind() != RuntimeConstantKind.NULL && position.kind() != RuntimeConstantKind.STRING) {
+			return null;
+		}
+		RuntimeType listType;
+		if (args.getFirst() instanceof RuntimeListExpression list && SparkSqlFeelValueCodec.isNativeType(list.type())
+				&& list.elements().stream().allMatch(SparkSqlExpressionEmitter::nativeListReplacementLiteral)) {
+			listType = list.type();
+		} else if (args.getFirst() instanceof RuntimeConstant source) {
+			if (source.kind() == RuntimeConstantKind.NULL)
+				return RuntimeType.scalar(RuntimeTypeKind.NULL);
+			if (!Set.of(RuntimeConstantKind.NUMBER, RuntimeConstantKind.STRING, RuntimeConstantKind.BOOLEAN)
+					.contains(source.kind()) || !nativeListReplacementLiteral(source))
+				return null;
+			listType = RuntimeType.element(RuntimeTypeKind.LIST, source.type());
+		} else {
+			return null;
+		}
+		RuntimeExpression replacement = args.get(2);
+		if (!SparkSqlFeelValueCodec.isNativeType(listType) || !nativeListReplacementLiteral(replacement))
+			return null;
+		return replacement instanceof RuntimeConstant constant && constant.kind() == RuntimeConstantKind.NULL
+				|| listType.elementType().equals(replacement.type()) ? listType : null;
+	}
+
+	private static boolean nativeListReplacementLiteral(RuntimeExpression expression) {
+		if (!(expression instanceof RuntimeConstant constant))
+			return false;
+		if (constant.kind() == RuntimeConstantKind.NUMBER) {
+			try {
+				var decimal = new java.math.BigDecimal(constant.value());
+				// Bounded integral values avoid common-array decimal scale loss and Double
+				// transport loss.
+				return Math.abs((long) decimal.scale()) <= 308 && (long) decimal.precision() - decimal.scale() <= 15
+						&& decimal.stripTrailingZeros().scale() <= 0;
+			} catch (NumberFormatException ignored) {
+				return false;
+			}
+		}
+		return Set.of(RuntimeConstantKind.STRING, RuntimeConstantKind.BOOLEAN, RuntimeConstantKind.NULL)
+				.contains(constant.kind());
+	}
+
+	static String nativeStaticContextPredicate(RuntimeBinaryExpression binary) {
+		if (!Set.of(RuntimeBinaryOperator.EQUAL, RuntimeBinaryOperator.NOT_EQUAL).contains(binary.operator()))
+			return null;
+		RuntimeExpression left = nativeStaticContextExpression(binary.left());
+		RuntimeExpression right = nativeStaticContextExpression(binary.right());
+		if (left == null && binary.left() instanceof RuntimeContextExpression context
+				&& boundedContextLiteral(context, 0, new int[]{2048}))
+			left = context;
+		if (right == null && binary.right() instanceof RuntimeContextExpression context
+				&& boundedContextLiteral(context, 0, new int[]{2048}))
+			right = context;
+		if (left == null || right == null)
+			return null;
+		int[] slots = {0};
+		var expression = new RuntimeBinaryExpression(binary.operator(), left, right, binary.type());
+		SparkSqlPayloadCodec.walk(expression, node -> {
+			if (node instanceof RuntimeContextEntry entry)
+				slots[0] = Math.max(slots[0], entry.localSlot() + 1);
+		});
+		if (slots[0] > 2048)
+			return null;
+		var decision = new RuntimeDecision(0, 0, RuntimeType.scalar(RuntimeTypeKind.ANY), List.of(),
+				Optional.of(expression), Optional.empty(), slots[0]);
+		Object result = new io.finmsg.dmn.runtime.DmnRuntime()
+				.evaluate(new RuntimeModel(List.of(), List.of(decision), List.of(), List.of(0), 1), Map.of())
+				.decisionValue(0);
+		return result == null ? "CAST(NULL AS BOOLEAN)" : Boolean.TRUE.equals(result) ? "TRUE" : "FALSE";
+	}
+
+	private static boolean boundedContextLiteral(RuntimeExpression expression, int depth, int[] budget) {
+		if (depth > 32 || --budget[0] < 0)
+			return false;
+		if (expression instanceof RuntimeConstant constant)
+			return constant.kind() == RuntimeConstantKind.NULL || staticConstantValue(constant) != null;
+		if (expression instanceof RuntimeContextExpression context)
+			return context.entries().stream().allMatch(
+					entry -> !entry.name().isEmpty() && boundedContextLiteral(entry.expression(), depth + 1, budget));
+		return expression instanceof RuntimeListExpression list
+				&& list.elements().stream().allMatch(item -> boundedContextLiteral(item, depth + 1, budget));
+	}
+
+	private static RuntimeExpression nativeContextLiteralValue(Object value) {
+		if (value == null)
+			return new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
+		if (value instanceof String text)
+			return new RuntimeConstant(RuntimeConstantKind.STRING, text, RuntimeType.scalar(RuntimeTypeKind.STRING));
+		if (value instanceof Boolean bool)
+			return new RuntimeConstant(RuntimeConstantKind.BOOLEAN, bool.toString(),
+					RuntimeType.scalar(RuntimeTypeKind.BOOLEAN));
+		if (value instanceof java.math.BigDecimal number) {
+			if (Math.max(0L, number.precision() - (long) number.scale()) + Math.max(0L, number.scale()) > 38)
+				return null;
+			return new RuntimeConstant(RuntimeConstantKind.NUMBER, number.toPlainString(),
+					RuntimeType.scalar(RuntimeTypeKind.NUMBER));
+		}
+		if (value instanceof Map<?, ?> map) {
+			var entries = new ArrayList<RuntimeContextEntry>();
+			var fields = new ArrayList<RuntimeField>();
+			var keys = new HashSet<String>();
+			for (var entry : map.entrySet()) {
+				if (!(entry.getKey() instanceof String name) || name.isEmpty()
+						|| !keys.add(name.toLowerCase(Locale.ROOT)))
+					return null;
+				RuntimeExpression item = nativeContextLiteralValue(entry.getValue());
+				if (item == null)
+					return null;
+				entries.add(new RuntimeContextEntry(name, -1, item));
+				fields.add(new RuntimeField(fields.size(), name, item.type()));
+			}
+			return new RuntimeContextExpression(entries, RuntimeType.contextFields(fields));
+		}
+		if (value instanceof List<?> list) {
+			var items = new ArrayList<RuntimeExpression>();
+			RuntimeType element = RuntimeType.scalar(RuntimeTypeKind.NULL);
+			for (Object valueItem : list) {
+				RuntimeExpression item = nativeContextLiteralValue(valueItem);
+				if (item == null)
+					return null;
+				if (item.type().kind() != RuntimeTypeKind.NULL) {
+					if (element.kind() != RuntimeTypeKind.NULL && !element.equals(item.type()))
+						return null;
+					element = item.type();
+				}
+				items.add(item);
+			}
+			return new RuntimeListExpression(items, RuntimeType.element(RuntimeTypeKind.LIST, element));
+		}
 		return null;
 	}
 
@@ -2706,6 +2980,33 @@ public final class SparkSqlExpressionEmitter {
 		} catch (RuntimeException ignored) {
 			return null;
 		}
+	}
+
+	/**
+	 * Fold only validated literal temporal properties through the shared FEEL
+	 * contract.
+	 */
+	static RuntimeConstant nativeTemporalPropertyConstant(RuntimePathExpression path) {
+		if (!(path.source() instanceof RuntimeConstant source)
+				|| !Set.of(RuntimeConstantKind.DATE, RuntimeConstantKind.TIME, RuntimeConstantKind.DATE_TIME,
+						RuntimeConstantKind.DURATION).contains(source.kind())
+				|| staticConstantValue(source) == null)
+			return null;
+		var any = RuntimeType.scalar(RuntimeTypeKind.ANY);
+		var decision = new RuntimeDecision(0, 0, any, List.of(), Optional.of(path));
+		var model = new RuntimeModel(List.of(), List.of(decision), List.of(), List.of(0), 1);
+		Object value = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(0);
+		if (value == null)
+			return new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
+		if (value instanceof java.math.BigDecimal number)
+			return new RuntimeConstant(RuntimeConstantKind.NUMBER, number.toPlainString(),
+					RuntimeType.scalar(RuntimeTypeKind.NUMBER));
+		if (value instanceof String text)
+			return new RuntimeConstant(RuntimeConstantKind.STRING, text, RuntimeType.scalar(RuntimeTypeKind.STRING));
+		if (value instanceof java.time.Duration duration)
+			return new RuntimeConstant(RuntimeConstantKind.DURATION, duration.toString(),
+					RuntimeType.scalar(RuntimeTypeKind.DAYS_TIME_DURATION));
+		return null;
 	}
 
 	static String nativeDurationInstanceOfSql(RuntimeInstanceOfExpression expression) {
@@ -2983,8 +3284,64 @@ public final class SparkSqlExpressionEmitter {
 	}
 
 	static boolean nativeYearMonthNull(List<RuntimeExpression> args) {
-		return args.isEmpty() || args.size() <= 2 && args.stream()
-				.anyMatch(arg -> arg instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL);
+		return args.isEmpty()
+				|| args.size() <= 2 && args.stream()
+						.anyMatch(arg -> arg instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)
+				|| args.size() == 2 && args.stream().anyMatch(arg -> arg.type().kind() == RuntimeTypeKind.LIST);
+	}
+
+	/**
+	 * Calendar projection retains the operand's local date, irrespective of its
+	 * offset or zone.
+	 */
+	static String nativeStaticCalendarSql(List<RuntimeExpression> args) {
+		if (args.size() != 2 || !args.stream().allMatch(SparkSqlExpressionEmitter::staticCalendarOperand))
+			return null;
+		java.time.LocalDate from = staticCalendarDate(args.get(0));
+		java.time.LocalDate to = staticCalendarDate(args.get(1));
+		if (from == null || to == null)
+			return "CAST(NULL AS STRING)";
+		try {
+			java.time.Period period = java.time.Period.between(from, to);
+			java.time.Period months = java.time.Period.of(period.getYears(), period.getMonths(), 0);
+			return "'" + (months.isZero() ? "P0M" : months.toString()) + "'";
+		} catch (ArithmeticException ignored) {
+			return null;
+		}
+	}
+
+	private static boolean staticCalendarOperand(RuntimeExpression expression) {
+		if (expression instanceof RuntimeConstant constant)
+			return Set.of(RuntimeConstantKind.DATE, RuntimeConstantKind.DATE_TIME).contains(constant.kind())
+					&& staticConstantValue(constant) != null;
+		return expression instanceof RuntimeFunctionCall call
+				&& Set.of("date", "date and time").contains(call.function().toLowerCase(Locale.ROOT))
+				&& call.arguments().size() == 1 && call.arguments().getFirst() instanceof RuntimeConstant text
+				&& text.kind() == RuntimeConstantKind.STRING;
+	}
+
+	private static java.time.LocalDate staticCalendarDate(RuntimeExpression expression) {
+		Object value;
+		if (expression instanceof RuntimeConstant constant)
+			value = staticConstantValue(constant);
+		else {
+			RuntimeFunctionCall call = (RuntimeFunctionCall) expression;
+			String text = ((RuntimeConstant) call.arguments().getFirst()).value();
+			value = call.function().equalsIgnoreCase("date")
+					? io.finmsg.dmn.runtime.DmnRuntime.parseFeelDate(text)
+					: io.finmsg.dmn.runtime.DmnRuntime.parseDateTime(text);
+		}
+		if (value instanceof java.time.LocalDate date)
+			return date;
+		if (value instanceof java.time.LocalDateTime dateTime)
+			return dateTime.toLocalDate();
+		if (value instanceof java.time.OffsetDateTime dateTime)
+			return dateTime.toLocalDate();
+		if (value instanceof java.time.ZonedDateTime dateTime)
+			return dateTime.toLocalDate();
+		if (value instanceof io.finmsg.dmn.runtime.DmnRuntime.NamedZoneDateTime dateTime)
+			return dateTime.value().toLocalDate();
+		return null;
 	}
 
 	static boolean invalidMatchesArguments(List<RuntimeExpression> args) {
@@ -3020,6 +3377,12 @@ public final class SparkSqlExpressionEmitter {
 			map.put(na.name(), na.expression());
 		}
 		String norm = fnName.toLowerCase();
+		if (Set.of("context", "context merge", "context_merge").contains(norm)) {
+			String parameter = norm.equals("context") ? "entries" : "contexts";
+			return namedArgs.size() == 1 && map.size() == 1 && map.containsKey(parameter)
+					? List.of(map.get(parameter))
+					: List.of();
+		}
 		if (Set.of("context put", "context_put").contains(norm)) {
 			String keyName = map.containsKey("key") ? "key" : "keys";
 			if (namedArgs.size() != 3 || map.size() != 3 || !map.keySet().equals(Set.of("context", keyName, "value")))
