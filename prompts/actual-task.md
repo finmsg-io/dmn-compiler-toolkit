@@ -1,5 +1,20 @@
 # Task: 100% Native Generated Spark SQL Execution
 
+2026-10-12 follow-up audit after publication of 7dfe3da: current full-run compiler
+diagnostics and all 676 rejected accounting entries were matched to the current
+official XML. All 676 cases have every output marked as expecting an error.
+635 rejections share SEMANTIC_ANALYSIS/INVALID_OPERAND_TYPES: 626 arithmetic
+cases and nine exponent cases. Other counts are recorded in
+docs/dev/slices/native-rejection-audit-2026-10-12.md. Evidence:
+runner target/priority-native-full-rejection-diagnostics.tsv and
+priority-native-full-rejection-expectation-audit.tsv. This completes the current
+expectation/reason inventory, not the semantic model-rejection audit. It does not
+change the measured 2,512 native/203 fallback of 2,715 executable or claim new
+conversions. Investigate shared invalid-operand semantics without using TCK
+expected answers or downgrading genuine validation errors. The 100% goal remains
+active. Usage is below the requested checkpoint; no production changes were made
+after the verified full run and publication.
+
 2026-10-12 latest full Spark SQL checkpoint and updated goal
 
 **User goal: 100% native execution and zero fallback.** This replaces the earlier

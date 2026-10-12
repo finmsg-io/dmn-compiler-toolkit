@@ -1,5 +1,10 @@
 2026-10-12 latest full Spark SQL checkpoint and updated goal
 
+Follow-up evidence: [native rejection expectation and diagnostic audit](native-rejection-audit-2026-10-12.md)
+matched all 676 provisional rejections to current official XML. Of these, 635
+share the invalid-operand-types compiler blocker. Semantic justification remains
+outstanding; no additional native conversions are claimed by this audit.
+
 **User goal: 100% native execution and zero fallback.** This replaces the earlier
 95% milestone and near-100% wording. The priority order remains temporal
 representation/validation, lists/filters/quantifiers, then loops/lambdas/function
