@@ -1351,6 +1351,20 @@ public class ConstantFoldingPass implements OptimizerPass {
 		String rv = cr.value();
 		if (lv == null || rv == null)
 			return null;
+		// The temporal folders below use double seconds. Keep fractional operands
+		// in IR so exact runtime/generator arithmetic can preserve nanoseconds.
+		boolean temporal = java.util.Set
+				.of(RuntimeConstantKind.TIME, RuntimeConstantKind.DATE_TIME, RuntimeConstantKind.DURATION).contains(lk)
+				|| java.util.Set
+						.of(RuntimeConstantKind.TIME, RuntimeConstantKind.DATE_TIME, RuntimeConstantKind.DURATION)
+						.contains(rk);
+		if (temporal
+				&& java.util.Set.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT,
+						RuntimeBinaryOperator.MULTIPLY, RuntimeBinaryOperator.DIVIDE).contains(op)
+				&& (lv.contains(".") || rv.contains(".")
+						|| lk == RuntimeConstantKind.NUMBER && (lv.contains("e") || lv.contains("E"))
+						|| rk == RuntimeConstantKind.NUMBER && (rv.contains("e") || rv.contains("E"))))
+			return new RuntimeBinaryExpression(op, cl, cr, resultType);
 
 		// Detect if STRING constants are actually temporal literals
 		if (lk == RuntimeConstantKind.STRING) {

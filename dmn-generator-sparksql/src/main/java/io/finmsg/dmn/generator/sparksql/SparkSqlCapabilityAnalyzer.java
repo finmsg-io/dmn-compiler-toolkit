@@ -35,8 +35,12 @@ public final class SparkSqlCapabilityAnalyzer {
 			inspect(bkm, hybridBoundary, reasons, staticFunctions);
 		}
 		for (RuntimeDecision decision : model.decisions()) {
-			if (required.contains(decision.id())
-					&& !(decision.id() == decisionId && nativeConstantTemporalResult(decision)))
+			if (required.contains(decision.id()) && decision.id() != decisionId
+					&& SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)
+				reasons.add("Temporal ANY dependency requires lossless FEEL transport for its consumer");
+			if (required.contains(decision.id()) && !(decision.id() == decisionId
+					&& (nativeConstantTemporalResult(decision) || nativeEmptyListResult(decision)
+							|| SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)))
 				inspect(decision, hybridBoundary, reasons, staticFunctions);
 		}
 		if (hybridBoundary) {
@@ -47,6 +51,16 @@ public final class SparkSqlCapabilityAnalyzer {
 			}
 		}
 		return new Capability(new ArrayList<>(reasons), new ArrayList<>(limitations));
+	}
+
+	// An empty terminal result has no element values requiring lossless transport.
+	// Restrict this to the requested decision; consumers still need their own
+	// proof.
+	static boolean nativeEmptyListResult(RuntimeDecision decision) {
+		return decision.decisionTable().isEmpty()
+				&& decision.expression().orElse(null) instanceof RuntimeListExpression list && list.elements().isEmpty()
+				&& decision.type() != null
+				&& Set.of(RuntimeTypeKind.ANY, RuntimeTypeKind.LIST).contains(decision.type().kind());
 	}
 
 	static boolean nativeConstantTemporalResult(RuntimeDecision decision) {
@@ -212,6 +226,11 @@ public final class SparkSqlCapabilityAnalyzer {
 			if (hybrid && value instanceof RuntimeDecision decision) {
 				if (decision.expression().filter(SparkSqlExpressionEmitter::nativeInvalidExpression).isPresent())
 					return;
+				RuntimeConstant absolute = decision.expression()
+						.map(SparkSqlExpressionEmitter::nativeDurationAbsOperand).orElse(null);
+				if (absolute != null && absolute.kind() != RuntimeConstantKind.NULL
+						&& !nativeConstantDurationResult(decision))
+					reasons.add("Native duration abs requires a compatible declared duration result type");
 				if (decision.expression().orElse(null) instanceof RuntimePathExpression path) {
 					RuntimeConstant property = SparkSqlExpressionEmitter.nativeTemporalPropertyConstant(path);
 					if (property != null && property.kind() == RuntimeConstantKind.DURATION
@@ -295,6 +314,12 @@ public final class SparkSqlCapabilityAnalyzer {
 
 	private static boolean nativeConstantDurationResult(RuntimeDecision decision) {
 		RuntimeExpression expression = decision.expression().orElse(null);
+		RuntimeConstant absolute = SparkSqlExpressionEmitter.nativeDurationAbsOperand(expression);
+		if (absolute != null) {
+			if (absolute.kind() == RuntimeConstantKind.NULL)
+				return true;
+			expression = absolute;
+		}
 		if (expression instanceof RuntimePathExpression path)
 			expression = SparkSqlExpressionEmitter.nativeTemporalPropertyConstant(path);
 		if (expression instanceof RuntimeConstant constant && constant.kind() == RuntimeConstantKind.NULL
@@ -335,11 +360,59 @@ public final class SparkSqlCapabilityAnalyzer {
 	}
 
 	static boolean nativeFilter(RuntimeFilterExpression filter) {
+		boolean booleanSelector = filter.filter().type().kind() == RuntimeTypeKind.BOOLEAN;
+		if (filter.source() instanceof RuntimeConstant constant
+				&& Set.of(RuntimeConstantKind.BOOLEAN, RuntimeConstantKind.STRING, RuntimeConstantKind.NUMBER)
+						.contains(constant.kind()))
+			return booleanSelector && nativeSingletonFilterLiteral(constant);
 		return filter.source() instanceof RuntimeListExpression list && SparkSqlFeelValueCodec.isNativeType(list.type())
 				&& list.elements().stream()
 						.allMatch(element -> element instanceof RuntimeConstant constant
-								&& constant.kind() != RuntimeConstantKind.NULL)
-				&& filter.filter().type().kind() == RuntimeTypeKind.BOOLEAN;
+								&& constant.kind() != RuntimeConstantKind.NULL
+								|| nativeFilterContext(element, list.type().elementType()))
+				&& booleanSelector;
+	}
+
+	private static boolean nativeFilterContext(RuntimeExpression expression, RuntimeType elementType) {
+		if (!(expression instanceof RuntimeContextExpression context) || !context.type().equals(elementType)
+				|| !SparkSqlFeelValueCodec.isNativeType(elementType) || context.entries().isEmpty()
+				|| context.entries().size() > 64 || context.entries().size() != elementType.fieldLayout().size())
+			return false;
+		for (int index = 0; index < context.entries().size(); index++) {
+			var entry = context.entries().get(index);
+			var field = elementType.fieldLayout().get(index);
+			if (!entry.name().equals(field.name()) || !(entry.expression() instanceof RuntimeConstant constant)
+					|| !Set.of(RuntimeConstantKind.BOOLEAN, RuntimeConstantKind.STRING, RuntimeConstantKind.NUMBER,
+							RuntimeConstantKind.NULL).contains(constant.kind()))
+				return false;
+			if (constant.kind() == RuntimeConstantKind.NUMBER) {
+				try {
+					var value = new java.math.BigDecimal(constant.value()).stripTrailingZeros();
+					if (!nativeSingletonFilterLiteral(constant) || value.scale() > 0
+							|| (long) value.precision() - value.scale() > 15)
+						return false;
+				} catch (NumberFormatException ignored) {
+					return false;
+				}
+			}
+			if (constant.kind() != RuntimeConstantKind.NULL && !constant.type().equals(field.type()))
+				return false;
+		}
+		return true;
+	}
+
+	private static boolean nativeSingletonFilterLiteral(RuntimeConstant constant) {
+		if (constant.kind() != RuntimeConstantKind.NUMBER)
+			return true;
+		// Exponent literals are parsed as floating point by Spark, not exact decimals.
+		if (constant.value().contains("e") || constant.value().contains("E"))
+			return false;
+		try {
+			var value = new java.math.BigDecimal(constant.value());
+			return value.scale() >= 0 && value.scale() <= 38 && Math.max(value.precision(), value.scale()) <= 38;
+		} catch (NumberFormatException ignored) {
+			return false;
+		}
 	}
 
 	static boolean nativeEmptyQuantified(RuntimeQuantifiedExpression quantified) {
@@ -356,6 +429,18 @@ public final class SparkSqlCapabilityAnalyzer {
 	}
 
 	private static boolean inspectChildren(Object node) {
+		if (node instanceof RuntimeExpression expression
+				&& SparkSqlExpressionEmitter.nativeDurationAbsOperand(expression) != null)
+			return false;
+		if (node instanceof RuntimeInstanceOfExpression instance
+				&& SparkSqlExpressionEmitter.nativeTemporalInstanceOfSql(instance) != null)
+			return false;
+		if (node instanceof RuntimeBetweenExpression between
+				&& SparkSqlExpressionEmitter.nativeDurationBetweenSql(between) != null)
+			return false;
+		if (node instanceof RuntimeExpression expression
+				&& SparkSqlExpressionEmitter.nativeListReplaceMatchType(expression) != null)
+			return false;
 		if (node instanceof RuntimeQuantifiedExpression quantified && nativeEmptyQuantified(quantified))
 			return false;
 		if (node instanceof RuntimeExpression expression

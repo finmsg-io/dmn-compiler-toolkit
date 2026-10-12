@@ -334,6 +334,9 @@ public final class DmnSparkSqlGenerator {
 			return SparkSqlExpressionEmitter.emitDecisionTable(decision.decisionTable().get(), bkmBySlot, resolver);
 		} else if (decision.expression().isPresent()) {
 			RuntimeExpression expr = decision.expression().get();
+			Object terminalTemporal = SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision);
+			if (terminalTemporal != null)
+				return "X'" + java.util.HexFormat.of().formatHex(SparkSqlFeelValueCodec.encode(terminalTemporal)) + "'";
 			if (SparkSqlCapabilityAnalyzer.nativeConstantTemporalResult(decision)) {
 				var constant = (io.finmsg.dmn.ir.RuntimeConstant) expr;
 				return "'" + constant.value().replace("'", "''") + "'";

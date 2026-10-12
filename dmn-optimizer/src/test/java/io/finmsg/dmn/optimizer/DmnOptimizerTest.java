@@ -10,6 +10,25 @@ import org.junit.jupiter.api.Test;
 
 class DmnOptimizerTest {
 	@Test
+	void fractionalTemporalArithmeticRetainsExactOperandsInsteadOfDoubleFolding() {
+		var time = RuntimeType.scalar(RuntimeTypeKind.TIME);
+		var dateTime = RuntimeType.scalar(RuntimeTypeKind.DATE_TIME);
+		var duration = RuntimeType.scalar(RuntimeTypeKind.DURATION);
+		var nano = new RuntimeConstant(RuntimeConstantKind.DURATION, "PT0.000000001S", duration);
+		for (var temporal : java.util.List.of(new RuntimeConstant(RuntimeConstantKind.TIME, "00:00:00+14:00", time),
+				new RuntimeConstant(RuntimeConstantKind.TIME, "23:59:59.123456789-03:30", time),
+				new RuntimeConstant(RuntimeConstantKind.DATE_TIME, "2020-01-01T23:59:59.123456789+14:00", dateTime))) {
+			for (var op : java.util.List.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT)) {
+				var expression = new RuntimeBinaryExpression(op, temporal, nano, temporal.type());
+				assertThat(new ConstantFoldingPass().transformExpression(expression)).isEqualTo(expression);
+			}
+		}
+		var scale = new RuntimeConstant(RuntimeConstantKind.NUMBER, "0.000000001", NUMBER_TYPE);
+		var expression = new RuntimeBinaryExpression(RuntimeBinaryOperator.MULTIPLY,
+				new RuntimeConstant(RuntimeConstantKind.DURATION, "PT1S", duration), scale, duration);
+		assertThat(new ConstantFoldingPass().transformExpression(expression)).isEqualTo(expression);
+	}
+	@Test
 	void foldedDurationRefinesUnknownDecisionResultWithoutChangingDeclaredTypes() {
 		var duration = RuntimeType.scalar(RuntimeTypeKind.DURATION);
 		var value = new RuntimeConstant(RuntimeConstantKind.DURATION, "P1Y2M", duration);
