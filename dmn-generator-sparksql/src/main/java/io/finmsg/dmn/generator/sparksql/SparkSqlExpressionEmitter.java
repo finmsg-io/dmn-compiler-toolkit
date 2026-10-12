@@ -1234,6 +1234,11 @@ public final class SparkSqlExpressionEmitter {
 			source = "array(" + source + ")";
 		String itemVar = "_item_" + Math.abs(filter.localSlot());
 		RuntimeType elementType = filter.source().type().elementType();
+		if (filter.source() instanceof RuntimeListExpression list) {
+			RuntimeType inferred = SparkSqlCapabilityAnalyzer.nativeContextListType(list);
+			if (inferred != null)
+				elementType = inferred.elementType();
+		}
 		Map<Integer, RuntimeType> localTypes = SparkSqlCapabilityAnalyzer.nativeFilter(filter) && elementType != null
 				&& elementType.kind() == RuntimeTypeKind.CONTEXT ? Map.of(filter.localSlot(), elementType) : Map.of();
 		LocalScopeResolver scopedResolver = new ScopedResolver(slotNameResolver, Map.of(filter.localSlot(), itemVar),
@@ -1318,11 +1323,12 @@ public final class SparkSqlExpressionEmitter {
 			return "(CASE WHEN " + source + " IS NULL THEN NULL ELSE transform(" + source + ", " + itemVar + " -> "
 					+ result + ") END)";
 		}
-		return emitNestedFor(forExpr.iterations(), 0, forExpr.result(), bkmBySlot, slotNameResolver);
+		return emitNestedFor(forExpr.iterations(), 0, forExpr.result(), bkmBySlot, slotNameResolver,
+				SparkSqlCapabilityAnalyzer.nativeFor(forExpr));
 	}
 
 	private static String emitNestedFor(List<RuntimeIteration> iterations, int index, RuntimeExpression resultExpr,
-			Map<Integer, RuntimeBkm> bkmBySlot, IntFunction<String> slotNameResolver) {
+			Map<Integer, RuntimeBkm> bkmBySlot, IntFunction<String> slotNameResolver, boolean nativeLoop) {
 		if (index == iterations.size()) {
 			return emitWithBkms(resultExpr, bkmBySlot, slotNameResolver);
 		}
@@ -1331,9 +1337,12 @@ public final class SparkSqlExpressionEmitter {
 				? "sequence(" + emitWithBkms(iter.source(), bkmBySlot, slotNameResolver) + ", "
 						+ emitWithBkms(iter.end().get(), bkmBySlot, slotNameResolver) + ")"
 				: emitWithBkms(iter.source(), bkmBySlot, slotNameResolver);
+		if (nativeLoop && iter.end().isPresent())
+			source = "sequence(CAST(" + emitWithBkms(iter.source(), bkmBySlot, slotNameResolver) + " AS BIGINT), CAST("
+					+ emitWithBkms(iter.end().get(), bkmBySlot, slotNameResolver) + " AS BIGINT))";
 		String itemVar = "_for_" + Math.abs(iter.localSlot());
 		LocalScopeResolver scopedResolver = scoped(slotNameResolver, Map.of(iter.localSlot(), itemVar));
-		String inner = emitNestedFor(iterations, index + 1, resultExpr, bkmBySlot, scopedResolver);
+		String inner = emitNestedFor(iterations, index + 1, resultExpr, bkmBySlot, scopedResolver, nativeLoop);
 		String transformed = "transform(" + source + ", " + itemVar + " -> " + inner + ")";
 		return (index < iterations.size() - 1) ? "flatten(" + transformed + ")" : transformed;
 	}
@@ -2696,6 +2705,26 @@ public final class SparkSqlExpressionEmitter {
 	 * operand coercion.
 	 */
 	static boolean nativeInvalidExpression(RuntimeExpression expression) {
+		if (expression instanceof RuntimeForExpression loop && loop.iterations().size() == 1) {
+			var iteration = loop.iterations().getFirst();
+			if (iteration.source() instanceof RuntimeConstant start && verifiedIterationConstant(start)) {
+				if (iteration.end().isEmpty())
+					return true; // A scalar value is not a list iteration source.
+				if (iteration.end().get() instanceof RuntimeConstant end && verifiedIterationConstant(end)) {
+					if (start.kind() == RuntimeConstantKind.DATE && end.kind() == RuntimeConstantKind.DATE)
+						return false;
+					if (start.kind() != RuntimeConstantKind.NUMBER || end.kind() != RuntimeConstantKind.NUMBER)
+						return true;
+					try {
+						new java.math.BigDecimal(start.value()).intValueExact();
+						new java.math.BigDecimal(end.value()).intValueExact();
+						return false;
+					} catch (ArithmeticException | NumberFormatException exception) {
+						return true;
+					}
+				}
+			}
+		}
 		if (expression instanceof RuntimeBinaryExpression binary
 				&& Set.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT, RuntimeBinaryOperator.MULTIPLY,
 						RuntimeBinaryOperator.DIVIDE, RuntimeBinaryOperator.POWER).contains(binary.operator())) {
@@ -2733,6 +2762,11 @@ public final class SparkSqlExpressionEmitter {
 				&& args.getFirst().type() != null
 				&& Set.of(RuntimeTypeKind.DURATION, RuntimeTypeKind.DAYS_TIME_DURATION,
 						RuntimeTypeKind.YEARS_MONTHS_DURATION).contains(args.getFirst().type().kind());
+	}
+
+	private static boolean verifiedIterationConstant(RuntimeConstant constant) {
+		return constant.value().length() <= 256
+				&& (constant.kind() == RuntimeConstantKind.NULL || staticConstantValue(constant) != null);
 	}
 
 	static RuntimeType nativeListReplaceType(RuntimeExpression expression) {
@@ -3166,12 +3200,14 @@ public final class SparkSqlExpressionEmitter {
 				|| decision.decisionTable().isPresent())
 			return null;
 		RuntimeExpression expression = decision.expression().orElse(null);
-		if (expression instanceof RuntimeBinaryExpression binary
+		RuntimeConstant absolute = nativeDurationAbsOperand(expression);
+		boolean literalDurationAbs = absolute != null && absolute.kind() == RuntimeConstantKind.DURATION;
+		if (literalDurationAbs || expression instanceof RuntimeBinaryExpression binary
 				&& Set.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT, RuntimeBinaryOperator.MULTIPLY,
 						RuntimeBinaryOperator.DIVIDE).contains(binary.operator())
 				&& boundedTemporalArithmetic(binary, 0, new int[]{64})) {
 			try {
-				var literalDecision = new RuntimeDecision(0, 0, decision.type(), List.of(), Optional.of(binary));
+				var literalDecision = new RuntimeDecision(0, 0, decision.type(), List.of(), Optional.of(expression));
 				var literalModel = new RuntimeModel(List.of(), List.of(literalDecision), List.of(), List.of(0), 1);
 				Object value = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(literalModel, Map.of()).decisionValue(0);
 				return value instanceof java.time.temporal.TemporalAccessor || value instanceof java.time.Duration

@@ -9,7 +9,7 @@
 - Report relevant limitations, failed checks, and incomplete work clearly.
 - For this native Spark SQL task, a TCK pass rate alone is insufficient. Always report passed total, native passes and rate, fallback passes and rate, failures, execution errors, compilation errors, and expected model rejections separately. State the executable denominator and whether the run is focused or full; native/fallback rates must include executable failures/errors in that denominator.
 - Use only verified run evidence. Missing accounting is unavailable, not zero. A fallback pass is a conformance pass, not a native CTE pass. Never extrapolate a full-suite result from focused gains or substitute generator/unit-test passes for native TCK coverage; mark native/fallback accounting not applicable for tests that do not measure it.
-- Explain remaining fallbacks with evidence and feasible native work. Preserve the near-100% native CTE objective, the minimum 95% milestone, and the separate provisional rejection audit defined in actual-task.md.
+- User goal as of 2026-10-12: achieve 100% native generated Spark SQL execution with zero fallback. This replaces the earlier 95% milestone and near-100% wording. Explain remaining fallbacks with evidence and feasible native work; preserve the separate provisional model-rejection semantic audit. Do not claim completion while fallback cases remain or hide rejected cases in the denominator.
 
 - User requirement: after each fix, report native and fallback counts and rates for every individual test run using that run's actual routing evidence. Never substitute or repeat an older run's numbers as the current result. Fallback rate is mandatory. If a generator/unit run does not measure routing, explicitly report native/fallback counts and rates as not measured/not applicable; never infer them from pass counts. While a TCK run is incomplete, report its native/fallback accounting as pending without substituting historical rates.
 
@@ -46,3 +46,5 @@ If either document is unavailable, report it before proceeding.
 - Resolve routine, reversible implementation details within the confirmed scope.
 - Ask before choices that affect requirements, architecture, observable
   behavior, public contracts, dependencies, or external systems.
+
+- Generator integration runs must report the sum of SPARK SQL PROCESSING counts from both executing suites (native, fallback, unknown, failed and denominator). These completed SQL-action rates are separate from TCK case coverage; planning-only unit tests have no processing denominator. Never replace these available aggregate counts with N/A or infer routing from JUnit pass counts.

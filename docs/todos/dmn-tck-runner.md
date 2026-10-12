@@ -59,3 +59,5 @@ a representative warmup. Latest full accounting: 3,390/3,391 passed, 2,501 nativ
 executable; 676 provisional expected rejections separately, no execution or
 compilation errors. Maven exit 1. Evidence:
 dmn-tck-runner/target/native-temporal-context-full-accounting.json.
+
+2026-10-12 full checkpoint: all 3,391 cases passed with the unchanged SELECT 1 warmup and 30-second limit. Case 0035#001 passed natively. P19.2 remains planned: this one successful full run does not identify the earlier timeout cause or prove a warmup fix. Latest evidence is target/priority-native-full-tck.log and priority-native-full-accounting.json: 2,512 native (92.52%), 203 fallback (7.48%) of 2,715 executable, 676 provisional model rejections separately, zero failures or execution/compilation errors, Maven exit 0. User goal is now 100% native and zero fallback; the semantic rejection audit remains separate and outstanding.

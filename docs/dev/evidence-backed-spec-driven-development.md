@@ -1,3 +1,67 @@
+2026-10-12 latest full Spark SQL checkpoint and updated goal
+
+**User goal: 100% native execution and zero fallback.** This replaces the earlier
+95% milestone and near-100% wording. The priority order remains temporal
+representation/validation, lists/filters/quantifiers, then loops/lambdas/function
+binding. The supplied 65/62/60 sizes are planning inputs, not measured gains.
+
+Full latest optimized generated Spark SQL TCK: **3,391/3,391 passed (100%)**;
+**2,512 native (92.52%) and 203 fallback (7.48%) of 2,715 executable cases**.
+There are **676 provisional expected model rejections separately**, zero failed
+cases, zero execution/compilation errors, and Maven exit 0. The user explicitly
+requested this full run as the next run, before the earlier usage threshold.
+The installed generator JAR matched the target JAR SHA-256:
+D750919BC563239385A3E4C72655A62245400BEF97BE813E8B1CA70DA84741E1.
+
+Compared with native-temporal-context-full-accounting.json: **only 10 actual
+fallback-to-native conversions**, zero native-to-fallback regressions. The native
+pass count increased by 11 because the previously timed-out 0035 case 001 also
+passed natively. Conversions: four 0050 abs cases (011, 011_a, 012, 012_a), 0069
+case 029, and 0084 cases decision_002/019/020/021/022. The 203 remaining fallbacks
+and the separate rejection semantic audit remain outstanding; the 100% goal is
+active and has not been achieved.
+
+Final generator verification: **78/78 JUnit tests passed**, zero failures/errors/
+skips, formatting/install passed, Maven exit 0. Measured whole executing
+integration set: **691 native SQL actions (98.86%), 8 fallback (1.14%), denominator
+699**, zero failed actions or unknown routes. These processing rates are test
+SQL-action rates, not TCK case-coverage percentages. Spark query listeners now
+report aggregate counts in both executing suites, exclude view-registration
+setup commands, drain asynchronous notifications and inspect executed plans for
+fallback UDFs. Planning-only tests do not contribute a processing denominator.
+
+Implementation: terminal literal duration abs with actual compiled ANY metadata
+uses the existing lossless binary constant representation, preserving nanoseconds
+and zero Period/Duration identity; dependent consumers and dynamic/overflow
+operands retain guards. Nullable literal context lists unify matching ordered
+primitive field layouts while retaining null values and precision bounds.
+Different field sets, reordered fields, mixed non-null kinds and incompatible
+declared collection coercions remain guarded. Cartesian loops support two through
+four independent primitive literal bindings, at most 2,048 combinations, bounded
+result syntax and integer arithmetic, exact lexical binding and nested results.
+Captured variables, dependent sources, partial accumulation, fractional data,
+null items/results and unverified bodies retain guards. Single literal iteration
+sources/intervals proven invalid by shared runtime rules emit native NULL, without
+timestamp or duration coercion; valid numeric/date ranges retain their existing
+paths.
+
+Evidence: runner target/priority-native-full-tck.log,
+priority-native-full-accounting.json, priority-native-full-rejections.tsv (676
+rows); generator target/priority-final-verified-generator.log and Surefire reports.
+The first 78-test run had one invalid compiler fixture (77/78 passed); correcting
+the fixture and rerunning the affected test and complete suite resolved it.
+Individual earlier run outcomes are retained in prompts/actual-task.md.
+
+The 0035 case 001 passed with the unchanged SELECT 1 warmup and 30-second limit.
+Its earlier timeout cause remains unproven; the stage-timing/warmup investigation
+in docs/todos/dmn-tck-runner.md is still planned. Remaining measured concentrations
+include 18 external Java cases, 17 lambda cases, 14 for-loop cases, 13 instance-of
+cases, and 11 cases each in list functions and coercion. Future slices should
+address shared blockers, preserve semantics and remeasure actual conversions.
+The user requested commit and push of these changes after handover verification; the source baseline is pushed c197b09. Earlier dated
+checkpoints below are historical and do not describe the latest source.
+
+
 2026-10-11 temporal/context full checkpoint (current): **3,390/3,391 passed (99.97%); 2,501 native passes (92.12% of 2,715 executable), 213 fallback passes (7.85%), one failed case with unrecorded route (0.04%); 676 provisional expected model rejections separately; zero execution/compilation errors; Maven exit 1 because of the repeated 30-second 0035 case 001 timeout.** Compared with current-native-fallback-full: **+26 native/-26 fallback/+0.96 percentage points**, with no native-to-fallback regressions. This includes the previously focused terminal empty-list conversion. The 95% milestone requires 79 additional native passes. Implementation stopped when five-hour usage reached 18% remaining (weekly 71%); the requested full latest-generator run and handover followed.
 
 Source changes: verified primitive context-list filters retain field layouts in lexical bindings, including missing fields and quoted keys; unknown/null-incompatible layouts and precision-sensitive values remain guarded. Terminal temporal ANY literals and bounded closed literal arithmetic emit existing lossless FEEL binary constants through native SQL, preserving nanoseconds, offsets, named zones and Duration/Period identity without UDF execution. Arithmetic uses generation-time literal folding through the shared runtime, not dynamic temporal SQL support. Dependent consumers retain fallback. The optimizer now leaves fractional temporal arithmetic in IR because its existing double-second folders can lose precision or produce invalid constants. Scalar-filter regressions were consolidated after discovering overlap with an earlier regression; the previous handover's untested statement was stale.

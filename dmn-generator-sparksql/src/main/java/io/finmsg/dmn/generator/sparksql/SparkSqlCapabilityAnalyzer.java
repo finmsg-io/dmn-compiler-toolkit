@@ -183,9 +183,10 @@ public final class SparkSqlCapabilityAnalyzer {
 			if (value instanceof RuntimeDecisionTableReference)
 				reasons.add("Decision-table function reference");
 			if (value instanceof RuntimeListExpression list) {
-				if (list.elements().stream().map(RuntimeExpression::type).distinct().count() > 1
-						|| list.type().elementType() == null
-						|| list.type().elementType().kind() == RuntimeTypeKind.ANY) {
+				if (nativeContextListType(list) == null
+						&& (list.elements().stream().map(RuntimeExpression::type).distinct().count() > 1
+								|| list.type().elementType() == null
+								|| list.type().elementType().kind() == RuntimeTypeKind.ANY)) {
 					reasons.add("Heterogeneous or untyped list");
 				}
 			}
@@ -200,6 +201,9 @@ public final class SparkSqlCapabilityAnalyzer {
 								&& ("null".equals(c.value()) || c.kind() == RuntimeConstantKind.NULL))
 						&& !SparkSqlFeelValueCodec.isNativeType(expression.type()) && !nativeDate(expression)
 						&& !nativeLocalTemporal(expression) && !durationResult
+						&& !(expression instanceof RuntimeListExpression list && nativeContextListType(list) != null)
+						&& !(expression instanceof RuntimeFilterExpression filter
+								&& nativeContextFilterResult(filter, expression.type()))
 						&& SparkSqlExpressionEmitter.nativeContextPutType(expression) == null
 						&& SparkSqlExpressionEmitter.nativeListReplaceType(expression) == null
 						&& !(expression instanceof RuntimeContextExpression context && context.entries().isEmpty()))
@@ -226,6 +230,17 @@ public final class SparkSqlCapabilityAnalyzer {
 			if (hybrid && value instanceof RuntimeDecision decision) {
 				if (decision.expression().filter(SparkSqlExpressionEmitter::nativeInvalidExpression).isPresent())
 					return;
+				if (decision.expression().orElse(null) instanceof RuntimeForExpression loop && nativeCartesianFor(loop)
+						&& !compatibleCollectionResult(decision.type(), loop.type()))
+					reasons.add("Cartesian loop declared-result coercion requires fallback");
+				RuntimeListExpression contexts = decision.expression()
+						.orElse(null) instanceof RuntimeListExpression list
+								? list
+								: decision.expression().orElse(null) instanceof RuntimeFilterExpression filter
+										&& filter.source() instanceof RuntimeListExpression list ? list : null;
+				RuntimeType contextListType = contexts == null ? null : nativeContextListType(contexts);
+				if (contextListType != null && !compatibleCollectionResult(decision.type(), contextListType))
+					reasons.add("Context list declared-result coercion requires fallback");
 				RuntimeConstant absolute = decision.expression()
 						.map(SparkSqlExpressionEmitter::nativeDurationAbsOperand).orElse(null);
 				if (absolute != null && absolute.kind() != RuntimeConstantKind.NULL
@@ -248,6 +263,10 @@ public final class SparkSqlCapabilityAnalyzer {
 				if (decision.type() != null && decision.type().kind() != RuntimeTypeKind.ANY
 						&& !SparkSqlFeelValueCodec.isNativeType(decision.type())
 						&& !nativeConstantDurationResult(decision) && !nativeYearMonthDurationResult(decision)
+						&& !decision.expression()
+								.filter(e -> e instanceof RuntimeFilterExpression filter
+										&& nativeContextFilterResult(filter, decision.type()))
+								.isPresent()
 						&& !nativeContextPutResult(decision) && !nativeListReplaceResult(decision)
 						&& !decision.expression()
 								.filter(e -> e instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)
@@ -340,6 +359,8 @@ public final class SparkSqlCapabilityAnalyzer {
 	}
 
 	static boolean nativeFor(RuntimeForExpression loop) {
+		if (nativeCartesianFor(loop))
+			return true;
 		if (loop.iterations().size() != 1 || loop.partialSlot() >= 0
 				|| !SparkSqlFeelValueCodec.isNativeType(loop.type()))
 			return false;
@@ -359,18 +380,235 @@ public final class SparkSqlCapabilityAnalyzer {
 		}
 	}
 
+	private static boolean nativeCartesianFor(RuntimeForExpression loop) {
+		if (loop.iterations().size() < 2 || loop.iterations().size() > 4 || loop.partialSlot() >= 0
+				|| loop.type().kind() != RuntimeTypeKind.LIST || !SparkSqlFeelValueCodec.isNativeType(loop.type()))
+			return false;
+		long size = 1;
+		var slots = new HashSet<Integer>();
+		var locals = new HashMap<Integer, CartesianBound>();
+		for (var iteration : loop.iterations()) {
+			if (iteration.localSlot() >= 2048 || !slots.add(iteration.localSlot()))
+				return false;
+			long count;
+			CartesianBound bound;
+			if (iteration.end().isPresent()) {
+				if (!(iteration.source() instanceof RuntimeConstant start) || start.kind() != RuntimeConstantKind.NUMBER
+						|| !(iteration.end().get() instanceof RuntimeConstant end)
+						|| end.kind() != RuntimeConstantKind.NUMBER)
+					return false;
+				try {
+					long first = new java.math.BigDecimal(start.value()).intValueExact();
+					long last = new java.math.BigDecimal(end.value()).intValueExact();
+					count = Math.abs(last - first) + 1;
+					bound = new CartesianBound(RuntimeTypeKind.NUMBER, Math.max(Math.abs(first), Math.abs(last)));
+				} catch (ArithmeticException | NumberFormatException exception) {
+					return false;
+				}
+			} else {
+				if (!(iteration.source() instanceof RuntimeListExpression list)
+						|| !SparkSqlFeelValueCodec.isNativeType(list.type())
+						|| !Set.of(RuntimeTypeKind.NUMBER, RuntimeTypeKind.STRING, RuntimeTypeKind.BOOLEAN)
+								.contains(list.type().elementType().kind())
+						|| list.elements().stream().anyMatch(e -> !(e instanceof RuntimeConstant constant)
+								|| !Set.of(RuntimeConstantKind.NUMBER, RuntimeConstantKind.STRING,
+										RuntimeConstantKind.BOOLEAN).contains(constant.kind())
+								|| !constant.type().equals(list.type().elementType())
+								|| !nativeSingletonFilterLiteral(constant) || !cartesianConstantMatchesType(constant)))
+					return false;
+				count = list.elements().size();
+				long maximum = 0;
+				for (var element : list.elements()) {
+					if (element instanceof RuntimeConstant constant && constant.kind() == RuntimeConstantKind.NUMBER) {
+						try {
+							maximum = Math.max(maximum,
+									Math.abs(new java.math.BigDecimal(constant.value()).longValueExact()));
+						} catch (ArithmeticException | NumberFormatException exception) {
+							return false;
+						}
+					}
+				}
+				bound = new CartesianBound(list.type().elementType().kind(), maximum);
+			}
+			if (count > 2048 || bound.maximum() < 0 || bound.maximum() > Integer.MAX_VALUE)
+				return false;
+			locals.put(iteration.localSlot(), bound);
+			size *= count;
+			if (size > 2048)
+				return false;
+		}
+		var result = cartesianResultBound(loop.result(), locals, 0, new int[]{64});
+		return result != null && result.kind() == loop.type().elementType().kind()
+				&& (result.kind() != RuntimeTypeKind.LIST || loop.result().type().equals(loop.type().elementType()));
+	}
+
+	private record CartesianBound(RuntimeTypeKind kind, long maximum) {
+	}
+
+	private static CartesianBound cartesianResultBound(RuntimeExpression expression,
+			Map<Integer, CartesianBound> locals, int depth, int[] budget) {
+		if (depth > 8 || --budget[0] < 0)
+			return null;
+		if (expression instanceof RuntimeLocalReference local) {
+			var bound = local.lexicalDepth() == 0 ? locals.get(local.localSlot()) : null;
+			return bound != null && local.type().kind() == bound.kind() ? bound : null;
+		}
+		if (expression instanceof RuntimeConstant constant) {
+			if (constant.kind() == RuntimeConstantKind.NUMBER) {
+				if (!nativeSingletonFilterLiteral(constant))
+					return null;
+				try {
+					long value = Math.abs(new java.math.BigDecimal(constant.value()).longValueExact());
+					return value >= 0 && value <= Integer.MAX_VALUE
+							? new CartesianBound(RuntimeTypeKind.NUMBER, value)
+							: null;
+				} catch (ArithmeticException | NumberFormatException exception) {
+					return null;
+				}
+			}
+			return switch (constant.kind()) {
+				case STRING -> constant.value().length() <= 2048 ? new CartesianBound(RuntimeTypeKind.STRING, 0) : null;
+				case BOOLEAN -> new CartesianBound(RuntimeTypeKind.BOOLEAN, 0);
+				case NULL -> null;
+				default -> null;
+			};
+		}
+		if (expression instanceof RuntimeListExpression list && list.elements().size() <= 64
+				&& SparkSqlFeelValueCodec.isNativeType(list.type())) {
+			for (var element : list.elements()) {
+				var bound = cartesianResultBound(element, locals, depth + 1, budget);
+				if (bound == null || bound.kind() != list.type().elementType().kind()
+						|| bound.kind() == RuntimeTypeKind.LIST && !element.type().equals(list.type().elementType()))
+					return null;
+			}
+			return new CartesianBound(RuntimeTypeKind.LIST, 0);
+		}
+		if (!(expression instanceof RuntimeBinaryExpression binary))
+			return null;
+		var left = cartesianResultBound(binary.left(), locals, depth + 1, budget);
+		var right = cartesianResultBound(binary.right(), locals, depth + 1, budget);
+		if (left == null || right == null || left.kind() != right.kind())
+			return null;
+		if (left.kind() == RuntimeTypeKind.NUMBER) {
+			long maximum = switch (binary.operator()) {
+				case ADD, SUBTRACT -> left.maximum() + right.maximum();
+				case MULTIPLY -> left.maximum() * right.maximum();
+				default -> -1;
+			};
+			if (maximum >= 0)
+				return maximum <= Integer.MAX_VALUE ? new CartesianBound(RuntimeTypeKind.NUMBER, maximum) : null;
+			if (Set.of(RuntimeBinaryOperator.EQUAL, RuntimeBinaryOperator.NOT_EQUAL, RuntimeBinaryOperator.LESS,
+					RuntimeBinaryOperator.LESS_EQUAL, RuntimeBinaryOperator.GREATER,
+					RuntimeBinaryOperator.GREATER_EQUAL).contains(binary.operator()))
+				return new CartesianBound(RuntimeTypeKind.BOOLEAN, 0);
+		}
+		if (left.kind() == RuntimeTypeKind.STRING && binary.operator() == RuntimeBinaryOperator.ADD)
+			return new CartesianBound(RuntimeTypeKind.STRING, 0);
+		if (Set.of(RuntimeTypeKind.STRING, RuntimeTypeKind.BOOLEAN).contains(left.kind())
+				&& Set.of(RuntimeBinaryOperator.EQUAL, RuntimeBinaryOperator.NOT_EQUAL).contains(binary.operator())
+				|| left.kind() == RuntimeTypeKind.BOOLEAN
+						&& Set.of(RuntimeBinaryOperator.AND, RuntimeBinaryOperator.OR).contains(binary.operator()))
+			return new CartesianBound(RuntimeTypeKind.BOOLEAN, 0);
+		return null;
+	}
+
+	private static boolean cartesianConstantMatchesType(RuntimeConstant constant) {
+		return switch (constant.kind()) {
+			case NUMBER -> constant.type().kind() == RuntimeTypeKind.NUMBER;
+			case BOOLEAN -> constant.type().kind() == RuntimeTypeKind.BOOLEAN;
+			case STRING -> constant.type().kind() == RuntimeTypeKind.STRING && constant.value().length() <= 2048;
+			default -> false;
+		};
+	}
+
 	static boolean nativeFilter(RuntimeFilterExpression filter) {
 		boolean booleanSelector = filter.filter().type().kind() == RuntimeTypeKind.BOOLEAN;
 		if (filter.source() instanceof RuntimeConstant constant
 				&& Set.of(RuntimeConstantKind.BOOLEAN, RuntimeConstantKind.STRING, RuntimeConstantKind.NUMBER)
 						.contains(constant.kind()))
 			return booleanSelector && nativeSingletonFilterLiteral(constant);
+		if (filter.source() instanceof RuntimeListExpression list && nativeContextListType(list) != null)
+			return booleanSelector;
 		return filter.source() instanceof RuntimeListExpression list && SparkSqlFeelValueCodec.isNativeType(list.type())
 				&& list.elements().stream()
 						.allMatch(element -> element instanceof RuntimeConstant constant
 								&& constant.kind() != RuntimeConstantKind.NULL
 								|| nativeFilterContext(element, list.type().elementType()))
 				&& booleanSelector;
+	}
+
+	private static boolean nativeContextFilterResult(RuntimeFilterExpression filter, RuntimeType declared) {
+		if (!nativeFilter(filter) || !(filter.source() instanceof RuntimeListExpression list))
+			return false;
+		RuntimeType inferred = nativeContextListType(list);
+		return inferred != null && compatibleCollectionResult(declared, inferred);
+	}
+
+	private static boolean compatibleCollectionResult(RuntimeType declared, RuntimeType inferred) {
+		return declared != null && (declared.kind() == RuntimeTypeKind.ANY || declared.equals(inferred)
+				|| declared.kind() == RuntimeTypeKind.LIST && declared.elementType() != null
+						&& declared.elementType().kind() == RuntimeTypeKind.ANY);
+	}
+
+	// Null widens a field's values, without changing its name, position or
+	// non-null FEEL kind. Different field sets and mixed non-null kinds stay
+	// guarded.
+	static RuntimeType nativeContextListType(RuntimeListExpression list) {
+		if (list.type() == null || list.type().kind() != RuntimeTypeKind.LIST || list.type().elementType() == null
+				|| !Set.of(RuntimeTypeKind.ANY, RuntimeTypeKind.CONTEXT).contains(list.type().elementType().kind())
+				|| list.elements().isEmpty() || list.elements().size() > 64
+				|| !(list.elements().getFirst() instanceof RuntimeContextExpression first) || first.entries().isEmpty()
+				|| first.entries().size() > 64)
+			return null;
+		var kinds = new RuntimeTypeKind[first.entries().size()];
+		Arrays.fill(kinds, RuntimeTypeKind.NULL);
+		var names = new HashSet<String>();
+		for (var entry : first.entries()) {
+			if (!names.add(entry.name()))
+				return null;
+		}
+		for (var element : list.elements()) {
+			if (!(element instanceof RuntimeContextExpression context) || context.entries().size() != kinds.length
+					|| context.type().kind() != RuntimeTypeKind.CONTEXT
+					|| context.type().fieldLayout().size() != kinds.length)
+				return null;
+			for (int index = 0; index < kinds.length; index++) {
+				var entry = context.entries().get(index);
+				var field = context.type().fieldLayout().get(index);
+				if (!entry.name().equals(first.entries().get(index).name()) || !field.name().equals(entry.name())
+						|| !(entry.expression() instanceof RuntimeConstant constant))
+					return null;
+				RuntimeTypeKind kind = switch (constant.kind()) {
+					case NUMBER -> RuntimeTypeKind.NUMBER;
+					case STRING -> RuntimeTypeKind.STRING;
+					case BOOLEAN -> RuntimeTypeKind.BOOLEAN;
+					case NULL -> RuntimeTypeKind.NULL;
+					default -> null;
+				};
+				if (kind == null || kind != RuntimeTypeKind.NULL
+						&& (!constant.type().equals(RuntimeType.scalar(kind)) || !field.type().equals(constant.type())))
+					return null;
+				if (kind == RuntimeTypeKind.NUMBER) {
+					try {
+						var number = new java.math.BigDecimal(constant.value()).stripTrailingZeros();
+						if (!nativeSingletonFilterLiteral(constant) || number.scale() > 0
+								|| (long) number.precision() - number.scale() > 15)
+							return null;
+					} catch (NumberFormatException exception) {
+						return null;
+					}
+				}
+				if (kind != RuntimeTypeKind.NULL) {
+					if (kinds[index] != RuntimeTypeKind.NULL && kinds[index] != kind)
+						return null;
+					kinds[index] = kind;
+				}
+			}
+		}
+		var fields = new ArrayList<RuntimeField>();
+		for (int index = 0; index < kinds.length; index++)
+			fields.add(new RuntimeField(index, first.entries().get(index).name(), RuntimeType.scalar(kinds[index])));
+		return RuntimeType.element(RuntimeTypeKind.LIST, RuntimeType.contextFields(fields));
 	}
 
 	private static boolean nativeFilterContext(RuntimeExpression expression, RuntimeType elementType) {
@@ -429,6 +667,8 @@ public final class SparkSqlCapabilityAnalyzer {
 	}
 
 	private static boolean inspectChildren(Object node) {
+		if (node instanceof RuntimeListExpression list && nativeContextListType(list) != null)
+			return false;
 		if (node instanceof RuntimeExpression expression
 				&& SparkSqlExpressionEmitter.nativeDurationAbsOperand(expression) != null)
 			return false;

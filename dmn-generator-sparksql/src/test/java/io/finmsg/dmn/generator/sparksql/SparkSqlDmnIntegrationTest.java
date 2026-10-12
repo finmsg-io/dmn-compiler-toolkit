@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 class SparkSqlDmnIntegrationTest {
 
 	private static SparkSession spark;
+	private static SparkSqlProcessingAccounting processing;
 	private final DmnCompiler compiler = new DmnCompiler();
 	private final DmnSparkSqlGenerator generator = new DmnSparkSqlGenerator();
 
@@ -28,6 +29,7 @@ class SparkSqlDmnIntegrationTest {
 		try {
 			spark = SparkSession.builder().appName("DmnSparkSqlIntegrationTest").master("local[1]")
 					.config("spark.ui.enabled", "false").config("spark.sql.shuffle.partitions", "1").getOrCreate();
+			processing = SparkSqlProcessingAccounting.attach(spark);
 		} catch (Throwable t) {
 			// Catch Hadoop UGI / JDK 25 Subject.getSubject deprecation exception during
 			// local SparkSession setup
@@ -36,11 +38,12 @@ class SparkSqlDmnIntegrationTest {
 	}
 
 	@AfterAll
-	static void tearDownSpark() {
+	static void tearDownSpark() throws java.util.concurrent.TimeoutException {
 		if (spark != null) {
 			try {
+				processing.report(spark, "SparkSqlDmnIntegrationTest");
+			} finally {
 				spark.stop();
-			} catch (Throwable ignored) {
 			}
 		}
 	}
