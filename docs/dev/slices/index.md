@@ -1,3 +1,8 @@
+2026-10-13 continuation: [native calendar input projections](native-calendar-inputs-2026-10-13.md)
+verified eight fallback-to-native conversions in the full official TCK.
+3,391/3,391 passed: 2,520 native (92.82%), 195 fallback (7.18%) of 2,715
+executable cases, 676 provisional expected model rejections separately.
+
 2026-10-12 latest full Spark SQL checkpoint and updated goal
 
 Follow-up evidence: [native rejection expectation and diagnostic audit](native-rejection-audit-2026-10-12.md)

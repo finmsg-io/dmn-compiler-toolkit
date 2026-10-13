@@ -402,6 +402,7 @@ class OfficialTckSuiteTest {
 			spark.sql("SELECT 1 AS _dummy").createOrReplaceTempView("input_table");
 		} else {
 			Object[] values = new Object[model.inputs().size()];
+			Map<Integer, Object> feelInputs = new HashMap<>();
 			for (int i = 0; i < values.length; i++) {
 				RuntimeInput input = model.inputs().get(i);
 				String inputName = invocationPlan == null
@@ -410,13 +411,16 @@ class OfficialTckSuiteTest {
 								slotNames.get(input.valueSlot()));
 				TckValue supplied = testCase.inputs().get(inputName);
 				Object value = supplied == null ? null : supplied.runtimeValue();
+				feelInputs.put(input.valueSlot(), value);
 				values[i] = SPARK_HYBRID
 						? SparkSqlFeelValueCodec.toSpark(io.finmsg.dmn.runtime.DmnRuntime.coerce(value, input.type()),
 								input.type())
 						: toSparkValue(value, generated.inputSchema().fields()[i].dataType());
 			}
-			spark.createDataFrame(List.of(RowFactory.create(values)), generated.inputSchema())
-					.createOrReplaceTempView("input_table");
+			Row row = SPARK_HYBRID
+					? SparkSqlFeelValueCodec.inputRow(model, feelInputs, generated.inputSchema())
+					: RowFactory.create(values);
+			spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("input_table");
 		}
 		Map<String, Object> results = new LinkedHashMap<>();
 		boolean fallback = false;

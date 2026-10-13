@@ -1,4 +1,36 @@
+2026-10-13 latest full verification: 3,391/3,391 passed. Native 2,520 (92.82%)
+and fallback 195 (7.18%) of 2,715 executable cases; 676 provisional expected
+model rejections separately, zero failures or compilation/execution errors.
+Eight actual fallback-to-native conversions versus priority-native-full-accounting.json,
+zero reverse conversions. Full evidence: runner target/native-any-calendar-full-tck.log
+and native-any-calendar-full-accounting.json. Generator verification: 80/80 tests;
+764 native actions (97.70%), 18 fallback (2.30%), denominator 782, zero failed/unknown.
+See docs/dev/slices/native-calendar-inputs-2026-10-13.md for the input schema contract
+and correction of optimization-time fallback accounting. The 100% goal remains active.
+
 # Task: 100% Native Generated Spark SQL Execution
+
+2026-10-13 continuation: native calendar functions over direct ANY inputs now
+use an additional local-date projection while retaining the original opaque
+payload. Focused official suites 0095–0098 passed 62/62: 57 native (91.94%) and
+5 fallback (8.06%), denominator 62, versus 49 native/13 fallback previously.
+This proves eight fallback-to-native conversions; full global rates await the
+new full TCK run. Two boundary regressions passed with 82 native SQL actions
+(98.80%) and one deliberate fallback (1.20%), denominator 83, zero failed or
+unknown routes. The SQL-action counter now inspects analyzed and executed
+plans because optimization can evaluate a fallback UDF before the physical
+plan is produced. Historical physical-plan-only rates are not new evidence
+of UDF-free processing.
+
+Input contract: for generated hybrid schemas with calendar projection fields,
+construct rows with SparkSqlFeelValueCodec.inputRow(model, values,
+generated.inputSchema()) and use that schema for the Dataset. The existing
+two-argument inputRow and opaque payload format remain unchanged. New columns
+contain type tags and local year/month/day, not precomputed calendar answers.
+SQL preserves proleptic Gregorian calendar behavior and uses the original
+local date of offset/named-zone datetimes. Remaining focused fallbacks include
+calendar contexts with dynamic temporal arithmetic and a boxed list argument.
+The 100% native goal remains active.
 
 2026-10-12 follow-up audit after publication of 7dfe3da: current full-run compiler
 diagnostics and all 676 rejected accounting entries were matched to the current

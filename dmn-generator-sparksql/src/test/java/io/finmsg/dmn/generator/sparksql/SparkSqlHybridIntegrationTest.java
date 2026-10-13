@@ -1646,6 +1646,93 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	void calendarProjectionsSurviveAllDecisionsAndPreserveFallbackPayloads()
+			throws java.util.concurrent.TimeoutException {
+		var before = processing.snapshot(spark);
+		var input = new RuntimeInput(5, 0, SparkSqlHybridTest.ANY);
+		var reference = new RuntimeValueReference(0, SparkSqlHybridTest.ANY);
+		var month = new RuntimeDecision(10, 1, SparkSqlHybridTest.ANY, List.of(5),
+				Optional.of(new RuntimeFunctionCall("month of year", List.of(reference), SparkSqlHybridTest.ANY)));
+		var week = new RuntimeDecision(11, 2, SparkSqlHybridTest.ANY, List.of(5),
+				Optional.of(new RuntimeInvocationExpression(Optional.of("week of year"), Optional.empty(),
+						List.of(new RuntimeNamedArgument("date", reference)), List.of(), SparkSqlHybridTest.ANY)));
+		var identity = new RuntimeDecision(12, 3, SparkSqlHybridTest.ANY, List.of(5), Optional.of(reference));
+		var model = new RuntimeModel(List.of(input), List.of(month, week, identity), List.of(), List.of(10, 11, 12), 4);
+		var options = DmnSparkSqlGeneratorOptions.of("hybrid_inputs", true,
+				Map.of(0, "__dmn_calendar_0", 1, "month", 2, "week", 3, "original"));
+		var generated = new DmnSparkSqlGenerator()
+				.generate(new RuntimeOptimizedModel(model, List.of(), List.of(), List.of()), options);
+		assertThat(generated.inputSchema().fields()[1].name()).isEqualTo("__dmn_calendar_0_");
+		assertThat(generated.capabilities().get(10).nativeSql()).isTrue();
+		assertThat(generated.capabilities().get(11).nativeSql()).isTrue();
+		assertThat(generated.capabilities().get(12).nativeSql()).isFalse();
+		Object value = io.finmsg.dmn.runtime.DmnRuntime.parseDateTime("2020-12-31T23:59:59.999999999@Europe/Paris");
+		var inputs = Map.of(0, value);
+		var row = SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema());
+		assertThat((byte[]) row.get(0)).isEqualTo((byte[]) SparkSqlFeelValueCodec.inputRow(model, inputs).get(0));
+		spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
+		generated.registerUdfs(spark);
+		var expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs);
+		for (var decision : List.of(month, week)) {
+			Object actual = SparkSqlFeelValueCodec.fromSpark(
+					spark.sql(generated.sqlFiles().get("Decision_" + decision.resultSlot() + ".sql")).head().get(0));
+			if (actual instanceof BigDecimal decimal)
+				assertThat(decimal).isEqualByComparingTo((BigDecimal) expected.decisionValue(decision.id()));
+			else
+				assertThat(actual).isEqualTo(expected.decisionValue(decision.id()));
+		}
+		Row all = spark.sql(generated.sqlFiles().get("AllDecisions.sql")).head();
+		assertThat(SparkSqlFeelValueCodec.fromSpark(all.get(0))).isEqualTo(expected.decisionValue(10));
+		assertThat((BigDecimal) SparkSqlFeelValueCodec.fromSpark(all.get(1)))
+				.isEqualByComparingTo((BigDecimal) expected.decisionValue(11));
+		assertThat(SparkSqlFeelValueCodec.fromSpark(all.get(2))).isEqualTo(value);
+		var after = processing.snapshot(spark);
+		assertThat(after.nativeActions() - before.nativeActions()).isEqualTo(2);
+		assertThat(after.fallbackActions() - before.fallbackActions()).isEqualTo(1);
+		assertThat(after.unknownActions() - before.unknownActions()).isZero();
+		assertThat(after.failedActions() - before.failedActions()).isZero();
+	}
+
+	@Test
+	void anyCalendarInputsPreserveLocalDateAndOpaqueTemporalIdentity() {
+		var values = new ArrayList<Object>(List.of(java.time.LocalDate.of(2000, 2, 29),
+				java.time.LocalDate.of(1900, 3, 1), java.time.LocalDate.of(2003, 12, 29),
+				java.time.LocalDate.of(2010, 1, 1), java.time.LocalDate.of(1582, 10, 4),
+				java.time.LocalDate.of(0, 1, 1), java.time.LocalDate.of(-400, 12, 31), java.time.LocalDate.MAX,
+				java.time.LocalDate.MIN, java.time.OffsetDateTime.parse("2020-01-01T00:00:00.123456789+14:00"),
+				java.time.OffsetDateTime.parse("2020-12-31T23:59:59.999999999-03:30"),
+				io.finmsg.dmn.runtime.DmnRuntime.parseDateTime("2021-03-28T01:59:59.999999999@Europe/Paris"),
+				"2020-01-01", BigDecimal.ONE, true, java.time.Duration.ofNanos(1), java.time.Period.ZERO,
+				java.time.LocalTime.NOON, List.of(java.time.LocalDate.of(2020, 1, 1))));
+		values.add(null);
+		for (String name : List.of("day of year", "day of week", "month of year", "week of year")) {
+			var expression = new RuntimeFunctionCall(name,
+					List.of(new RuntimeValueReference(0, SparkSqlHybridTest.ANY)), SparkSqlHybridTest.ANY);
+			var model = new RuntimeModel(List.of(new RuntimeInput(5, 0, SparkSqlHybridTest.ANY)),
+					List.of(new RuntimeDecision(10, 1, SparkSqlHybridTest.ANY, List.of(5), Optional.of(expression))),
+					List.of(), List.of(10), 2);
+			var generated = SparkSqlHybridTest.generate(model);
+			assertThat(generated.capabilities().get(10).nativeSql()).as(name).isTrue();
+			assertThat(generated.udfs()).isEmpty();
+			assertThat(generated.inputSchema().size()).isEqualTo(2);
+			for (Object value : values) {
+				var inputs = new HashMap<Integer, Object>();
+				inputs.put(0, value);
+				Row row = SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema());
+				assertThat(SparkSqlFeelValueCodec.fromSpark(row.get(0))).as("payload %s", value).isEqualTo(value);
+				spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
+				Object actual = SparkSqlFeelValueCodec
+						.fromSpark(spark.sql(generated.sqlFiles().get("Decision_1.sql")).head().get(0));
+				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+				if (expected instanceof BigDecimal decimal)
+					assertThat((BigDecimal) actual).as("%s(%s)", name, value).isEqualByComparingTo(decimal);
+				else
+					assertThat(actual).as("%s(%s)", name, value).isEqualTo(expected);
+			}
+		}
+	}
+
+	@Test
 	void invalidLiteralIterationEndpointsReturnNativeNullWithoutTemporalCoercion() {
 		var expressions = List.of("for i in \"a\"..\"z\" return i",
 				"for i in @\"1980-01-03T00:00:00\"..@\"1980-01-01T00:00:00\" return i",

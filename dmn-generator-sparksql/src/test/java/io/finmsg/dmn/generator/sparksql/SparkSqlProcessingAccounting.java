@@ -5,6 +5,8 @@ import java.util.concurrent.TimeoutException;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.WithCTE;
 import org.apache.spark.sql.execution.QueryExecution;
 import org.apache.spark.sql.execution.SparkPlan;
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec;
@@ -43,7 +45,10 @@ final class SparkSqlProcessingAccounting implements QueryExecutionListener {
 		if (failed)
 			failedActions++;
 		try {
-			if (containsFallback(query.executedPlan()))
+			// Catalyst can evaluate deterministic fallback UDFs while optimizing a
+			// local relation. Their absence from the final physical plan does not
+			// make that query native: inspect the analyzed route as well.
+			if (containsFallback(query.analyzed()) || containsFallback(query.executedPlan()))
 				fallbackActions++;
 			else
 				nativeActions++;
@@ -55,6 +60,27 @@ final class SparkSqlProcessingAccounting implements QueryExecutionListener {
 	private static boolean containsFallback(SparkPlan plan) {
 		if (plan instanceof AdaptiveSparkPlanExec adaptive)
 			return containsFallback(adaptive.executedPlan());
+		var expressions = plan.expressions().iterator();
+		while (expressions.hasNext()) {
+			if (containsFallback(expressions.next()))
+				return true;
+		}
+		var children = plan.children().iterator();
+		while (children.hasNext()) {
+			if (containsFallback(children.next()))
+				return true;
+		}
+		return false;
+	}
+
+	private static boolean containsFallback(LogicalPlan plan) {
+		if (plan instanceof WithCTE with) {
+			var definitions = with.cteDefs().iterator();
+			while (definitions.hasNext()) {
+				if (containsFallback(definitions.next()))
+					return true;
+			}
+		}
 		var expressions = plan.expressions().iterator();
 		while (expressions.hasNext()) {
 			if (containsFallback(expressions.next()))

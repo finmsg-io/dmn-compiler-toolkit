@@ -34,18 +34,24 @@ public final class SparkSqlCapabilityAnalyzer {
 			}
 			inspect(bkm, hybridBoundary, reasons, staticFunctions);
 		}
+		Integer calendarSlot = hybridBoundary
+				? model.decisions().stream().filter(d -> d.id() == decisionId)
+						.map(d -> SparkSqlCalendarInput.inputSlot(model, d)).filter(Objects::nonNull).findFirst()
+						.orElse(null)
+				: null;
 		for (RuntimeDecision decision : model.decisions()) {
 			if (required.contains(decision.id()) && decision.id() != decisionId
 					&& SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)
 				reasons.add("Temporal ANY dependency requires lossless FEEL transport for its consumer");
-			if (required.contains(decision.id()) && !(decision.id() == decisionId
-					&& (nativeConstantTemporalResult(decision) || nativeEmptyListResult(decision)
-							|| SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)))
+			if (required.contains(decision.id()) && !(decision.id() == decisionId && (calendarSlot != null
+					|| nativeConstantTemporalResult(decision) || nativeEmptyListResult(decision)
+					|| SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)))
 				inspect(decision, hybridBoundary, reasons, staticFunctions);
 		}
 		if (hybridBoundary) {
 			for (RuntimeInput input : model.inputs()) {
-				if (required.contains(input.id()) && !SparkSqlFeelValueCodec.isNativeType(input.type())) {
+				if (required.contains(input.id()) && !Objects.equals(calendarSlot, input.valueSlot())
+						&& !SparkSqlFeelValueCodec.isNativeType(input.type())) {
 					reasons.add("Input slot " + input.valueSlot() + " requires lossless FEEL transport");
 				}
 			}

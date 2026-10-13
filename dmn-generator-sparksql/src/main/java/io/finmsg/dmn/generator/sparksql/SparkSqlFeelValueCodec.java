@@ -208,6 +208,62 @@ public final class SparkSqlFeelValueCodec {
 				.toList());
 	}
 
+	static StructType calendarInputSchema(RuntimeModel model, Map<Integer, String> names, Set<Integer> slots) {
+		var fields = new ArrayList<StructField>(Arrays.asList(inputSchema(model, names).fields()));
+		var date = new StructType().add("kind", DataTypes.StringType).add("year", DataTypes.IntegerType)
+				.add("month", DataTypes.IntegerType).add("day", DataTypes.IntegerType);
+		for (var input : model.inputs()) {
+			if (slots.contains(input.valueSlot()))
+				fields.add(DataTypes.createStructField(SparkSqlCalendarInput.column(input.valueSlot(), names), date,
+						false, new MetadataBuilder().putLong("dmnCalendarInputSlot", input.valueSlot()).build()));
+		}
+		return DataTypes.createStructType(fields);
+	}
+
+	/**
+	 * Original payload columns followed by generator-declared calendar projections.
+	 */
+	public static Row inputRow(RuntimeModel model, Map<Integer, ?> values, StructType generatedSchema) {
+		Row original = inputRow(model, values);
+		Object[] columns = new Object[generatedSchema.size()];
+		for (int index = 0; index < original.size(); index++)
+			columns[index] = original.get(index);
+		for (int index = original.size(); index < columns.length; index++) {
+			Metadata metadata = generatedSchema.fields()[index].metadata();
+			if (!metadata.contains("dmnCalendarInputSlot"))
+				throw new IllegalArgumentException("Unknown input projection");
+			int slot = Math.toIntExact(metadata.getLong("dmnCalendarInputSlot"));
+			if (!values.containsKey(slot))
+				throw new IllegalArgumentException("Missing input slot " + slot);
+			Object value = values.get(slot);
+			LocalDate date = value instanceof LocalDate local
+					? local
+					: value instanceof java.time.LocalDateTime local
+							? local.toLocalDate()
+							: value instanceof java.time.OffsetDateTime offset
+									? offset.toLocalDate()
+									: value instanceof java.time.ZonedDateTime zoned
+											? zoned.toLocalDate()
+											: value instanceof io.finmsg.dmn.runtime.DmnRuntime.NamedZoneDateTime named
+													? named.value().toLocalDate()
+													: null;
+			boolean parsed = false;
+			if (date == null && value != null) {
+				try {
+					date = LocalDate.parse(String.valueOf(value));
+					parsed = true;
+				} catch (java.time.DateTimeException ignored) {
+					// Match calendar conversion without altering the payload.
+				}
+			}
+			columns[index] = date == null
+					? RowFactory.create("OTHER", null, null, null)
+					: RowFactory.create(parsed ? "PARSED_DATE" : value instanceof LocalDate ? "DATE" : "DATE_TIME",
+							date.getYear(), date.getMonthValue(), date.getDayOfMonth());
+		}
+		return RowFactory.create(columns);
+	}
+
 	/**
 	 * Encodes one input row for the generated hybrid input schema; keys are runtime
 	 * value slots.

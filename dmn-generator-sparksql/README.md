@@ -22,7 +22,7 @@ var options = DmnSparkSqlGeneratorOptions.of("dmn_inputs", true, Map.of());
 var generated = new DmnSparkSqlGenerator().generate(optimizedModel, options);
 
 // valuesBySlot is Map<Integer, ?> with an entry for every input, including nulls.
-Row row = SparkSqlFeelValueCodec.inputRow(model, valuesBySlot);
+Row row = SparkSqlFeelValueCodec.inputRow(model, valuesBySlot, generated.inputSchema());
 Dataset<Row> input = spark.createDataFrame(List.of(row), generated.inputSchema());
 input.createOrReplaceTempView("dmn_inputs");
 generated.registerUdfs(spark);
@@ -42,6 +42,14 @@ other types. This preserves decimals, mixed lists, null members, contexts, offse
 nanoseconds, and duration kinds. Build inputs with the codec and decode results
 before using them as Java values. Binary columns cannot directly participate in
 native Spark arithmetic or field access.
+
+Direct calendar functions over `ANY` inputs additionally receive generated
+struct columns containing a value tag and local year/month/day. Their calendar
+answers are calculated in SQL; the original binary payload retains precision,
+offsets and named-zone identity. Always pair `generated.inputSchema()` with the
+three-argument `inputRow` overload shown above, including when supplying a
+Dataset to a generated Java runner. The two-argument overload remains available
+for schemas containing only the original input columns.
 
 The direct `SparkSqlDecisionUdf(RuntimeModel, decisionId).evaluate(Row)` API returns
 a Java FEEL value. Row fields must follow `RuntimeModel.inputs()` order. Decision

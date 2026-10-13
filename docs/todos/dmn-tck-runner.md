@@ -1,3 +1,13 @@
+2026-10-13 latest full verification: 3,391/3,391 passed. Native 2,520 (92.82%)
+and fallback 195 (7.18%) of 2,715 executable cases; 676 provisional expected
+model rejections separately, zero failures or compilation/execution errors.
+Eight actual fallback-to-native conversions versus priority-native-full-accounting.json,
+zero reverse conversions. Full evidence: runner target/native-any-calendar-full-tck.log
+and native-any-calendar-full-accounting.json. Generator verification: 80/80 tests;
+764 native actions (97.70%), 18 fallback (2.30%), denominator 782, zero failed/unknown.
+See docs/dev/slices/native-calendar-inputs-2026-10-13.md for the input schema contract
+and correction of optimization-time fallback accounting. The 100% goal remains active.
+
 # `dmn-tck-runner` TODO
 
 <!-- generated-toc:start -->
