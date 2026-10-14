@@ -1,3 +1,23 @@
+2026-10-14 corrected full Spark SQL TCK: 3,391/3,391 passed. Native 2,538
+(93.48%), fallback 177 (6.52%) of 2,715 executable cases; 676 provisional
+expected model rejections separately. Zero failed/unknown routes or compilation/
+execution errors. Compared with native-any-calendar-full-accounting.json: 18
+fallback-to-native conversions (15 lambda, two coercion, one arithmetic negation),
+zero reverse conversions. The implicit Java-descriptor regression is fixed and
+0076 boxed_001 passes via fallback. Full generator: 86/86 tests; 781 native SQL
+actions (96.90%), 25 fallback (3.10%), denominator 806, zero failed/unknown.
+Evidence: runner target/native-static-functions-corrected-full-tck.log and
+native-static-functions-corrected-full-accounting.json; generator
+target/native-static-functions-corrected-generator.log. Details:
+docs/dev/slices/native-static-functions-2026-10-13.md. The 100% goal remains active.
+
+2026-10-13 user cadence update: batch native improvements before the next full
+TCK. Run full TCK after 45 minutes of work since the last full checkpoint, usage
+remaining below 20%, or 20 fallback rules converted, whichever occurs first.
+Use the latest completed full checkpoint above as the cadence anchor. Generator regressions continue after each change;
+report actual SQL-action native/fallback counts and rates after every run.
+Do not claim new official case conversions from regression action counts.
+
 2026-10-13 latest full verification: 3,391/3,391 passed. Native 2,520 (92.82%)
 and fallback 195 (7.18%) of 2,715 executable cases; 676 provisional expected
 model rejections separately, zero failures or compilation/execution errors.

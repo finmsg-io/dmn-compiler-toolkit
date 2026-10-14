@@ -16,7 +16,10 @@ public final class DmnSparkSqlGenerator {
 		Objects.requireNonNull(optimizedModel, "optimizedModel");
 		Objects.requireNonNull(options, "options");
 
-		RuntimeModel model = optimizedModel.model();
+		RuntimeModel originalModel = optimizedModel.model();
+		RuntimeModel model = options.hybridUdfFallback()
+				? SparkSqlStaticFunctionLowerer.lower(originalModel)
+				: originalModel;
 		Map<Integer, String> slotNames = new HashMap<>();
 		for (RuntimeInput input : model.inputs()) {
 			String rawName = options.customSlotNames().getOrDefault(input.valueSlot(), "input_" + input.valueSlot());
@@ -91,7 +94,7 @@ public final class DmnSparkSqlGenerator {
 		Map<Integer, String> udfNames = new LinkedHashMap<>();
 		Map<Integer, String> fallbackExpressions = new LinkedHashMap<>();
 		SparkSqlCapabilityAnalyzer analyzer = new SparkSqlCapabilityAnalyzer();
-		String modelKey = modelKey(model);
+		String modelKey = modelKey(originalModel);
 		String inputStruct = "struct("
 				+ String.join(", ",
 						model.inputs().stream()
@@ -107,7 +110,7 @@ public final class DmnSparkSqlGenerator {
 									+ String.join("; ", capability.runtimeLimitations()));
 				}
 				String udfName = "dmn_" + modelKey + "_" + decision.id();
-				udfs.put(udfName, new SparkSqlDecisionUdf(model, decision.id()));
+				udfs.put(udfName, new SparkSqlDecisionUdf(originalModel, decision.id()));
 				udfNames.put(decision.id(), udfName);
 				fallbackExpressions.put(decision.id(), udfName + "(" + inputStruct + ")");
 			}
@@ -134,7 +137,7 @@ public final class DmnSparkSqlGenerator {
 		Map<String, String> javaSources = new HashMap<>();
 		if (options.includeJavaRunner()) {
 			String fqcn = options.packageName() + "." + options.className();
-			String javaCode = buildJavaRunner(options, sqlFiles, model, udfNames);
+			String javaCode = buildJavaRunner(options, sqlFiles, originalModel, udfNames);
 			javaSources.put(fqcn, javaCode);
 		}
 

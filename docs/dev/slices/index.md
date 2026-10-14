@@ -1,3 +1,9 @@
+2026-10-13 next batch: [bounded native function lowering](native-static-functions-2026-10-13.md)
+preserves lexical binding, boxed closures and scalar/list coercion. Corrected
+full TCK passed 3,391/3,391: 2,538 native (93.48%), 177 fallback (6.52%) of
+2,715 executable cases; 676 provisional expected model rejections separately.
+This verifies 18 further conversions, zero reverse conversions or failures.
+
 2026-10-13 continuation: [native calendar input projections](native-calendar-inputs-2026-10-13.md)
 verified eight fallback-to-native conversions in the full official TCK.
 3,391/3,391 passed: 2,520 native (92.82%), 195 fallback (7.18%) of 2,715
