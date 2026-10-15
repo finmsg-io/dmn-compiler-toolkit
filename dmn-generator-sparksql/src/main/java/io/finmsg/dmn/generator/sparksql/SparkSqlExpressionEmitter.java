@@ -91,6 +91,9 @@ public final class SparkSqlExpressionEmitter {
 		}
 		if (nativeInvalidExpression(expr))
 			return "NULL";
+		String roundingProof = SparkSqlRoundingProof.sql(expr);
+		if (roundingProof != null)
+			return roundingProof;
 		RuntimeConstant absoluteDuration = nativeDurationAbsOperand(expr);
 		if (absoluteDuration != null)
 			return absoluteDuration.kind() == RuntimeConstantKind.NULL
@@ -265,6 +268,9 @@ public final class SparkSqlExpressionEmitter {
 				emitUnaryTests("?", testsExpr.tests(), bkmBySlot, slotNameResolver);
 			case RuntimeDescendantExpression desc -> emitDescendant(desc, bkmBySlot, slotNameResolver);
 			case RuntimeInstanceOfExpression inst -> {
+				String structuralCheck = SparkSqlStaticTypeProof.sql(inst);
+				if (structuralCheck != null)
+					yield structuralCheck;
 				String temporalCheck = nativeTemporalInstanceOfSql(inst);
 				if (temporalCheck != null)
 					yield temporalCheck;

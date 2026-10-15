@@ -1,3 +1,10 @@
+2026-10-14 next batch: [literal type and rounding proofs](native-type-rounding-proofs-2026-10-14.md)
+has passed focused type and rounding boundaries and an earlier full 3,391/3,391
+checkpoint: 2,563 native (94.40%), 152 fallback (5.60%) of 2,715 executable cases,
+25 conversions and zero reverse conversions. The 2026-10-15 full repeat passed
+3,390/3,391, with the same fallback count and one 0035 #001 timeout (reproduced
+in the focused suite). See the linked evidence for exact pass/timeout rates.
+
 2026-10-13 next batch: [bounded native function lowering](native-static-functions-2026-10-13.md)
 preserves lexical binding, boxed closures and scalar/list coercion. Corrected
 full TCK passed 3,391/3,391: 2,538 native (93.48%), 177 fallback (6.52%) of

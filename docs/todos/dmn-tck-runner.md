@@ -1,3 +1,23 @@
+2026-10-15 full Spark SQL rerun: 3,390/3,391 passed (99.97%); one 30-second
+timeout in 0035-test-structure-output case 001. Of 2,715 attempted executable
+cases: 2,562 native passes (94.36%), 152 fallback passes (5.60%), one timeout
+(0.04%). Separately: 676 provisional expected model rejections. No result
+mismatches or compilation/execution errors. Full Maven exit 1 due to timeout.
+The identical installed generator previously passed 3,391/3,391: 2,563 native
+(94.40%), 152 fallback (5.60%). The batch verifies 25 fallback-to-native
+conversions, zero native-to-fallback changes; the rerun's native-pass delta is
+24 because a previously native case timed out. The focused 0035 suite repeated
+the same timeout: two native passes (66.67%), zero fallback, one timeout
+(33.33%), denominator three; Maven exit 1. This does not replace the full result.
+Warmup remains unverified; no timeout or generator source changed for this rerun.
+Retry evidence: native-type-rounding-timeout-retry-accounting-2026-10-15.json.
+Full evidence: runner target/native-type-rounding-full-accounting-2026-10-15.json
+and native-type-rounding-full-tck-2026-10-15.log. Previous green full evidence:
+native-type-rounding-first-full-accounting.json and native-type-rounding-full-tck.log.
+Generator: 88/88 tests passed, 843 native actions (96.56%), 30 fallback (3.44%),
+denominator 873, zero failed/unknown routes. Details:
+docs/dev/slices/native-type-rounding-proofs-2026-10-14.md. The 100% goal remains active.
+
 2026-10-14 corrected full Spark SQL TCK: 3,391/3,391 passed. Native 2,538
 (93.48%), fallback 177 (6.52%) of 2,715 executable cases; 676 provisional
 expected model rejections separately. Zero failed/unknown routes or compilation/

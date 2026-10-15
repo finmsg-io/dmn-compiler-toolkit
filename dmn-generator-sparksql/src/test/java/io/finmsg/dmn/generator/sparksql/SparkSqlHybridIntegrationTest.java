@@ -1898,6 +1898,87 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	void extremeRoundingScalesPreserveExactLiteralsAndValidation() {
+		for (String alias : List.of("round", "ceil", "round_up"))
+			assertThat(SparkSqlRoundingProof.sql(new RuntimeFunctionCall(alias,
+					List.of(SparkSqlHybridTest.number("5.5"), SparkSqlHybridTest.number("6176")),
+					SparkSqlHybridTest.NUMBER))).isNull();
+		for (String function : List.of("floor", "ceiling", "decimal", "round up", "round down", "round half up",
+				"round half down", "round half even")) {
+			for (String arguments : List.of("5.5, 6176", "5.5, (6176 + 1)", "5.5, (-6111 - 1)", "-5.5, 6176",
+					"5.5, (2 * 3)", "5.5, -6111")) {
+				String sample = function + "(" + arguments + ")";
+				var model = compiledFilterModel(sample, true);
+				var decision = model.decisions().getFirst();
+				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of())
+						.decisionValue(decision.id());
+				var generated = SparkSqlHybridTest.generate(model);
+				if (arguments.equals("5.5, -6111"))
+					assertThat(generated.udfs()).as(sample).isNotEmpty();
+				else
+					assertThat(generated.udfs()).as("%s: %s", sample, generated.capabilities()).isEmpty();
+				generated.registerUdfs(spark);
+				spark.range(1).createOrReplaceTempView("hybrid_inputs");
+				Object actual = SparkSqlFeelValueCodec.fromSpark(spark
+						.sql(generated.sqlFiles().get("Decision_" + decision.resultSlot() + ".sql")).head().get(0));
+				if (expected == null)
+					assertThat(actual).as(sample).isNull();
+				else
+					assertThat(new BigDecimal(actual.toString())).as(sample)
+							.isEqualByComparingTo(new BigDecimal(expected.toString()));
+			}
+		}
+		var number = SparkSqlHybridTest.NUMBER;
+		assertThat(SparkSqlRoundingProof.sql(new RuntimeFunctionCall("round up",
+				List.of(SparkSqlHybridTest.number("5.5"), SparkSqlHybridTest.number("1.1")), number))).isNull();
+		assertThat(SparkSqlRoundingProof.sql(new RuntimeFunctionCall("round up",
+				List.of(SparkSqlHybridTest.number("5.5"), SparkSqlHybridTest.number("4294967296")), number))).isNull();
+		assertThat(SparkSqlRoundingProof.sql(new RuntimeFunctionCall("round up",
+				List.of(new RuntimeValueReference(0, number), SparkSqlHybridTest.number("6176")), number))).isNull();
+	}
+
+	@Test
+	void literalTypeProofsAvoidClosureAndHeterogeneousListMaterialization() {
+		List<String> samples = new ArrayList<>();
+		for (String tested : List.of("Any", "number", "string", "boolean", "date", "time", "date and time", "list<Any>",
+				"years and months duration", "days and time duration", "context<a: string>"))
+			samples.add("(function() 1 / 0) instance of " + tested);
+		samples.addAll(List.of("[1, \"2\", date(\"2018-12-08\")] instance of list<Any>",
+				"[1, \"2\", date(\"2018-12-08\")] instance of list<number>", "[] instance of list<number>",
+				"[null] instance of list<Any>", "{a: null} instance of context<a: string>",
+				"{a: \"x\"} instance of context<a: string, b: number>", "[function() 1] instance of list<Any>",
+				"12345678901234567890123456789012345678901234567890 instance of number"));
+		for (String sample : samples) {
+			var model = compiledFilterModel(sample, true);
+			var decision = model.decisions().getFirst();
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of())
+					.decisionValue(decision.id());
+			var generated = SparkSqlHybridTest.generate(model);
+			assertThat(generated.udfs()).as("%s: %s", sample, generated.capabilities()).isEmpty();
+			spark.range(1).createOrReplaceTempView("hybrid_inputs");
+			assertThat(spark.sql(generated.sqlFiles().get("Decision_" + decision.resultSlot() + ".sql")).head().get(0))
+					.as(sample).isEqualTo(expected);
+		}
+		var bool = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+		var functionType = RuntimeType.function(List.of(), SparkSqlHybridTest.NUMBER);
+		var function = new RuntimeFunctionDefinition(List.of(), Optional.of(SparkSqlHybridTest.number("1")), false,
+				functionType);
+		assertThat(SparkSqlStaticTypeProof.sql(new RuntimeInstanceOfExpression(function, functionType, bool))).isNull();
+		assertThat(SparkSqlStaticTypeProof
+				.sql(new RuntimeInstanceOfExpression(new RuntimeValueReference(0, SparkSqlHybridTest.ANY), bool, bool)))
+				.isNull();
+		var invalidDate = new RuntimeConstant(RuntimeConstantKind.DATE, "2024-02-30",
+				RuntimeType.scalar(RuntimeTypeKind.DATE));
+		assertThat(
+				SparkSqlStaticTypeProof.sql(new RuntimeInstanceOfExpression(invalidDate, SparkSqlHybridTest.ANY, bool)))
+				.isNull();
+		var hugeList = new RuntimeListExpression(Collections.nCopies(5000, SparkSqlHybridTest.number("1")),
+				RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.NUMBER));
+		assertThat(SparkSqlStaticTypeProof.sql(new RuntimeInstanceOfExpression(hugeList, SparkSqlHybridTest.ANY, bool)))
+				.isNull();
+	}
+
+	@Test
 	void implicitJavaDescriptorsRetainFunctionInvocationFallback() {
 		var model = compiledFilterModel(
 				"(function(d1: number, d2: number) {class: \"java.lang.Math\", method signature: \"max(double,double)\"})(123,456)",
@@ -2231,7 +2312,7 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
-	void extremeRoundingScalesRetainConformantFallback() {
+	void extremeRoundingScalesPreserveNativeValidation() {
 		for (String scale : List.of("6176", "6177", "-6112")) {
 			var expression = new RuntimeFunctionCall("round up",
 					List.of(SparkSqlHybridTest.number("5.5"), SparkSqlHybridTest.number(scale)),
@@ -2239,9 +2320,8 @@ class SparkSqlHybridIntegrationTest {
 			var decision = new RuntimeDecision(10, 0, SparkSqlHybridTest.NUMBER, List.of(), Optional.of(expression));
 			var model = new RuntimeModel(List.of(), List.of(decision), List.of(), List.of(10), 1);
 			var generated = SparkSqlHybridTest.generate(model);
-			assertThat(generated.capabilities().get(10).nativeSql()).isFalse();
-			assertThat(generated.capabilities().get(10).reasons())
-					.anyMatch(reason -> reason.contains("Rounding scale"));
+			assertThat(generated.capabilities().get(10).nativeSql()).isTrue();
+			assertThat(generated.udfs()).isEmpty();
 			generated.registerUdfs(spark);
 			spark.range(1).createOrReplaceTempView("hybrid_inputs");
 			Object actual = SparkSqlFeelValueCodec

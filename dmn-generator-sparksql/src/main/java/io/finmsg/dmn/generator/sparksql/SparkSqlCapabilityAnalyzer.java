@@ -107,6 +107,10 @@ public final class SparkSqlCapabilityAnalyzer {
 			if (value instanceof RuntimeExpression expression
 					&& SparkSqlExpressionEmitter.nativeInvalidExpression(expression))
 				return;
+			if (value instanceof RuntimeExpression expression && SparkSqlRoundingProof.sql(expression) != null)
+				return;
+			if (value instanceof RuntimeExpression expression && SparkSqlRoundingProof.requiresFallback(expression))
+				reasons.add("Rounding scale needs lossless evaluation beyond the verified native arithmetic bounds");
 			if (value instanceof RuntimeExpression expression && expression.type() != null) {
 				RuntimeTypeKind kind = expression.type().kind();
 				if (value instanceof RuntimeConstant constant) {
@@ -673,6 +677,10 @@ public final class SparkSqlCapabilityAnalyzer {
 	}
 
 	private static boolean inspectChildren(Object node) {
+		if (node instanceof RuntimeExpression expression && SparkSqlRoundingProof.sql(expression) != null)
+			return false;
+		if (node instanceof RuntimeInstanceOfExpression instance && SparkSqlStaticTypeProof.sql(instance) != null)
+			return false;
 		if (node instanceof RuntimeListExpression list && nativeContextListType(list) != null)
 			return false;
 		if (node instanceof RuntimeExpression expression
