@@ -1,3 +1,44 @@
+2026-10-15 LATEST FULL bounded-loop checkpoint: 3,391/3,391 passed (100%). Of
+2,715 executable cases: 2,596 native (95.62%), 119 fallback (4.38%), zero failed/
+unknown or compilation/execution errors. Separately: 676 provisional expected
+model rejections. Verified 12 new conversions (11 in 0084, one in 1152 boxed for),
+zero reverse conversions against native-list-builtin-full-accounting-2026-10-15.json.
+0035 #001 passed with the unchanged timeout. Full generator: 91/91 tests;
+958 native SQL actions (96.96%), 30 fallback (3.04%) of 988, zero failed/unknown;
+formatting/install passed. Saved full baseline: runner target/
+native-bounded-loop-full-accounting-2026-10-15.json and
+native-bounded-loop-full-tck-2026-10-15.log. Details and verified JAR hash:
+docs/dev/slices/native-bounded-loops-2026-10-15.md. Usage remaining reached 18%,
+triggering this full checkpoint; no further feature changes afterwards. The
+119 fallbacks, 100% native goal and semantic rejection audit remain open.
+
+2026-10-15 earlier FULL Spark SQL checkpoint: 3,391/3,391 passed (100%). Of 2,715
+executable cases: 2,584 native (95.17%), 131 fallback (4.83%), zero failed/unknown
+or compilation/execution errors. Separately: 676 provisional expected model
+rejections. Verified 21 fallback-to-native conversions (seven get entries,
+four all, three any, three product, four string join), zero reverse conversions.
+Native passes rose by 22 because 0035 #001 also recovered from its prior timeout;
+the 30-second limit was unchanged and no warmup fix is proven. Full generator:
+90/90 tests; 945 native SQL actions (96.92%), 30 fallback (3.08%) of 975, zero
+failed/unknown. Formatting/install passed. Saved full baseline:
+dmn-tck-runner/target/native-list-builtin-full-accounting-2026-10-15.json and
+native-list-builtin-full-tck-2026-10-15.log. Details and verified JAR hash:
+docs/dev/slices/native-literal-list-builtins-2026-10-15.md. Restart checkpoint
+cadence here: 45 minutes working, usage remaining below 20%, or 20 further
+conversions. The 100% native goal and rejection semantic audit remain open.
+
+2026-10-15 continuation: bounded literal get entries verified seven additional
+fallback-to-native conversions, zero reverse conversions in the focused official
+suite: 9/9 passed, native 9 (100%), fallback 0 (0%), denominator nine, zero failed
+or unknown routes. Full generator: 89/89 tests passed; 867 native SQL actions
+(96.66%), 30 fallback (3.34%), denominator 897, zero failed/unknown. Formatting
+and install passed. No new full TCK run; global coverage remains the checkpoint
+below. Evidence: runner target/native-get-entries-focused-accounting-2026-10-15.json
+and native-get-entries-focused-tck.log; generator target/native-get-entries-full-generator.log.
+Details: docs/dev/slices/native-get-entries-2026-10-15.md. The generic accounting
+JSON contains only the focused suite; retain the saved full snapshot as baseline.
+The 0035 #001 timeout and 100% native goal remain outstanding.
+
 2026-10-15 full Spark SQL rerun: 3,390/3,391 passed (99.97%); one 30-second
 timeout in 0035-test-structure-output case 001. Of 2,715 attempted executable
 cases: 2,562 native passes (94.36%), 152 fallback passes (5.60%), one timeout

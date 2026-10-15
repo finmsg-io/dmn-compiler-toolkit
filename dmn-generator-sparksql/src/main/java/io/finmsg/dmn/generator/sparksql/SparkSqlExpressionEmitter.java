@@ -91,6 +91,9 @@ public final class SparkSqlExpressionEmitter {
 		}
 		if (nativeInvalidExpression(expr))
 			return "NULL";
+		RuntimeConstant literalBuiltin = SparkSqlLiteralBuiltinProof.result(expr);
+		if (literalBuiltin != null)
+			return emitConstant(literalBuiltin);
 		String roundingProof = SparkSqlRoundingProof.sql(expr);
 		if (roundingProof != null)
 			return roundingProof;
@@ -2411,6 +2414,10 @@ public final class SparkSqlExpressionEmitter {
 				yield "map_concat(" + emitArgsJoined(args, bkmBySlot, slotNameResolver) + ")";
 			}
 			case "get entries", "get_entries" -> {
+				RuntimeExpression literal = nativeStaticContextExpression(
+						new RuntimeFunctionCall(name, args, fn.type()));
+				if (literal != null)
+					yield emitWithBkms(literal, bkmBySlot, slotNameResolver);
 				if (args.size() != 1)
 					yield "NULL";
 				RuntimeExpression source = args.get(0);
@@ -2682,7 +2689,8 @@ public final class SparkSqlExpressionEmitter {
 					invocation.type());
 		else
 			return null;
-		if (!Set.of("context", "context merge", "context_merge").contains(call.function().toLowerCase(Locale.ROOT)))
+		if (!Set.of("context", "context merge", "context_merge", "get entries")
+				.contains(call.function().toLowerCase(Locale.ROOT)))
 			return null;
 		if (call.arguments().size() != 1)
 			return new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
@@ -2711,8 +2719,18 @@ public final class SparkSqlExpressionEmitter {
 	 * operand coercion.
 	 */
 	static boolean nativeInvalidExpression(RuntimeExpression expression) {
+		if (expression instanceof RuntimeInvocationExpression invocation
+				&& invocation.function().filter("get entries"::equalsIgnoreCase).isPresent()
+				&& !invocation.positionalArguments().isEmpty() && !invocation.namedArguments().isEmpty())
+			return true;
 		if (expression instanceof RuntimeForExpression loop && loop.iterations().size() == 1) {
 			var iteration = loop.iterations().getFirst();
+			if (iteration.end().isEmpty() && iteration.source() instanceof RuntimeRangeExpression range
+					&& java.util.stream.Stream.concat(range.lower().stream(), range.upper().stream())
+							.allMatch(bound -> bound instanceof RuntimeConstant constant
+									&& constant.value().length() <= 256 && (constant.kind() == RuntimeConstantKind.NULL
+											|| staticConstantValue(constant) != null)))
+				return true; // A range value is not a list iteration source in the shared runtime.
 			if (iteration.source() instanceof RuntimeConstant start && verifiedIterationConstant(start)) {
 				if (iteration.end().isEmpty())
 					return true; // A scalar value is not a list iteration source.
@@ -3732,6 +3750,10 @@ public final class SparkSqlExpressionEmitter {
 			map.put(na.name(), na.expression());
 		}
 		String norm = fnName.toLowerCase();
+		if ("get entries".equals(norm)) {
+			// Shared invocation binding keeps the last occurrence of a named argument.
+			return map.size() == 1 && map.containsKey("m") ? List.of(map.get("m")) : List.of();
+		}
 		if (Set.of("context", "context merge", "context_merge").contains(norm)) {
 			String parameter = norm.equals("context") ? "entries" : "contexts";
 			return namedArgs.size() == 1 && map.size() == 1 && map.containsKey(parameter)

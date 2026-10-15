@@ -102,6 +102,8 @@ public final class SparkSqlCapabilityAnalyzer {
 				&& (nativeConstantDurationResult(decision) || yearMonthResult);
 		Set<RuntimeTypeKind> temporalKinds = EnumSet.noneOf(RuntimeTypeKind.class);
 		SparkSqlPayloadCodec.walk(node, value -> {
+			if (value instanceof RuntimeExpression expression && SparkSqlLiteralBuiltinProof.result(expression) != null)
+				return;
 			if (value instanceof RuntimeQuantifiedExpression quantified && nativeEmptyQuantified(quantified))
 				return;
 			if (value instanceof RuntimeExpression expression
@@ -238,6 +240,12 @@ public final class SparkSqlCapabilityAnalyzer {
 				}
 			}
 			if (hybrid && value instanceof RuntimeDecision decision) {
+				RuntimeConstant literalBuiltin = decision.expression().map(SparkSqlLiteralBuiltinProof::result)
+						.orElse(null);
+				if (literalBuiltin != null && literalBuiltin.kind() != RuntimeConstantKind.NULL
+						&& decision.type().kind() != RuntimeTypeKind.ANY
+						&& decision.type().kind() != literalBuiltin.type().kind())
+					reasons.add("Literal builtin result requires declared-type coercion");
 				if (decision.expression().filter(SparkSqlExpressionEmitter::nativeInvalidExpression).isPresent())
 					return;
 				if (decision.expression().orElse(null) instanceof RuntimeForExpression loop && nativeCartesianFor(loop)
@@ -302,9 +310,10 @@ public final class SparkSqlCapabilityAnalyzer {
 
 	private static boolean nativeContextPutResult(RuntimeDecision decision) {
 		RuntimeType result = decision.expression().map(SparkSqlExpressionEmitter::nativeContextPutType).orElse(null);
-		return result != null
-				&& (result.kind() == RuntimeTypeKind.NULL || decision.type().kind() == RuntimeTypeKind.CONTEXT
-						&& (decision.type().fieldLayout().isEmpty() || decision.type().equals(result)));
+		return result != null && (result.kind() == RuntimeTypeKind.NULL
+				|| decision.type().kind() == RuntimeTypeKind.CONTEXT
+						&& (decision.type().fieldLayout().isEmpty() || decision.type().equals(result))
+				|| result.kind() == RuntimeTypeKind.LIST && compatibleCollectionResult(decision.type(), result));
 	}
 
 	private static boolean nativeYearMonthDurationResult(RuntimeDecision decision) {
@@ -677,6 +686,8 @@ public final class SparkSqlCapabilityAnalyzer {
 	}
 
 	private static boolean inspectChildren(Object node) {
+		if (node instanceof RuntimeExpression expression && SparkSqlLiteralBuiltinProof.result(expression) != null)
+			return false;
 		if (node instanceof RuntimeExpression expression && SparkSqlRoundingProof.sql(expression) != null)
 			return false;
 		if (node instanceof RuntimeInstanceOfExpression instance && SparkSqlStaticTypeProof.sql(instance) != null)

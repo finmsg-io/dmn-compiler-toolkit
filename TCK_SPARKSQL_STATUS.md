@@ -1,3 +1,27 @@
+2026-10-15 LATEST FULL bounded-loop checkpoint: 3,391/3,391 passed (100%).
+Native 2,596 (95.62%), fallback 119 (4.38%) of 2,715 executable cases; zero failed/
+unknown or compilation/execution errors. Separately: 676 provisional expected
+model rejections. Verified 12 further conversions, zero reverse conversions.
+Generator: 91/91 tests; 958 native actions (96.96%), 30 fallback (3.04%) of 988,
+zero failed/unknown. Full run triggered by usage remaining at 18%. Evidence:
+docs/dev/slices/native-bounded-loops-2026-10-15.md. The 100% goal remains open.
+
+2026-10-15 earlier FULL checkpoint: 3,391/3,391 passed (100%). Native 2,584
+(95.17%), fallback 131 (4.83%) of 2,715 executable cases; zero failed/unknown
+or compilation/execution errors. Separately: 676 provisional expected model
+rejections. Verified 21 fallback-to-native conversions, zero reverse conversions.
+0035 #001 also recovered from its previous timeout, so native passes rose by 22;
+no timeout increase or proven warmup fix. Generator: 90/90 tests; 945 native
+actions (96.92%), 30 fallback (3.08%) of 975, zero failed/unknown. Evidence:
+docs/dev/slices/native-literal-list-builtins-2026-10-15.md. The 100% goal remains open.
+
+2026-10-15 continuation: seven verified fallback-to-native conversions in the
+focused get-entries suite, zero reverse conversions. Official: 9/9 passed,
+9 native (100%), zero fallback, failed or unknown; denominator nine. Full
+generator: 89/89 tests, 867 native actions (96.66%), 30 fallback (3.34%),
+denominator 897, zero failed/unknown. This is not a new full-suite checkpoint.
+Evidence and remaining work: docs/dev/slices/native-get-entries-2026-10-15.md.
+
 2026-10-15 full Spark SQL rerun: 3,390/3,391 passed (99.97%); one 30-second
 timeout in 0035-test-structure-output case 001. Of 2,715 attempted executable
 cases: 2,562 native passes (94.36%), 152 fallback passes (5.60%), one timeout

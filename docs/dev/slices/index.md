@@ -1,3 +1,24 @@
+2026-10-15 latest: [native bounded loops](native-bounded-loops-2026-10-15.md)
+passed 3,391/3,391 full TCK cases: 2,596 native (95.62%), 119 fallback (4.38%)
+of 2,715 executable, 676 provisional expected model rejections separately.
+Twelve further conversions, zero reverse conversions. Generator: 91/91 tests,
+958 native actions (96.96%), 30 fallback (3.04%) of 988, zero failed/unknown.
+The full checkpoint followed the user's below-20%-usage rule.
+
+2026-10-15 next batch: [native literal list builtins](native-literal-list-builtins-2026-10-15.md)
+passed the full TCK: 3,391/3,391, native 2,584 (95.17%) and fallback 131 (4.83%)
+of 2,715 executable cases, 676 provisional expected model rejections separately.
+Combined with get entries: 21 verified conversions, zero reverse conversions.
+0035 #001 recovered from its prior timeout, without changing the limit.
+Generator: 90/90 tests; 945 native actions (96.92%), 30 fallback (3.08%) of 975,
+zero failed/unknown. The 100% goal remains outstanding.
+
+2026-10-15 continuation: [native literal get entries](native-get-entries-2026-10-15.md)
+verified seven fallback-to-native conversions in the focused official suite:
+9/9 native (100%), zero fallback or failures. Full generator: 89/89 tests passed,
+867 native actions (96.66%), 30 fallback (3.34%) of 897, zero failed/unknown.
+Combined full verification is recorded in the list-builtin slice above.
+
 2026-10-14 next batch: [literal type and rounding proofs](native-type-rounding-proofs-2026-10-14.md)
 has passed focused type and rounding boundaries and an earlier full 3,391/3,391
 checkpoint: 2,563 native (94.40%), 152 fallback (5.60%) of 2,715 executable cases,

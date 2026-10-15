@@ -1,3 +1,32 @@
+2026-10-15 LATEST FULL bounded-loop checkpoint: 3,391/3,391 passed; 2,596 native
+(95.62%), 119 fallback (4.38%) of 2,715 executable cases, zero failed/unknown or
+compilation/execution errors. Separately: 676 provisional expected model
+rejections. Twelve new conversions, zero reverse conversions. Generator: 91/91
+tests; 958 native actions (96.96%), 30 fallback (3.04%) of 988, zero failed/unknown.
+The full run was triggered by 18% usage remaining. Saved full baseline:
+native-bounded-loop-full-accounting-2026-10-15.json. Details:
+docs/dev/slices/native-bounded-loops-2026-10-15.md. The 119 fallbacks and semantic
+rejection audit remain open; no further feature changes after this checkpoint.
+
+2026-10-15 earlier FULL: 3,391/3,391 passed; native 2,584 (95.17%), fallback 131
+(4.83%) of 2,715 executable cases, zero failed/unknown or compilation/execution
+errors. Separately: 676 provisional expected model rejections. The combined
+get-entries/list-builtin batch verifies 21 conversions and zero reverse changes.
+0035 #001 also passed with the unchanged 30-second limit; no warmup fix is proven.
+Generator: 90/90 tests, 945 native actions (96.92%), 30 fallback (3.08%) of 975,
+zero failed/unknown. Save native-list-builtin-full-accounting-2026-10-15.json as
+the full baseline. Restart the user's full-run cadence from this checkpoint.
+The 131 fallbacks and semantic rejection audit remain open. See
+docs/dev/slices/native-literal-list-builtins-2026-10-15.md.
+
+2026-10-15 continuation: literal get entries moved seven official cases from
+fallback to native. Focused suite: 9/9 native (100%), zero fallback or failures,
+denominator nine. Full generator: 89/89 tests passed; 867 native SQL actions
+(96.66%), 30 fallback (3.34%) of 897, zero failed/unknown. Global rates await the
+next full checkpoint under the user's cadence. See
+docs/dev/slices/native-get-entries-2026-10-15.md for saved evidence. The 0035 #001
+timeout and provisional rejection audit remain open.
+
 2026-10-15 full Spark SQL rerun: 3,390/3,391 passed (99.97%); one 30-second
 timeout in 0035-test-structure-output case 001. Of 2,715 attempted executable
 cases: 2,562 native passes (94.36%), 152 fallback passes (5.60%), one timeout

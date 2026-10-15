@@ -18,6 +18,7 @@ final class SparkSqlStaticFunctionLowerer {
 	private final Set<Integer> active = new HashSet<>();
 	private int budget = 4096;
 	private boolean applied;
+	private int loopResults;
 
 	private SparkSqlStaticFunctionLowerer(RuntimeModel model) {
 		this.model = model;
@@ -210,6 +211,20 @@ final class SparkSqlStaticFunctionLowerer {
 		}
 		if (expression instanceof RuntimeConstant)
 			return expression;
+		if (expression instanceof RuntimeForExpression loop) {
+			if (loop.partialSlot() >= 0 || loop.iterations().size() > 4)
+				throw new Unsupported();
+			var results = new ArrayList<RuntimeExpression>();
+			unroll(loop, 0, frames, depth + 1, results);
+			RuntimeType element = results.isEmpty()
+					? RuntimeType.scalar(RuntimeTypeKind.NULL)
+					: results.getFirst().type();
+			if (results.stream().anyMatch(item -> !item.type().equals(element))
+					|| !SparkSqlFeelValueCodec.isNativeType(element))
+				throw new Unsupported();
+			applied = true;
+			return new RuntimeListExpression(results, RuntimeType.element(RuntimeTypeKind.LIST, element));
+		}
 		if (expression instanceof RuntimeListExpression list) {
 			List<RuntimeExpression> elements = list.elements().stream().map(e -> expression(e, frames, depth + 1))
 					.toList();
@@ -231,10 +246,175 @@ final class SparkSqlStaticFunctionLowerer {
 		throw new Unsupported();
 	}
 
+	private void unroll(RuntimeForExpression loop, int index, List<Map<Integer, Object>> frames, int depth,
+			List<RuntimeExpression> results) {
+		if (depth > 48 || --budget < 0)
+			throw new Unsupported();
+		if (index == loop.iterations().size()) {
+			if (++loopResults > 256)
+				throw new Unsupported();
+			results.add(typedResult(expression(loop.result(), frames, depth + 1)));
+			return;
+		}
+		RuntimeIteration iteration = loop.iterations().get(index);
+		if (iteration.localSlot() >= 2048)
+			throw new Unsupported();
+		RuntimeExpression source = expression(iteration.source(), frames, depth + 1);
+		if (source instanceof RuntimeValueReference reference) {
+			RuntimeDecision definition = model.decisions().stream()
+					.filter(d -> d.resultSlot() == reference.sourceSlot()).findFirst().orElseThrow(Unsupported::new);
+			RuntimeExpression literal = definition.expression().orElseThrow(Unsupported::new);
+			if (!closedLiteral(literal, 0, new int[]{512}))
+				throw new Unsupported();
+			source = (RuntimeExpression) coerce(expression(literal, frames, depth + 1), definition.type());
+		}
+		List<RuntimeExpression> items;
+		if (iteration.end().isPresent()) {
+			long first = integer(source, 0);
+			long last = integer(expression(iteration.end().get(), frames, depth + 1), 0);
+			if (Math.abs(last - first) >= 256)
+				throw new Unsupported();
+			items = new ArrayList<>();
+			long step = first <= last ? 1 : -1;
+			for (long number = first;; number += step) {
+				items.add(new RuntimeConstant(RuntimeConstantKind.NUMBER, Long.toString(number),
+						RuntimeType.scalar(RuntimeTypeKind.NUMBER)));
+				if (number == last)
+					break;
+			}
+		} else if (source instanceof RuntimeListExpression list && list.elements().size() <= 256
+				&& closedLiteral(list, 0, new int[]{512})) {
+			items = list.elements();
+		} else {
+			throw new Unsupported();
+		}
+		for (RuntimeExpression item : items) {
+			var bindings = new HashMap<>(frames.getFirst());
+			bindings.put(iteration.localSlot(), item);
+			var environment = new ArrayList<>(frames);
+			environment.set(0, bindings);
+			unroll(loop, index + 1, environment, depth + 1, results);
+		}
+	}
+
+	private static boolean closedLiteral(RuntimeExpression expression, int depth, int[] budget) {
+		if (depth > 16 || --budget[0] < 0)
+			return false;
+		if (expression instanceof RuntimeListExpression list)
+			return list.elements().stream().allMatch(item -> closedLiteral(item, depth + 1, budget));
+		return expression instanceof RuntimeConstant constant && constant.value().length() <= 2048
+				&& Set.of(RuntimeConstantKind.NUMBER, RuntimeConstantKind.STRING, RuntimeConstantKind.BOOLEAN)
+						.contains(constant.kind());
+	}
+
+	private static long integer(RuntimeExpression expression, int depth) {
+		if (depth > 8)
+			throw new Unsupported();
+		try {
+			if (expression instanceof RuntimeConstant constant && constant.kind() == RuntimeConstantKind.NUMBER
+					&& constant.value().length() <= 64)
+				return new java.math.BigDecimal(constant.value()).intValueExact();
+			if (expression instanceof RuntimeUnaryExpression unary) {
+				long operand = integer(unary.operand(), depth + 1);
+				return switch (unary.operator()) {
+					case POSITIVE -> operand;
+					case NEGATE -> Math.toIntExact(-operand);
+					default -> throw new Unsupported();
+				};
+			}
+			if (expression instanceof RuntimeBinaryExpression binary) {
+				long left = integer(binary.left(), depth + 1), right = integer(binary.right(), depth + 1);
+				return switch (binary.operator()) {
+					case ADD -> Math.toIntExact(left + right);
+					case SUBTRACT -> Math.toIntExact(left - right);
+					case MULTIPLY -> Math.toIntExact(Math.multiplyExact(left, right));
+					default -> throw new Unsupported();
+				};
+			}
+		} catch (ArithmeticException | NumberFormatException ignored) {
+			throw new Unsupported();
+		}
+		throw new Unsupported();
+	}
+
+	private static RuntimeExpression typedResult(RuntimeExpression expression) {
+		if (expression instanceof RuntimeConstant constant) {
+			if (constant.value().length() > 2048
+					|| !Set.of(RuntimeConstantKind.NUMBER, RuntimeConstantKind.STRING, RuntimeConstantKind.BOOLEAN)
+							.contains(constant.kind()))
+				throw new Unsupported();
+			if (constant.kind() == RuntimeConstantKind.NUMBER)
+				integer(constant, 0);
+			RuntimeTypeKind kind = switch (constant.kind()) {
+				case NUMBER -> RuntimeTypeKind.NUMBER;
+				case STRING -> RuntimeTypeKind.STRING;
+				case BOOLEAN -> RuntimeTypeKind.BOOLEAN;
+				default -> constant.type().kind();
+			};
+			return new RuntimeConstant(constant.kind(), constant.value(), RuntimeType.scalar(kind));
+		}
+		if (expression instanceof RuntimeListExpression list) {
+			var elements = list.elements().stream().map(SparkSqlStaticFunctionLowerer::typedResult).toList();
+			var element = elements.isEmpty() ? RuntimeType.scalar(RuntimeTypeKind.NULL) : elements.getFirst().type();
+			if (elements.stream().anyMatch(item -> !item.type().equals(element)))
+				throw new Unsupported();
+			return new RuntimeListExpression(elements, RuntimeType.element(RuntimeTypeKind.LIST, element));
+		}
+		if (expression instanceof RuntimeBinaryExpression binary) {
+			var left = typedResult(binary.left());
+			var right = typedResult(binary.right());
+			if (!left.type().equals(right.type()))
+				throw new Unsupported();
+			RuntimeTypeKind kind = switch (binary.operator()) {
+				case ADD, SUBTRACT, MULTIPLY -> {
+					if (binary.operator() == RuntimeBinaryOperator.ADD && left.type().kind() == RuntimeTypeKind.STRING)
+						yield RuntimeTypeKind.STRING;
+					integer(binary, 0); // Every arithmetic intermediate must fit Spark's integer representation.
+					yield RuntimeTypeKind.NUMBER;
+				}
+				case EQUAL, NOT_EQUAL -> {
+					if (!Set.of(RuntimeTypeKind.NUMBER, RuntimeTypeKind.STRING, RuntimeTypeKind.BOOLEAN)
+							.contains(left.type().kind()))
+						throw new Unsupported();
+					yield RuntimeTypeKind.BOOLEAN;
+				}
+				case LESS, LESS_EQUAL, GREATER, GREATER_EQUAL -> {
+					if (!Set.of(RuntimeTypeKind.NUMBER, RuntimeTypeKind.STRING).contains(left.type().kind()))
+						throw new Unsupported();
+					yield RuntimeTypeKind.BOOLEAN;
+				}
+				case AND, OR -> {
+					if (left.type().kind() != RuntimeTypeKind.BOOLEAN)
+						throw new Unsupported();
+					yield RuntimeTypeKind.BOOLEAN;
+				}
+				default -> throw new Unsupported();
+			};
+			return new RuntimeBinaryExpression(binary.operator(), left, right, RuntimeType.scalar(kind));
+		}
+		if (expression instanceof RuntimeConditionalExpression conditional) {
+			var condition = typedResult(conditional.condition());
+			var yes = typedResult(conditional.thenExpression());
+			var no = typedResult(conditional.elseExpression());
+			if (condition.type().kind() != RuntimeTypeKind.BOOLEAN || !yes.type().equals(no.type()))
+				throw new Unsupported();
+			return new RuntimeConditionalExpression(condition, yes, no, yes.type());
+		}
+		if (expression instanceof RuntimeUnaryExpression unary) {
+			integer(unary, 0);
+			return new RuntimeUnaryExpression(unary.operator(), typedResult(unary.operand()),
+					RuntimeType.scalar(RuntimeTypeKind.NUMBER));
+		}
+		throw new Unsupported();
+	}
+
 	private static Object coerce(Object value, RuntimeType expected) {
 		if (compatible(value, expected))
 			return value;
 		if (value instanceof RuntimeExpression expression) {
+			if (expression instanceof RuntimeListExpression list && expected.kind() == RuntimeTypeKind.LIST
+					&& expected.elementType() != null && expected.elementType().kind() == RuntimeTypeKind.ANY)
+				return list;
 			if (expected.kind() == RuntimeTypeKind.LIST && expected.elementType() != null
 					&& compatible(expression, expected.elementType()) && SparkSqlFeelValueCodec.isNativeType(expected))
 				return new RuntimeConditionalExpression(
