@@ -1,4 +1,11 @@
-2026-10-15 latest: [native bounded loops](native-bounded-loops-2026-10-15.md)
+2026-10-16 latest: [native contexts and statistics](native-context-statistics-2026-10-16.md)
+passed all 3,391 full TCK cases: 2,608 native (96.06%), 107 fallback (3.94%)
+of 2,715 executable cases; 676 provisional expected model rejections separately.
+Thirteen conversions and one reverse route produce a net gain of twelve.
+Generator: 97/97 tests; 994 native actions (96.79%), 33 fallback (3.21%)
+of 1,027, zero failed/unknown. The 100% goal remains open.
+
+2026-10-15 earlier: [native bounded loops](native-bounded-loops-2026-10-15.md)
 passed 3,391/3,391 full TCK cases: 2,596 native (95.62%), 119 fallback (4.38%)
 of 2,715 executable, 676 provisional expected model rejections separately.
 Twelve further conversions, zero reverse conversions. Generator: 91/91 tests,

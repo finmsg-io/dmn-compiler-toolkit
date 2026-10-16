@@ -91,6 +91,7 @@ final class SparkSqlStaticFunctionLowerer {
 			Object bound = frames.get(reference.lexicalDepth()).get(reference.localSlot());
 			if (bound == null)
 				throw new Unsupported();
+			applied = true;
 			if (bound instanceof RuntimeExpression scalar) {
 				SparkSqlPayloadCodec.walk(scalar, node -> {
 					if (node instanceof RuntimeExpression && --budget < 0)
@@ -100,6 +101,23 @@ final class SparkSqlStaticFunctionLowerer {
 			return bound;
 		}
 		if (expression instanceof RuntimeValueReference reference) {
+			for (RuntimeDecision decision : model.decisions()) {
+				if (decision.resultSlot() == reference.sourceSlot() && decision.expression().isPresent()
+						&& decision.expression().get() instanceof RuntimeContextExpression
+						&& closedContextLiteral(decision.expression().get(), 0, new int[]{2048})) {
+					if (!active.add(reference.sourceSlot()))
+						throw new Unsupported();
+					try {
+						Object resolved = coerce(
+								value(decision.expression().get(), List.of(new HashMap<>()), depth + 1),
+								decision.type());
+						applied = true;
+						return resolved;
+					} finally {
+						active.remove(reference.sourceSlot());
+					}
+				}
+			}
 			RuntimeExpression definition = null;
 			for (RuntimeBkm bkm : model.businessKnowledgeModels()) {
 				if (bkm.resultSlot() == reference.sourceSlot())
@@ -196,8 +214,10 @@ final class SparkSqlStaticFunctionLowerer {
 			boolean containsFunction = false;
 			for (RuntimeContextEntry entry : context.entries()) {
 				Object result = value(entry.expression(), frames, depth + 1);
-				if (entry.name().isEmpty() && entry.localSlot() == -1)
+				if (entry.name().isEmpty() && entry.localSlot() == -1) {
+					applied = true;
 					return result;
+				}
 				if (entry.localSlot() >= 0)
 					frames.getFirst().put(entry.localSlot(), result);
 				if (result instanceof RuntimeExpression scalar)
@@ -207,6 +227,32 @@ final class SparkSqlStaticFunctionLowerer {
 			}
 			if (containsFunction)
 				throw new Unsupported();
+			var fields = new ArrayList<RuntimeField>();
+			var names = new HashSet<String>();
+			for (RuntimeContextEntry entry : entries) {
+				RuntimeType fieldType = SparkSqlExpressionEmitter.nativeContextPutType(entry.expression());
+				if (entry.expression() instanceof RuntimeConstant constant)
+					fieldType = switch (constant.kind()) {
+						case NUMBER -> RuntimeType.scalar(RuntimeTypeKind.NUMBER);
+						case STRING -> RuntimeType.scalar(RuntimeTypeKind.STRING);
+						case BOOLEAN -> RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+						case NULL -> RuntimeType.scalar(RuntimeTypeKind.NULL);
+						default -> constant.type();
+					};
+				if (fieldType == null)
+					fieldType = entry.expression().type();
+				if (!names.add(entry.name().toLowerCase(Locale.ROOT))
+						|| !SparkSqlFeelValueCodec.isNativeType(fieldType)) {
+					fields.clear();
+					break;
+				}
+				fields.add(new RuntimeField(fields.size(), entry.name(), fieldType));
+			}
+			if (!fields.isEmpty()) {
+				RuntimeType inferred = RuntimeType.contextFields(fields);
+				applied |= !inferred.equals(context.type());
+				return new RuntimeContextExpression(entries, inferred);
+			}
 			return new RuntimeContextExpression(entries, context.type());
 		}
 		if (expression instanceof RuntimeConstant)
@@ -295,6 +341,19 @@ final class SparkSqlStaticFunctionLowerer {
 			environment.set(0, bindings);
 			unroll(loop, index + 1, environment, depth + 1, results);
 		}
+	}
+
+	private static boolean closedContextLiteral(RuntimeExpression expression, int depth, int[] budget) {
+		if (depth > 16 || --budget[0] < 0)
+			return false;
+		if (expression instanceof RuntimeContextExpression context)
+			return context.entries().stream().allMatch(
+					entry -> !entry.name().isEmpty() && closedContextLiteral(entry.expression(), depth + 1, budget));
+		if (expression instanceof RuntimeListExpression list)
+			return list.elements().stream().allMatch(item -> closedContextLiteral(item, depth + 1, budget));
+		return expression instanceof RuntimeConstant constant && constant.value().length() <= 2048
+				&& Set.of(RuntimeConstantKind.NUMBER, RuntimeConstantKind.STRING, RuntimeConstantKind.BOOLEAN,
+						RuntimeConstantKind.NULL).contains(constant.kind());
 	}
 
 	private static boolean closedLiteral(RuntimeExpression expression, int depth, int[] budget) {

@@ -91,9 +91,12 @@ public final class SparkSqlExpressionEmitter {
 		}
 		if (nativeInvalidExpression(expr))
 			return "NULL";
-		RuntimeConstant literalBuiltin = SparkSqlLiteralBuiltinProof.result(expr);
+		RuntimeExpression literalContext = nativeStaticContextExpression(expr);
+		if (literalContext != null)
+			return emitWithBkms(literalContext, bkmBySlot, slotNameResolver);
+		RuntimeExpression literalBuiltin = SparkSqlLiteralBuiltinProof.result(expr);
 		if (literalBuiltin != null)
-			return emitConstant(literalBuiltin);
+			return emitWithBkms(literalBuiltin, bkmBySlot, slotNameResolver);
 		String roundingProof = SparkSqlRoundingProof.sql(expr);
 		if (roundingProof != null)
 			return roundingProof;
@@ -2678,27 +2681,14 @@ public final class SparkSqlExpressionEmitter {
 	 * merge rules.
 	 */
 	static RuntimeExpression nativeStaticContextExpression(RuntimeExpression expression) {
-		RuntimeFunctionCall call;
-		if (expression instanceof RuntimeFunctionCall function)
-			call = function;
-		else if (expression instanceof RuntimeInvocationExpression invocation && invocation.function().isPresent())
-			call = new RuntimeFunctionCall(invocation.function().get(),
-					invocation.namedArguments().isEmpty()
-							? invocation.positionalArguments()
-							: reorderNamedArguments(invocation.function().get(), invocation.namedArguments()),
-					invocation.type());
-		else
+		List<RuntimeExpression> arguments = contextLiteralArguments(expression);
+		if (arguments == null)
 			return null;
-		if (!Set.of("context", "context merge", "context_merge", "get entries")
-				.contains(call.function().toLowerCase(Locale.ROOT)))
-			return null;
-		if (call.arguments().size() != 1)
-			return new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
 		int[] budget = {2048};
-		if (!boundedContextLiteral(call.arguments().getFirst(), 0, budget))
+		if (!arguments.stream().allMatch(argument -> boundedContextLiteral(argument, 0, budget)))
 			return null;
 		int[] localSlots = {0};
-		SparkSqlPayloadCodec.walk(call, node -> {
+		SparkSqlPayloadCodec.walk(expression, node -> {
 			if (node instanceof RuntimeContextEntry entry) {
 				if (entry.localSlot() >= 2048)
 					budget[0] = -1;
@@ -2708,10 +2698,35 @@ public final class SparkSqlExpressionEmitter {
 		if (budget[0] < 0)
 			return null;
 		var any = RuntimeType.scalar(RuntimeTypeKind.ANY);
-		var decision = new RuntimeDecision(0, 0, any, List.of(), Optional.of(call), Optional.empty(), localSlots[0]);
+		var decision = new RuntimeDecision(0, 0, any, List.of(), Optional.of(expression), Optional.empty(),
+				localSlots[0]);
 		var model = new RuntimeModel(List.of(), List.of(decision), List.of(), List.of(0), 1);
 		Object value = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(0);
 		return nativeContextLiteralValue(value);
+	}
+
+	static boolean nativeStaticContextRequiresFallback(RuntimeExpression expression) {
+		List<RuntimeExpression> arguments = contextLiteralArguments(expression);
+		int[] budget = {2048};
+		return arguments != null && arguments.stream().allMatch(argument -> boundedContextLiteral(argument, 0, budget))
+				&& nativeStaticContextExpression(expression) == null;
+	}
+
+	private static List<RuntimeExpression> contextLiteralArguments(RuntimeExpression expression) {
+		String name;
+		var arguments = new ArrayList<RuntimeExpression>();
+		if (expression instanceof RuntimeFunctionCall call) {
+			name = call.function();
+			arguments.addAll(call.arguments());
+		} else if (expression instanceof RuntimeInvocationExpression invocation && invocation.function().isPresent()) {
+			name = invocation.function().get();
+			arguments.addAll(invocation.positionalArguments());
+			invocation.namedArguments().forEach(argument -> arguments.add(argument.expression()));
+		} else {
+			return null;
+		}
+		return Set.of("context", "context merge", "context_merge", "get entries", "context put")
+				.contains(name.toLowerCase(Locale.ROOT)) ? arguments : null;
 	}
 
 	/**
@@ -2987,7 +3002,11 @@ public final class SparkSqlExpressionEmitter {
 		if (depth > 32 || --budget[0] < 0)
 			return false;
 		if (expression instanceof RuntimeConstant constant)
-			return constant.kind() == RuntimeConstantKind.NULL || staticConstantValue(constant) != null;
+			return constant.value().length() <= 2048
+					&& (constant.kind() == RuntimeConstantKind.NULL || staticConstantValue(constant) != null);
+		List<RuntimeExpression> arguments = contextLiteralArguments(expression);
+		if (arguments != null)
+			return arguments.stream().allMatch(argument -> boundedContextLiteral(argument, depth + 1, budget));
 		if (expression instanceof RuntimeContextExpression context)
 			return context.entries().stream().allMatch(
 					entry -> !entry.name().isEmpty() && boundedContextLiteral(entry.expression(), depth + 1, budget));
@@ -3026,6 +3045,8 @@ public final class SparkSqlExpressionEmitter {
 			return new RuntimeContextExpression(entries, RuntimeType.contextFields(fields));
 		}
 		if (value instanceof List<?> list) {
+			if (!SparkSqlLiteralBuiltinProof.exactArrayDecimals(list))
+				return null;
 			var items = new ArrayList<RuntimeExpression>();
 			RuntimeType element = RuntimeType.scalar(RuntimeTypeKind.NULL);
 			for (Object valueItem : list) {

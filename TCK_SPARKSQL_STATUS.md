@@ -1,4 +1,21 @@
-2026-10-15 LATEST FULL bounded-loop checkpoint: 3,391/3,391 passed (100%).
+2026-10-16 LATEST FULL context/statistics checkpoint: 3,391/3,391 passed.
+Of 2,715 executable cases: 2,608 native (96.06%), 107 fallback (3.94%);
+zero failures, unknown routes or compilation/execution errors. Separately:
+676 provisional expected model rejections. Compared with the bounded-loop full
+baseline: 13 fallback-to-native conversions and one native-to-fallback change
+(1146 context-put case 004, still passing), net 12 fewer fallbacks.
+Final generator: 97/97 tests passed; 994 native SQL actions (96.79%),
+33 fallback (3.21%) of 1,027, zero failed/unknown routes. Formatting/install passed.
+The full checkpoint was triggered by 5% usage remaining. Saved runner evidence:
+`native-context-statistics-full-accounting-2026-10-16.json` and
+`native-context-statistics-full-tck-2026-10-16.log`. Details:
+[context/statistics handover](docs/dev/slices/native-context-statistics-2026-10-16.md).
+Next: investigate the context-put 004 reverse route and reduce the remaining
+107 fallbacks. The 100% native goal and semantic rejection audit remain open.
+Restart full-run cadence here: 45 minutes working, usage remaining below 20%,
+or 20 further fallback conversions, whichever comes first.
+
+2026-10-15 earlier FULL bounded-loop checkpoint: 3,391/3,391 passed (100%).
 Native 2,596 (95.62%), fallback 119 (4.38%) of 2,715 executable cases; zero failed/
 unknown or compilation/execution errors. Separately: 676 provisional expected
 model rejections. Verified 12 further conversions, zero reverse conversions.

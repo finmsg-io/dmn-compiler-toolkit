@@ -102,6 +102,9 @@ public final class SparkSqlCapabilityAnalyzer {
 				&& (nativeConstantDurationResult(decision) || yearMonthResult);
 		Set<RuntimeTypeKind> temporalKinds = EnumSet.noneOf(RuntimeTypeKind.class);
 		SparkSqlPayloadCodec.walk(node, value -> {
+			if (value instanceof RuntimeExpression expression
+					&& SparkSqlExpressionEmitter.nativeStaticContextRequiresFallback(expression))
+				reasons.add("Literal context result requires lossless representation");
 			if (value instanceof RuntimeExpression expression && SparkSqlLiteralBuiltinProof.result(expression) != null)
 				return;
 			if (value instanceof RuntimeQuantifiedExpression quantified && nativeEmptyQuantified(quantified))
@@ -195,6 +198,8 @@ public final class SparkSqlCapabilityAnalyzer {
 			if (value instanceof RuntimeDecisionTableReference)
 				reasons.add("Decision-table function reference");
 			if (value instanceof RuntimeListExpression list) {
+				if (!SparkSqlLiteralBuiltinProof.exactNumericLiteralArray(list))
+					reasons.add("Numeric array needs more than Spark's shared decimal precision");
 				if (nativeContextListType(list) == null
 						&& (list.elements().stream().map(RuntimeExpression::type).distinct().count() > 1
 								|| list.type().elementType() == null
@@ -240,11 +245,17 @@ public final class SparkSqlCapabilityAnalyzer {
 				}
 			}
 			if (hybrid && value instanceof RuntimeDecision decision) {
-				RuntimeConstant literalBuiltin = decision.expression().map(SparkSqlLiteralBuiltinProof::result)
+				RuntimeExpression literalBuiltin = decision.expression().map(SparkSqlLiteralBuiltinProof::result)
 						.orElse(null);
-				if (literalBuiltin != null && literalBuiltin.kind() != RuntimeConstantKind.NULL
-						&& decision.type().kind() != RuntimeTypeKind.ANY
-						&& decision.type().kind() != literalBuiltin.type().kind())
+				boolean nativeLiteralBuiltinResult = literalBuiltin != null
+						&& (literalBuiltin.type().kind() == RuntimeTypeKind.NULL
+								|| decision.type().kind() == RuntimeTypeKind.ANY
+								|| literalBuiltin instanceof RuntimeListExpression
+										&& compatibleCollectionResult(decision.type(), literalBuiltin.type())
+								|| decision.type().kind() == literalBuiltin.type().kind()
+										&& SparkSqlFeelValueCodec.isNativeType(decision.type())
+										&& !(literalBuiltin instanceof RuntimeListExpression));
+				if (literalBuiltin != null && !nativeLiteralBuiltinResult)
 					reasons.add("Literal builtin result requires declared-type coercion");
 				if (decision.expression().filter(SparkSqlExpressionEmitter::nativeInvalidExpression).isPresent())
 					return;
@@ -279,7 +290,7 @@ public final class SparkSqlCapabilityAnalyzer {
 						&& decision.type().kind() != RuntimeTypeKind.ANY && !nativeContextPutResult(decision))
 					reasons.add("Native context update result requires declared-type coercion");
 				if (decision.type() != null && decision.type().kind() != RuntimeTypeKind.ANY
-						&& !SparkSqlFeelValueCodec.isNativeType(decision.type())
+						&& !SparkSqlFeelValueCodec.isNativeType(decision.type()) && !nativeLiteralBuiltinResult
 						&& !nativeConstantDurationResult(decision) && !nativeYearMonthDurationResult(decision)
 						&& !decision.expression()
 								.filter(e -> e instanceof RuntimeFilterExpression filter

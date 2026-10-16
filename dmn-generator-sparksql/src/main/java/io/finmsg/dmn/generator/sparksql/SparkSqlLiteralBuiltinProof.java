@@ -5,14 +5,14 @@ import java.math.BigDecimal;
 import java.util.*;
 
 /**
- * Bounded scalar results of pure literal list builtins, using shared FEEL
- * binding and validation.
+ * Bounded results of pure literal list builtins, using shared FEEL binding and
+ * validation.
  */
 final class SparkSqlLiteralBuiltinProof {
 	private SparkSqlLiteralBuiltinProof() {
 	}
 
-	static RuntimeConstant result(RuntimeExpression expression) {
+	static RuntimeExpression result(RuntimeExpression expression) {
 		String name;
 		List<RuntimeExpression> arguments = new ArrayList<>();
 		if (expression instanceof RuntimeFunctionCall call) {
@@ -25,7 +25,8 @@ final class SparkSqlLiteralBuiltinProof {
 		} else {
 			return null;
 		}
-		if (!Set.of("all", "any", "string join", "product").contains(name.toLowerCase(Locale.ROOT)))
+		if (!Set.of("all", "any", "string join", "product", "median", "mode", "stddev")
+				.contains(name.toLowerCase(Locale.ROOT)))
 			return null;
 		int[] budget = {512};
 		if (!arguments.stream().allMatch(argument -> literal(argument, 0, budget)))
@@ -34,7 +35,7 @@ final class SparkSqlLiteralBuiltinProof {
 		var decision = new RuntimeDecision(0, 0, any, List.of(), Optional.of(expression));
 		var model = new RuntimeModel(List.of(), List.of(decision), List.of(), List.of(0), 1);
 		Object value = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(0);
-		RuntimeConstant result;
+		RuntimeExpression result;
 		if (value == null)
 			result = new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
 		else if (value instanceof Boolean bool)
@@ -45,9 +46,18 @@ final class SparkSqlLiteralBuiltinProof {
 		else if (value instanceof BigDecimal number && exactDecimal(number))
 			result = new RuntimeConstant(RuntimeConstantKind.NUMBER, number.toPlainString(),
 					RuntimeType.scalar(RuntimeTypeKind.NUMBER));
-		else
+		else if (value instanceof List<?> list && name.equalsIgnoreCase("mode")
+				&& list.stream().allMatch(item -> item instanceof BigDecimal number && exactDecimal(number))
+				&& exactArrayDecimals(list)) {
+			RuntimeType number = RuntimeType.scalar(RuntimeTypeKind.NUMBER);
+			List<RuntimeExpression> elements = list.stream()
+					.map(item -> (RuntimeExpression) new RuntimeConstant(RuntimeConstantKind.NUMBER,
+							((BigDecimal) item).toPlainString(), number))
+					.toList();
+			result = new RuntimeListExpression(elements, RuntimeType.element(RuntimeTypeKind.LIST, number));
+		} else
 			return null;
-		return result.kind() == RuntimeConstantKind.NULL || expression.type().kind() == RuntimeTypeKind.ANY
+		return result.type().kind() == RuntimeTypeKind.NULL || expression.type().kind() == RuntimeTypeKind.ANY
 				|| expression.type().kind() == result.type().kind() ? result : null;
 	}
 
@@ -71,6 +81,49 @@ final class SparkSqlLiteralBuiltinProof {
 			}
 			default -> false;
 		};
+	}
+
+	static boolean exactNumericLiteralArray(RuntimeListExpression list) {
+		var values = new ArrayList<BigDecimal>();
+		for (RuntimeExpression element : list.elements()) {
+			if (!(element instanceof RuntimeConstant constant)
+					|| !Set.of(RuntimeConstantKind.NUMBER, RuntimeConstantKind.NULL).contains(constant.kind()))
+				return true;
+			if (constant.kind() == RuntimeConstantKind.NUMBER) {
+				try {
+					if (constant.value().length() > 2048)
+						return false;
+					values.add(new BigDecimal(constant.value()));
+				} catch (NumberFormatException ignored) {
+					return false;
+				}
+			}
+		}
+		return exactArrayDecimals(values);
+	}
+
+	static boolean exactArrayDecimals(List<?> values) {
+		var present = values.stream().filter(Objects::nonNull).toList();
+		if (present.isEmpty())
+			return true;
+		if (present.stream().allMatch(value -> value instanceof BigDecimal)) {
+			long integral = 0, fractional = 0;
+			for (Object value : present) {
+				var number = (BigDecimal) value;
+				integral = Math.max(integral, Math.max(0L, number.precision() - (long) number.scale()));
+				fractional = Math.max(fractional, Math.max(0L, number.scale()));
+			}
+			return integral + fractional <= 38;
+		}
+		if (present.stream().allMatch(value -> value instanceof List<?>))
+			return exactArrayDecimals(present.stream().flatMap(value -> ((List<?>) value).stream()).toList());
+		if (present.stream().allMatch(value -> value instanceof Map<?, ?>)) {
+			for (Object key : ((Map<?, ?>) present.getFirst()).keySet()) {
+				if (!exactArrayDecimals(present.stream().map(value -> ((Map<?, ?>) value).get(key)).toList()))
+					return false;
+			}
+		}
+		return true;
 	}
 
 	private static boolean exactDecimal(BigDecimal number) {
