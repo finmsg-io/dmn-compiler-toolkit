@@ -298,6 +298,11 @@ public final class SparkSqlCapabilityAnalyzer {
 								.isPresent()
 						&& !nativeContextPutResult(decision) && !nativeListReplaceResult(decision)
 						&& !decision.expression()
+								.filter(e -> e.type() != null && e.type().kind() == RuntimeTypeKind.LIST
+										&& SparkSqlFeelValueCodec.isNativeType(e.type())
+										&& compatibleCollectionResult(decision.type(), e.type()))
+								.isPresent()
+						&& !decision.expression()
 								.filter(e -> e instanceof RuntimeConstant c && c.kind() == RuntimeConstantKind.NULL)
 								.isPresent()
 						&& !decision.expression().map(SparkSqlCapabilityAnalyzer::nativeDate).orElse(false)
@@ -322,9 +327,17 @@ public final class SparkSqlCapabilityAnalyzer {
 	private static boolean nativeContextPutResult(RuntimeDecision decision) {
 		RuntimeType result = decision.expression().map(SparkSqlExpressionEmitter::nativeContextPutType).orElse(null);
 		return result != null && (result.kind() == RuntimeTypeKind.NULL
-				|| decision.type().kind() == RuntimeTypeKind.CONTEXT
-						&& (decision.type().fieldLayout().isEmpty() || decision.type().equals(result))
+				|| decision.type().kind() == RuntimeTypeKind.CONTEXT && compatibleContextResult(decision.type(), result)
 				|| result.kind() == RuntimeTypeKind.LIST && compatibleCollectionResult(decision.type(), result));
+	}
+
+	private static boolean compatibleContextResult(RuntimeType declared, RuntimeType actual) {
+		if (actual.kind() != RuntimeTypeKind.CONTEXT)
+			return false;
+		// Shared context coercion validates declared fields and preserves extra fields.
+		return declared.fieldLayout().stream().allMatch(expected -> actual.fieldLayout().stream().anyMatch(
+				field -> field.name().equals(expected.name()) && (expected.type().kind() == RuntimeTypeKind.ANY
+						|| field.type().kind() == RuntimeTypeKind.NULL || expected.type().equals(field.type()))));
 	}
 
 	private static boolean nativeYearMonthDurationResult(RuntimeDecision decision) {

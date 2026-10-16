@@ -1,4 +1,18 @@
-2026-10-16 latest: [native contexts and statistics](native-context-statistics-2026-10-16.md)
+2026-10-16 latest full: [list typing and literal coercion](native-list-typing-coercion-2026-10-16.md).
+3,391/3,391 passed: 2,628 native (96.80%), 87 fallback (3.20%) of 2,715
+executable cases, zero failed/unknown. Separately: 676 provisional expected model
+rejections. Twenty conversions, zero reverse conversions. Full generator:
+100/100 passed; 1,141 native actions (97.44%), 30 fallback (2.56%) of 1,171,
+zero failed/unknown. The 100% goal and semantic rejection audit remain open.
+
+2026-10-16 continuation: [empty-key context-put route restored](native-context-statistics-2026-10-16.md#empty-key-continuation-after-commit-1d0e780).
+Official context-put: 30/30 native (100%), zero fallback/failed/unknown;
+one verified conversion, zero reverse changes. Full generator: 97/97 passed,
+996 native actions (96.79%), 33 fallback (3.21%) of 1,029, zero failed/unknown.
+Full global rates remain the checkpoint below. Previous batch pushed as 1d0e780;
+this recovery is included in the list/coercion checkpoint above.
+
+2026-10-16 earlier: [native contexts and statistics](native-context-statistics-2026-10-16.md)
 passed all 3,391 full TCK cases: 2,608 native (96.06%), 107 fallback (3.94%)
 of 2,715 executable cases; 676 provisional expected model rejections separately.
 Thirteen conversions and one reverse route produce a net gain of twelve.

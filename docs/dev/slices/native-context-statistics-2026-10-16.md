@@ -119,3 +119,43 @@ The 100% native goal remains open. No further source changes followed this full
 checkpoint. Resume with the reverse route and remaining fallback families;
 repeat full TCK after 45 minutes of work, usage remaining below 20%, or twenty
 further conversions, whichever comes first.
+
+
+## Empty-key continuation after commit 1d0e780
+
+The verified context/statistics batch and handover were committed and pushed as
+`1d0e780`. Investigation isolated the reverse route in context-put case 004:
+`context put({}, "", 1)` is valid FEEL. The literal converter rejects empty
+field names because an empty `RuntimeContextEntry` name represents an anonymous
+boxed return. The existing context-put SQL emitter can represent this key.
+
+A narrow exception retains that emitter for an empty source context, an empty
+string key, and a bounded, exactly representable primitive constant value.
+Named binding must have exactly the context/key/value arguments with no mixed
+positional arguments. Case-fold collisions, compound values and decimal-array
+precision guards retain their existing behavior.
+
+The initial unchanged-code check passed one test: 11 native actions (100%),
+zero fallback, failed or unknown routes; denominator 11. The local edit script
+failed on file decoding before applying changes; this run is baseline evidence.
+After applying the fix, two focused tests passed: 13 native actions (81.25%),
+three fallback (18.75%) of 16, zero failed/unknown routes. The three fallback
+actions intentionally verify combined decimal-array precision boundaries.
+Evidence: generator target `native-empty-context-key-focused.log` and
+`native-empty-context-key-verified.log`.
+
+Official context-put: 30/30 cases passed; 30 native (100%), zero fallback,
+failed or unknown routes, denominator 30; no expected model rejections.
+Per-case comparison against the full checkpoint verifies exactly one conversion,
+004 from FALLBACK to NATIVE, and zero reverse conversions. Runner evidence:
+`native-empty-context-key-official.log` and
+`native-empty-context-key-accounting-2026-10-16.json`.
+The latest measured full-suite rates remain 2,608 native (96.06%) and 107
+fallback (3.94%) of 2,715; this focused result is not a new global measurement.
+Full generator verification passed 97/97 tests: 996 native SQL actions
+(96.79%), 33 fallback (3.21%) of 1,029, zero failed/unknown routes.
+Formatting/install passed; Maven exit 0. Evidence: generator target
+`native-empty-context-key-full-generator.log`. Documentation facts, strict
+MkDocs build and `git diff --check` passed. The continuation is included in the
+[list/coercion full checkpoint](native-list-typing-coercion-2026-10-16.md);
+the previous batch is pushed as `1d0e780`.

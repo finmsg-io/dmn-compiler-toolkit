@@ -1,4 +1,37 @@
-2026-10-16 LATEST FULL context/statistics checkpoint: 3,391/3,391 passed.
+2026-10-16 LATEST FULL list/coercion checkpoint: 3,391/3,391 passed.
+Of 2,715 executable cases: 2,628 native (96.80%), 87 fallback (3.20%);
+zero failed/unknown routes, compilation/execution errors, unsupported, excluded
+or invalid cases. Separately: 676 provisional expected model rejections.
+Verified twenty fallback-to-native conversions and zero reverse conversions
+against native-context-statistics-full-accounting-2026-10-16.json: ten list
+functions, nine coercion cases and one empty-key context-put recovery.
+Fallback decreased from 107 to 87 (18.69% fewer fallback cases).
+Full generator: 100/100 passed; 1,141 native SQL actions (97.44%), 30 fallback
+(2.56%) of 1,171, zero failed/unknown; formatting/install passed.
+Target and installed JAR hash: E02EE9F946757AF1A4533FEA7DD3B0ECBE257C7CF3619C4C3DB1F8FAFA94CF6E.
+Saved full runner baseline: native-list-coercion-full-accounting-2026-10-16.json;
+log: native-list-coercion-full-tck-2026-10-16.log. This full run was explicitly
+requested and reaches the twenty-conversion checkpoint. Details:
+[handover](../docs/dev/slices/native-list-typing-coercion-2026-10-16.md).
+Remaining 87 fallbacks and the semantic rejection audit stay open. Largest
+groups: external Java 18, chapter 11 example 8, decision services 5, listGen 5.
+Next candidates include bounded flatten lowering (five listGen plus one 0012).
+Retain temporal precision/offset/duration and list/quantifier/binding priorities.
+Restart cadence here: 45 minutes work, usage remaining below 20%, or twenty
+further conversions, whichever comes first.
+
+2026-10-16 continuation after pushed commit 1d0e780: restored empty-key
+context-put native processing. Official context-put: 30/30 passed, 30 native
+(100%), zero fallback/failed/unknown, denominator 30. Exactly one verified
+conversion (004), zero reverse conversions against the full checkpoint below.
+Focused generator: two tests passed; 13 native actions (81.25%), three deliberate
+precision-boundary fallbacks (18.75%) of 16, zero failed/unknown. Full generator:
+97/97 passed; 996 native actions (96.79%), 33 fallback (3.21%) of 1,029, zero
+failed/unknown; formatting/install passed. Full-suite rates below remain the
+latest global measurement. This recovery is included in the list/coercion checkpoint above.
+Details: docs/dev/slices/native-context-statistics-2026-10-16.md.
+
+2026-10-16 earlier FULL context/statistics checkpoint: 3,391/3,391 passed.
 Of 2,715 executable cases: 2,608 native (96.06%), 107 fallback (3.94%);
 zero failures, unknown routes or compilation/execution errors. Separately:
 676 provisional expected model rejections. Compared with the bounded-loop full

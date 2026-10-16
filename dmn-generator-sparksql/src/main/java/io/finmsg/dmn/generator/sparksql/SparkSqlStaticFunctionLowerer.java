@@ -33,8 +33,8 @@ final class SparkSqlStaticFunctionLowerer {
 				try {
 					RuntimeExpression expression = lowerer.expression(decision.expression().get(),
 							List.of(new HashMap<>()), 0);
-					if (lowerer.applied) {
-						RuntimeExpression resultExpression = (RuntimeExpression) coerce(expression, decision.type());
+					RuntimeExpression resultExpression = (RuntimeExpression) coerce(expression, decision.type());
+					if (lowerer.applied || resultExpression != expression) {
 						Set<Integer> slots = new HashSet<>();
 						SparkSqlPayloadCodec.walk(resultExpression, node -> {
 							if (node instanceof RuntimeValueReference reference)
@@ -146,12 +146,27 @@ final class SparkSqlStaticFunctionLowerer {
 		}
 		if (expression instanceof RuntimeInvocationExpression invocation) {
 			if (invocation.function().isPresent()) {
-				return new RuntimeInvocationExpression(invocation.function(), Optional.empty(), invocation
+				if (invocation.namedArguments().isEmpty()) {
+					var arguments = invocation.positionalArguments().stream().map(a -> expression(a, frames, depth + 1))
+							.toList();
+					RuntimeType inferred = SparkSqlListBuiltinTypes.result(invocation.function().get(), arguments);
+					if (inferred != null) {
+						applied = true;
+						return new RuntimeFunctionCall(invocation.function().get(), arguments, inferred);
+					}
+				}
+				var rewritten = new RuntimeInvocationExpression(invocation.function(), Optional.empty(), invocation
 						.namedArguments().stream()
 						.map(a -> new RuntimeNamedArgument(a.name(), expression(a.expression(), frames, depth + 1)))
 						.toList(),
 						invocation.positionalArguments().stream().map(a -> expression(a, frames, depth + 1)).toList(),
 						invocation.type());
+				RuntimeExpression literal = SparkSqlExpressionEmitter.nativeStaticContextExpression(rewritten);
+				if (literal != null) {
+					applied = true;
+					return literal;
+				}
+				return rewritten;
 			}
 			Object target = value(invocation.target().orElseThrow(), frames, depth + 1);
 			if (target instanceof Builtin builtin) {
@@ -187,7 +202,14 @@ final class SparkSqlStaticFunctionLowerer {
 						? invocation.positionalArguments().get(index)
 						: invocation.namedArguments().stream().filter(a -> a.name().equals(parameter.name()))
 								.map(RuntimeNamedArgument::expression).findFirst().orElseThrow(Unsupported::new);
-				Object bound = coerce(value(argument, frames, depth + 1), parameter.type());
+				Object argumentValue = value(argument, frames, depth + 1);
+				Object bound = coerce(argumentValue, parameter.type());
+				if (bound instanceof RuntimeConstant result && result.kind() == RuntimeConstantKind.NULL
+						&& !(argumentValue instanceof RuntimeConstant original
+								&& original.kind() == RuntimeConstantKind.NULL)) {
+					applied = true;
+					return result;
+				}
 				bindings.put(parameter.localSlot(), bound);
 			}
 			List<Map<Integer, Object>> environment = new ArrayList<>();
@@ -286,9 +308,19 @@ final class SparkSqlStaticFunctionLowerer {
 			return new RuntimeConditionalExpression(expression(conditional.condition(), frames, depth + 1),
 					expression(conditional.thenExpression(), frames, depth + 1),
 					expression(conditional.elseExpression(), frames, depth + 1), conditional.type());
-		if (expression instanceof RuntimeFunctionCall call)
-			return new RuntimeFunctionCall(call.function(),
-					call.arguments().stream().map(a -> expression(a, frames, depth + 1)).toList(), call.type());
+		if (expression instanceof RuntimeFunctionCall call) {
+			var arguments = call.arguments().stream().map(a -> expression(a, frames, depth + 1)).toList();
+			RuntimeExpression literal = SparkSqlExpressionEmitter
+					.nativeStaticContextExpression(new RuntimeFunctionCall(call.function(), arguments, call.type()));
+			if (literal != null) {
+				applied = true;
+				return literal;
+			}
+			RuntimeType inferred = SparkSqlListBuiltinTypes.result(call.function(), arguments);
+			if (inferred != null)
+				applied = true;
+			return new RuntimeFunctionCall(call.function(), arguments, inferred == null ? call.type() : inferred);
+		}
 		throw new Unsupported();
 	}
 
@@ -471,6 +503,24 @@ final class SparkSqlStaticFunctionLowerer {
 		if (compatible(value, expected))
 			return value;
 		if (value instanceof RuntimeExpression expression) {
+			if (closedContextLiteral(expression, 0, new int[]{2048})) {
+				int[] localSlots = {0};
+				SparkSqlPayloadCodec.walk(expression, node -> {
+					if (node instanceof RuntimeContextEntry entry) {
+						if (entry.localSlot() >= 2048)
+							throw new Unsupported();
+						localSlots[0] = Math.max(localSlots[0], entry.localSlot() + 1);
+					}
+				});
+				var decision = new RuntimeDecision(0, 0, expected, List.of(), Optional.of(expression), Optional.empty(),
+						localSlots[0]);
+				Object coerced = new io.finmsg.dmn.runtime.DmnRuntime()
+						.evaluate(new RuntimeModel(List.of(), List.of(decision), List.of(), List.of(0), 1), Map.of())
+						.decisionValue(0);
+				RuntimeExpression literal = SparkSqlExpressionEmitter.nativeContextLiteralValue(coerced);
+				if (literal != null)
+					return literal;
+			}
 			if (expression instanceof RuntimeListExpression list && expected.kind() == RuntimeTypeKind.LIST
 					&& expected.elementType() != null && expected.elementType().kind() == RuntimeTypeKind.ANY)
 				return list;

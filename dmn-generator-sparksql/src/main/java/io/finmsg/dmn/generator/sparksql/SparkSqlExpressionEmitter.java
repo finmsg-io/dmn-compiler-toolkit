@@ -1184,6 +1184,50 @@ public final class SparkSqlExpressionEmitter {
 				+ ", 'end included', " + endInc + ", 'startIncluded', " + startInc + ", 'endIncluded', " + endInc + ")";
 	}
 
+	private static String emitTypedListBuiltin(String name, List<RuntimeExpression> args,
+			Map<Integer, RuntimeBkm> bkmBySlot, IntFunction<String> slotNameResolver) {
+		List<String> sql = args.stream().map(a -> emitWithBkms(a, bkmBySlot, slotNameResolver)).toList();
+		String list = sql.getFirst();
+		if (name.equals("sublist")) {
+			int start = SparkSqlListBuiltinTypes.integer(args.get(1));
+			String index = start > 0 ? Integer.toString(start - 1) : "(size(" + list + ") + " + start + ")";
+			String length = args.size() == 3
+					? SparkSqlListBuiltinTypes.integer(args.get(2)).toString()
+					: "size(" + list + ")";
+			return "(CASE WHEN " + list + " IS NULL THEN NULL WHEN " + index + " < 0 OR " + index + " >= size(" + list
+					+ ") THEN array() ELSE slice(" + list + ", " + start + ", " + length + ") END)";
+		}
+		String result;
+		if (name.equals("concatenate"))
+			result = "concat(" + String.join(", ", sql.stream().map(s -> "coalesce(" + s + ", array())").toList())
+					+ ")";
+		else if (name.equals("append"))
+			result = "concat(" + list + ", array(" + String.join(", ", sql.subList(1, sql.size())) + "))";
+		else if (name.equals("union"))
+			result = "array_union(" + list + ", " + sql.get(1) + ")";
+		else if (name.equals("reverse"))
+			result = "reverse(" + list + ")";
+		else if (name.equals("distinct values"))
+			result = "array_distinct(" + list + ")";
+		else {
+			int position = SparkSqlListBuiltinTypes.integer(args.get(1));
+			String index = position > 0 ? Integer.toString(position - 1) : "(size(" + list + ") + " + position + ")";
+			String prefix = "slice(" + list + ", 1, greatest(0, " + index + "))";
+			if (name.equals("remove"))
+				result = "(CASE WHEN " + index + " < 0 OR " + index + " >= size(" + list + ") THEN " + list
+						+ " ELSE concat(" + prefix + ", slice(" + list + ", " + index + " + 2, size(" + list
+						+ "))) END)";
+			else
+				result = "(CASE WHEN " + index + " < 0 OR " + index + " > size(" + list + ") OR " + sql.get(2)
+						+ " IS NULL THEN NULL ELSE concat(" + prefix + ", array(" + sql.get(2) + "), slice(" + list
+						+ ", " + index + " + 1, size(" + list + "))) END)";
+		}
+		// Immutable-list runtime operations reject null elements. Sublist retains them.
+		return "element_at(transform(array(" + result
+				+ "), _dmn_list_result -> CASE WHEN exists(_dmn_list_result, _dmn_list_item -> _dmn_list_item IS NULL)"
+				+ " THEN NULL ELSE _dmn_list_result END), 1)";
+	}
+
 	private static String emitContext(RuntimeContextExpression ctx, Map<Integer, RuntimeBkm> bkmBySlot,
 			IntFunction<String> slotNameResolver) {
 		if (ctx.entries().isEmpty())
@@ -1545,6 +1589,8 @@ public final class SparkSqlExpressionEmitter {
 			IntFunction<String> slotNameResolver) {
 		String name = fn.function().toLowerCase();
 		List<RuntimeExpression> args = fn.arguments();
+		if (SparkSqlListBuiltinTypes.result(name, args) != null)
+			return emitTypedListBuiltin(name, args, bkmBySlot, slotNameResolver);
 		if (Set.of("median", "mode", "stddev").contains(name)) {
 			if (args.isEmpty())
 				return "NULL";
@@ -2662,6 +2708,12 @@ public final class SparkSqlExpressionEmitter {
 	}
 
 	static RuntimeType nativeContextPutType(RuntimeExpression expression) {
+		if (expression instanceof RuntimeContextExpression context && context.entries().isEmpty())
+			return RuntimeType.contextFields(List.of());
+		if (expression instanceof RuntimeContextExpression context && !context.entries().isEmpty()
+				&& context.entries().stream().noneMatch(entry -> entry.name().isEmpty())
+				&& nativeContextLayout(context.type()))
+			return context.type();
 		RuntimeExpression literal = nativeStaticContextExpression(expression);
 		if (literal != null)
 			return literal.type();
@@ -2706,6 +2758,28 @@ public final class SparkSqlExpressionEmitter {
 	}
 
 	static boolean nativeStaticContextRequiresFallback(RuntimeExpression expression) {
+		// Empty context-entry names denote boxed returns in IR. For an empty key,
+		// retain the existing context-put emitter rather than build that literal.
+		List<RuntimeExpression> putArguments = null;
+		if (expression instanceof RuntimeFunctionCall call && call.function().equalsIgnoreCase("context put"))
+			putArguments = call.arguments();
+		else if (expression instanceof RuntimeInvocationExpression invocation
+				&& invocation.function().filter("context put"::equalsIgnoreCase).isPresent()) {
+			if (invocation.namedArguments().isEmpty())
+				putArguments = invocation.positionalArguments();
+			else if (invocation.positionalArguments().isEmpty() && invocation.namedArguments().size() == 3
+					&& invocation.namedArguments().stream().map(RuntimeNamedArgument::name)
+							.collect(java.util.stream.Collectors.toSet()).equals(Set.of("context", "key", "value")))
+				putArguments = reorderNamedArguments("context put", invocation.namedArguments());
+		}
+		if (putArguments != null && putArguments.size() == 3
+				&& putArguments.get(0) instanceof RuntimeContextExpression source && source.entries().isEmpty()
+				&& putArguments.get(1) instanceof RuntimeConstant key && key.kind() == RuntimeConstantKind.STRING
+				&& key.value().isEmpty() && putArguments.get(2) instanceof RuntimeConstant value
+				&& Set.of(RuntimeConstantKind.NUMBER, RuntimeConstantKind.STRING, RuntimeConstantKind.BOOLEAN,
+						RuntimeConstantKind.NULL).contains(value.kind())
+				&& value.value().length() <= 2048 && nativeContextLiteralValue(staticConstantValue(value)) != null)
+			return false;
 		List<RuntimeExpression> arguments = contextLiteralArguments(expression);
 		int[] budget = {2048};
 		return arguments != null && arguments.stream().allMatch(argument -> boundedContextLiteral(argument, 0, budget))
@@ -3014,7 +3088,7 @@ public final class SparkSqlExpressionEmitter {
 				&& list.elements().stream().allMatch(item -> boundedContextLiteral(item, depth + 1, budget));
 	}
 
-	private static RuntimeExpression nativeContextLiteralValue(Object value) {
+	static RuntimeExpression nativeContextLiteralValue(Object value) {
 		if (value == null)
 			return new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
 		if (value instanceof String text)

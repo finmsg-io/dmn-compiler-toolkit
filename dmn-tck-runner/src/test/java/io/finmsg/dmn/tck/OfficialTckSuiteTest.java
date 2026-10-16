@@ -449,6 +449,8 @@ class OfficialTckSuiteTest {
 						.orElseThrow();
 				var cap = generated.capabilities().get(decision.id());
 				fallback |= !cap.nativeSql();
+				if (!cap.nativeSql() && Boolean.getBoolean("tck.spark.routeDiagnostics"))
+					System.out.println("SPARK ROUTE " + testName + " " + name + ": " + cap);
 				String sql = Objects.requireNonNull(generated.sqlFiles().get("Decision_" + slot + ".sql"));
 				// Run only requested decisions. No exception-to-null conversion or
 				// runtime-triggered fallback.

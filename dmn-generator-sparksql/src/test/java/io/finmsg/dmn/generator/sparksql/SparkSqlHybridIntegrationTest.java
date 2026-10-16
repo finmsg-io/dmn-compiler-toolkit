@@ -642,7 +642,7 @@ class SparkSqlHybridIntegrationTest {
 							List.of(5, 6), Optional.of(expression))),
 					List.of(), List.of(10), 3);
 			var generated = SparkSqlHybridTest.generate(model);
-			assertThat(generated.capabilities().get(10).nativeSql()).isFalse();
+			assertThat(generated.capabilities().get(10).nativeSql()).isEqualTo(expression == constrained);
 			generated.registerUdfs(spark);
 			var inputs = Map.<Integer, Object>of(0, Map.of("a", "old"), 1, "dynamic");
 			spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs)), generated.inputSchema())
@@ -1022,7 +1022,8 @@ class SparkSqlHybridIntegrationTest {
 
 	@Test
 	void nestedLiteralContextBuiltinsPreserveSharedBindingAndPathValidation() {
-		for (String expression : List.of("get entries(context put({a: 1}, \"b\", 2))",
+		for (String expression : List.of("context put({}, \"\", 1)", "context put(context: {}, key: \"\", value: true)",
+				"get entries(context put({a: 1}, \"b\", 2))",
 				"context put({x:1, y:{a:0}}, [\"y\",\"a\",\"b\",\"c\"], 2)",
 				"context put(context put({a:1}, \"b\", true), \"a\", 3)",
 				"context merge([context put({}, \"a\", 1), context put({}, \"b\", \"two\")])",
@@ -1066,6 +1067,117 @@ class SparkSqlHybridIntegrationTest {
 			assertThat(SparkSqlFeelValueCodec
 					.fromSpark(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0)))
 					.isEqualTo(new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10));
+		}
+	}
+
+	@Test
+	void typedListBuiltinsPreserveDynamicValuesAndPositionBounds() {
+		for (RuntimeType element : List.of(SparkSqlHybridTest.STRING, SparkSqlHybridTest.NUMBER,
+				RuntimeType.scalar(RuntimeTypeKind.BOOLEAN))) {
+			var listType = RuntimeType.element(RuntimeTypeKind.LIST, element);
+			var unknownList = RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.ANY);
+			var source = new RuntimeValueReference(0, listType);
+			var item = new RuntimeValueReference(1, element);
+			var other = new RuntimeValueReference(2, listType);
+			var calls = new ArrayList<RuntimeFunctionCall>();
+			for (String name : List.of("reverse", "distinct values"))
+				calls.add(new RuntimeFunctionCall(name, List.of(source), unknownList));
+			for (String name : List.of("union", "concatenate"))
+				calls.add(new RuntimeFunctionCall(name, List.of(source, other), unknownList));
+			calls.add(new RuntimeFunctionCall("append", List.of(source, item, item), unknownList));
+			for (String position : List.of("1", "-1", "9", "-9", "0")) {
+				if (!position.equals("0"))
+					calls.add(new RuntimeFunctionCall("sublist",
+							List.of(source, SparkSqlHybridTest.number(position), SparkSqlHybridTest.number("2")),
+							unknownList));
+				calls.add(new RuntimeFunctionCall("remove", List.of(source, SparkSqlHybridTest.number(position)),
+						unknownList));
+				calls.add(new RuntimeFunctionCall("insert before",
+						List.of(source, SparkSqlHybridTest.number(position), item), unknownList));
+			}
+			Object first = element.kind() == RuntimeTypeKind.STRING
+					? "a"
+					: element.kind() == RuntimeTypeKind.NUMBER ? new BigDecimal("1") : true;
+			Object second = element.kind() == RuntimeTypeKind.STRING
+					? "b"
+					: element.kind() == RuntimeTypeKind.NUMBER ? new BigDecimal("2") : false;
+			for (RuntimeFunctionCall call : calls) {
+				var model = new RuntimeModel(
+						List.of(new RuntimeInput(5, 0, listType), new RuntimeInput(6, 1, element),
+								new RuntimeInput(7, 2, listType)),
+						List.of(new RuntimeDecision(10, 3, listType, List.of(5, 6, 7), Optional.of(call))), List.of(),
+						List.of(10), 4);
+				var generated = SparkSqlHybridTest.generate(model);
+				assertThat(generated.capabilities().get(10).nativeSql()).as("%s: %s", call, generated.capabilities())
+						.isTrue();
+				assertThat(generated.udfs()).isEmpty();
+				for (List<?> values : List.of(List.of(first, second, first), List.of())) {
+					Map<Integer, Object> inputs = Map.of(0, values, 1, second, 2, List.of(second));
+					spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs)),
+							generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
+					Object actual = SparkSqlFeelValueCodec
+							.fromSpark(spark.sql(generated.sqlFiles().get("Decision_3.sql")).head().get(0));
+					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+					assertThat(actual).as("%s on %s", call, values).isEqualTo(expected);
+				}
+			}
+		}
+	}
+
+	@Test
+	void literalDeclaredCoercionUsesSharedRulesAndStopsInvalidParameterCalls() {
+		for (String expression : List.of("[1, 2, \"bad\"]", "[10]", "[[10]]", "[\"bad\"]", "{a: 1}",
+				"(function(x: number) 99)(\"bad\")", "(function(x: number) x)([10])",
+				"(function(x: number) x)([\"bad\"])", "context put({a:1}, \"b\", 2)")) {
+			var original = compiledFilterModel(expression, true);
+			var result = original.decisions().getFirst();
+			for (RuntimeType declared : List.of(SparkSqlHybridTest.NUMBER,
+					RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.NUMBER))) {
+				var model = new RuntimeModel(original.inputs(),
+						List.of(new RuntimeDecision(result.id(), result.resultSlot(), declared, result.dependencies(),
+								result.expression(), result.decisionTable(), result.localSlotCount())),
+						original.businessKnowledgeModels(), original.evaluationOrder(), original.valueSlotCount());
+				var generated = SparkSqlHybridTest.generate(model);
+				assertThat(generated.capabilities().get(result.id()).nativeSql())
+						.as("%s as %s: %s", expression, declared, generated.capabilities()).isTrue();
+				assertThat(generated.udfs()).isEmpty();
+				spark.range(1).createOrReplaceTempView("hybrid_inputs");
+				Object actual = SparkSqlFeelValueCodec.fromSpark(
+						spark.sql(generated.sqlFiles().get("Decision_" + result.resultSlot() + ".sql")).head().get(0));
+				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of())
+						.decisionValue(result.id());
+				assertThat(actual).as("%s as %s", expression, declared).isEqualTo(expected);
+			}
+		}
+	}
+
+	@Test
+	void declaredContextFieldsValidateWithoutDroppingExtraFields() {
+		for (String expression : List.of("{name: \"foo\", surname: \"bar\", age: 10}",
+				"context put({name: \"foo\", age: 10}, \"surname\", \"bar\")")) {
+			var original = compiledFilterModel(expression, true);
+			var decision = original.decisions().getFirst();
+			for (RuntimeType declared : List.of(
+					RuntimeType.contextFields(List.of(new RuntimeField(0, "name", SparkSqlHybridTest.STRING),
+							new RuntimeField(1, "age", SparkSqlHybridTest.NUMBER))),
+					RuntimeType.contextFields(List.of(new RuntimeField(0, "name", SparkSqlHybridTest.STRING))),
+					RuntimeType.contextFields(List.of(new RuntimeField(0, "age", SparkSqlHybridTest.STRING))),
+					RuntimeType.contextFields(List.of(new RuntimeField(0, "missing", SparkSqlHybridTest.STRING))))) {
+				var model = new RuntimeModel(List.of(),
+						List.of(new RuntimeDecision(decision.id(), decision.resultSlot(), declared,
+								decision.dependencies(), decision.expression(), decision.decisionTable(),
+								decision.localSlotCount())),
+						original.businessKnowledgeModels(), original.evaluationOrder(), original.valueSlotCount());
+				var generated = SparkSqlHybridTest.generate(model);
+				assertThat(generated.capabilities().get(decision.id()).nativeSql())
+						.as("%s as %s: %s", expression, declared, generated.capabilities()).isTrue();
+				assertThat(generated.udfs()).isEmpty();
+				spark.range(1).createOrReplaceTempView("hybrid_inputs");
+				Object actual = SparkSqlFeelValueCodec.fromSpark(spark
+						.sql(generated.sqlFiles().get("Decision_" + decision.resultSlot() + ".sql")).head().get(0));
+				assertThat(actual).isEqualTo(
+						new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(decision.id()));
+			}
 		}
 	}
 
@@ -1263,7 +1375,7 @@ class SparkSqlHybridIntegrationTest {
 				RuntimeType.element(RuntimeTypeKind.LIST, SparkSqlHybridTest.ANY));
 		for (String name : List.of("context", "context merge")) {
 			RuntimeExpression constructed = new RuntimeFunctionCall(name, List.of(empty), context);
-			for (RuntimeExpression expression : List.<RuntimeExpression>of(
+			for (RuntimeExpression expression : List.<RuntimeExpression>of(constructed,
 					new RuntimeBinaryExpression(RuntimeBinaryOperator.EQUAL, constructed, nativeContextFixture(),
 							RuntimeType.scalar(RuntimeTypeKind.BOOLEAN)),
 					new RuntimeFunctionCall(name, List.of(), context),
@@ -2471,7 +2583,12 @@ class SparkSqlHybridIntegrationTest {
 			var model = new RuntimeModel(List.of(),
 					List.of(new RuntimeDecision(10, 0, number, List.of(), Optional.of(call))), List.of(), List.of(10),
 					1);
-			assertThat(SparkSqlStaticFunctionLowerer.lower(model)).isEqualTo(model);
+			var lowered = SparkSqlStaticFunctionLowerer.lower(model);
+			if (!lowered.equals(model)) {
+				assertThat(lowered.decisions().getFirst().expression().orElseThrow()).isInstanceOfSatisfying(
+						RuntimeConstant.class,
+						constant -> assertThat(constant.kind()).isEqualTo(RuntimeConstantKind.NULL));
+			}
 			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10);
 			var generated = SparkSqlHybridTest.generate(model);
 			generated.registerUdfs(spark);
