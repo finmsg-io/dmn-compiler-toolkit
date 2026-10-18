@@ -1,4 +1,28 @@
-2026-10-16 LATEST FULL list/coercion checkpoint: 3,391/3,391 passed.
+2026-10-18 LATEST FULL flatten/quantifier/literal-JDK checkpoint: 3,391/3,391 passed.
+Of 2,715 executable cases: 2,651 native (97.64%), 64 fallback (2.36%);
+zero failed/unknown routes, compilation/execution errors, unsupported, excluded
+or invalid cases. Separately: 676 provisional expected model rejections.
+Compared with the 2026-10-16 list/coercion full baseline: 23 fallback-to-native
+conversions (five flatten, two quantifier, sixteen literal JDK), zero reverse
+conversions. Fallback decreased from 87 to 64 (26.44% fewer fallback cases).
+Final generator regression: 104/104 passed; 1,198 native SQL actions (96.30%),
+46 deliberate fallback actions (3.70%) of 1,244; zero failed/unknown routes.
+Formatting/install passed. Target and installed generator JAR SHA-256:
+82FCF77DE4C709733C75AEDA03246EB4771621BA6DBFD80147209A8D0965A3A3.
+Maven exited zero; Surefire reported a post-suite fork shutdown timeout.
+All cases completed; investigate Spark/fork cleanup separately.
+Saved runner target evidence: native-flatten-quantifier-java-full-accounting-2026-10-18.json
+and native-flatten-quantifier-java-full-tck-2026-10-18.log.
+Largest remaining groups: chapter 11 example eight, decision services five;
+external Java now two. Dynamic function-library arithmetic retains fallback
+because Spark double division cannot preserve shared DECIMAL128 semantics.
+The 100% native goal and semantic rejection audit remain open. Preserve temporal
+precision/offset/duration identity, list validation, and lexical binding priorities.
+Restart full-run cadence here: 45 minutes work, usage remaining below 20%, or
+twenty further verified fallback conversions, whichever comes first.
+Details: [handover](docs/dev/slices/native-flatten-quantifiers-java-2026-10-18.md).
+
+2026-10-16 earlier FULL list/coercion checkpoint: 3,391/3,391 passed.
 Of 2,715 executable cases: 2,628 native (96.80%), 87 fallback (3.20%);
 zero failed/unknown routes, compilation/execution errors, unsupported, excluded
 or invalid cases. Separately: 676 provisional expected model rejections.

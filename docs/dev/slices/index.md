@@ -1,4 +1,11 @@
-2026-10-16 latest full: [list typing and literal coercion](native-list-typing-coercion-2026-10-16.md).
+2026-10-18 latest full: [flatten, quantifiers and literal JDK calls](native-flatten-quantifiers-java-2026-10-18.md).
+3,391/3,391 passed: 2,651 native (97.64%), 64 fallback (2.36%) of 2,715
+executable cases, zero failed/unknown; 676 provisional expected model rejections
+separately. Twenty-three conversions, zero reverse changes; 26.44% fewer
+fallback cases. Generator: 104/104 passed; 1,198 native actions (96.30%),
+46 fallback (3.70%) of 1,244, zero failed/unknown. The 100% goal remains open.
+
+2026-10-16 earlier full: [list typing and literal coercion](native-list-typing-coercion-2026-10-16.md).
 3,391/3,391 passed: 2,628 native (96.80%), 87 fallback (3.20%) of 2,715
 executable cases, zero failed/unknown. Separately: 676 provisional expected model
 rejections. Twenty conversions, zero reverse conversions. Full generator:

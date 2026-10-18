@@ -12,6 +12,8 @@ final class SparkSqlStaticFunctionLowerer {
 	}
 	private record Builtin(String name) {
 	}
+	private record LiteralJava(RuntimeFunctionDefinition function) {
+	}
 	private static final class Unsupported extends RuntimeException {
 	}
 	private final RuntimeModel model;
@@ -19,6 +21,7 @@ final class SparkSqlStaticFunctionLowerer {
 	private int budget = 4096;
 	private boolean applied;
 	private int loopResults;
+	private int quantifiedResults;
 
 	private SparkSqlStaticFunctionLowerer(RuntimeModel model) {
 		this.model = model;
@@ -72,6 +75,8 @@ final class SparkSqlStaticFunctionLowerer {
 		if (--budget < 0 || depth > 48)
 			throw new Unsupported();
 		if (expression instanceof RuntimeFunctionDefinition function) {
+			if (SparkSqlJavaLiteralProof.supports(function))
+				return new LiteralJava(function);
 			if (function.external() || function.body().isEmpty())
 				throw new Unsupported();
 			// The runtime treats zero-parameter wrappers around named builtins specially.
@@ -149,6 +154,11 @@ final class SparkSqlStaticFunctionLowerer {
 				if (invocation.namedArguments().isEmpty()) {
 					var arguments = invocation.positionalArguments().stream().map(a -> expression(a, frames, depth + 1))
 							.toList();
+					RuntimeExpression flattened = SparkSqlFlattenLowerer.lower(invocation.function().get(), arguments);
+					if (flattened != null) {
+						applied = true;
+						return flattened;
+					}
 					RuntimeType inferred = SparkSqlListBuiltinTypes.result(invocation.function().get(), arguments);
 					if (inferred != null) {
 						applied = true;
@@ -169,6 +179,21 @@ final class SparkSqlStaticFunctionLowerer {
 				return rewritten;
 			}
 			Object target = value(invocation.target().orElseThrow(), frames, depth + 1);
+			if (target instanceof LiteralJava java) {
+				var call = new RuntimeInvocationExpression(Optional.empty(), Optional.of(java.function()),
+						invocation.namedArguments().stream()
+								.map(argument -> new RuntimeNamedArgument(argument.name(),
+										expression(argument.expression(), frames, depth + 1)))
+								.toList(),
+						invocation.positionalArguments().stream()
+								.map(argument -> expression(argument, frames, depth + 1)).toList(),
+						invocation.type());
+				RuntimeExpression literal = SparkSqlJavaLiteralProof.result(java.function(), call);
+				if (literal == null)
+					throw new Unsupported();
+				applied = true;
+				return literal;
+			}
 			if (target instanceof Builtin builtin) {
 				if (!invocation.namedArguments().isEmpty())
 					throw new Unsupported();
@@ -279,6 +304,27 @@ final class SparkSqlStaticFunctionLowerer {
 		}
 		if (expression instanceof RuntimeConstant)
 			return expression;
+		if (expression instanceof RuntimeQuantifiedExpression quantified) {
+			if (quantified.bindings().size() > 4)
+				throw new Unsupported();
+			var predicates = new ArrayList<RuntimeExpression>();
+			unrollQuantified(quantified, 0, frames, depth + 1, predicates);
+			boolean every = quantified.quantifier() == RuntimeQuantifier.EVERY;
+			RuntimeType bool = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+			applied = true;
+			if (predicates.isEmpty())
+				return new RuntimeConstant(RuntimeConstantKind.BOOLEAN, Boolean.toString(every), bool);
+			while (predicates.size() > 1) {
+				var combined = new ArrayList<RuntimeExpression>();
+				for (int index = 0; index < predicates.size(); index += 2)
+					combined.add(index + 1 == predicates.size()
+							? predicates.get(index)
+							: new RuntimeBinaryExpression(every ? RuntimeBinaryOperator.AND : RuntimeBinaryOperator.OR,
+									predicates.get(index), predicates.get(index + 1), bool));
+				predicates = combined;
+			}
+			return predicates.getFirst();
+		}
 		if (expression instanceof RuntimeForExpression loop) {
 			if (loop.partialSlot() >= 0 || loop.iterations().size() > 4)
 				throw new Unsupported();
@@ -310,6 +356,11 @@ final class SparkSqlStaticFunctionLowerer {
 					expression(conditional.elseExpression(), frames, depth + 1), conditional.type());
 		if (expression instanceof RuntimeFunctionCall call) {
 			var arguments = call.arguments().stream().map(a -> expression(a, frames, depth + 1)).toList();
+			RuntimeExpression flattened = SparkSqlFlattenLowerer.lower(call.function(), arguments);
+			if (flattened != null) {
+				applied = true;
+				return flattened;
+			}
 			RuntimeExpression literal = SparkSqlExpressionEmitter
 					.nativeStaticContextExpression(new RuntimeFunctionCall(call.function(), arguments, call.type()));
 			if (literal != null) {
@@ -322,6 +373,58 @@ final class SparkSqlStaticFunctionLowerer {
 			return new RuntimeFunctionCall(call.function(), arguments, inferred == null ? call.type() : inferred);
 		}
 		throw new Unsupported();
+	}
+
+	private void unrollQuantified(RuntimeQuantifiedExpression quantified, int index, List<Map<Integer, Object>> frames,
+			int depth, List<RuntimeExpression> predicates) {
+		if (depth > 48 || --budget < 0)
+			throw new Unsupported();
+		if (index == quantified.bindings().size()) {
+			if (++quantifiedResults > 128)
+				throw new Unsupported();
+			RuntimeExpression predicate = expression(quantified.satisfies(), frames, depth + 1);
+			RuntimeType bool = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+			if (predicate instanceof RuntimeConstant constant && constant.kind() == RuntimeConstantKind.NULL) {
+				predicates.add(new RuntimeConstant(RuntimeConstantKind.BOOLEAN, "false", bool));
+				return;
+			}
+			if (predicate.type().kind() != RuntimeTypeKind.BOOLEAN)
+				throw new Unsupported();
+			predicates.add(new RuntimeConditionalExpression(predicate,
+					new RuntimeConstant(RuntimeConstantKind.BOOLEAN, "true", bool),
+					new RuntimeConstant(RuntimeConstantKind.BOOLEAN, "false", bool), bool));
+			return;
+		}
+		RuntimeQuantifiedBinding binding = quantified.bindings().get(index);
+		RuntimeExpression source = expression(binding.source(), frames, depth + 1);
+		if (source instanceof RuntimeValueReference reference) {
+			RuntimeDecision decision = model.decisions().stream().filter(d -> d.resultSlot() == reference.sourceSlot())
+					.findFirst().orElseThrow(Unsupported::new);
+			RuntimeExpression literal = decision.expression().orElseThrow(Unsupported::new);
+			if (!closedContextLiteral(literal, 0, new int[]{512}))
+				throw new Unsupported();
+			source = (RuntimeExpression) coerce(expression(literal, List.of(new HashMap<>()), depth + 1),
+					decision.type());
+		}
+		if (!(source instanceof RuntimeListExpression list)
+				|| list.elements()
+						.size() > 64
+				|| list.elements().stream()
+						.anyMatch(
+								item -> !(item instanceof RuntimeConstant constant) || !Set
+										.of(RuntimeConstantKind.NUMBER, RuntimeConstantKind.STRING,
+												RuntimeConstantKind.BOOLEAN, RuntimeConstantKind.NULL)
+										.contains(constant.kind()))
+				|| list.elements().stream().map(item -> ((RuntimeConstant) item).kind())
+						.filter(kind -> kind != RuntimeConstantKind.NULL).distinct().count() > 1)
+			throw new Unsupported();
+		for (RuntimeExpression item : list.elements()) {
+			var bindings = new HashMap<>(frames.getFirst());
+			bindings.put(binding.localSlot(), item);
+			var environment = new ArrayList<>(frames);
+			environment.set(0, bindings);
+			unrollQuantified(quantified, index + 1, environment, depth + 1, predicates);
+		}
 	}
 
 	private void unroll(RuntimeForExpression loop, int index, List<Map<Integer, Object>> frames, int depth,

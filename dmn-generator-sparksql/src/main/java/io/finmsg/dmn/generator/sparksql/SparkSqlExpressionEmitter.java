@@ -2205,7 +2205,8 @@ public final class SparkSqlExpressionEmitter {
 				RuntimeType arrType = !args.isEmpty() ? args.get(0).type() : null;
 				if (arrType != null && arrType.kind() == RuntimeTypeKind.LIST && arrType.elementType() != null
 						&& arrType.elementType().kind() == RuntimeTypeKind.LIST) {
-					yield "flatten(" + arr + ")";
+					yield "filter(flatten(transform(" + arr
+							+ ", _dmn_flat_list -> coalesce(_dmn_flat_list, array()))), _dmn_flat_item -> _dmn_flat_item IS NOT NULL)";
 				}
 				yield arr;
 			}
