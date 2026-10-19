@@ -37,6 +37,21 @@ final class SparkSqlFlattenLowerer {
 					return false;
 			return true;
 		}
+		if (expression instanceof RuntimeFunctionCall call && call.function().equalsIgnoreCase("append")
+				&& !call.arguments().isEmpty()) {
+			for (RuntimeExpression item : call.arguments())
+				if (!collect(item, depth + 1))
+					return false;
+			return true;
+		}
+		if (expression instanceof RuntimeInvocationExpression invocation && invocation.function().isPresent()
+				&& invocation.function().get().equalsIgnoreCase("append") && invocation.namedArguments().isEmpty()
+				&& !invocation.positionalArguments().isEmpty()) {
+			for (RuntimeExpression item : invocation.positionalArguments())
+				if (!collect(item, depth + 1))
+					return false;
+			return true;
+		}
 		if (expression instanceof RuntimeConstant constant && constant.kind() == RuntimeConstantKind.NULL)
 			return true;
 		RuntimeType type = expression.type();

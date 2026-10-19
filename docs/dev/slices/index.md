@@ -1,4 +1,11 @@
-2026-10-19 latest full: [closed context collection operations](native-closed-collections-2026-10-19.md).
+2026-10-19 latest: [closed nested paths, duration ranges, context functions, and flatten](native-path-equality-2026-10-19.md).
+Six verified conversions (1156 #001_h, #001_i; 0090 #nested_list_001, #nested_list_002;
+1145 #010; 0012 #019). Fallback backlog reduced from 47 to 41 (12.77% net reduction).
+Suites 1156 (56/56), 0090 (4/4), 1145 (18/18), 0012 (19/19) all 100% native.
+Full generator regression: 114/114 passed; hybrid integration: 1,502 native actions
+(96.65%), 52 fallback (3.35%) of 1,554, zero failed/unknown.
+
+2026-10-19 earlier full: [closed context collection operations](native-closed-collections-2026-10-19.md).
 3,391/3,391 passed: 2,668 native (98.27%), 47 fallback (1.73%) of 2,715
 executable cases, zero failed/unknown. Separately: 676 provisional expected model
 rejections, unchanged. Four conversions, zero reversals. Generator: 111/111 passed;

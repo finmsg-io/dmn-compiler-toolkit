@@ -51,8 +51,17 @@ final class SparkSqlStaticTypeProof {
 					yield Boolean.valueOf(constant.value());
 				}
 				case DATE -> LocalDate.parse(constant.value());
+				case TIME -> DmnRuntime.parseTime(constant.value());
+				case DATE_TIME -> DmnRuntime.parseDateTime(constant.value());
+				case DURATION -> DmnRuntime.parseDuration(constant.value());
 				default -> throw new Unsupported();
 			};
+		}
+		if (expression instanceof RuntimeRangeExpression range) {
+			Object low = range.lower().isPresent() ? literal(range.lower().get(), depth + 1) : null;
+			Object up = range.upper().isPresent() ? literal(range.upper().get(), depth + 1) : null;
+			return new io.finmsg.dmn.runtime.RuntimeRangeValue(low, up, range.lowerBoundary(), range.upperBoundary(),
+					range.lower().isEmpty(), range.upper().isEmpty());
 		}
 		if (expression instanceof RuntimeListExpression list) {
 			List<Object> values = new ArrayList<>();
@@ -64,7 +73,8 @@ final class SparkSqlStaticTypeProof {
 			Map<String, Object> values = new LinkedHashMap<>();
 			for (var entry : context.entries()) {
 				Object value = literal(entry.expression(), depth + 1);
-				if (entry.name().isEmpty() && entry.localSlot() == -1)
+				if (entry.name().isEmpty() && entry.localSlot() == -1 && (context.type() == null
+						|| context.type().fieldLayout().stream().noneMatch(f -> f.name().isEmpty())))
 					return value;
 				values.put(entry.name(), value);
 			}

@@ -1242,7 +1242,8 @@ public final class SparkSqlExpressionEmitter {
 			final Map<Integer, String> bindingsSnapshot = new HashMap<>(localBindings);
 			LocalScopeResolver scopedResolver = scoped(slotNameResolver, bindingsSnapshot);
 			String emittedExpr = emitWithBkms(entry.expression(), bkmBySlot, scopedResolver);
-			if (entry.name().isEmpty() && entry.localSlot() == -1)
+			if (entry.name().isEmpty() && entry.localSlot() == -1
+					&& (ctx.type() == null || ctx.type().fieldLayout().stream().noneMatch(f -> f.name().isEmpty())))
 				return emittedExpr;
 			emittedExprs.add(emittedExpr);
 			if (entry.localSlot() >= 0) {
@@ -3113,8 +3114,10 @@ public final class SparkSqlExpressionEmitter {
 		if (arguments != null)
 			return arguments.stream().allMatch(argument -> boundedContextLiteral(argument, depth + 1, budget));
 		if (expression instanceof RuntimeContextExpression context)
-			return context.entries().stream().allMatch(
-					entry -> !entry.name().isEmpty() && boundedContextLiteral(entry.expression(), depth + 1, budget));
+			return context.entries().stream()
+					.allMatch(entry -> (!entry.name().isEmpty() || (context.type() != null
+							&& context.type().fieldLayout().stream().anyMatch(f -> f.name().isEmpty())))
+							&& boundedContextLiteral(entry.expression(), depth + 1, budget));
 		return expression instanceof RuntimeListExpression list
 				&& list.elements().stream().allMatch(item -> boundedContextLiteral(item, depth + 1, budget));
 	}
@@ -3138,8 +3141,7 @@ public final class SparkSqlExpressionEmitter {
 			var fields = new ArrayList<RuntimeField>();
 			var keys = new HashSet<String>();
 			for (var entry : map.entrySet()) {
-				if (!(entry.getKey() instanceof String name) || name.isEmpty()
-						|| !keys.add(name.toLowerCase(Locale.ROOT)))
+				if (!(entry.getKey() instanceof String name) || !keys.add(name.toLowerCase(Locale.ROOT)))
 					return null;
 				RuntimeExpression item = nativeContextLiteralValue(entry.getValue());
 				if (item == null)

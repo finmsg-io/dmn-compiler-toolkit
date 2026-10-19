@@ -38,6 +38,29 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	void closedPathEqualityPreservesNestedListsAndMissingKeys() {
+		for (String sample : List.of(
+				"[{a: {b: 1}}, {a: {b: [2.1, 2.2]}}, {a: {b: 3}}].a.b = [{b: 1}, {b: [2.1, 2.2]}, {b: 3}].b",
+				"[{b: 1}, {b: [2.1, 2.2]}, {b: 3}].b = [1, [2.1, 2.2], 3]",
+				"[{b: 1}, {b: [2.1, 2.2]}].b = [1, 2.1, 2.2]", "[{b: 1}, {b: [2.1, 2.2]}].b != [1, 2.1, 2.2]",
+				"[{b: null}, {}].b = [null, null]", "{a: null} = {}", "null = null")) {
+			var model = compiledFilterModel(sample, true);
+			var decision = model.decisions().getFirst();
+			var generated = SparkSqlHybridTest.generate(model);
+			assertThat(generated.capabilities().get(decision.id()).nativeSql()).as(sample).isTrue();
+			assertThat(generated.udfs()).isEmpty();
+			spark.range(1).createOrReplaceTempView("hybrid_inputs");
+			Object actual = SparkSqlFeelValueCodec.fromSpark(
+					spark.sql(generated.sqlFiles().get("Decision_" + decision.resultSlot() + ".sql")).head().get(0));
+			assertThat(actual).as(sample).isEqualTo(
+					new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(decision.id()));
+		}
+		var ref = new RuntimeValueReference(0, SparkSqlHybridTest.ANY);
+		assertThat(SparkSqlClosedCollectionProof.result(new RuntimeBinaryExpression(RuntimeBinaryOperator.EQUAL, ref,
+				ref, RuntimeType.scalar(RuntimeTypeKind.BOOLEAN)))).isNull();
+	}
+
+	@Test
 	void closedContextCollectionsPreserveMissingKeysNullsAndMembership() {
 		for (String sample : List.of("[{x: 1}, {y: 2}][y > 1]", "[{x: 1}, {y: 2}].y",
 				"{a: \"foo\"} in [{b: \"bar\"}, {a: \"foo\"}]", "{c: \"baz\"} in [{b: \"bar\"}, {a: \"foo\"}]",

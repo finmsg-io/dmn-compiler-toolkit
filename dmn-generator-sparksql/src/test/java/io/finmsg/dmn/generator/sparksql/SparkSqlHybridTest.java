@@ -186,4 +186,53 @@ class SparkSqlHybridTest {
 				.isInstanceOf(IllegalArgumentException.class);
 	}
 
+	@Test
+	void staticDurationRangeInstanceOfEmitsNativeBooleanConstant() {
+		for (String expr : List.of("range(\"[@\\\"P1D\\\"..@\\\"P2D\\\"]\") instance of range<days and time duration>",
+				"range(\"[@\\\"P1Y\\\"..@\\\"P2Y\\\"]\") instance of range<years and months duration>")) {
+			String xml = """
+					<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:d">
+					  <decision id="result" name="result"><variable name="result"/>
+					    <literalExpression><text>%s</text></literalExpression>
+					  </decision>
+					</definitions>
+					""".formatted(expr.replace("&", "&amp;").replace("<", "&lt;"));
+			var source = new io.finmsg.dmn.compiler.DmnSource(io.finmsg.dmn.compiler.DmnSourceId.of("memory:d"),
+					xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			var compilation = new io.finmsg.dmn.compiler.DmnCompiler().compile(source,
+					new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(List.of()),
+					io.finmsg.dmn.compiler.DmnCompilerOptions.optimized());
+			var model = compilation.optimizedRuntimeModel().orElseThrow().model();
+			var decision = model.decisions().getFirst();
+			var cap = new SparkSqlCapabilityAnalyzer().analyze(model, decision.id(), true);
+			assertThat(cap.nativeSql()).as(expr).isTrue();
+			var generated = generate(model);
+			assertThat(generated.capabilities().get(decision.id()).nativeSql()).as(expr).isTrue();
+			assertThat(generated.sqlFiles().get("Decision_0.sql")).contains("TRUE");
+		}
+	}
+
+	@Test
+	void staticContextFunctionWithEmptyKeyEmitsNativeStruct() {
+		for (String expr : List.of("context({key: \"a\", value: 1})", "context({key: \"\", value: 1})")) {
+			String xml = """
+					<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:d">
+					  <decision id="result" name="result"><variable name="result"/>
+					    <literalExpression><text>%s</text></literalExpression>
+					  </decision>
+					</definitions>
+					""".formatted(expr.replace("&", "&amp;").replace("<", "&lt;"));
+			var source = new io.finmsg.dmn.compiler.DmnSource(io.finmsg.dmn.compiler.DmnSourceId.of("memory:d"),
+					xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			var compilation = new io.finmsg.dmn.compiler.DmnCompiler().compile(source,
+					new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(List.of()),
+					io.finmsg.dmn.compiler.DmnCompilerOptions.optimized());
+			var model = compilation.optimizedRuntimeModel().orElseThrow().model();
+			var decision = model.decisions().getFirst();
+			var generated = generate(model);
+			assertThat(generated.capabilities().get(decision.id()).nativeSql()).as(expr).isTrue();
+			String expectedField = expr.contains("\"\"") ? "named_struct('', 1)" : "named_struct('a', 1)";
+			assertThat(generated.sqlFiles().get("Decision_0.sql")).contains(expectedField);
+		}
+	}
 }

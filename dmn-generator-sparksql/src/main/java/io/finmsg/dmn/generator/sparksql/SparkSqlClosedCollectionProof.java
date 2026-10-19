@@ -37,6 +37,9 @@ final class SparkSqlClosedCollectionProof {
 		else if (expression instanceof RuntimeFilterExpression filter)
 			proven = filter.localSlot() >= 0 && filter.localSlot() < 2048 && literal(filter.source(), 0, budget)
 					&& predicate(filter.filter(), filter.localSlot(), 0, budget);
+		else if (expression instanceof RuntimeBinaryExpression binary)
+			proven = Set.of(RuntimeBinaryOperator.EQUAL, RuntimeBinaryOperator.NOT_EQUAL).contains(binary.operator())
+					&& literal(binary.left(), 0, budget) && literal(binary.right(), 0, budget);
 		else if (expression instanceof RuntimeInExpression in)
 			proven = literal(in.value(), 0, budget) && in.tests().tests().size() <= 64
 					&& in.tests().tests().stream().allMatch(test -> test instanceof RuntimeExpressionUnaryTest endpoint
@@ -67,6 +70,8 @@ final class SparkSqlClosedCollectionProof {
 			return Set.of(RuntimeConstantKind.NULL, RuntimeConstantKind.BOOLEAN, RuntimeConstantKind.STRING)
 					.contains(constant.kind());
 		}
+		if (expression instanceof RuntimePathExpression path)
+			return text(path.member(), 256) && literal(path.source(), depth + 1, budget);
 		if (expression instanceof RuntimeListExpression list)
 			return list.elements().size() <= 64
 					&& list.elements().stream().allMatch(item -> literal(item, depth + 1, budget));
