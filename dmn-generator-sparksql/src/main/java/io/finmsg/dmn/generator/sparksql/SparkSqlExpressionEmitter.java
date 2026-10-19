@@ -1265,6 +1265,33 @@ public final class SparkSqlExpressionEmitter {
 			IntFunction<String> slotNameResolver) {
 		if (list.elements().isEmpty())
 			return "array()";
+		// Spark widens integer literals to DECIMAL(10,0) when mixing them with
+		// decimal literals, potentially truncating an otherwise exact array scale.
+		if (list.elements().stream()
+				.allMatch(element -> element instanceof RuntimeConstant constant
+						&& Set.of(RuntimeConstantKind.NUMBER, RuntimeConstantKind.NULL).contains(constant.kind()))
+				&& SparkSqlLiteralBuiltinProof.exactNumericLiteralArray(list)) {
+			int integral = 0, fractional = 0;
+			boolean numeric = false;
+			for (RuntimeExpression element : list.elements()) {
+				RuntimeConstant constant = (RuntimeConstant) element;
+				if (constant.kind() == RuntimeConstantKind.NUMBER) {
+					var value = new java.math.BigDecimal(constant.value());
+					integral = Math.max(integral, Math.max(0, value.precision() - value.scale()));
+					fractional = Math.max(fractional, Math.max(0, value.scale()));
+					numeric = true;
+				}
+			}
+			if (numeric) {
+				String decimal = "DECIMAL(" + Math.max(1, integral + fractional) + "," + fractional + ")";
+				return list.elements().stream().map(element -> {
+					RuntimeConstant constant = (RuntimeConstant) element;
+					return "CAST(" + (constant.kind() == RuntimeConstantKind.NULL
+							? "NULL"
+							: "'" + escapeSqlString(constant.value()) + "'") + " AS " + decimal + ")";
+				}).collect(java.util.stream.Collectors.joining(", ", "array(", ")"));
+			}
+		}
 		StringBuilder sb = new StringBuilder("array(");
 		for (int i = 0; i < list.elements().size(); i++) {
 			if (i > 0)
@@ -2203,6 +2230,9 @@ public final class SparkSqlExpressionEmitter {
 			case "flatten" -> {
 				String arr = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				RuntimeType arrType = !args.isEmpty() ? args.get(0).type() : null;
+				RuntimeType proven = !args.isEmpty() ? SparkSqlConditionalListProof.type(args.getFirst()) : null;
+				if (proven != null)
+					arrType = proven;
 				if (arrType != null && arrType.kind() == RuntimeTypeKind.LIST && arrType.elementType() != null
 						&& arrType.elementType().kind() == RuntimeTypeKind.LIST) {
 					yield "filter(flatten(transform(" + arr

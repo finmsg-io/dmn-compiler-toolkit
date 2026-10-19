@@ -34,6 +34,10 @@ public final class SparkSqlCapabilityAnalyzer {
 			}
 			inspect(bkm, hybridBoundary, reasons, staticFunctions);
 		}
+		Set<Integer> stringSlots = hybridBoundary
+				? model.decisions().stream().filter(d -> d.id() == decisionId)
+						.map(d -> SparkSqlStringInput.inputSlots(model, d)).findFirst().orElse(Set.of())
+				: Set.of();
 		Integer calendarSlot = hybridBoundary
 				? model.decisions().stream().filter(d -> d.id() == decisionId)
 						.map(d -> SparkSqlCalendarInput.inputSlot(model, d)).filter(Objects::nonNull).findFirst()
@@ -51,6 +55,7 @@ public final class SparkSqlCapabilityAnalyzer {
 		if (hybridBoundary) {
 			for (RuntimeInput input : model.inputs()) {
 				if (required.contains(input.id()) && !Objects.equals(calendarSlot, input.valueSlot())
+						&& !stringSlots.contains(input.valueSlot())
 						&& !SparkSqlFeelValueCodec.isNativeType(input.type())) {
 					reasons.add("Input slot " + input.valueSlot() + " requires lossless FEEL transport");
 				}
@@ -102,6 +107,9 @@ public final class SparkSqlCapabilityAnalyzer {
 				&& (nativeConstantDurationResult(decision) || yearMonthResult);
 		Set<RuntimeTypeKind> temporalKinds = EnumSet.noneOf(RuntimeTypeKind.class);
 		SparkSqlPayloadCodec.walk(node, value -> {
+			if (value instanceof RuntimeExpression expression
+					&& SparkSqlClosedCollectionProof.requiresFallback(expression))
+				reasons.add("Closed collection result requires lossless representation");
 			if (value instanceof RuntimeExpression expression
 					&& SparkSqlExpressionEmitter.nativeStaticContextRequiresFallback(expression))
 				reasons.add("Literal context result requires lossless representation");
@@ -200,7 +208,7 @@ public final class SparkSqlCapabilityAnalyzer {
 			if (value instanceof RuntimeListExpression list) {
 				if (!SparkSqlLiteralBuiltinProof.exactNumericLiteralArray(list))
 					reasons.add("Numeric array needs more than Spark's shared decimal precision");
-				if (nativeContextListType(list) == null
+				if (SparkSqlConditionalListProof.type(list) == null && nativeContextListType(list) == null
 						&& (list.elements().stream().map(RuntimeExpression::type).distinct().count() > 1
 								|| list.type().elementType() == null
 								|| list.type().elementType().kind() == RuntimeTypeKind.ANY)) {
@@ -217,7 +225,8 @@ public final class SparkSqlCapabilityAnalyzer {
 						&& !(expression instanceof RuntimeConstant c
 								&& ("null".equals(c.value()) || c.kind() == RuntimeConstantKind.NULL))
 						&& !SparkSqlFeelValueCodec.isNativeType(expression.type()) && !nativeDate(expression)
-						&& !nativeLocalTemporal(expression) && !durationResult
+						&& SparkSqlConditionalListProof.type(expression) == null && !nativeLocalTemporal(expression)
+						&& !durationResult
 						&& !(expression instanceof RuntimeListExpression list && nativeContextListType(list) != null)
 						&& !(expression instanceof RuntimeFilterExpression filter
 								&& nativeContextFilterResult(filter, expression.type()))

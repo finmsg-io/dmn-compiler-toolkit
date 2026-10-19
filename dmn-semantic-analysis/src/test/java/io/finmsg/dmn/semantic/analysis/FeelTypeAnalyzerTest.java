@@ -25,6 +25,25 @@ class FeelTypeAnalyzerTest {
 	private final FeelTypeAnalyzer analyzer = new FeelTypeAnalyzer();
 
 	@Test
+	void preservesInlineNestedItemFieldsAndCollectionLayers() {
+		for (boolean collection : List.of(false, true)) {
+			var monthly = ItemComponent.newBuilder().setNode(Node.newBuilder().setName("Monthly"))
+					.addComponents(component("Income", builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+					.addComponents(component("Expenses", builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+					.setIsCollection(collection).build();
+			var environment = new FeelTypeEnvironment(Map.of("Applicant", named("ApplicantType")),
+					Map.of("ApplicantType", itemDefinition("ApplicantType", monthly)));
+			var result = analyzer.analyze(parse("Applicant.Monthly.Income"), environment);
+			assertThat(result.diagnostics()).isEmpty();
+			assertThat(result.expression().getInferredType()).isEqualTo(
+					collection ? listOf(BuiltinType.BUILTIN_TYPE_NUMBER) : builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+			var invalid = analyzer.analyze(parse("Applicant.Monthly.Unknown"), environment);
+			assertThat(invalid.diagnostics()).isEmpty();
+			assertThat(invalid.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_ANY));
+		}
+	}
+
+	@Test
 	void infersLiteralTypes() {
 		assertLiteralType("10", BuiltinType.BUILTIN_TYPE_NUMBER);
 		assertLiteralType("\"text\"", BuiltinType.BUILTIN_TYPE_STRING);

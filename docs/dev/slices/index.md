@@ -1,4 +1,40 @@
-2026-10-18 latest full: [flatten, quantifiers and literal JDK calls](native-flatten-quantifiers-java-2026-10-18.md).
+2026-10-19 latest full: [closed context collection operations](native-closed-collections-2026-10-19.md).
+3,391/3,391 passed: 2,668 native (98.27%), 47 fallback (1.73%) of 2,715
+executable cases, zero failed/unknown. Separately: 676 provisional expected model
+rejections, unchanged. Four conversions, zero reversals. Generator: 111/111 passed;
+1,505 native actions (96.47%), 55 fallback (3.53%) of 1,560, zero failed/unknown.
+The 100% native goal and semantic rejection audit remain open.
+
+2026-10-19 earlier full: [exact date-input comparisons](native-date-comparisons-2026-10-19.md).
+3,391/3,391 passed: 2,664 native (98.12%), 51 fallback (1.88%) of 2,715
+executable cases, zero failed/unknown. Separately: 676 provisional expected model
+rejections, unchanged. Three conversions, zero reversals. Generator: 110/110 passed;
+1,493 native actions (96.57%), 53 fallback (3.43%) of 1,546, zero failed/unknown.
+Quota checkpoint: primary usage reached 20% remaining. The 100% goal remains open.
+
+2026-10-19 earlier full: [nested types, fresh IR and conditional score lists](native-nested-score-lists-2026-10-19.md).
+3,391/3,391 passed: 2,661 native (98.01%), 54 fallback (1.99%) of 2,715
+executable cases, zero failed/unknown; 676 provisional expected model rejections
+separately, unchanged. Three chapter 11 conversions, zero reversals or rejection
+reclassifications. Generator: 109/109 passed; 1,229 native actions (95.87%),
+53 fallback (4.13%) of 1,282, zero failed/unknown. Semantic 70/70, clean IR 27/27.
+The 100% native goal and semantic rejection audit remain open.
+
+2026-10-19 earlier full: [string projections and boxed Java](native-string-boxed-2026-10-19.md).
+3,391/3,391 passed: 2,658 native (97.90%), 57 fallback (2.10%) of 2,715
+executable cases, zero failed/unknown; 676 provisional expected model rejections
+separately. Six conversions, zero reverse changes. Generator: 107/107 passed;
+1,216 native actions (95.82%), 53 fallback (4.18%) of 1,269, zero failed/unknown.
+The 100% native goal and semantic rejection audit remain open.
+
+2026-10-19 earlier full: [partial loops and exact decimal arrays](native-partial-loops-2026-10-19.md).
+3,391/3,391 passed: 2,652 native (97.68%), 63 fallback (2.32%) of 2,715
+executable cases, zero failed/unknown. Separately: 676 provisional expected model
+rejections. One conversion, zero reverse changes. Generator: 105/105 passed;
+1,202 native actions (96.31%), 46 fallback (3.69%) of 1,248, zero failed/unknown.
+The 100% native goal and semantic rejection audit remain open.
+
+2026-10-18 earlier full: [flatten, quantifiers and literal JDK calls](native-flatten-quantifiers-java-2026-10-18.md).
 3,391/3,391 passed: 2,651 native (97.64%), 64 fallback (2.36%) of 2,715
 executable cases, zero failed/unknown; 676 provisional expected model rejections
 separately. Twenty-three conversions, zero reverse changes; 26.44% fewer

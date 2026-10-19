@@ -208,7 +208,8 @@ public final class SparkSqlFeelValueCodec {
 				.toList());
 	}
 
-	static StructType calendarInputSchema(RuntimeModel model, Map<Integer, String> names, Set<Integer> slots) {
+	static StructType calendarInputSchema(RuntimeModel model, Map<Integer, String> names, Set<Integer> slots,
+			Set<Integer> stringSlots) {
 		var fields = new ArrayList<StructField>(Arrays.asList(inputSchema(model, names).fields()));
 		var date = new StructType().add("kind", DataTypes.StringType).add("year", DataTypes.IntegerType)
 				.add("month", DataTypes.IntegerType).add("day", DataTypes.IntegerType);
@@ -216,6 +217,12 @@ public final class SparkSqlFeelValueCodec {
 			if (slots.contains(input.valueSlot()))
 				fields.add(DataTypes.createStructField(SparkSqlCalendarInput.column(input.valueSlot(), names), date,
 						false, new MetadataBuilder().putLong("dmnCalendarInputSlot", input.valueSlot()).build()));
+		}
+		for (var input : model.inputs()) {
+			if (stringSlots.contains(input.valueSlot()))
+				fields.add(DataTypes.createStructField(SparkSqlStringInput.column(input.valueSlot(), names),
+						DataTypes.StringType, true,
+						new MetadataBuilder().putLong("dmnStringInputSlot", input.valueSlot()).build()));
 		}
 		return DataTypes.createStructType(fields);
 	}
@@ -230,12 +237,23 @@ public final class SparkSqlFeelValueCodec {
 			columns[index] = original.get(index);
 		for (int index = original.size(); index < columns.length; index++) {
 			Metadata metadata = generatedSchema.fields()[index].metadata();
+			if (metadata.contains("dmnStringInputSlot")) {
+				int slot = Math.toIntExact(metadata.getLong("dmnStringInputSlot"));
+				if (!values.containsKey(slot))
+					throw new IllegalArgumentException("Missing input slot " + slot);
+				Object value = values.get(slot);
+				columns[index] = value instanceof String ? value : null;
+				continue;
+			}
 			if (!metadata.contains("dmnCalendarInputSlot"))
 				throw new IllegalArgumentException("Unknown input projection");
 			int slot = Math.toIntExact(metadata.getLong("dmnCalendarInputSlot"));
 			if (!values.containsKey(slot))
 				throw new IllegalArgumentException("Missing input slot " + slot);
 			Object value = values.get(slot);
+			RuntimeType projectedType = model.inputs().stream().filter(input -> input.valueSlot() == slot)
+					.map(RuntimeInput::type).findFirst().orElseThrow();
+			value = io.finmsg.dmn.runtime.DmnRuntime.coerce(value, projectedType);
 			LocalDate date = value instanceof LocalDate local
 					? local
 					: value instanceof java.time.LocalDateTime local

@@ -74,6 +74,11 @@ final class SparkSqlStaticFunctionLowerer {
 	private Object value(RuntimeExpression expression, List<Map<Integer, Object>> frames, int depth) {
 		if (--budget < 0 || depth > 48)
 			throw new Unsupported();
+		RuntimeExpression collection = SparkSqlClosedCollectionProof.result(expression);
+		if (collection != null) {
+			applied = true;
+			return collection;
+		}
 		if (expression instanceof RuntimeFunctionDefinition function) {
 			if (SparkSqlJavaLiteralProof.supports(function))
 				return new LiteralJava(function);
@@ -326,6 +331,11 @@ final class SparkSqlStaticFunctionLowerer {
 			return predicates.getFirst();
 		}
 		if (expression instanceof RuntimeForExpression loop) {
+			RuntimeExpression recurrence = SparkSqlPartialLoopProof.result(loop);
+			if (recurrence != null) {
+				applied = true;
+				return recurrence;
+			}
 			if (loop.partialSlot() >= 0 || loop.iterations().size() > 4)
 				throw new Unsupported();
 			var results = new ArrayList<RuntimeExpression>();

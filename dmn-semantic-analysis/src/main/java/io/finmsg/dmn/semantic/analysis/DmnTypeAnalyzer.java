@@ -891,9 +891,9 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 			if (item.getComponentsCount() > 0) {
 				ContextTypeReference.Builder context = ContextTypeReference.newBuilder();
 				for (ItemComponent component : item.getComponentsList()) {
-					TypeReference componentType = component.getType();
+					TypeReference componentType = DmnItemComponentTypes.type(component);
 					context.addEntries(ContextEntryTypeReference.newBuilder().setName(component.getNode().getName())
-							.setType(component.getIsCollection() ? list(componentType) : componentType));
+							.setType(componentType));
 				}
 				resolved = TypeReference.newBuilder().setContext(context).build();
 			} else if (item.hasType()) {

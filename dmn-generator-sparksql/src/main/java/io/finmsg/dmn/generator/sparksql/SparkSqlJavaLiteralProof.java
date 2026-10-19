@@ -112,7 +112,10 @@ final class SparkSqlJavaLiteralProof {
 
 	@SuppressWarnings("unchecked")
 	private static Map<String, Object> descriptor(RuntimeFunctionDefinition function) {
-		if (!function.external() || function.localSlotCount() > 2048 || function.body().isEmpty())
+		// Boxed Java functions carry the same descriptor in a non-external FEEL
+		// definition. Evaluate the original definition so its arity and coercion
+		// rules remain distinct from literal external functions.
+		if (function.localSlotCount() > 2048 || function.body().isEmpty())
 			return null;
 		Object value = descriptorValue(function.body().get(), 0, new int[]{32});
 		if (!(value instanceof Map<?, ?> map))

@@ -398,7 +398,7 @@ public final class FeelTypeAnalyzer {
 				return ANY;
 			}
 			ItemComponent comp = matches.getFirst();
-			TypeReference resType = comp.getIsCollection() ? list(comp.getType()) : comp.getType();
+			TypeReference resType = DmnItemComponentTypes.type(comp);
 			return item.getIsCollection() ? list(resType) : resType;
 		}
 
@@ -967,10 +967,9 @@ public final class FeelTypeAnalyzer {
 					if (item.getComponentsCount() > 0) {
 						ContextTypeReference.Builder context = ContextTypeReference.newBuilder();
 						for (ItemComponent component : item.getComponentsList()) {
-							TypeReference componentType = component.getType();
+							TypeReference componentType = DmnItemComponentTypes.type(component);
 							context.addEntries(ContextEntryTypeReference.newBuilder()
-									.setName(component.getNode().getName())
-									.setType(component.getIsCollection() ? list(componentType) : componentType));
+									.setName(component.getNode().getName()).setType(componentType));
 						}
 						base = TypeReference.newBuilder().setContext(context).build();
 					} else if (item.hasType()) {
