@@ -74,6 +74,11 @@ final class SparkSqlStaticFunctionLowerer {
 	private Object value(RuntimeExpression expression, List<Map<Integer, Object>> frames, int depth) {
 		if (--budget < 0 || depth > 48)
 			throw new Unsupported();
+		RuntimeExpression calendar = SparkSqlCalendarLiteralProof.result(expression);
+		if (calendar != null) {
+			applied = true;
+			return calendar;
+		}
 		RuntimeExpression collection = SparkSqlClosedCollectionProof.result(expression);
 		if (collection != null) {
 			applied = true;

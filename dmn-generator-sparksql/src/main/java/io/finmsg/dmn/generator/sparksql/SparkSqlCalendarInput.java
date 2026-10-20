@@ -42,6 +42,7 @@ final class SparkSqlCalendarInput {
 	static Set<Integer> slots(RuntimeModel model) {
 		var slots = new LinkedHashSet<Integer>();
 		for (var decision : model.decisions()) {
+			slots.addAll(SparkSqlDateTableInput.slots(model, decision));
 			Integer slot = inputSlot(model, decision);
 			if (slot != null)
 				slots.add(slot);

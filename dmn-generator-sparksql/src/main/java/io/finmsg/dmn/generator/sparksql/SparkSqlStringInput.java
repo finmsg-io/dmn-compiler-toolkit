@@ -46,6 +46,7 @@ final class SparkSqlStringInput {
 	static Set<Integer> slots(RuntimeModel model) {
 		var slots = new LinkedHashSet<Integer>();
 		model.decisions().forEach(d -> slots.addAll(inputSlots(model, d)));
+		slots.addAll(SparkSqlLookupKeyInput.slots(model));
 		return slots;
 	}
 

@@ -15,6 +15,17 @@ final class SparkSqlListBuiltinTypes {
 		if (args.isEmpty() || args.size() > 32)
 			return null;
 		RuntimeType list = args.getFirst().type();
+		if (nestedTextList(list)) {
+			return switch (name.toLowerCase(Locale.ROOT)) {
+				case "flatten" -> args.size() == 1 ? list.elementType() : null;
+				case "concatenate" -> args.stream().allMatch(a -> list.equals(a.type())) ? list : null;
+				case "append" -> args.size() >= 2
+						&& args.subList(1, args.size()).stream().allMatch(a -> list.elementType().equals(a.type()))
+								? list
+								: null;
+				default -> null;
+			};
+		}
 		if (list == null || list.kind() != RuntimeTypeKind.LIST || list.elementType() == null
 				|| !Set.of(RuntimeTypeKind.STRING, RuntimeTypeKind.BOOLEAN, RuntimeTypeKind.NUMBER)
 						.contains(list.elementType().kind()))
@@ -34,6 +45,13 @@ final class SparkSqlListBuiltinTypes {
 			default -> false;
 		};
 		return supported ? list : null;
+	}
+
+	static boolean nestedTextList(RuntimeType type) {
+		return type != null && type.kind() == RuntimeTypeKind.LIST && type.elementType() != null
+				&& type.elementType().kind() == RuntimeTypeKind.LIST && type.elementType().elementType() != null
+				&& Set.of(RuntimeTypeKind.STRING, RuntimeTypeKind.BOOLEAN)
+						.contains(type.elementType().elementType().kind());
 	}
 
 	static Integer integer(RuntimeExpression expression) {

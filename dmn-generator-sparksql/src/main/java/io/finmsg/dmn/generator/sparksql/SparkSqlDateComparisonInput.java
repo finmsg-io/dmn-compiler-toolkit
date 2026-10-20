@@ -41,7 +41,7 @@ final class SparkSqlDateComparisonInput {
 		return endpoint == null ? null : new Plan(reference.sourceSlot(), comparison, endpoint, inputLeft, conditional);
 	}
 
-	private static LocalDate date(RuntimeExpression expression) {
+	static LocalDate date(RuntimeExpression expression) {
 		String text = null;
 		if (expression instanceof RuntimeConstant constant && constant.kind() == RuntimeConstantKind.DATE)
 			text = constant.value();

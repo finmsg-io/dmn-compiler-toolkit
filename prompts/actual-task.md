@@ -1,3 +1,191 @@
+2026-10-20 LATEST FULL generated Spark SQL checkpoint: 3,391/3,391 passed.
+Of 2,715 executable cases: 2,685 native (98.90%), 30 fallback (1.10%);
+failed/unknown routes zero. Compilation/execution errors, unsupported, excluded
+and invalid counts all zero. Separately: 676 provisional expected model rejections,
+unchanged. Exact comparison with the previous 34-fallback full checkpoint confirms
+four fallback-to-native conversions, zero reversals and no rejection changes:
+0011-insert-remove#001, 0017-tableTests#003/#004, 0021-singleton-list#001.
+Fallback decreased 34 to 30 (11.76% fewer fallback cases). This full run verifies
+the accumulated targeted estimate. The date-table batch added two conversions.
+Generator: 121/121 tests passed, 1,961 native SQL actions (95.57%), 91 fallback
+(4.43%) of 2,052; failed/unknown zero. Focused date-table regression: 160 native
+(100%), zero fallback (0%) of 160; failed/unknown zero. Targeted official table
+suite: 4 native cases (100%), zero fallback (0%) of 4, no model rejections.
+Target/installed generator JAR SHA256:
+89EAF0F5B1418DA320E40E901805EAD54916E51A2193E8AFE83562942CA63ABA.
+Runner target evidence: native-date-table-full-accounting-2026-10-20.json and
+native-date-table-full-tck-2026-10-20.log. Full Maven exit zero. Documentation facts, strict MkDocs build and whitespace
+checks passed. Full run triggered by usage reaching 13% remaining. Original input payloads and exact date ordering are preserved.
+Changes remain uncommitted. The 100% native goal and rejection audit remain open.
+Next candidates: exact numeric/context filters, zone-preserving calendar arithmetic,
+lexically bound functions and decision-service input decisions. Restart full-run
+cadence here: 45 minutes work, usage below 20%, or twenty verified conversions.
+Generator action rates and TCK executable-case rates have different denominators.
+
+2026-10-20 latest targeted list-position checkpoint: insert/remove official TCK
+1/1 passed, 1 native case (100%), 0 fallback (0%) of 1; failed/unknown zero,
+expected model rejections zero. All five list-edit decisions are native. Exactly
+one conversion: 0011-insert-remove#001, no reversals/rejection changes in the suite.
+Combined targeted estimate with string selections: 2,683 native (98.82%),
+32 fallback (1.18%) of 2,715 executable baseline cases. This is not a new full
+result. Last full remains 2,681 native (98.75%), 34 fallback (1.25%), with
+676 provisional expected model rejections separately. Generator: 120/120 passed;
+1,801 native SQL actions (95.19%), 91 fallback (4.81%) of 1,892; failed/unknown zero.
+Focused: 136 native (100%), zero fallback (0%) of 136, failed/unknown zero.
+Formatting/install/Maven exit zero. Target/installed generator SHA256:
+06BAD93247C2BAFBC4C1DE82934FFBEFA134A4BF0E3EA540E1A55F1C6F734980.
+Runner target evidence: native-list-position-accounting-2026-10-20.json and
+native-list-position-tck-2026-10-20.log. Position projection preserves shared
+fractional truncation and signed 32-bit wrapping from raw coerced numbers,
+without deriving positions through Spark doubles. Both CTE query forms are covered.
+Changes remain uncommitted. The 100% native goal stays open. Next candidates:
+exact numeric/context filters, zone-preserving calendar arithmetic, function binding.
+Full cadence: 45 minutes work, usage below 20%, or twenty verified conversions
+since the last full checkpoint.
+
+2026-10-20 latest targeted string-selection checkpoint: singleton-list TCK
+1/1 passed, 1 native case (100%), 0 fallback (0%), denominator 1; failed/unknown
+zero, expected model rejections zero. All five requested decisions are native.
+Exactly one conversion: 0021-singleton-list#001; no reversals/rejection changes
+within the suite. Targeted estimate is 2,682 native (98.78%), 33 fallback (1.22%)
+of the 2,715 executable baseline. This is not a new full result: last full remains
+2,681 native (98.75%), 34 fallback (1.25%), with 676 provisional expected model
+rejections separately. Generator: 119/119 passed, 1,665 native SQL actions
+(94.82%), 91 fallback (5.18%) of 1,756; failed/unknown zero. Focused regression:
+78 native (100%), zero fallback (0%) of 78, failed/unknown zero. Formatting,
+install and Maven exit zero. Target/installed generator SHA256:
+153F12374C6353E72BE7EDBF7D3BF4E06AB16D57C17D88FB242025573CAB725E.
+Runner target evidence: native-string-selection-accounting-2026-10-20.json and
+native-string-selection-tck-2026-10-20.log. Changes remain uncommitted.
+The new proof covers typed string equality filters, bounded sublists, singleton
+declared-result coercion and guarded case formatting. Numeric/context filters,
+other predicates and captured locals retain fallback. The 100% goal stays open.
+Continue with exact numeric/context filtering, dynamic list positions or bounded
+function binding. Full cadence: 45 minutes work, usage below 20%, or twenty
+verified conversions since the last full checkpoint.
+
+2026-10-20 LATEST FULL generated Spark SQL checkpoint: 3,391/3,391 passed.
+Of 2,715 executable cases: 2,681 native (98.75%), 34 fallback (1.25%);
+failed/unknown routes zero. Compilation/execution errors, unsupported, excluded
+and invalid counts all zero. Separately: 676 provisional expected model rejections,
+unchanged. Exact comparison with the previous 41-fallback full checkpoint confirms
+seven fallback-to-native conversions, zero reversals and no rejection reclassifications.
+Fallback decreased 41 to 34 (17.07% fewer fallback cases). The previous targeted
+estimate is now verified by a complete full run. Converted: 0009#001, 0010#001,
+0080#decision_013/014, 0084#decision_017/018, and 0098#date_008.
+Target/installed generator JAR SHA256:
+9E474569B86359ED932EB77E5ABD49E8577A4A7154C0BE53A2B257B6E861C0CD.
+Saved runner target evidence: native-nested-text-full-accounting-2026-10-20.json
+and native-nested-text-full-tck-2026-10-20.log. Maven exited zero. No source changes
+were made during this run. Generator evidence remains 118/118 tests passed:
+1,587 native SQL actions (94.58%), 91 fallback (5.42%) of 1,678; failed/unknown zero.
+Generator SQL action rates and executable TCK case rates have different denominators.
+Changes remain uncommitted. The 100% native goal and semantic rejection audit
+remain open. Restart full-run cadence here: 45 minutes work, usage below 20%,
+or twenty verified conversions. Preserve exact arithmetic, temporal identity,
+lexical binding and shared declared-result coercion in the remaining work.
+
+2026-10-20 latest targeted nested-list checkpoint: official append/flatten and
+concatenate suites 2/2 passed, 2 native (100%), 0 fallback (0%) of 2 executable
+cases; failed/unknown zero, expected model rejections zero. Two conversions:
+0009 append-flatten#001 and 0010 concatenate#001. No reversals/rejection changes
+within the tested suites. Combined targeted estimate: 2,681 native (98.75%),
+34 fallback (1.25%) of 2,715 executable baseline cases, seven conversions since
+the last full. This is not a new full result. Last full: 2,674 native (98.49%),
+41 fallback (1.51%), with 676 provisional expected model rejections separately.
+Generator: 118/118 tests passed; 1,587 native actions (94.58%), 91 fallback
+(5.42%) of 1,678; failed/unknown zero. Focused final: 15 native (100%), zero
+fallback (0%) of 15, failed/unknown zero. Formatting/install/Maven exit zero.
+Target/installed generator SHA256:
+9E474569B86359ED932EB77E5ABD49E8577A4A7154C0BE53A2B257B6E861C0CD.
+Runner target evidence: native-nested-text-accounting-2026-10-20.json and
+native-nested-text-tck-2026-10-20.log. Shared list typing now covers two-level
+string/Boolean append, concatenate and flatten; mixed/deeper/numeric layouts
+retain guards. Dynamic context keys, exact date loops and calendar literals are
+also uncommitted from the prior batches. Preserve all their regression evidence.
+The 100% native goal remains open. Next candidates: typed filters/singleton result
+coercion, dynamic list positions, calendar arithmetic preserving zones, function
+binding. Full cadence: 45 minutes work, usage below 20%, or twenty conversions.
+
+2026-10-19 latest targeted lookup checkpoint: official get-value suite 14/14
+passed, 14 native (100%), 0 fallback (0%) of 14 executable cases; failed/unknown
+zero, expected model rejections zero. Exactly two conversions: decision_013/014.
+No reversals or rejection changes within the suite. Combined targeted estimate
+with date-loop/calendar work: 2,679 native (98.67%), 36 fallback (1.33%) of 2,715.
+This is not a new full-run result. Last full remains 2,674 native (98.49%),
+41 fallback (1.51%), with 676 provisional expected model rejections separate.
+Five verified conversions since that full checkpoint; changes remain uncommitted.
+Generator: 117/117 passed; 1,569 native SQL actions (94.69%), 88 fallback
+(5.31%) of 1,657; failed/unknown zero. Added mixed AllDecisions tests account for
+33 intentional fallback actions. Extended escaping regression: 36 native (50%),
+36 deliberate fallback (50%) of 72, failed/unknown zero; only test data changed
+since complete generator run. Formatting/install and both Maven runs passed.
+Target/installed generator SHA256:
+AF01B74BA82AD4FAA2338DD948D46A854408853A80B5CC3D9DFE3BDC1AC0D37B.
+Runner target: native-lookup-key-accounting-2026-10-19.json and
+native-lookup-key-tck-2026-10-19.log. Original payload bytes and string-only
+concatenation remain distinct from canonical key conversion; SQL does the lookup.
+The 100% goal remains open. Next: calendar arithmetic preserving zones, list
+filters/exact numeric input representation, or bounded function-library lowering.
+Full cadence remains 45 minutes, usage below 20%, or twenty verified conversions.
+
+2026-10-19 latest targeted calendar checkpoint: three official calendar suites
+43/43 passed; 39 native (90.70%), 4 fallback (9.30%) of 43 executable cases,
+failed/unknown zero, expected model rejections zero. One verified conversion:
+0098 week-of-year#date_008. No reversals or rejection changes in these suites.
+Together with date loops, targeted estimate: 2,677 native (98.60%), 38 fallback
+(1.40%) of 2,715 executable baseline cases. This is not a new full result.
+Last full: 2,674 native (98.49%), 41 fallback (1.51%), 676 provisional expected
+model rejections separate. Four dynamic calendar contexts retain fallback because
+ANY temporal arithmetic needs zone/time semantics beyond the current projection.
+Generator: 116/116 tests passed; 1,536 native actions (96.54%), 55 fallback
+(3.46%) of 1,591, zero failed/unknown. Formatting/install/Maven exit zero.
+Target/installed generator SHA256:
+BA25061A396DB3784C55D5FA83AE0820A5CB997D793CE9F9A898C0605793B603.
+Runner target evidence: native-calendar-literal-accounting-2026-10-19.json and
+native-calendar-literal-tck-2026-10-19.log. Changes remain uncommitted.
+The 100% native goal stays open. Next: typed dynamic context lookup, calendar
+arithmetic preserving zones, list filters and exact numeric representation.
+Full cadence remains 45 minutes, usage below 20%, or twenty verified conversions.
+
+2026-10-19 latest targeted date-loop checkpoint: official 0084 suite 24/24 passed,
+24 native (100%), 0 fallback (0%) of 24 executable cases; failed/unknown zero,
+expected model rejections zero. Exactly two conversions: decision_017/018;
+no reversals or rejection changes within the suite. Targeted estimate is now
+2,676 native (98.56%), 39 fallback (1.44%) of the 2,715 executable baseline.
+This estimate is not a new full-run result: last full remains 2,674 native
+(98.49%), 41 fallback (1.51%), with 676 provisional expected rejections separate.
+Generator: 115/115 tests passed; 1,518 native actions (96.50%), 55 fallback
+(3.50%) of 1,573; failed/unknown zero. Formatting/install passed, Maven exit zero.
+Installed generator SHA256:
+E2361428BED53B8A54BCC9886524374630784DD09C44995E914D0206D4D18149.
+Saved runner target: native-date-loops-accounting-2026-10-19.json and
+native-date-loops-tck-2026-10-19.log. Changes remain uncommitted.
+The 100% native goal remains open; next candidates are calendar contexts and
+typed dynamic context lookups. Full cadence: 45 minutes, usage below 20%, or
+20 conversions. At batch start primary usage remaining was 84%.
+
+2026-10-19 LATEST FULL checkpoint for commit `699e324`: 3,391/3,391 passed.
+Of 2,715 executable cases: 2,674 native (98.49%), 41 fallback (1.51%);
+zero failed/unknown routes and zero compilation/execution errors, unsupported,
+excluded or invalid cases. Separately: 676 provisional expected model rejections,
+unchanged. Compared with the saved 47-fallback checkpoint: six conversions,
+zero reverse conversions and zero rejection reclassifications; 12.77% fewer
+fallback cases. Converted: 0012 list-functions#019; 0090 paths#nested_list_001
+and #nested_list_002; 1145 context#010; 1156 range#001_h and #001_i.
+Target/installed generator JAR SHA256 remains
+2D330C8DAF8F0BC86B08AAC2A9E5AC3DA8B026E5BC8442614A5B86B78A7DA517.
+Saved runner target evidence: native-range-context-flatten-full-accounting-2026-10-19.json
+and native-range-context-flatten-full-tck-2026-10-19.log. The earlier path-only
+full run verified 2,670 native / 45 fallback and used a different artifact.
+Do not confuse generator SQL action counts with executable TCK case counts.
+The current code was committed/pushed as `699e324`; this full-run handover update
+is a subsequent documentation change. The 100% native goal remains open.
+Next candidates: bounded literal date-range loops (0084#decision_017/018),
+calendar contexts (0096/0097/0098), then typed dynamic context lookups (0080).
+Preserve precision, offsets, duration identity and lexical binding. Full-TCK cadence:
+45 minutes work, remaining usage below 20%, or twenty verified conversions.
+
 2026-10-19 commit handover: compared with pushed baseline `a7b3ec8`, the five
 verified batches reduce fallback from 64 to 47: 17 additional native cases,
 26.56% fewer fallback cases, zero reverse conversions and unchanged provisional

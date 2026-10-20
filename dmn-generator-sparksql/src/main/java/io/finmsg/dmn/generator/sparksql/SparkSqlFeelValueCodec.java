@@ -224,6 +224,15 @@ public final class SparkSqlFeelValueCodec {
 						DataTypes.StringType, true,
 						new MetadataBuilder().putLong("dmnStringInputSlot", input.valueSlot()).build()));
 		}
+		for (int slot : SparkSqlLookupKeyInput.slots(model)) {
+			if (stringSlots.contains(slot))
+				fields.add(DataTypes.createStructField(SparkSqlLookupKeyInput.column(slot, names), DataTypes.StringType,
+						true, new MetadataBuilder().putLong("dmnLookupKeyInputSlot", slot).build()));
+		}
+		for (int slot : SparkSqlListPositionInput.slots(model))
+			fields.add(DataTypes.createStructField(SparkSqlListPositionInput.column(slot, names),
+					new StructType().add("value", DataTypes.IntegerType).add("invalid", DataTypes.BooleanType), false,
+					new MetadataBuilder().putLong("dmnListPositionSlot", slot).build()));
 		return DataTypes.createStructType(fields);
 	}
 
@@ -237,6 +246,26 @@ public final class SparkSqlFeelValueCodec {
 			columns[index] = original.get(index);
 		for (int index = original.size(); index < columns.length; index++) {
 			Metadata metadata = generatedSchema.fields()[index].metadata();
+			if (metadata.contains("dmnListPositionSlot")) {
+				int slot = Math.toIntExact(metadata.getLong("dmnListPositionSlot"));
+				Object number = io.finmsg.dmn.runtime.DmnRuntime.coerce(values.get(slot),
+						RuntimeType.scalar(RuntimeTypeKind.NUMBER));
+				try {
+					columns[index] = RowFactory.create(
+							number == null ? null : new java.math.BigDecimal(number.toString()).intValue(), false);
+				} catch (RuntimeException invalid) {
+					columns[index] = RowFactory.create(null, true);
+				}
+				continue;
+			}
+			if (metadata.contains("dmnLookupKeyInputSlot")) {
+				int slot = Math.toIntExact(metadata.getLong("dmnLookupKeyInputSlot"));
+				int inputIndex = java.util.stream.IntStream.range(0, model.inputs().size())
+						.filter(i -> model.inputs().get(i).valueSlot() == slot).findFirst().orElseThrow();
+				Object key = fromSpark(original.get(inputIndex));
+				columns[index] = key == null ? null : String.valueOf(key);
+				continue;
+			}
 			if (metadata.contains("dmnStringInputSlot")) {
 				int slot = Math.toIntExact(metadata.getLong("dmnStringInputSlot"));
 				if (!values.containsKey(slot))

@@ -1,3 +1,57 @@
+2026-10-20 latest FULL: [exact native date comparison tables](native-date-tables-2026-10-20.md).
+3,391/3,391 passed: 2,685 native (98.90%), 30 fallback (1.10%) of 2,715
+executable cases; failed/unknown zero. Separately: 676 provisional expected model
+rejections unchanged. Four conversions since the previous full run, zero reversals.
+Generator: 121/121 passed; 1,961 native actions (95.57%), 91 fallback (4.43%)
+of 2,052, failed/unknown zero. Changes remain uncommitted.
+
+2026-10-20 latest targeted: [exact dynamic list positions](native-list-positions-2026-10-20.md).
+Official insert/remove case: 1 native (100%), 0 fallback (0%) of 1; all five
+list-edit decisions native, failed/unknown zero, no expected model rejections.
+Combined targeted estimate 32 fallback; last full remains 34. Generator: 120/120
+passed, 1,801 native actions (95.19%), 91 fallback (4.81%) of 1,892, zero failed/unknown.
+
+2026-10-20 latest targeted: [typed string selections and singleton coercion](native-string-selections-2026-10-20.md).
+Official singleton-list case: 1 native (100%), 0 fallback (0%) of 1; all five
+requested decisions native, failed/unknown zero, no expected model rejections.
+Targeted fallback estimate 34 to 33; last full remains 34. Generator: 119/119 passed,
+1,665 native actions (94.82%), 91 fallback (5.18%) of 1,756, zero failed/unknown.
+
+2026-10-20 latest FULL: [nested lists and accumulated native conversions](native-nested-text-lists-2026-10-20.md).
+3,391/3,391 passed: 2,681 native (98.75%), 34 fallback (1.25%) of 2,715
+executable cases; failed/unknown zero. Separately: 676 provisional expected model
+rejections, unchanged. Seven conversions, zero reversals. Maven exit zero.
+
+2026-10-20 latest targeted: [nested string/Boolean list typing](native-nested-text-lists-2026-10-20.md).
+Official append/flatten and concatenate: 2/2 native (100%), 0 fallback (0%),
+failed/unknown zero; no expected model rejections. Two conversions, giving a
+combined estimate of 34 fallback; last full remains 41. Generator: 118/118 passed;
+1,587 native (94.58%), 91 fallback (5.42%) of 1,678 actions, zero failed/unknown.
+
+2026-10-19 latest targeted: [dynamic lookup keys in literal string contexts](native-lookup-keys-2026-10-19.md).
+Official get-value suite: 14/14 native (100%), 0 fallback (0%), failed/unknown zero;
+no expected model rejections. Two conversions; combined targeted estimate is now
+36 fallback, while the last full remains 41. Generator: 117/117 passed; 1,569 native
+(94.69%), 88 fallback (5.31%) of 1,657 SQL actions, zero failed/unknown. Escaping
+regression: 36 native/36 deliberate fallback of 72 (50% each), zero failed/unknown.
+
+2026-10-19 latest targeted: [literal calendar calls and validation](native-calendar-literals-2026-10-19.md).
+43/43 passed; 39 native (90.70%), 4 fallback (9.30%) of 43, zero failed/unknown;
+no expected model rejections. One more verified conversion; combined targeted
+estimate is 38 fallback, while the last full result remains 41. Generator:
+116/116 passed; 1,536 native actions (96.54%), 55 fallback (3.46%) of 1,591.
+
+2026-10-19 latest targeted: [exact terminal literal date loops](native-date-loops-2026-10-19.md).
+Official 0084 suite: 24/24 native (100%), 0 fallback (0%); failed/unknown zero.
+Two verified conversions. Extrapolated fallback 41 to 39; last full result below
+remains 41 fallback. Generator: 115/115 passed, 1,518 native (96.50%), 55 fallback
+(3.50%) of 1,573 SQL actions, zero failed/unknown.
+
+2026-10-19 latest full: [nested paths, duration range types, empty context keys and append flatten](native-path-equality-2026-10-19.md).
+3,391/3,391 passed: 2,674 native (98.49%), 41 fallback (1.51%) of 2,715
+executable cases; zero failed/unknown. Separately: 676 provisional expected model
+rejections, unchanged. Six verified conversions, zero reversals. The 100% goal remains open.
+
 2026-10-19 latest: [closed nested paths, duration ranges, context functions, and flatten](native-path-equality-2026-10-19.md).
 Six verified conversions (1156 #001_h, #001_i; 0090 #nested_list_001, #nested_list_002;
 1145 #010; 0012 #019). Fallback backlog reduced from 47 to 41 (12.77% net reduction).

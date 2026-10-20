@@ -1188,6 +1188,9 @@ public final class SparkSqlExpressionEmitter {
 			Map<Integer, RuntimeBkm> bkmBySlot, IntFunction<String> slotNameResolver) {
 		List<String> sql = args.stream().map(a -> emitWithBkms(a, bkmBySlot, slotNameResolver)).toList();
 		String list = sql.getFirst();
+		if (name.equals("flatten"))
+			return "filter(flatten(transform(coalesce(" + list
+					+ ", array()), _dmn_nested -> coalesce(_dmn_nested, array()))), _dmn_leaf -> _dmn_leaf IS NOT NULL)";
 		if (name.equals("sublist")) {
 			int start = SparkSqlListBuiltinTypes.integer(args.get(1));
 			String index = start > 0 ? Integer.toString(start - 1) : "(size(" + list + ") + " + start + ")";
@@ -1225,7 +1228,11 @@ public final class SparkSqlExpressionEmitter {
 		// Immutable-list runtime operations reject null elements. Sublist retains them.
 		return "element_at(transform(array(" + result
 				+ "), _dmn_list_result -> CASE WHEN exists(_dmn_list_result, _dmn_list_item -> _dmn_list_item IS NULL)"
-				+ " THEN NULL ELSE _dmn_list_result END), 1)";
+				+ " THEN "
+				+ (SparkSqlListBuiltinTypes.nestedTextList(args.getFirst().type())
+						? "raise_error('Null nested item in FEEL list operation')"
+						: "NULL")
+				+ " ELSE _dmn_list_result END), 1)";
 	}
 
 	private static String emitContext(RuntimeContextExpression ctx, Map<Integer, RuntimeBkm> bkmBySlot,
@@ -3348,6 +3355,9 @@ public final class SparkSqlExpressionEmitter {
 	// Literal values use a SQL binary constant, with no runtime UDF or timestamp
 	// cast.
 	static Object nativeTerminalTemporalValue(RuntimeDecision decision) {
+		Object dateLoop = SparkSqlDateLoopProof.value(decision);
+		if (dateLoop != null)
+			return dateLoop;
 		if (decision.type() == null || decision.type().kind() != RuntimeTypeKind.ANY
 				|| decision.decisionTable().isPresent())
 			return null;
