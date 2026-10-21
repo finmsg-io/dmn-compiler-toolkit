@@ -47,6 +47,10 @@ public final class SparkSqlCapabilityAnalyzer {
 				? model.decisions().stream().filter(d -> d.id() == decisionId)
 						.map(d -> SparkSqlDateTableInput.slots(model, d)).findFirst().orElse(Set.of())
 				: Set.of();
+		Set<Integer> temporalTableSlots = hybridBoundary
+				? model.decisions().stream().filter(d -> d.id() == decisionId)
+						.map(d -> SparkSqlTemporalTableInput.slots(model, d)).findFirst().orElse(Set.of())
+				: Set.of();
 		Integer calendarSlot = hybridBoundary
 				? model.decisions().stream().filter(d -> d.id() == decisionId)
 						.map(d -> SparkSqlCalendarInput.inputSlot(model, d)).filter(Objects::nonNull).findFirst()
@@ -56,17 +60,20 @@ public final class SparkSqlCapabilityAnalyzer {
 			if (required.contains(decision.id()) && decision.id() != decisionId
 					&& SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)
 				reasons.add("Temporal ANY dependency requires lossless FEEL transport for its consumer");
-			if (required.contains(decision.id()) && !(decision.id() == decisionId
-					&& (!dateTableSlots.isEmpty() || calendarSlot != null || lookupSlot != null
-							|| hybridBoundary && (SparkSqlStringListTerminal.supports(model, decision)
-									|| SparkSqlListPositionInput.inputSlot(model, decision) != null)
-							|| nativeConstantTemporalResult(decision) || nativeEmptyListResult(decision)
-							|| SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)))
+			if (required.contains(decision.id()) && !(decision.id() == decisionId && (!temporalTableSlots.isEmpty()
+					|| !dateTableSlots.isEmpty() || calendarSlot != null || lookupSlot != null
+					|| hybridBoundary && (SparkSqlIndexedJoinInput.supports(model, decision)
+							|| SparkSqlNumericFilterInput.supports(model, decision)
+							|| SparkSqlStringListTerminal.supports(model, decision)
+							|| SparkSqlListPositionInput.inputSlot(model, decision) != null)
+					|| nativeConstantTemporalResult(decision) || nativeEmptyListResult(decision)
+					|| SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)))
 				inspect(decision, hybridBoundary, reasons, staticFunctions);
 		}
 		if (hybridBoundary) {
 			for (RuntimeInput input : model.inputs()) {
 				if (required.contains(input.id()) && !Objects.equals(calendarSlot, input.valueSlot())
+						&& !temporalTableSlots.contains(input.valueSlot())
 						&& !dateTableSlots.contains(input.valueSlot()) && !Objects.equals(lookupSlot, input.valueSlot())
 						&& !stringSlots.contains(input.valueSlot())
 						&& !SparkSqlFeelValueCodec.isNativeType(input.type())) {

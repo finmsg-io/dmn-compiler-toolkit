@@ -211,8 +211,9 @@ public final class SparkSqlFeelValueCodec {
 	static StructType calendarInputSchema(RuntimeModel model, Map<Integer, String> names, Set<Integer> slots,
 			Set<Integer> stringSlots) {
 		var fields = new ArrayList<StructField>(Arrays.asList(inputSchema(model, names).fields()));
-		var date = new StructType().add("kind", DataTypes.StringType).add("year", DataTypes.IntegerType)
-				.add("month", DataTypes.IntegerType).add("day", DataTypes.IntegerType);
+		var date = SparkSqlCalendarArithmetic
+				.extend(new StructType().add("kind", DataTypes.StringType).add("year", DataTypes.IntegerType)
+						.add("month", DataTypes.IntegerType).add("day", DataTypes.IntegerType));
 		for (var input : model.inputs()) {
 			if (slots.contains(input.valueSlot()))
 				fields.add(DataTypes.createStructField(SparkSqlCalendarInput.column(input.valueSlot(), names), date,
@@ -233,6 +234,24 @@ public final class SparkSqlFeelValueCodec {
 			fields.add(DataTypes.createStructField(SparkSqlListPositionInput.column(slot, names),
 					new StructType().add("value", DataTypes.IntegerType).add("invalid", DataTypes.BooleanType), false,
 					new MetadataBuilder().putLong("dmnListPositionSlot", slot).build()));
+		for (int id : SparkSqlNumericFilterInput.ids(model))
+			fields.add(
+					DataTypes.createStructField(SparkSqlNumericFilterInput.column(id, names),
+							DataTypes.createArrayType(
+									new StructType().add("key", DataTypes.StringType).add("text", DataTypes.StringType)
+											.add("invalid", DataTypes.BooleanType).add("sign", DataTypes.IntegerType)
+											.add("exponent", DataTypes.LongType).add("digits", DataTypes.StringType),
+									false),
+							true, new MetadataBuilder().putLong("dmnNumericFilterDecisionId", id).build()));
+		for (int id : SparkSqlTemporalTableInput.ids(model))
+			fields.add(DataTypes.createStructField(SparkSqlTemporalTableInput.column(id, names),
+					SparkSqlTemporalTableInput.type(), false,
+					new MetadataBuilder().putLong("dmnTemporalTableDecisionId", id).build()));
+		for (int id : SparkSqlIndexedJoinInput.ids(model))
+			fields.add(DataTypes.createStructField(SparkSqlIndexedJoinInput.column(id, names),
+					SparkSqlIndexedJoinInput.type(), false,
+					new MetadataBuilder().putLong("dmnIndexedJoinDecisionId", id).build()));
+
 		return DataTypes.createStructType(fields);
 	}
 
@@ -246,6 +265,22 @@ public final class SparkSqlFeelValueCodec {
 			columns[index] = original.get(index);
 		for (int index = original.size(); index < columns.length; index++) {
 			Metadata metadata = generatedSchema.fields()[index].metadata();
+			if (metadata.contains("dmnIndexedJoinDecisionId")) {
+				columns[index] = SparkSqlIndexedJoinInput.project(model,
+						Math.toIntExact(metadata.getLong("dmnIndexedJoinDecisionId")), values);
+				continue;
+			}
+
+			if (metadata.contains("dmnTemporalTableDecisionId")) {
+				columns[index] = SparkSqlTemporalTableInput.project(model,
+						Math.toIntExact(metadata.getLong("dmnTemporalTableDecisionId")), values);
+				continue;
+			}
+			if (metadata.contains("dmnNumericFilterDecisionId")) {
+				columns[index] = SparkSqlNumericFilterInput.project(model,
+						Math.toIntExact(metadata.getLong("dmnNumericFilterDecisionId")), values);
+				continue;
+			}
 			if (metadata.contains("dmnListPositionSlot")) {
 				int slot = Math.toIntExact(metadata.getLong("dmnListPositionSlot"));
 				Object number = io.finmsg.dmn.runtime.DmnRuntime.coerce(values.get(slot),
@@ -303,10 +338,10 @@ public final class SparkSqlFeelValueCodec {
 					// Match calendar conversion without altering the payload.
 				}
 			}
-			columns[index] = date == null
-					? RowFactory.create("OTHER", null, null, null)
-					: RowFactory.create(parsed ? "PARSED_DATE" : value instanceof LocalDate ? "DATE" : "DATE_TIME",
-							date.getYear(), date.getMonthValue(), date.getDayOfMonth());
+			columns[index] = SparkSqlCalendarArithmetic.row(value, date,
+					date == null
+							? "OTHER"
+							: parsed ? "PARSED_DATE" : value instanceof LocalDate ? "DATE" : "DATE_TIME");
 		}
 		return RowFactory.create(columns);
 	}

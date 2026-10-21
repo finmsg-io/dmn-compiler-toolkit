@@ -12,6 +12,29 @@ import org.junit.jupiter.api.Test;
 
 class DmnRuntimeTest {
 	@Test
+	void durationSubtypeCoercionPreservesIdentityAndRejectsWrongKinds() {
+		var days = RuntimeType.scalar(RuntimeTypeKind.DAYS_TIME_DURATION);
+		var months = RuntimeType.scalar(RuntimeTypeKind.YEARS_MONTHS_DURATION);
+		var duration = java.time.Duration.ofSeconds(1, 1);
+		var period = java.time.Period.of(1, 2, 0);
+		assertThat(DmnRuntime.coerce(duration, days)).isSameAs(duration);
+		assertThat(DmnRuntime.coerce(period, months)).isSameAs(period);
+		assertThat(DmnRuntime.coerce(List.of(duration), days)).isSameAs(duration);
+		assertThat(DmnRuntime.coerce(List.of(period), months)).isSameAs(period);
+		for (var type : List.of(days, months)) {
+			assertThat(DmnRuntime.coerce(null, type)).isNull();
+			assertThat(DmnRuntime.coerce("P1D", type)).isNull();
+			assertThat(DmnRuntime.coerce(BigDecimal.ONE, type)).isNull();
+			assertThat(DmnRuntime.coerce(Map.of("value", duration), type)).isNull();
+		}
+		assertThat(DmnRuntime.coerce(period, days)).isNull();
+		assertThat(DmnRuntime.coerce(duration, months)).isNull();
+		var context = RuntimeType.contextFields(List.of(new RuntimeField(0, "duration", days)));
+		assertThat(DmnRuntime.coerce(Map.of("duration", period), context)).isNull();
+		assertThat(DmnRuntime.coerce(Map.of("duration", duration), context)).isEqualTo(Map.of("duration", duration));
+	}
+
+	@Test
 	void identityDistinguishesNanosecondsForLocalTemporalValues() {
 		var time = java.time.LocalTime.of(12, 0, 0, 1);
 		var dateTime = java.time.LocalDate.of(2021, 1, 1).atTime(time);

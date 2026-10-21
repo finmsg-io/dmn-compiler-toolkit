@@ -162,6 +162,10 @@ final class SparkSqlStaticFunctionLowerer {
 		if (expression instanceof RuntimeInvocationExpression invocation) {
 			if (invocation.function().isPresent()) {
 				if (invocation.namedArguments().isEmpty()) {
+					RuntimeExpression sorted = boundedSort(invocation.function().get(),
+							invocation.positionalArguments(), frames, depth);
+					if (sorted != null)
+						return sorted;
 					var arguments = invocation.positionalArguments().stream().map(a -> expression(a, frames, depth + 1))
 							.toList();
 					RuntimeExpression flattened = SparkSqlFlattenLowerer.lower(invocation.function().get(), arguments);
@@ -312,6 +316,15 @@ final class SparkSqlStaticFunctionLowerer {
 			}
 			return new RuntimeContextExpression(entries, context.type());
 		}
+		if (expression instanceof RuntimePathExpression path) {
+			var source = expression(path.source(), frames, depth + 1);
+			var rewritten = new RuntimePathExpression(source, path.member(), path.fieldIndex(), path.type());
+			var literal = SparkSqlClosedCollectionProof.result(rewritten);
+			if (literal == null)
+				throw new Unsupported();
+			applied = true;
+			return literal;
+		}
 		if (expression instanceof RuntimeConstant)
 			return expression;
 		if (expression instanceof RuntimeQuantifiedExpression quantified) {
@@ -359,9 +372,18 @@ final class SparkSqlStaticFunctionLowerer {
 					.toList();
 			return new RuntimeListExpression(elements, list.type());
 		}
-		if (expression instanceof RuntimeBinaryExpression binary)
-			return new RuntimeBinaryExpression(binary.operator(), expression(binary.left(), frames, depth + 1),
-					expression(binary.right(), frames, depth + 1), binary.type());
+		if (expression instanceof RuntimeBinaryExpression binary) {
+			var left = expression(binary.left(), frames, depth + 1);
+			var right = expression(binary.right(), frames, depth + 1);
+			RuntimeType type = binary.type();
+			if (binary.operator() == RuntimeBinaryOperator.ADD
+					&& Set.of(RuntimeTypeKind.ANY, RuntimeTypeKind.STRING).contains(type.kind())
+					&& left.type().kind() == RuntimeTypeKind.STRING && right.type().kind() == RuntimeTypeKind.STRING) {
+				applied |= type.kind() != RuntimeTypeKind.STRING;
+				type = RuntimeType.scalar(RuntimeTypeKind.STRING);
+			}
+			return new RuntimeBinaryExpression(binary.operator(), left, right, type);
+		}
 		if (expression instanceof RuntimeUnaryExpression unary)
 			return new RuntimeUnaryExpression(unary.operator(), expression(unary.operand(), frames, depth + 1),
 					unary.type());
@@ -370,6 +392,9 @@ final class SparkSqlStaticFunctionLowerer {
 					expression(conditional.thenExpression(), frames, depth + 1),
 					expression(conditional.elseExpression(), frames, depth + 1), conditional.type());
 		if (expression instanceof RuntimeFunctionCall call) {
+			RuntimeExpression sorted = boundedSort(call.function(), call.arguments(), frames, depth);
+			if (sorted != null)
+				return sorted;
 			var arguments = call.arguments().stream().map(a -> expression(a, frames, depth + 1)).toList();
 			RuntimeExpression flattened = SparkSqlFlattenLowerer.lower(call.function(), arguments);
 			if (flattened != null) {
@@ -388,6 +413,29 @@ final class SparkSqlStaticFunctionLowerer {
 			return new RuntimeFunctionCall(call.function(), arguments, inferred == null ? call.type() : inferred);
 		}
 		throw new Unsupported();
+	}
+
+	private RuntimeExpression boundedSort(String name, List<RuntimeExpression> arguments,
+			List<Map<Integer, Object>> frames, int depth) {
+		if (!name.equalsIgnoreCase("sort") || arguments.size() != 2)
+			return null;
+		RuntimeExpression source = expression(arguments.getFirst(), frames, depth + 1);
+		Object comparator = value(arguments.get(1), frames, depth + 1);
+		if (!(comparator instanceof Closure closure) || closure.function().parameters().size() != 2)
+			return null;
+		var bindings = new HashMap<Integer, Object>();
+		for (var parameter : closure.function().parameters())
+			bindings.put(parameter.localSlot(), new RuntimeLocalReference(parameter.localSlot(), parameter.type()));
+		var environment = new ArrayList<Map<Integer, Object>>();
+		environment.add(bindings);
+		environment.addAll(closure.frames());
+		var body = expression(closure.function().body().orElseThrow(), List.copyOf(environment), depth + 1);
+		var function = new RuntimeFunctionDefinition(closure.function().parameters(), Optional.of(body), false,
+				closure.function().localSlotCount(), closure.function().type());
+		RuntimeExpression result = SparkSqlBoundedSortProof.result(model, source, function);
+		if (result != null)
+			applied = true;
+		return result;
 	}
 
 	private void unrollQuantified(RuntimeQuantifiedExpression quantified, int index, List<Map<Integer, Object>> frames,
@@ -416,23 +464,15 @@ final class SparkSqlStaticFunctionLowerer {
 			RuntimeDecision decision = model.decisions().stream().filter(d -> d.resultSlot() == reference.sourceSlot())
 					.findFirst().orElseThrow(Unsupported::new);
 			RuntimeExpression literal = decision.expression().orElseThrow(Unsupported::new);
-			if (!closedContextLiteral(literal, 0, new int[]{512}))
+			RuntimeExpression lowered = expression(literal, List.of(new HashMap<>()), depth + 1);
+			if (!closedContextLiteral(lowered, 0, new int[]{512}))
 				throw new Unsupported();
-			source = (RuntimeExpression) coerce(expression(literal, List.of(new HashMap<>()), depth + 1),
-					decision.type());
+			source = (RuntimeExpression) coerce(lowered, decision.type());
 		}
-		if (!(source instanceof RuntimeListExpression list)
-				|| list.elements()
-						.size() > 64
-				|| list.elements().stream()
-						.anyMatch(
-								item -> !(item instanceof RuntimeConstant constant) || !Set
-										.of(RuntimeConstantKind.NUMBER, RuntimeConstantKind.STRING,
-												RuntimeConstantKind.BOOLEAN, RuntimeConstantKind.NULL)
-										.contains(constant.kind()))
-				|| list.elements().stream().map(item -> ((RuntimeConstant) item).kind())
-						.filter(kind -> kind != RuntimeConstantKind.NULL).distinct().count() > 1)
+		if (!(source instanceof RuntimeListExpression list) || list.elements().size() > 64
+				|| list.elements().stream().anyMatch(item -> !closedContextLiteral(item, 0, new int[]{512})))
 			throw new Unsupported();
+
 		for (RuntimeExpression item : list.elements()) {
 			var bindings = new HashMap<>(frames.getFirst());
 			bindings.put(binding.localSlot(), item);

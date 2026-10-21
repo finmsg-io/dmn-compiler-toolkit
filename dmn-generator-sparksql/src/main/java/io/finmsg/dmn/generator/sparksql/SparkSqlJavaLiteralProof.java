@@ -4,7 +4,7 @@ import io.finmsg.dmn.ir.*;
 import java.util.*;
 
 /**
- * Only bounded literal calls to an explicit set of pure JDK methods are folded.
+ * Bounded literal calls to pure JDK methods or proven absent bootstrap classes.
  */
 final class SparkSqlJavaLiteralProof {
 	private static final Map<String, Class<?>> CLASSES = Map.of("java.lang.Math", Math.class, "java.lang.Byte",
@@ -30,7 +30,7 @@ final class SparkSqlJavaLiteralProof {
 		String signature = ((String) descriptor.get("method signature")).trim();
 		Class<?> target = CLASSES.get(className);
 		int open = signature.indexOf('(');
-		if (target == null || open <= 0 || !signature.endsWith(")"))
+		if (open <= 0 || !signature.endsWith(")"))
 			return false;
 		String method = signature.substring(0, open).trim();
 		String parameterText = signature.substring(open + 1, signature.length() - 1).trim();
@@ -43,6 +43,8 @@ final class SparkSqlJavaLiteralProof {
 			if (parameters[index] == null)
 				return false;
 		}
+		if (target == null)
+			return missingBootstrapClass(className);
 		try {
 			var reflected = target.getMethod(method, parameters);
 			if (!java.lang.reflect.Modifier.isStatic(reflected.getModifiers()))
@@ -59,6 +61,21 @@ final class SparkSqlJavaLiteralProof {
 		if (target == String.class)
 			return Set.of("valueOf", "format").contains(method);
 		return method.equals("valueOf");
+	}
+
+	private static boolean missingBootstrapClass(String name) {
+		// java.* packages cannot be supplied by an application class loader.
+		// Existing classes outside the pure-method whitelist remain unsupported.
+		if (name.length() > 128 || !name.matches("java\\.lang\\.[A-Za-z][A-Za-z0-9]*"))
+			return false;
+		try {
+			Class.forName(name, false, null);
+			return false;
+		} catch (ClassNotFoundException absent) {
+			return true;
+		} catch (SecurityException | LinkageError unavailable) {
+			return false;
+		}
 	}
 
 	static RuntimeExpression result(RuntimeFunctionDefinition function, RuntimeInvocationExpression invocation) {

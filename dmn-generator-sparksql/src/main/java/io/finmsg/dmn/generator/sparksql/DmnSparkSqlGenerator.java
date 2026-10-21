@@ -87,6 +87,9 @@ public final class DmnSparkSqlGenerator {
 		Set<Integer> calendarSlots = options.hybridUdfFallback() ? SparkSqlCalendarInput.slots(model) : Set.of();
 		Set<Integer> stringSlots = options.hybridUdfFallback() ? SparkSqlStringInput.slots(model) : Set.of();
 		Set<Integer> positionSlots = options.hybridUdfFallback() ? SparkSqlListPositionInput.slots(model) : Set.of();
+		Set<Integer> numericFilters = options.hybridUdfFallback() ? SparkSqlNumericFilterInput.ids(model) : Set.of();
+		Set<Integer> temporalTables = options.hybridUdfFallback() ? SparkSqlTemporalTableInput.ids(model) : Set.of();
+		Set<Integer> joins = options.hybridUdfFallback() ? SparkSqlIndexedJoinInput.ids(model) : Set.of();
 		StructType inputSchema = options.hybridUdfFallback()
 				? SparkSqlFeelValueCodec.calendarInputSchema(model, slotNames, calendarSlots, stringSlots)
 				: SparkSqlSchemaGenerator.generateInputSchema(model, slotNames);
@@ -128,12 +131,15 @@ public final class DmnSparkSqlGenerator {
 		for (RuntimeDecision decision : model.decisions()) {
 			String name = "Decision_" + decision.resultSlot();
 			String sqlQuery = buildCteQuery(model, decision, decisionMap, slotNames, bkmBySlot,
-					options.inputTableName(), fallbackExpressions, calendarSlots, stringSlots, positionSlots);
+					options.inputTableName(), fallbackExpressions, calendarSlots, stringSlots, positionSlots,
+					numericFilters, temporalTables, joins);
 			sqlFiles.put(name + ".sql", sqlQuery);
 		}
 		if (!model.decisions().isEmpty()) {
-			sqlFiles.put("AllDecisions.sql", buildAllDecisionsCteQuery(model, decisionMap, slotNames, bkmBySlot,
-					options.inputTableName(), fallbackExpressions, calendarSlots, stringSlots, positionSlots));
+			sqlFiles.put("AllDecisions.sql",
+					buildAllDecisionsCteQuery(model, decisionMap, slotNames, bkmBySlot, options.inputTableName(),
+							fallbackExpressions, calendarSlots, stringSlots, positionSlots, numericFilters,
+							temporalTables, joins));
 		}
 
 		Map<String, String> javaSources = new HashMap<>();
@@ -159,7 +165,8 @@ public final class DmnSparkSqlGenerator {
 	private String buildCteQuery(RuntimeModel model, RuntimeDecision targetDecision,
 			Map<Integer, RuntimeDecision> decisionMap, Map<Integer, String> slotNames,
 			Map<Integer, RuntimeBkm> bkmBySlot, String inputTable, Map<Integer, String> fallbackExpressions,
-			Set<Integer> calendarSlots, Set<Integer> stringSlots, Set<Integer> positionSlots) {
+			Set<Integer> calendarSlots, Set<Integer> stringSlots, Set<Integer> positionSlots,
+			Set<Integer> numericFilters, Set<Integer> temporalTables, Set<Integer> joins) {
 
 		if (fallbackExpressions.containsKey(targetDecision.id())) {
 			// Evaluate the complete subgraph from original inputs, never materialize
@@ -197,6 +204,9 @@ public final class DmnSparkSqlGenerator {
 		calendarSlots.forEach(slot -> currentCols.add(SparkSqlCalendarInput.column(slot, slotNames)));
 		stringSlots.forEach(slot -> currentCols.add(SparkSqlStringInput.column(slot, slotNames)));
 		positionSlots.forEach(slot -> currentCols.add(SparkSqlListPositionInput.column(slot, slotNames)));
+		numericFilters.forEach(id -> currentCols.add(SparkSqlNumericFilterInput.column(id, slotNames)));
+		temporalTables.forEach(id -> currentCols.add(SparkSqlTemporalTableInput.column(id, slotNames)));
+		joins.forEach(id -> currentCols.add(SparkSqlIndexedJoinInput.column(id, slotNames)));
 		SparkSqlLookupKeyInput.slots(model).stream().filter(stringSlots::contains)
 				.forEach(slot -> currentCols.add(SparkSqlLookupKeyInput.column(slot, slotNames)));
 		for (RuntimeInput inp : model.inputs()) {
@@ -210,7 +220,7 @@ public final class DmnSparkSqlGenerator {
 			RuntimeDecision dec = orderedDecisions.get(idx);
 			String decName = slotNames.get(dec.resultSlot()).replace("`", "");
 			String exprCode = emitDecisionExpr(dec, slotNames, bkmBySlot, model, calendarSlots, stringSlots,
-					positionSlots);
+					positionSlots, numericFilters, temporalTables, joins);
 			String cteName = "_cte_" + dec.resultSlot();
 
 			List<String> projectedCols = new ArrayList<>();
@@ -242,7 +252,7 @@ public final class DmnSparkSqlGenerator {
 	private String buildAllDecisionsCteQuery(RuntimeModel model, Map<Integer, RuntimeDecision> decisionMap,
 			Map<Integer, String> slotNames, Map<Integer, RuntimeBkm> bkmBySlot, String inputTable,
 			Map<Integer, String> fallbackExpressions, Set<Integer> calendarSlots, Set<Integer> stringSlots,
-			Set<Integer> positionSlots) {
+			Set<Integer> positionSlots, Set<Integer> numericFilters, Set<Integer> temporalTables, Set<Integer> joins) {
 
 		StringBuilder sb = new StringBuilder();
 		sb.append("-- Generated Spark SQL CTE Query for all DMN Decisions\n");
@@ -269,6 +279,9 @@ public final class DmnSparkSqlGenerator {
 		calendarSlots.forEach(slot -> currentCols.add(SparkSqlCalendarInput.column(slot, slotNames)));
 		stringSlots.forEach(slot -> currentCols.add(SparkSqlStringInput.column(slot, slotNames)));
 		positionSlots.forEach(slot -> currentCols.add(SparkSqlListPositionInput.column(slot, slotNames)));
+		numericFilters.forEach(id -> currentCols.add(SparkSqlNumericFilterInput.column(id, slotNames)));
+		temporalTables.forEach(id -> currentCols.add(SparkSqlTemporalTableInput.column(id, slotNames)));
+		joins.forEach(id -> currentCols.add(SparkSqlIndexedJoinInput.column(id, slotNames)));
 		SparkSqlLookupKeyInput.slots(model).stream().filter(stringSlots::contains)
 				.forEach(slot -> currentCols.add(SparkSqlLookupKeyInput.column(slot, slotNames)));
 		for (RuntimeInput inp : model.inputs()) {
@@ -285,7 +298,8 @@ public final class DmnSparkSqlGenerator {
 			String decName = slotNames.get(dec.resultSlot()).replace("`", "");
 			String exprCode = fallbackExpressions.containsKey(dec.id())
 					? fallbackExpressions.get(dec.id())
-					: emitDecisionExpr(dec, slotNames, bkmBySlot, model, calendarSlots, stringSlots, positionSlots);
+					: emitDecisionExpr(dec, slotNames, bkmBySlot, model, calendarSlots, stringSlots, positionSlots,
+							numericFilters, temporalTables, joins);
 			String cteName = "_cte_" + dec.resultSlot();
 
 			List<String> projectedCols = new ArrayList<>();
@@ -345,7 +359,14 @@ public final class DmnSparkSqlGenerator {
 
 	private String emitDecisionExpr(RuntimeDecision decision, Map<Integer, String> slotNames,
 			Map<Integer, RuntimeBkm> bkmBySlot, RuntimeModel model, Set<Integer> calendarSlots,
-			Set<Integer> stringSlots, Set<Integer> positionSlots) {
+			Set<Integer> stringSlots, Set<Integer> positionSlots, Set<Integer> numericFilters,
+			Set<Integer> temporalTables, Set<Integer> joins) {
+		if (joins.contains(decision.id()))
+			return SparkSqlIndexedJoinInput.sql(decision, slotNames);
+		if (temporalTables.contains(decision.id()))
+			return SparkSqlTemporalTableInput.sql(model, decision, slotNames);
+		if (numericFilters.contains(decision.id()))
+			return SparkSqlNumericFilterInput.sql(model, decision, slotNames);
 		Integer positionSlot = SparkSqlListPositionInput.inputSlot(model, decision);
 		if (positionSlot != null && positionSlots.contains(positionSlot))
 			return SparkSqlListPositionInput.sql(model, decision, slotNames);
@@ -366,6 +387,10 @@ public final class DmnSparkSqlGenerator {
 				&& SparkSqlDateComparisonInput.inputSlot(model, decision) != null)
 			return SparkSqlDateComparisonInput.sql(model, decision,
 					SparkSqlCalendarInput.column(calendarSlot, slotNames), slotNames);
+		if (calendarSlot != null && calendarSlots.contains(calendarSlot)
+				&& SparkSqlCalendarArithmetic.inputSlot(model, decision) != null)
+			return SparkSqlCalendarArithmetic.sql(model, decision,
+					SparkSqlCalendarInput.column(calendarSlot, slotNames));
 		if (calendarSlot != null && calendarSlots.contains(calendarSlot))
 			return SparkSqlCalendarInput.sql(decision, SparkSqlCalendarInput.column(calendarSlot, slotNames));
 		java.util.function.IntFunction<String> resolver = slot -> {

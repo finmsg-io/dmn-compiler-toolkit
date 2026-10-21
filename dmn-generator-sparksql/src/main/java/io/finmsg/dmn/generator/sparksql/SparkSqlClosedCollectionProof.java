@@ -32,7 +32,9 @@ final class SparkSqlClosedCollectionProof {
 	private static boolean proven(RuntimeExpression expression) {
 		int[] budget = {512};
 		boolean proven;
-		if (expression instanceof RuntimePathExpression path)
+		if (expression instanceof RuntimeRelationExpression)
+			proven = literal(expression, 0, budget);
+		else if (expression instanceof RuntimePathExpression path)
 			proven = text(path.member(), 256) && literal(path.source(), 0, budget);
 		else if (expression instanceof RuntimeFilterExpression filter)
 			proven = filter.localSlot() >= 0 && filter.localSlot() < 2048 && literal(filter.source(), 0, budget)
@@ -70,6 +72,16 @@ final class SparkSqlClosedCollectionProof {
 			return Set.of(RuntimeConstantKind.NULL, RuntimeConstantKind.BOOLEAN, RuntimeConstantKind.STRING)
 					.contains(constant.kind());
 		}
+		if (expression instanceof RuntimeRelationExpression relation) {
+			var names = new HashSet<String>();
+			return relation.columns().size() > 0 && relation.columns().size() <= 16 && relation.rows().size() <= 64
+					&& relation.columns().stream()
+							.allMatch(c -> !c.name().isEmpty() && !c.name().equals("__result__") && text(c.name(), 256)
+									&& names.add(c.name().toLowerCase(Locale.ROOT)))
+					&& relation.rows().stream().flatMap(List::stream)
+							.allMatch(cell -> literal(cell, depth + 1, budget));
+		}
+
 		if (expression instanceof RuntimePathExpression path)
 			return text(path.member(), 256) && literal(path.source(), depth + 1, budget);
 		if (expression instanceof RuntimeListExpression list)

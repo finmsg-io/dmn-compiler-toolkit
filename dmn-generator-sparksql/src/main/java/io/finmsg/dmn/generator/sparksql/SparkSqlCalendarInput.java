@@ -6,6 +6,9 @@ import java.util.*;
 /** Native calendar calculations over canonical local-date input projections. */
 final class SparkSqlCalendarInput {
 	static Integer inputSlot(RuntimeModel model, RuntimeDecision decision) {
+		Integer arithmetic = SparkSqlCalendarArithmetic.inputSlot(model, decision);
+		if (arithmetic != null)
+			return arithmetic;
 		Integer comparison = SparkSqlDateComparisonInput.inputSlot(model, decision);
 		if (comparison != null)
 			return comparison;

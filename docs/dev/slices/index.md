@@ -1,3 +1,58 @@
+2026-10-21 latest targeted: [native indexed joins](native-indexed-joins-2026-10-21.md).
+Official join: 1 native (100%), 0 fallback (0%) of 1; failed/unknown 0.
+Combined targeted estimate: 15 fallback (0.55%); last full remains 20.
+Generator 132/132 passed: 2,658 native routes (96.80%), 88 fallback (3.20%)
+of 2,746, unknown 0; six native errors are intentional passed assertions.
+
+2026-10-21 latest targeted: [calendar contexts with bounded arithmetic](native-calendar-contexts-2026-10-21.md).
+Official calendar suites: 24 native (100%), 0 fallback (0%) of 24; failed/unknown 0.
+Four conversions; targeted estimate 16 fallback (0.59%); latest full remains 20.
+Generator 130/130 passed: 2,618 native actions (96.75%), 88 fallback (3.25%) of 2,706.
+
+2026-10-21 latest full: [native typed comparison tables](native-temporal-comparisons-2026-10-21.md).
+3,391/3,391 passed: 2,695 native (99.26%), 20 fallback (0.74%) of 2,715;
+676 expected model rejections, failed/unknown 0. Generator 129/129 passed:
+2,550 native actions (96.66%), 88 fallback (3.34%) of 2,638.
+
+2026-10-21 latest targeted: [exact numeric quantifiers and bounded relations](native-numeric-quantifiers-2026-10-21.md).
+Official quantifier/filter suites: 4 native (100%), zero fallback (0%) of 4;
+failed/unknown zero, no expected model rejections. One new quantifier conversion;
+prior filter remains native. Combined targeted estimate 23 fallback (0.85%);
+last full remains 26. Generator: 128/128 passed; 2,470 native actions (96.56%),
+88 fallback (3.44%) of 2,558, failed/unknown zero. Changes remain uncommitted.
+
+2026-10-21 latest targeted: [exact numeric filters and string projection](native-numeric-filters-2026-10-21.md).
+Official filter case: 1 native (100%), zero fallback (0%) of 1; failed/unknown
+zero, no expected model rejections. Combined targeted estimate: 24 fallback
+(0.88%); last full remains 26. Generator: 126/126 passed; 2,202 native actions
+(96.16%), 88 fallback (3.84%) of 2,290, failed/unknown zero. Changes uncommitted.
+
+2026-10-21 latest targeted: [string result typing after function binding](native-string-function-results-2026-10-20.md).
+Official user-defined-function case: 1 native (100%), zero fallback (0%) of 1;
+failed/unknown zero, no expected model rejections. Targeted estimate 25 fallback
+(0.92%); last full remains 26. Generator: 125/125 passed; 2,154 native actions
+(96.07%), 88 fallback (3.93%) of 2,242, failed/unknown zero. Changes uncommitted.
+
+2026-10-20 latest FULL: [absent bootstrap Java classes and accumulated native conversions](native-missing-java-2026-10-20.md).
+3,391/3,391 passed: 2,689 native (99.04%), 26 fallback (0.96%) of 2,715
+executable cases; failed/unknown zero. Separately: 676 provisional expected model
+rejections unchanged. Four conversions since the prior full run, zero reversals.
+Generator: 124/124 passed; 2,103 native actions (95.85%), 91 fallback (4.15%)
+of 2,194, failed/unknown zero. Changes remain uncommitted.
+
+2026-10-20 latest targeted: [bounded string sorts and captured comparator binding](native-bounded-sorts-2026-10-20.md).
+Official lambda/service suites: 19 native (100%), 0 fallback (0%) of 19;
+failed/unknown zero, no expected model rejections. Two new lambda conversions;
+prior service conversion preserved. Targeted estimate: 27 fallback (0.99%);
+last full remains 30. Generator: 123/123 passed; 2,079 native actions (95.81%),
+91 fallback (4.19%) of 2,170, failed/unknown zero. Changes remain uncommitted.
+
+2026-10-20 latest targeted: [service concatenation with typed string decisions](native-service-strings-2026-10-20.md).
+Official service case: 1 native (100%), 0 fallback (0%) of 1; failed/unknown zero,
+no expected model rejections. Targeted estimate 29 fallback; last full remains 30.
+Generator: 122/122 passed, 2,015 native actions (95.68%), 91 fallback (4.32%)
+of 2,106, failed/unknown zero. This batch remains uncommitted.
+
 2026-10-20 latest FULL: [exact native date comparison tables](native-date-tables-2026-10-20.md).
 3,391/3,391 passed: 2,685 native (98.90%), 30 fallback (1.10%) of 2,715
 executable cases; failed/unknown zero. Separately: 676 provisional expected model

@@ -25,7 +25,12 @@ final class SparkSqlStringInput {
 		if (expression instanceof RuntimeValueReference reference) {
 			RuntimeInput input = model.inputs().stream().filter(i -> i.valueSlot() == reference.sourceSlot())
 					.findFirst().orElse(null);
-			if (input == null || !input.type().equals(reference.type()))
+			if (input == null) {
+				// Dependency capability checks still validate the producing decision.
+				return reference.type().kind() == RuntimeTypeKind.STRING && model.decisions().stream().anyMatch(
+						d -> d.resultSlot() == reference.sourceSlot() && d.type().equals(reference.type())) ? 1 : -1;
+			}
+			if (!input.type().equals(reference.type()))
 				return -1;
 			if (input.type().kind() == RuntimeTypeKind.STRING)
 				return 1;
