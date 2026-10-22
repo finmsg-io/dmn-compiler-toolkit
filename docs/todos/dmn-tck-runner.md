@@ -1,3 +1,22 @@
+2026-10-22 verified full native-sort checkpoint: 3,391/3,391 official cases
+passed. Executable denominator 2,715: 2,701 native (99.48%), 14 fallback
+(0.52%); failed/unknown 0. Expected model rejections remain 676; errors,
+unsupported, excluded and invalid 0. Exact comparison with the previous full
+baseline: six FALLBACK -> NATIVE conversions, identical case keys, no route
+reversals and no rejection changes. New in this batch: 0013-sort#001, with all
+three requested sort results native. The other five confirm prior calendar
+and indexed-join targeted conversions. This is a new full baseline, not an estimate.
+Generator regression/install passed 134/134 tests: 2,694 native SQL actions
+(96.63%), 94 fallback (3.37%) of 2,788; unknown 0. Six native SQL errors are
+intentional passed assertions. Six added fallback checks verify comparator
+return coercion and aliased bindings retain fallback semantics. Target/installed
+JAR SHA256: 591FB4471C7F408BCEB298F2C69D3DE84F37BEA9EC51D71699379D726EC61D7B.
+Accounting: dmn-tck-runner/target/native-exact-sort-full-accounting-2026-10-22.json.
+Log: dmn-tck-runner/target/native-exact-sort-full-tck-2026-10-22.log.
+Remaining groups: temporal construction (1), numeric functions (3), iteration
+and loops (3), composite lending (7). User requested commit/push after verification;
+this checkpoint accompanies the native-sort implementation commit.
+
 2026-10-21 latest indexed-join checkpoint: official 0006-join#001 passed
 natively: 1 native case (100%), 0 fallback (0%) of 1; failed/unknown 0,
 expected model rejections 0. Exact accounting comparison confirms FALLBACK ->

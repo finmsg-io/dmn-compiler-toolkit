@@ -62,7 +62,8 @@ public final class SparkSqlCapabilityAnalyzer {
 				reasons.add("Temporal ANY dependency requires lossless FEEL transport for its consumer");
 			if (required.contains(decision.id()) && !(decision.id() == decisionId && (!temporalTableSlots.isEmpty()
 					|| !dateTableSlots.isEmpty() || calendarSlot != null || lookupSlot != null
-					|| hybridBoundary && (SparkSqlIndexedJoinInput.supports(model, decision)
+					|| hybridBoundary && (SparkSqlExactSortInput.supports(model, decision)
+							|| SparkSqlIndexedJoinInput.supports(model, decision)
 							|| SparkSqlNumericFilterInput.supports(model, decision)
 							|| SparkSqlStringListTerminal.supports(model, decision)
 							|| SparkSqlListPositionInput.inputSlot(model, decision) != null)

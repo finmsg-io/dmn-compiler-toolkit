@@ -252,6 +252,11 @@ public final class SparkSqlFeelValueCodec {
 					SparkSqlIndexedJoinInput.type(), false,
 					new MetadataBuilder().putLong("dmnIndexedJoinDecisionId", id).build()));
 
+		for (int id : SparkSqlExactSortInput.ids(model))
+			fields.add(
+					DataTypes.createStructField(SparkSqlExactSortInput.column(id, names), SparkSqlExactSortInput.type(),
+							true, new MetadataBuilder().putLong("dmnExactSortDecisionId", id).build()));
+
 		return DataTypes.createStructType(fields);
 	}
 
@@ -265,6 +270,12 @@ public final class SparkSqlFeelValueCodec {
 			columns[index] = original.get(index);
 		for (int index = original.size(); index < columns.length; index++) {
 			Metadata metadata = generatedSchema.fields()[index].metadata();
+			if (metadata.contains("dmnExactSortDecisionId")) {
+				columns[index] = SparkSqlExactSortInput.project(model,
+						Math.toIntExact(metadata.getLong("dmnExactSortDecisionId")), values);
+				continue;
+			}
+
 			if (metadata.contains("dmnIndexedJoinDecisionId")) {
 				columns[index] = SparkSqlIndexedJoinInput.project(model,
 						Math.toIntExact(metadata.getLong("dmnIndexedJoinDecisionId")), values);

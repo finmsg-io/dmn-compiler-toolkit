@@ -1,3 +1,9 @@
+2026-10-22 latest full: [exact native sorting](native-exact-sorts-2026-10-22.md).
+3,391/3,391 passed: 2,701 native (99.48%), 14 fallback (0.52%) of 2,715;
+676 expected model rejections; failed/unknown 0. Generator 134/134 passed:
+2,694 native actions (96.63%), 94 fallback (3.37%) of 2,788; unknown 0,
+six intentional native SQL error assertions.
+
 2026-10-21 latest targeted: [native indexed joins](native-indexed-joins-2026-10-21.md).
 Official join: 1 native (100%), 0 fallback (0%) of 1; failed/unknown 0.
 Combined targeted estimate: 15 fallback (0.55%); last full remains 20.
