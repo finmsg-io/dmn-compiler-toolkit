@@ -1,3 +1,50 @@
+2026-10-22 verified full division/factor-loop checkpoint: 3,391/3,391 official
+cases passed. Executable denominator 2,715: 2,706 native (99.67%), 9 fallback
+(0.33%); failed/unknown 0. Expected model rejections remain 676; errors,
+unsupported, excluded and invalid 0. Exact comparison with the previous full
+run has identical case keys and three FALLBACK -> NATIVE conversions:
+0031-user-defined-functions#001/#002 and 0033-for-loops#003. No route reversals
+or rejection changes. This full result supersedes the targeted estimates below.
+Corrected generator regression/install passed 142/142 tests: 2,848 native SQL
+actions (96.74%), 96 fallback (3.26%) of 2,944; unknown 0. Thirty-four native
+SQL errors are intentional passed assertions; no JUnit failures/errors/skips.
+Two new fallback actions verify that other decimal rounding scales remain fallback.
+Initial official loop run passed 4/4 with 3 native (75%), 1 fallback (25%) of 4;
+failed/unknown 0. Its missing conversion exposed LIST<ANY> expression typing
+beneath a declared LIST<BOOLEAN>. The lowering and fixture now handle that compiler
+shape. Corrected focused: 22 native (91.67%), 2 fallback (8.33%) of 24; unknown 0,
+eight intentional native SQL errors. Full execution confirms the correction.
+Target/installed generator SHA256:
+7F9423C1437840B3A4248B1C63879D421573EBCB6D1616F7A56B183402CFC174.
+Accounting: dmn-tck-runner/target/native-factor-loop-full-accounting-2026-10-22.json.
+Log: dmn-tck-runner/target/native-factor-loop-full-tck-2026-10-22.log.
+Remaining groups: temporal construction (1), payment iteration with power (1),
+composite lending (7). This checkpoint accompanies the requested commit/push.
+
+2026-10-22 latest exact-division checkpoint: official 0031-user-defined-functions
+passed 3/3: 3 native cases (100%), 0 fallback (0%) of 3; failed/unknown 0,
+expected model rejections 0. Cases #001 and #002 changed FALLBACK -> NATIVE;
+#003 remains native. No reversals or rejection changes within the suite.
+Targeted estimate: 2,705 native (99.63%), 10 fallback (0.37%) of 2,715 executable
+cases. This is not a new full run. Latest full remains 2,703 native (99.56%),
+12 fallback (0.44%), plus 676 expected model rejections.
+Generator regression/install passed 140/140 tests: 2,826 native SQL actions
+(96.78%), 94 fallback (3.22%) of 2,920; unknown 0. Twenty-six native SQL errors
+are intentional passed assertions. No JUnit failures/errors/skips. Corrected
+focused division tests passed: 70 native (100%), 0 fallback (0%) of 70;
+unknown 0, ten intentional SQL error assertions. Initial normal run: 48 native
+(100%), 0 fallback (0%) of 48, failed/unknown 0. Expanded boundary run stopped
+on a reference-runtime overflow after 58 native (100%), 0 fallback (0%) of 58,
+failed SQL/unknown 0. SQL and fixture now match BigDecimal provisional scale checks.
+SQL performs DECIMAL128 long division with half-even rounding, exact preferred
+scale, denominator-first validation and null/zero behavior; projections carry
+representation only. Target/installed generator SHA256:
+0EA05DDB465AA2EAE7F206E32819E27183571F803D749B05D77643A214C2D3DD.
+Accounting: dmn-tck-runner/target/native-exact-division-accounting-2026-10-22.json.
+Log: dmn-tck-runner/target/native-exact-division-tck-2026-10-22.log.
+Next groups: temporal construction (1), iteration/factor loop (2), composite
+lending (7). Changes remain uncommitted after a9b3449.
+
 2026-10-22 verified full exact-numeric checkpoint: 3,391/3,391 official cases
 passed. Executable denominator 2,715: 2,703 native (99.56%), 12 fallback
 (0.44%); failed/unknown 0. Expected model rejections remain 676; errors,

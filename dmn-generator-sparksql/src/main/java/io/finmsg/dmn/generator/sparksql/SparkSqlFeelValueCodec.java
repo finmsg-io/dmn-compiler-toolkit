@@ -271,6 +271,14 @@ public final class SparkSqlFeelValueCodec {
 										SparkSqlExactArithmeticInput.slots(model, decision))
 								.build()));
 
+		for (var decision : model.decisions())
+			if (SparkSqlFactorLoopInput.supports(model, decision))
+				fields.add(DataTypes.createStructField(SparkSqlFactorLoopInput.column(decision.id(), names),
+						SparkSqlFactorLoopInput.type(), false,
+						new MetadataBuilder()
+								.putLongArray("dmnFactorLoopSlots", SparkSqlFactorLoopInput.slots(model, decision))
+								.build()));
+
 		return DataTypes.createStructType(fields);
 	}
 
@@ -284,6 +292,10 @@ public final class SparkSqlFeelValueCodec {
 			columns[index] = original.get(index);
 		for (int index = original.size(); index < columns.length; index++) {
 			Metadata metadata = generatedSchema.fields()[index].metadata();
+			if (metadata.contains("dmnFactorLoopSlots")) {
+				columns[index] = SparkSqlFactorLoopInput.project(metadata.getLongArray("dmnFactorLoopSlots"), values);
+				continue;
+			}
 			if (metadata.contains("dmnExactArithmeticDecisionId")) {
 				columns[index] = SparkSqlExactArithmeticInput.project(metadata.getLongArray("dmnExactArithmeticSlots"),
 						values);

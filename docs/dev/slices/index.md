@@ -1,3 +1,16 @@
+2026-10-22 latest full: [native factor loops](native-factor-loops-2026-10-22.md)
+and [exact DECIMAL128 division](native-exact-division-2026-10-22.md).
+3,391/3,391 passed: 2,706 native (99.67%), 9 fallback (0.33%) of 2,715;
+676 expected model rejections; failed/unknown 0. Three conversions, no reversals.
+Generator 142/142 passed: 2,848 native actions (96.74%), 96 fallback (3.26%)
+of 2,944; unknown 0, 34 intentional native SQL error assertions.
+
+2026-10-22 latest targeted: [exact DECIMAL128 division](native-exact-division-2026-10-22.md).
+Official function suite: 3 native (100%), 0 fallback (0%) of 3; failed/unknown 0.
+Two conversions; targeted estimate 10 fallback (0.37%); last full remains 12.
+Generator 140/140 passed: 2,826 native routes (96.78%), 94 fallback (3.22%)
+of 2,920; unknown 0, twenty-six intentional native SQL error assertions.
+
 2026-10-22 latest full: [exact numeric function contexts](native-numeric-function-contexts-2026-10-22.md)
 and [exact Cartesian-loop multiplication](native-exact-products-2026-10-22.md).
 3,391/3,391 passed: 2,703 native (99.56%), 12 fallback (0.44%) of 2,715;

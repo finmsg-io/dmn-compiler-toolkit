@@ -417,6 +417,24 @@ final class SparkSqlStaticFunctionLowerer {
 			}
 			if (loop.partialSlot() >= 0 || loop.iterations().size() > 4)
 				throw new Unsupported();
+			if (loop.iterations().size() == 1 && loop.iterations().getFirst().end().isEmpty()
+					&& loop.iterations().getFirst().source() instanceof RuntimeValueReference source
+					&& source.type().kind() == RuntimeTypeKind.LIST && source.type().elementType() != null) {
+				var iteration = loop.iterations().getFirst();
+				var frame = new HashMap<Integer, Object>(frames.getFirst());
+				frame.put(iteration.localSlot(),
+						new RuntimeLocalReference(iteration.localSlot(), source.type().elementType()));
+				var environment = new ArrayList<Map<Integer, Object>>(frames);
+				environment.set(0, frame);
+				var body = expression(loop.result(), List.copyOf(environment), depth + 1);
+				var rewritten = new RuntimeForExpression(loop.iterations(), body, -1,
+						RuntimeType.element(RuntimeTypeKind.LIST, body.type()));
+				var candidate = new RuntimeDecision(0, 0, rewritten.type(), List.of(), Optional.of(rewritten));
+				if (!SparkSqlFactorLoopInput.supports(model, candidate))
+					throw new Unsupported();
+				applied = true;
+				return rewritten;
+			}
 			var results = new ArrayList<RuntimeExpression>();
 			unroll(loop, 0, frames, depth + 1, results);
 			RuntimeType element = results.isEmpty()

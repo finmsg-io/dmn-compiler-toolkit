@@ -50,9 +50,8 @@ final class SparkSqlExactArithmeticInput {
 			slots.add(r.sourceSlot());
 			return true;
 		}
-		if (e instanceof RuntimeBinaryExpression b
-				&& Set.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT, RuntimeBinaryOperator.MULTIPLY)
-						.contains(b.operator()))
+		if (e instanceof RuntimeBinaryExpression b && Set.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT,
+				RuntimeBinaryOperator.MULTIPLY, RuntimeBinaryOperator.DIVIDE).contains(b.operator()))
 			return numeric(model, b.left(), slots, budget, depth + 1)
 					&& numeric(model, b.right(), slots, budget, depth + 1);
 		if (e instanceof RuntimeUnaryExpression u
@@ -139,6 +138,8 @@ final class SparkSqlExactArithmeticInput {
 			return source + ".v" + r.sourceSlot();
 		if (e instanceof RuntimeBinaryExpression b) {
 			String a = number(b.left(), source), r = number(b.right(), source);
+			if (b.operator() == RuntimeBinaryOperator.DIVIDE)
+				return SparkSqlDecimalSql.divide(a, r);
 			return b.operator() == RuntimeBinaryOperator.MULTIPLY
 					? SparkSqlDecimalSql.multiply(a, r)
 					: SparkSqlDecimalSql.add(a, r, b.operator() == RuntimeBinaryOperator.SUBTRACT);

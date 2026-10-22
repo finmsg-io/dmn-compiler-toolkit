@@ -67,6 +67,61 @@ final class SparkSqlDecimalSql {
 						+ error("FEEL arithmetic scale overflow") + " ELSE " + result + " END");
 		return operands(left, right, result);
 	}
+	/** DECIMAL128 long division, including preferred scale for exact quotients. */
+	static String divide(String left, String right) {
+		String subtract = add(number("div_state.remainder", "0L", "FALSE"),
+				number("element_at(div_multiples,div_digit+1)", "0L", "FALSE"), true);
+		String remainder = let("div_difference", subtract,
+				"CASE WHEN div_difference.digits='0' THEN '0' ELSE concat(div_difference.digits,'0') END");
+		String digit = "array_max(filter(sequence(0,9),div_candidate -> length(element_at(div_multiples,div_candidate+1))<length(div_state.remainder) OR length(element_at(div_multiples,div_candidate+1))=length(div_state.remainder) AND element_at(div_multiples,div_candidate+1)<=div_state.remainder))";
+		String step = let("div_digit", digit, "named_struct('remainder'," + remainder
+				+ ",'digits',concat(div_state.digits,CAST(div_digit AS STRING)))");
+		String quotient = "aggregate(sequence(1,35),named_struct('remainder',CASE WHEN div_less THEN concat(div_na,'0') ELSE div_na END,'digits',''),(div_state,div_position) -> "
+				+ step + ")";
+		String rounded = add(number("substring(div_quotient.digits,1,34)", "0L", "FALSE"), number(
+				"CASE WHEN substring(div_quotient.digits,35,1)>'5' OR substring(div_quotient.digits,35,1)='5' AND (div_quotient.remainder<>'0' OR pmod(CAST(substring(div_quotient.digits,34,1) AS INT),2)=1) THEN '1' ELSE '0' END",
+				"0L", "FALSE"), false);
+		String output = number("substring(div_coefficient,1,length(div_coefficient)-div_trim)", "div_scale-div_trim",
+				"decimal_a.negative<>decimal_b.negative");
+		output = "CASE WHEN div_scale-div_trim < -2147483648L OR div_scale-div_trim > 2147483647L THEN "
+				+ error("FEEL division scale overflow") + " ELSE " + output + " END";
+		output = let("div_trim",
+				"CAST(CASE WHEN div_quotient.remainder='0' AND substring(div_quotient.digits,35,1)='0' THEN least(length(div_coefficient)-length(regexp_replace(div_coefficient,'0+$','')),greatest(0L,div_scale-div_preferred)) ELSE 0L END AS INT)",
+				output);
+		output = let("div_coefficient",
+				"CASE WHEN length(div_rounded.digits)>34 THEN substring(div_rounded.digits,1,34) ELSE div_rounded.digits END",
+				let("div_scale", "33L-div_exponent-CASE WHEN length(div_rounded.digits)>34 THEN 1L ELSE 0L END",
+						output));
+		output = let("div_rounded", rounded, output);
+		output = let("div_quotient", quotient, output);
+		String multiples = "transform(sequence(0,9),div_multiple -> " + let("div_product",
+				multiply(number("div_nb", "0L", "FALSE"), number("CAST(div_multiple AS STRING)", "0L", "FALSE")),
+				"div_product.digits") + ")";
+		output = let("div_multiples", multiples, let("div_exponent",
+				"CAST(length(decimal_a.digits) AS BIGINT)-length(decimal_b.digits)-decimal_a.scale+decimal_b.scale-CASE WHEN div_less THEN 1L ELSE 0L END",
+				output));
+		// BigDecimal checks its provisional quotient scale before stripping exact
+		// zeros.
+		String provisional = "decimal_a.scale-decimal_b.scale+CAST(length(decimal_b.digits) AS BIGINT)-length(decimal_a.digits)+34L-CASE WHEN div_na>div_nb THEN 1L ELSE 0L END";
+		output = let("div_provisional", provisional,
+				"CASE WHEN div_provisional < -2147483648L OR div_provisional > 2147483647L OR decimal_a.scale-decimal_b.scale < -2147483648L OR decimal_a.scale-decimal_b.scale > 2147483647L THEN "
+						+ error("FEEL division provisional scale overflow") + " ELSE " + output + " END");
+		output = let("div_less", "div_na<div_nb", output);
+		output = let("div_na", "rpad(decimal_a.digits,greatest(length(decimal_a.digits),length(decimal_b.digits)),'0')",
+				let("div_nb", "rpad(decimal_b.digits,greatest(length(decimal_a.digits),length(decimal_b.digits)),'0')",
+						output));
+		output = "CASE WHEN decimal_b.digits='0' THEN " + nil() + " WHEN decimal_a.digits='0' THEN "
+				+ number("'0'", "div_preferred", "FALSE") + " ELSE " + output + " END";
+		output = let("div_preferred", "greatest(-2147483648L,least(2147483647L,decimal_a.scale-decimal_b.scale))",
+				output);
+		// Runtime checks the denominator before converting the numerator to BigDecimal.
+		return let("decimal_a", left, let("decimal_b", right,
+				"CASE WHEN decimal_a.digits IS NULL AND NOT decimal_a.invalid OR decimal_b.digits IS NULL AND NOT decimal_b.invalid THEN "
+						+ nil() + " WHEN decimal_b.invalid THEN " + error("Invalid FEEL division denominator")
+						+ " WHEN decimal_b.digits='0' THEN " + nil() + " WHEN decimal_a.invalid THEN "
+						+ error("Invalid FEEL division numerator") + " ELSE " + output + " END"));
+	}
+
 	private static String digit(String text, String index) {
 		return "CAST(coalesce(nullif(substring(" + text + "," + index + "+1,1),''),'0') AS BIGINT)";
 	}
