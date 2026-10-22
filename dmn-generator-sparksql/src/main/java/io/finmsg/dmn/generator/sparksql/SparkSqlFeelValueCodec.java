@@ -257,6 +257,20 @@ public final class SparkSqlFeelValueCodec {
 					DataTypes.createStructField(SparkSqlExactSortInput.column(id, names), SparkSqlExactSortInput.type(),
 							true, new MetadataBuilder().putLong("dmnExactSortDecisionId", id).build()));
 
+		for (int id : SparkSqlExactProductInput.ids(model))
+			fields.add(DataTypes.createStructField(SparkSqlExactProductInput.column(id, names),
+					SparkSqlExactProductInput.type(), false,
+					new MetadataBuilder().putLong("dmnExactProductDecisionId", id).build()));
+
+		for (var decision : model.decisions())
+			if (SparkSqlExactArithmeticInput.supports(model, decision))
+				fields.add(DataTypes.createStructField(SparkSqlExactArithmeticInput.column(decision.id(), names),
+						SparkSqlExactArithmeticInput.type(model, decision), false,
+						new MetadataBuilder().putLong("dmnExactArithmeticDecisionId", decision.id())
+								.putLongArray("dmnExactArithmeticSlots",
+										SparkSqlExactArithmeticInput.slots(model, decision))
+								.build()));
+
 		return DataTypes.createStructType(fields);
 	}
 
@@ -270,6 +284,18 @@ public final class SparkSqlFeelValueCodec {
 			columns[index] = original.get(index);
 		for (int index = original.size(); index < columns.length; index++) {
 			Metadata metadata = generatedSchema.fields()[index].metadata();
+			if (metadata.contains("dmnExactArithmeticDecisionId")) {
+				columns[index] = SparkSqlExactArithmeticInput.project(metadata.getLongArray("dmnExactArithmeticSlots"),
+						values);
+				continue;
+			}
+
+			if (metadata.contains("dmnExactProductDecisionId")) {
+				columns[index] = SparkSqlExactProductInput.project(model,
+						Math.toIntExact(metadata.getLong("dmnExactProductDecisionId")), values);
+				continue;
+			}
+
 			if (metadata.contains("dmnExactSortDecisionId")) {
 				columns[index] = SparkSqlExactSortInput.project(model,
 						Math.toIntExact(metadata.getLong("dmnExactSortDecisionId")), values);

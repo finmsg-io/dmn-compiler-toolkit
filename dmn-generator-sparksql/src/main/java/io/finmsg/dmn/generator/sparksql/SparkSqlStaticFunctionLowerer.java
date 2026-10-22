@@ -10,6 +10,8 @@ import java.util.*;
 final class SparkSqlStaticFunctionLowerer {
 	private record Closure(RuntimeFunctionDefinition function, List<Map<Integer, Object>> frames) {
 	}
+	private record BoundContext(Map<String, Object> fields) {
+	}
 	private record Builtin(String name) {
 	}
 	private record LiteralJava(RuntimeFunctionDefinition function) {
@@ -20,6 +22,7 @@ final class SparkSqlStaticFunctionLowerer {
 	private final Set<Integer> active = new HashSet<>();
 	private int budget = 4096;
 	private boolean applied;
+	private boolean contextFunctions;
 	private int loopResults;
 	private int quantifiedResults;
 
@@ -36,7 +39,14 @@ final class SparkSqlStaticFunctionLowerer {
 				try {
 					RuntimeExpression expression = lowerer.expression(decision.expression().get(),
 							List.of(new HashMap<>()), 0);
-					RuntimeExpression resultExpression = (RuntimeExpression) coerce(expression, decision.type());
+					RuntimeExpression resultExpression = (RuntimeExpression) lowerer.coerce(expression,
+							decision.type());
+					var candidate = new RuntimeDecision(decision.id(), decision.resultSlot(), decision.type(),
+							decision.dependencies(), Optional.of(resultExpression), Optional.empty(),
+							decision.localSlotCount());
+					if (lowerer.contextFunctions && exactNumbersRequired(resultExpression)
+							&& !SparkSqlExactArithmeticInput.supports(model, candidate))
+						throw new Unsupported();
 					if (lowerer.applied || resultExpression != expression) {
 						Set<Integer> slots = new HashSet<>();
 						SparkSqlPayloadCodec.walk(resultExpression, node -> {
@@ -62,6 +72,21 @@ final class SparkSqlStaticFunctionLowerer {
 		}
 		return new RuntimeModel(model.inputs(), decisions, model.businessKnowledgeModels(), model.evaluationOrder(),
 				model.valueSlotCount());
+	}
+
+	private static boolean exactNumbersRequired(RuntimeExpression expression) {
+		boolean[] required = {false};
+		SparkSqlPayloadCodec.walk(expression, node -> {
+			if (node instanceof RuntimeValueReference r && r.type().kind() == RuntimeTypeKind.NUMBER)
+				required[0] = true;
+			if (node instanceof RuntimeBinaryExpression b
+					&& b.type().kind() != RuntimeTypeKind.STRING && Set
+							.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT,
+									RuntimeBinaryOperator.MULTIPLY, RuntimeBinaryOperator.DIVIDE)
+							.contains(b.operator()))
+				required[0] = true;
+		});
+		return required[0];
 	}
 
 	private RuntimeExpression expression(RuntimeExpression expression, List<Map<Integer, Object>> frames, int depth) {
@@ -133,6 +158,21 @@ final class SparkSqlStaticFunctionLowerer {
 					}
 				}
 			}
+			for (var decision : model.decisions()) {
+				if (decision.resultSlot() == reference.sourceSlot()
+						&& decision.expression().orElse(null) instanceof RuntimeContextExpression context
+						&& context.entries().stream()
+								.anyMatch(e -> e.expression() instanceof RuntimeFunctionDefinition)) {
+					if (!active.add(reference.sourceSlot()))
+						throw new Unsupported();
+					try {
+						return coerce(value(context, List.of(new HashMap<>()), depth + 1), decision.type());
+					} finally {
+						active.remove(reference.sourceSlot());
+					}
+				}
+			}
+
 			RuntimeExpression definition = null;
 			for (RuntimeBkm bkm : model.businessKnowledgeModels()) {
 				if (bkm.resultSlot() == reference.sourceSlot())
@@ -273,8 +313,11 @@ final class SparkSqlStaticFunctionLowerer {
 				throw new Unsupported();
 			List<RuntimeContextEntry> entries = new ArrayList<>();
 			boolean containsFunction = false;
+			var boundFields = new LinkedHashMap<String, Object>();
+			boolean duplicateBoundFields = false;
 			for (RuntimeContextEntry entry : context.entries()) {
 				Object result = value(entry.expression(), frames, depth + 1);
+				duplicateBoundFields |= boundFields.put(entry.name(), result) != null;
 				if (entry.name().isEmpty() && entry.localSlot() == -1) {
 					applied = true;
 					return result;
@@ -286,8 +329,15 @@ final class SparkSqlStaticFunctionLowerer {
 				else
 					containsFunction = true;
 			}
-			if (containsFunction)
-				throw new Unsupported();
+			if (containsFunction) {
+				if (duplicateBoundFields)
+					throw new Unsupported();
+				if (boundFields.values().stream().anyMatch(v -> !(v instanceof Closure || v instanceof Builtin
+						|| v instanceof LiteralJava || v instanceof RuntimeConstant)))
+					throw new Unsupported();
+				contextFunctions = true;
+				return new BoundContext(Collections.unmodifiableMap(boundFields));
+			}
 			var fields = new ArrayList<RuntimeField>();
 			var names = new HashSet<String>();
 			for (RuntimeContextEntry entry : entries) {
@@ -317,7 +367,18 @@ final class SparkSqlStaticFunctionLowerer {
 			return new RuntimeContextExpression(entries, context.type());
 		}
 		if (expression instanceof RuntimePathExpression path) {
-			var source = expression(path.source(), frames, depth + 1);
+			Object resolved = value(path.source(), frames, depth + 1);
+			if (resolved instanceof BoundContext context) {
+				applied = true;
+				if (path.fieldIndex() >= 0 && path.fieldIndex() < context.fields().size())
+					return new ArrayList<>(context.fields().values()).get(path.fieldIndex());
+				Object member = context.fields().get(path.member());
+				if (member == null)
+					throw new Unsupported();
+				return member;
+			}
+			if (!(resolved instanceof RuntimeExpression source))
+				throw new Unsupported();
 			var rewritten = new RuntimePathExpression(source, path.member(), path.fieldIndex(), path.type());
 			var literal = SparkSqlClosedCollectionProof.result(rewritten);
 			if (literal == null)
@@ -382,15 +443,59 @@ final class SparkSqlStaticFunctionLowerer {
 				applied |= type.kind() != RuntimeTypeKind.STRING;
 				type = RuntimeType.scalar(RuntimeTypeKind.STRING);
 			}
+			if (contextFunctions && type.kind() == RuntimeTypeKind.ANY && left.type().kind() == RuntimeTypeKind.NUMBER
+					&& right.type().kind() == RuntimeTypeKind.NUMBER && Set
+							.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT,
+									RuntimeBinaryOperator.MULTIPLY, RuntimeBinaryOperator.DIVIDE)
+							.contains(binary.operator())) {
+				type = RuntimeType.scalar(RuntimeTypeKind.NUMBER);
+				applied = true;
+			}
 			return new RuntimeBinaryExpression(binary.operator(), left, right, type);
 		}
+		if (expression instanceof RuntimeInExpression in) {
+			var tests = new ArrayList<RuntimeUnaryTest>();
+			for (var test : in.tests().tests()) {
+				if (test instanceof RuntimeRangeUnaryTest range)
+					tests.add(new RuntimeRangeUnaryTest(
+							(RuntimeRangeExpression) expression(range.range(), frames, depth + 1)));
+				else if (test instanceof RuntimeExpressionUnaryTest t)
+					tests.add(new RuntimeExpressionUnaryTest(expression(t.expression(), frames, depth + 1)));
+				else if (test instanceof RuntimeComparisonUnaryTest t)
+					tests.add(
+							new RuntimeComparisonUnaryTest(t.operator(), expression(t.endpoint(), frames, depth + 1)));
+				else
+					throw new Unsupported();
+			}
+			return new RuntimeInExpression(expression(in.value(), frames, depth + 1),
+					new RuntimeUnaryTests(in.tests().negated(), in.tests().wildcard(), tests), in.type());
+		}
+		if (expression instanceof RuntimeRangeExpression range)
+			return new RuntimeRangeExpression(range.lower().map(e -> expression(e, frames, depth + 1)),
+					range.upper().map(e -> expression(e, frames, depth + 1)), range.lowerBoundary(),
+					range.upperBoundary(), range.type());
+
 		if (expression instanceof RuntimeUnaryExpression unary)
 			return new RuntimeUnaryExpression(unary.operator(), expression(unary.operand(), frames, depth + 1),
 					unary.type());
-		if (expression instanceof RuntimeConditionalExpression conditional)
-			return new RuntimeConditionalExpression(expression(conditional.condition(), frames, depth + 1),
-					expression(conditional.thenExpression(), frames, depth + 1),
-					expression(conditional.elseExpression(), frames, depth + 1), conditional.type());
+		if (expression instanceof RuntimeConditionalExpression conditional) {
+			var condition = expression(conditional.condition(), frames, depth + 1);
+			var yes = expression(conditional.thenExpression(), frames, depth + 1);
+			var no = expression(conditional.elseExpression(), frames, depth + 1);
+			var type = conditional.type();
+			if (contextFunctions && type.kind() == RuntimeTypeKind.ANY) {
+				for (var kind : List.of(RuntimeTypeKind.NUMBER, RuntimeTypeKind.STRING, RuntimeTypeKind.BOOLEAN)) {
+					var candidate = RuntimeType.scalar(kind);
+					if (compatible(yes, candidate) && compatible(no, candidate)) {
+						type = candidate;
+						applied = true;
+						break;
+					}
+				}
+			}
+			return new RuntimeConditionalExpression(condition, yes, no, type);
+		}
+
 		if (expression instanceof RuntimeFunctionCall call) {
 			RuntimeExpression sorted = boundedSort(call.function(), call.arguments(), frames, depth);
 			if (sorted != null)
@@ -657,7 +762,24 @@ final class SparkSqlStaticFunctionLowerer {
 		throw new Unsupported();
 	}
 
-	private static Object coerce(Object value, RuntimeType expected) {
+	private Object coerce(Object value, RuntimeType expected) {
+		if (value instanceof BoundContext context && expected.kind() == RuntimeTypeKind.CONTEXT) {
+			for (var f : expected.fieldLayout())
+				if (!context.fields().containsKey(f.name()) || !compatible(context.fields().get(f.name()), f.type()))
+					throw new Unsupported();
+			return context;
+		}
+		if (contextFunctions && value instanceof RuntimeContextExpression context
+				&& expected.kind() == RuntimeTypeKind.CONTEXT && !context.type().equals(expected)) {
+			for (var f : expected.fieldLayout()) {
+				var entry = context.entries().stream().filter(e -> e.name().equals(f.name())).findFirst()
+						.orElseThrow(Unsupported::new);
+				if (!compatible(entry.expression(), f.type()))
+					throw new Unsupported();
+			}
+			return new RuntimeContextExpression(context.entries(), expected);
+		}
+
 		if (compatible(value, expected))
 			return value;
 		if (value instanceof RuntimeExpression expression) {

@@ -91,6 +91,8 @@ public final class DmnSparkSqlGenerator {
 		Set<Integer> temporalTables = options.hybridUdfFallback() ? SparkSqlTemporalTableInput.ids(model) : Set.of();
 		Set<Integer> joins = options.hybridUdfFallback() ? SparkSqlIndexedJoinInput.ids(model) : Set.of();
 		Set<Integer> sorts = options.hybridUdfFallback() ? SparkSqlExactSortInput.ids(model) : Set.of();
+		Set<Integer> products = options.hybridUdfFallback() ? SparkSqlExactProductInput.ids(model) : Set.of();
+		Set<Integer> arithmetic = options.hybridUdfFallback() ? SparkSqlExactArithmeticInput.ids(model) : Set.of();
 		StructType inputSchema = options.hybridUdfFallback()
 				? SparkSqlFeelValueCodec.calendarInputSchema(model, slotNames, calendarSlots, stringSlots)
 				: SparkSqlSchemaGenerator.generateInputSchema(model, slotNames);
@@ -133,14 +135,14 @@ public final class DmnSparkSqlGenerator {
 			String name = "Decision_" + decision.resultSlot();
 			String sqlQuery = buildCteQuery(model, decision, decisionMap, slotNames, bkmBySlot,
 					options.inputTableName(), fallbackExpressions, calendarSlots, stringSlots, positionSlots,
-					numericFilters, temporalTables, joins, sorts);
+					numericFilters, temporalTables, joins, sorts, products, arithmetic);
 			sqlFiles.put(name + ".sql", sqlQuery);
 		}
 		if (!model.decisions().isEmpty()) {
 			sqlFiles.put("AllDecisions.sql",
 					buildAllDecisionsCteQuery(model, decisionMap, slotNames, bkmBySlot, options.inputTableName(),
 							fallbackExpressions, calendarSlots, stringSlots, positionSlots, numericFilters,
-							temporalTables, joins, sorts));
+							temporalTables, joins, sorts, products, arithmetic));
 		}
 
 		Map<String, String> javaSources = new HashMap<>();
@@ -167,7 +169,8 @@ public final class DmnSparkSqlGenerator {
 			Map<Integer, RuntimeDecision> decisionMap, Map<Integer, String> slotNames,
 			Map<Integer, RuntimeBkm> bkmBySlot, String inputTable, Map<Integer, String> fallbackExpressions,
 			Set<Integer> calendarSlots, Set<Integer> stringSlots, Set<Integer> positionSlots,
-			Set<Integer> numericFilters, Set<Integer> temporalTables, Set<Integer> joins, Set<Integer> sorts) {
+			Set<Integer> numericFilters, Set<Integer> temporalTables, Set<Integer> joins, Set<Integer> sorts,
+			Set<Integer> products, Set<Integer> arithmetic) {
 
 		if (fallbackExpressions.containsKey(targetDecision.id())) {
 			// Evaluate the complete subgraph from original inputs, never materialize
@@ -209,6 +212,8 @@ public final class DmnSparkSqlGenerator {
 		temporalTables.forEach(id -> currentCols.add(SparkSqlTemporalTableInput.column(id, slotNames)));
 		joins.forEach(id -> currentCols.add(SparkSqlIndexedJoinInput.column(id, slotNames)));
 		sorts.forEach(id -> currentCols.add(SparkSqlExactSortInput.column(id, slotNames)));
+		products.forEach(id -> currentCols.add(SparkSqlExactProductInput.column(id, slotNames)));
+		arithmetic.forEach(id -> currentCols.add(SparkSqlExactArithmeticInput.column(id, slotNames)));
 		SparkSqlLookupKeyInput.slots(model).stream().filter(stringSlots::contains)
 				.forEach(slot -> currentCols.add(SparkSqlLookupKeyInput.column(slot, slotNames)));
 		for (RuntimeInput inp : model.inputs()) {
@@ -222,7 +227,7 @@ public final class DmnSparkSqlGenerator {
 			RuntimeDecision dec = orderedDecisions.get(idx);
 			String decName = slotNames.get(dec.resultSlot()).replace("`", "");
 			String exprCode = emitDecisionExpr(dec, slotNames, bkmBySlot, model, calendarSlots, stringSlots,
-					positionSlots, numericFilters, temporalTables, joins, sorts);
+					positionSlots, numericFilters, temporalTables, joins, sorts, products, arithmetic);
 			String cteName = "_cte_" + dec.resultSlot();
 
 			List<String> projectedCols = new ArrayList<>();
@@ -255,7 +260,7 @@ public final class DmnSparkSqlGenerator {
 			Map<Integer, String> slotNames, Map<Integer, RuntimeBkm> bkmBySlot, String inputTable,
 			Map<Integer, String> fallbackExpressions, Set<Integer> calendarSlots, Set<Integer> stringSlots,
 			Set<Integer> positionSlots, Set<Integer> numericFilters, Set<Integer> temporalTables, Set<Integer> joins,
-			Set<Integer> sorts) {
+			Set<Integer> sorts, Set<Integer> products, Set<Integer> arithmetic) {
 
 		StringBuilder sb = new StringBuilder();
 		sb.append("-- Generated Spark SQL CTE Query for all DMN Decisions\n");
@@ -286,6 +291,8 @@ public final class DmnSparkSqlGenerator {
 		temporalTables.forEach(id -> currentCols.add(SparkSqlTemporalTableInput.column(id, slotNames)));
 		joins.forEach(id -> currentCols.add(SparkSqlIndexedJoinInput.column(id, slotNames)));
 		sorts.forEach(id -> currentCols.add(SparkSqlExactSortInput.column(id, slotNames)));
+		products.forEach(id -> currentCols.add(SparkSqlExactProductInput.column(id, slotNames)));
+		arithmetic.forEach(id -> currentCols.add(SparkSqlExactArithmeticInput.column(id, slotNames)));
 		SparkSqlLookupKeyInput.slots(model).stream().filter(stringSlots::contains)
 				.forEach(slot -> currentCols.add(SparkSqlLookupKeyInput.column(slot, slotNames)));
 		for (RuntimeInput inp : model.inputs()) {
@@ -303,7 +310,7 @@ public final class DmnSparkSqlGenerator {
 			String exprCode = fallbackExpressions.containsKey(dec.id())
 					? fallbackExpressions.get(dec.id())
 					: emitDecisionExpr(dec, slotNames, bkmBySlot, model, calendarSlots, stringSlots, positionSlots,
-							numericFilters, temporalTables, joins, sorts);
+							numericFilters, temporalTables, joins, sorts, products, arithmetic);
 			String cteName = "_cte_" + dec.resultSlot();
 
 			List<String> projectedCols = new ArrayList<>();
@@ -364,7 +371,12 @@ public final class DmnSparkSqlGenerator {
 	private String emitDecisionExpr(RuntimeDecision decision, Map<Integer, String> slotNames,
 			Map<Integer, RuntimeBkm> bkmBySlot, RuntimeModel model, Set<Integer> calendarSlots,
 			Set<Integer> stringSlots, Set<Integer> positionSlots, Set<Integer> numericFilters,
-			Set<Integer> temporalTables, Set<Integer> joins, Set<Integer> sorts) {
+			Set<Integer> temporalTables, Set<Integer> joins, Set<Integer> sorts, Set<Integer> products,
+			Set<Integer> arithmetic) {
+		if (arithmetic.contains(decision.id()))
+			return SparkSqlExactArithmeticInput.sql(model, decision, slotNames);
+		if (products.contains(decision.id()))
+			return SparkSqlExactProductInput.sql(decision, slotNames);
 		if (sorts.contains(decision.id()))
 			return SparkSqlExactSortInput.sql(model, decision, slotNames);
 		if (joins.contains(decision.id()))

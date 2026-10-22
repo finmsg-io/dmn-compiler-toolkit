@@ -1,3 +1,44 @@
+2026-10-22 verified full exact-numeric checkpoint: 3,391/3,391 official cases
+passed. Executable denominator 2,715: 2,703 native (99.56%), 12 fallback
+(0.44%); failed/unknown 0. Expected model rejections remain 676; errors,
+unsupported, excluded and invalid 0. Exact comparison with the last full run
+confirms two FALLBACK -> NATIVE conversions: 0031-user-defined-functions#003
+and 0033-for-loops#002. Identical case keys; no route reversals or rejection changes.
+Generator regression/install passed 138/138 tests: 2,756 native SQL actions
+(96.70%), 94 fallback (3.30%) of 2,850; unknown 0. Sixteen native SQL errors
+are intentional passed assertions; no JUnit failures/errors/skips. Focused numeric
+function tests passed: 32 native (100%), 0 fallback (0%) of 32; failed/unknown 0.
+Exact scalar SQL now supports numeric contexts with addition, subtraction,
+multiplication, comparisons and range branches after static context-function
+binding. Division remains fallback. Ordinary context coercion was restored after
+four initial capability-test failures; the corrected full regression passed.
+Target/installed generator SHA256:
+7F54771BB1B1439751478D6808D2E5F5744338F697956222046613C92323EF6C.
+Accounting: dmn-tck-runner/target/native-numeric-functions-full-accounting-2026-10-22.json.
+Log: dmn-tck-runner/target/native-numeric-functions-full-tck-2026-10-22.log.
+Remaining groups: temporal construction (1), numeric functions with division (2),
+iteration/factor loop (2), composite lending (7). This verified checkpoint
+supersedes the targeted estimates below and accompanies the requested commit/push.
+
+2026-10-22 latest exact-product checkpoint: official 0033-for-loops suite
+passed 4/4: 3 native cases (75%), 1 fallback (25%) of 4; failed/unknown 0,
+expected model rejections 0. New conversion 0033-for-loops#002: exact Cartesian
+multiplication. Exact latest-full comparison confirms one FALLBACK -> NATIVE,
+no reversals or rejection changes within the suite. Targeted estimate:
+2,702 native (99.52%), 13 fallback (0.48%) of 2,715 executable cases.
+This is not a new full run. Latest full remains 2,701 native (99.48%),
+14 fallback (0.52%), plus 676 provisional expected model rejections.
+Generator regression/install passed 136/136 tests: 2,724 native SQL actions
+(96.66%), 94 fallback (3.34%) of 2,818; unknown 0. Sixteen native SQL errors
+are intentional passed assertions (ten new product checks plus six existing).
+No JUnit failures/errors/skips. Focused corrected: 20 native actions (100%),
+0 fallback (0%) of 20; failed/unknown 0. Exact decimal payloads now use explicit
+scale/unscaled tag 19; readers retain legacy tag 4 compatibility. Target/installed
+JAR SHA256: C78BA2CEE6A8E6B67FCBBA3B55E74D03BB43C95640BB1C9413C3EA4031708088.
+Accounting: dmn-tck-runner/target/native-exact-product-accounting-2026-10-22.json.
+Next groups: temporal construction (1), numeric functions (3), iteration/factor
+loop (2), composite lending (7). Changes remain uncommitted after 264056f.
+
 2026-10-22 verified full native-sort checkpoint: 3,391/3,391 official cases
 passed. Executable denominator 2,715: 2,701 native (99.48%), 14 fallback
 (0.52%); failed/unknown 0. Expected model rejections remain 676; errors,

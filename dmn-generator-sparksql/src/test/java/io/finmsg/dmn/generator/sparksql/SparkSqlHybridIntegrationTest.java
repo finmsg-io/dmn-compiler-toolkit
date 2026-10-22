@@ -73,6 +73,210 @@ class SparkSqlHybridIntegrationTest {
 				List.of(new RuntimeDecision(20, 3, string, List.of(5, 6, 7), Optional.of(result), Optional.empty(), 4)),
 				List.of(), List.of(20), 4);
 	}
+	private static RuntimeModel exactProductFixture() {
+		var number = SparkSqlHybridTest.NUMBER;
+		var list = RuntimeType.element(RuntimeTypeKind.LIST, number);
+		var loop = new RuntimeForExpression(
+				List.of(new RuntimeIteration(0, new RuntimeValueReference(0, list), Optional.empty()),
+						new RuntimeIteration(1, new RuntimeValueReference(1, list), Optional.empty())),
+				new RuntimeBinaryExpression(RuntimeBinaryOperator.MULTIPLY, new RuntimeLocalReference(0, number),
+						new RuntimeLocalReference(1, number), number),
+				-1, list);
+		return new RuntimeModel(List.of(new RuntimeInput(5, 0, list), new RuntimeInput(6, 1, list)),
+				List.of(new RuntimeDecision(10, 2, list, List.of(5, 6), Optional.of(loop), Optional.empty(), 2)),
+				List.of(), List.of(10), 3);
+	}
+	@Test
+	void exactNumericContextsPreserveAdditionSubtractionAndRangeBranches() {
+		var n = SparkSqlHybridTest.NUMBER;
+		var bool = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
+		var a = new RuntimeValueReference(0, n);
+		var b = new RuntimeValueReference(1, n);
+		var sum = new RuntimeBinaryExpression(RuntimeBinaryOperator.ADD, a, b, n);
+		var difference = new RuntimeBinaryExpression(RuntimeBinaryOperator.SUBTRACT, a, b, n);
+		var product = new RuntimeBinaryExpression(RuntimeBinaryOperator.MULTIPLY, a, b, n);
+		var range = new RuntimeRangeExpression(Optional.of(SparkSqlHybridTest.number("-1")),
+				Optional.of(SparkSqlHybridTest.number("1")), RuntimeRangeBoundary.CLOSED, RuntimeRangeBoundary.CLOSED,
+				RuntimeType.scalar(RuntimeTypeKind.ANY));
+		var inside = new RuntimeInExpression(difference,
+				new RuntimeUnaryTests(false, false, List.of(new RuntimeRangeUnaryTest(range))), bool);
+		var chosen = new RuntimeConditionalExpression(inside, SparkSqlHybridTest.number("1"),
+				SparkSqlHybridTest.number("0"), n);
+		var type = RuntimeType.contextFields(List.of(new RuntimeField(0, "product", n),
+				new RuntimeField(1, "difference", n), new RuntimeField(2, "sum", n), new RuntimeField(3, "chosen", n)));
+		var expression = new RuntimeContextExpression(
+				List.of(new RuntimeContextEntry("sum", 0, sum), new RuntimeContextEntry("difference", 1, difference),
+						new RuntimeContextEntry("product", 2, product), new RuntimeContextEntry("chosen", 3, chosen)),
+				type);
+		var model = new RuntimeModel(List.of(new RuntimeInput(5, 0, n), new RuntimeInput(6, 1, n)),
+				List.of(new RuntimeDecision(10, 2, type, List.of(5, 6), Optional.of(expression), Optional.empty(), 4)),
+				List.of(), List.of(10), 3);
+		var generated = SparkSqlHybridTest.generate(model);
+		assertThat(generated.capabilities().get(10).nativeSql()).isTrue();
+		var cases = Arrays.asList(new Object[]{new BigDecimal("9007199254740993"), new BigDecimal("9007199254740992")},
+				new Object[]{new BigDecimal("20.00000000000000000000000000000000000001"), new BigDecimal("20")},
+				new Object[]{new BigDecimal("-1.01"), BigDecimal.ONE},
+				new Object[]{new BigDecimal("-1"), new BigDecimal("1.01")},
+				new Object[]{new BigDecimal("-2.00"), new BigDecimal("-3.000")},
+				new Object[]{new BigDecimal("0.00"), new BigDecimal("0E-4")},
+				new Object[]{new BigDecimal("1E40"), new BigDecimal("1E-40")}, new Object[]{null, BigDecimal.ONE},
+				new Object[]{BigDecimal.ONE, null}, new Object[]{null, null});
+		for (var pair : cases) {
+			Map<Integer, Object> inputs = new HashMap<>();
+			inputs.put(0, pair[0]);
+			inputs.put(1, pair[1]);
+			var row = SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema());
+			spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+			for (String file : List.of("Decision_2.sql", "AllDecisions.sql"))
+				assertThat(
+						SparkSqlFeelValueCodec.fromSpark(spark.sql(generated.sqlFiles().get(file)).head().get(0), type))
+						.as("%s", inputs).isEqualTo(expected);
+		}
+	}
+	private static RuntimeModel numericFunctionContextFixture(boolean producer) {
+		var n = SparkSqlHybridTest.NUMBER;
+		var any = SparkSqlHybridTest.ANY;
+		var definitions = new ArrayList<RuntimeContextEntry>();
+		for (var op : List.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT,
+				RuntimeBinaryOperator.MULTIPLY)) {
+			var parameter = op == RuntimeBinaryOperator.MULTIPLY ? n : any;
+			var fn = new RuntimeFunctionDefinition(
+					List.of(new RuntimeFunctionParameter("a", 0, parameter),
+							new RuntimeFunctionParameter("b", 1, parameter)),
+					Optional.of(new RuntimeBinaryExpression(op, new RuntimeLocalReference(0, parameter),
+							new RuntimeLocalReference(1, parameter), parameter)),
+					false, 2, RuntimeType.function(List.of(parameter, parameter), parameter));
+			definitions.add(new RuntimeContextEntry(op.name(), definitions.size(), fn));
+		}
+		var libraryType = RuntimeType.contextFields(List.of(new RuntimeField(0, "ADD", any),
+				new RuntimeField(1, "SUBTRACT", any), new RuntimeField(2, "MULTIPLY", any)));
+		var library = new RuntimeContextExpression(definitions, libraryType);
+		RuntimeExpression source = producer ? new RuntimeValueReference(2, libraryType) : library;
+		var a = new RuntimeValueReference(0, n);
+		var b = new RuntimeValueReference(1, n);
+		var sum = new RuntimeInvocationExpression(Optional.empty(),
+				Optional.of(new RuntimePathExpression(source, "ADD", any)), List.of(), List.of(a, b), any);
+		var nested = new RuntimeInvocationExpression(Optional.empty(),
+				Optional.of(new RuntimePathExpression(source, "MULTIPLY", any)), List.of(), List.of(sum, sum), any);
+		var reversed = new RuntimeInvocationExpression(Optional.empty(),
+				Optional.of(new RuntimePathExpression(source, "SUBTRACT", any)),
+				List.of(new RuntimeNamedArgument("b", a), new RuntimeNamedArgument("a", b)), List.of(), any);
+		var scaled = new RuntimeBinaryExpression(RuntimeBinaryOperator.MULTIPLY, SparkSqlHybridTest.number("6.283184"),
+				sum, n);
+		var type = RuntimeType.contextFields(List.of(new RuntimeField(0, "scaled", n), new RuntimeField(1, "nested", n),
+				new RuntimeField(2, "difference", n)));
+		int start = producer ? 0 : 3;
+		var result = new RuntimeContextExpression(List.of(new RuntimeContextEntry("nested", start, nested),
+				new RuntimeContextEntry("difference", start + 1, reversed),
+				new RuntimeContextEntry("scaled", start + 2, scaled)), type);
+		var decisions = new ArrayList<RuntimeDecision>();
+		if (producer)
+			decisions
+					.add(new RuntimeDecision(10, 2, libraryType, List.of(), Optional.of(library), Optional.empty(), 3));
+		decisions.add(new RuntimeDecision(20, producer ? 3 : 2, type, producer ? List.of(5, 6, 10) : List.of(5, 6),
+				Optional.of(result), Optional.empty(), start + 3));
+		return new RuntimeModel(List.of(new RuntimeInput(5, 0, n), new RuntimeInput(6, 1, n)), decisions, List.of(),
+				producer ? List.of(10, 20) : List.of(20), producer ? 4 : 3);
+	}
+	@Test
+	void numericFunctionContextsInlineNamedAndNestedCallsWithExactResults() {
+		for (boolean producer : List.of(false, true)) {
+			var model = numericFunctionContextFixture(producer);
+			var generated = SparkSqlHybridTest.generate(model);
+			assertThat(generated.capabilities().get(20).nativeSql()).isTrue();
+			generated.registerUdfs(spark);
+			for (var pair : Arrays.asList(new Object[]{new BigDecimal("10"), new BigDecimal("5")},
+					new Object[]{new BigDecimal("9007199254740993"), new BigDecimal("9007199254740992")},
+					new Object[]{new BigDecimal("-1.01"), new BigDecimal("2.00")},
+					new Object[]{null, BigDecimal.ONE})) {
+				Map<Integer, Object> inputs = new HashMap<>();
+				inputs.put(0, pair[0]);
+				inputs.put(1, pair[1]);
+				var row = SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema());
+				spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
+				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(20);
+				var files = producer ? List.of("Decision_3.sql") : List.of("Decision_2.sql", "AllDecisions.sql");
+				for (var file : files)
+					assertThat(
+							SparkSqlFeelValueCodec.fromSpark(spark.sql(generated.sqlFiles().get(file)).head().get(0)))
+							.as("producer=%s input=%s", producer, inputs).isEqualTo(expected);
+			}
+		}
+	}
+
+	@Test
+	void exactProductLoopsRetainNullInvalidNumberAndScaleOverflowErrors() {
+		var model = exactProductFixture();
+		var generated = SparkSqlHybridTest.generate(model);
+		var maximum = new BigDecimal(java.math.BigInteger.ONE, Integer.MAX_VALUE);
+		var minimum = new BigDecimal(java.math.BigInteger.ONE, Integer.MIN_VALUE);
+		var cases = List.of(new Object[]{List.of(maximum), List.of(new BigDecimal("0.1"))},
+				new Object[]{List.of(maximum), List.of(new BigDecimal("0.0"))},
+				new Object[]{List.of(minimum), List.of(new BigDecimal("1E1"))},
+				new Object[]{Arrays.asList((Object) null), List.of(BigDecimal.ONE)},
+				new Object[]{List.of(Double.NaN), List.of(BigDecimal.ONE)});
+		for (var pair : cases) {
+			Map<Integer, Object> inputs = Map.of(0, pair[0], 1, pair[1]);
+			assertThatThrownBy(() -> new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs))
+					.isInstanceOf(RuntimeException.class);
+			var row = SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema());
+			spark.createDataFrame(List.of(row), generated.inputSchema()).repartition(1)
+					.createOrReplaceTempView("hybrid_inputs");
+			for (String file : List.of("Decision_2.sql", "AllDecisions.sql"))
+				assertThatThrownBy(() -> spark.sql(generated.sqlFiles().get(file)).collectAsList())
+						.hasMessageContaining("FEEL product");
+		}
+	}
+
+	@Test
+	void exactProductLoopsPreserveDecimalPrecisionScalesAndEmptySourceOrder() {
+		var model = exactProductFixture();
+		var list = model.decisions().getFirst().type();
+		var generated = new DmnSparkSqlGenerator().generate(SparkSqlHybridTest.optimized(model),
+				DmnSparkSqlGeneratorOptions.of("hybrid_inputs", true,
+						Map.of(0, "__dmn_product_10", 1, "right", 2, "result")));
+		assertThat(generated.capabilities().get(10).nativeSql()).isTrue();
+		assertThat(generated.udfs()).isEmpty();
+		assertThat(generated.inputSchema().fields()[2].name()).isEqualTo("__dmn_product_10_");
+		assertThat(SparkSqlFeelValueCodec.decode(java.util.HexFormat.of().parseHex("444D4E010400000004312E3233")))
+				.isEqualTo(new BigDecimal("1.23"));
+		for (int scale : List.of(Integer.MIN_VALUE, Integer.MAX_VALUE))
+			for (var coefficient : List.of(java.math.BigInteger.ZERO, java.math.BigInteger.TEN)) {
+				var number = new BigDecimal(coefficient, scale);
+				assertThat(SparkSqlFeelValueCodec.decode(SparkSqlFeelValueCodec.encode(number))).isEqualTo(number);
+			}
+		var cases = Arrays.asList(
+				new Object[]{List.of(new BigDecimal("123456789012345678901234567890123456789"),
+						new BigDecimal("-1.00000000000000000001"), new BigDecimal("0.00"), new BigDecimal("1E400")),
+						List.of(new BigDecimal("987654321098765432109876543210987654321"),
+								new BigDecimal("-0.000000000000000000002"), BigDecimal.ZERO, new BigDecimal("1E-400"))},
+				new Object[]{List.of(new BigDecimal(java.math.BigInteger.TEN, Integer.MIN_VALUE)),
+						List.of(BigDecimal.ONE)},
+				new Object[]{List.of(new BigDecimal(java.math.BigInteger.TEN, Integer.MAX_VALUE)),
+						List.of(BigDecimal.ONE)},
+				new Object[]{List.of(new BigDecimal(java.math.BigInteger.ZERO, Integer.MAX_VALUE)),
+						List.of(new BigDecimal("0.1"))},
+				new Object[]{List.of(new BigDecimal(java.math.BigInteger.ZERO, Integer.MIN_VALUE)),
+						List.of(new BigDecimal("1E1"))},
+				new Object[]{List.of(), null}, new Object[]{null, List.of()},
+				new Object[]{List.of(BigDecimal.ONE), null}, new Object[]{List.of(Double.NaN), List.of()},
+				new Object[]{List.of(), List.of(Double.NaN)});
+		for (var pair : cases) {
+			Map<Integer, Object> inputs = new HashMap<>();
+			inputs.put(0, pair[0]);
+			inputs.put(1, pair[1]);
+			var row = SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema());
+			assertThat(row.get(0)).isEqualTo(SparkSqlFeelValueCodec.inputRow(model, inputs).get(0));
+			spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+			for (String file : List.of("Decision_2.sql", "AllDecisions.sql"))
+				assertThat(
+						SparkSqlFeelValueCodec.fromSpark(spark.sql(generated.sqlFiles().get(file)).head().get(0), list))
+						.as("%s", inputs).isEqualTo(expected);
+		}
+	}
+
 	@Test
 	void sortComparatorReturnCoercionAndAliasedBindingsRetainFallbackSemantics() {
 		var number = SparkSqlHybridTest.NUMBER;

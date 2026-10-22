@@ -112,8 +112,9 @@ final class SparkSqlPayloadCodec {
 			return;
 		}
 		if (value instanceof BigDecimal n) {
-			out.writeByte(4);
-			string(out, n.toString());
+			out.writeByte(19);
+			out.writeInt(n.scale());
+			string(out, n.unscaledValue().toString());
 			return;
 		}
 		if (value instanceof Optional<?> o) {
@@ -254,6 +255,10 @@ final class SparkSqlPayloadCodec {
 			case 16 -> Duration.parse(string(in));
 			case 17 -> Period.parse(string(in));
 			case 18 -> ZoneId.of(string(in));
+			case 19 -> {
+				int scale = in.readInt();
+				yield new BigDecimal(new java.math.BigInteger(string(in)), scale);
+			}
 			default -> throw new IOException("Unknown DMN payload tag");
 		};
 	}
