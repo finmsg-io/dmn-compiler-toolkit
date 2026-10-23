@@ -12,6 +12,9 @@ final class SparkSqlDecisionGraph {
 	}
 
 	static Set<Integer> required(RuntimeModel model, int decisionId) {
+		return required(model, decisionId, false);
+	}
+	static Set<Integer> required(RuntimeModel model, int decisionId, boolean scalarProofs) {
 		Map<Integer, Object> nodes = new HashMap<>();
 		Map<Integer, Integer> slotIds = new HashMap<>();
 		model.inputs().forEach(n -> {
@@ -36,6 +39,13 @@ final class SparkSqlDecisionGraph {
 			if (!required.add(id))
 				continue;
 			Object node = nodes.get(id);
+			if (scalarProofs && node instanceof RuntimeDecision d) {
+				var dependencies = SparkSqlScalarGraph.dependencies(model, d);
+				if (dependencies != null) {
+					pending.addAll(dependencies);
+					continue;
+				}
+			}
 			if (node instanceof RuntimeDecision d)
 				pending.addAll(d.dependencies());
 			if (node instanceof RuntimeBkm b)

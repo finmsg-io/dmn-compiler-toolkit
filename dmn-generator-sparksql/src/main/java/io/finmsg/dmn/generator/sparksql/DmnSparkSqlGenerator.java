@@ -18,7 +18,7 @@ public final class DmnSparkSqlGenerator {
 
 		RuntimeModel originalModel = optimizedModel.model();
 		RuntimeModel model = options.hybridUdfFallback()
-				? SparkSqlStaticFunctionLowerer.lower(originalModel)
+				? SparkSqlScalarGraph.lowerDependencies(SparkSqlStaticFunctionLowerer.lower(originalModel))
 				: originalModel;
 		Map<Integer, String> slotNames = new HashMap<>();
 		for (RuntimeInput input : model.inputs()) {
@@ -96,6 +96,8 @@ public final class DmnSparkSqlGenerator {
 		if (options.hybridUdfFallback()) {
 			arithmetic.addAll(SparkSqlExactArithmeticInput.ids(model));
 			arithmetic.addAll(SparkSqlFactorLoopInput.ids(model));
+			arithmetic.addAll(SparkSqlNumericLoopInput.ids(model));
+			arithmetic.addAll(SparkSqlScalarGraph.ids(model));
 		}
 		StructType inputSchema = options.hybridUdfFallback()
 				? SparkSqlFeelValueCodec.calendarInputSchema(model, slotNames, calendarSlots, stringSlots)
@@ -217,9 +219,7 @@ public final class DmnSparkSqlGenerator {
 		joins.forEach(id -> currentCols.add(SparkSqlIndexedJoinInput.column(id, slotNames)));
 		sorts.forEach(id -> currentCols.add(SparkSqlExactSortInput.column(id, slotNames)));
 		products.forEach(id -> currentCols.add(SparkSqlExactProductInput.column(id, slotNames)));
-		arithmetic.forEach(id -> currentCols.add(SparkSqlFactorLoopInput.supports(model, decisionMap.get(id))
-				? SparkSqlFactorLoopInput.column(id, slotNames)
-				: SparkSqlExactArithmeticInput.column(id, slotNames)));
+		arithmetic.forEach(id -> currentCols.add(exactProjectionColumn(model, decisionMap.get(id), slotNames)));
 		SparkSqlLookupKeyInput.slots(model).stream().filter(stringSlots::contains)
 				.forEach(slot -> currentCols.add(SparkSqlLookupKeyInput.column(slot, slotNames)));
 		for (RuntimeInput inp : model.inputs()) {
@@ -298,9 +298,7 @@ public final class DmnSparkSqlGenerator {
 		joins.forEach(id -> currentCols.add(SparkSqlIndexedJoinInput.column(id, slotNames)));
 		sorts.forEach(id -> currentCols.add(SparkSqlExactSortInput.column(id, slotNames)));
 		products.forEach(id -> currentCols.add(SparkSqlExactProductInput.column(id, slotNames)));
-		arithmetic.forEach(id -> currentCols.add(SparkSqlFactorLoopInput.supports(model, decisionMap.get(id))
-				? SparkSqlFactorLoopInput.column(id, slotNames)
-				: SparkSqlExactArithmeticInput.column(id, slotNames)));
+		arithmetic.forEach(id -> currentCols.add(exactProjectionColumn(model, decisionMap.get(id), slotNames)));
 		SparkSqlLookupKeyInput.slots(model).stream().filter(stringSlots::contains)
 				.forEach(slot -> currentCols.add(SparkSqlLookupKeyInput.column(slot, slotNames)));
 		for (RuntimeInput inp : model.inputs()) {
@@ -376,15 +374,30 @@ public final class DmnSparkSqlGenerator {
 		return deps;
 	}
 
+	private static String exactProjectionColumn(RuntimeModel model, RuntimeDecision d, Map<Integer, String> names) {
+		if (SparkSqlScalarGraph.supports(model, d))
+			return SparkSqlScalarGraph.column(d.id(), names);
+		if (SparkSqlNumericLoopInput.supports(model, d))
+			return SparkSqlNumericLoopInput.column(d.id(), names);
+		if (SparkSqlFactorLoopInput.supports(model, d))
+			return SparkSqlFactorLoopInput.column(d.id(), names);
+		return SparkSqlExactArithmeticInput.column(d.id(), names);
+	}
+
 	private String emitDecisionExpr(RuntimeDecision decision, Map<Integer, String> slotNames,
 			Map<Integer, RuntimeBkm> bkmBySlot, RuntimeModel model, Set<Integer> calendarSlots,
 			Set<Integer> stringSlots, Set<Integer> positionSlots, Set<Integer> numericFilters,
 			Set<Integer> temporalTables, Set<Integer> joins, Set<Integer> sorts, Set<Integer> products,
 			Set<Integer> arithmetic) {
-		if (arithmetic.contains(decision.id()))
-			return SparkSqlFactorLoopInput.supports(model, decision)
-					? SparkSqlFactorLoopInput.sql(decision, slotNames)
-					: SparkSqlExactArithmeticInput.sql(model, decision, slotNames);
+		if (arithmetic.contains(decision.id())) {
+			if (SparkSqlScalarGraph.supports(model, decision))
+				return SparkSqlScalarGraph.sql(model, decision, slotNames);
+			if (SparkSqlNumericLoopInput.supports(model, decision))
+				return SparkSqlNumericLoopInput.sql(model, decision, slotNames);
+			if (SparkSqlFactorLoopInput.supports(model, decision))
+				return SparkSqlFactorLoopInput.sql(decision, slotNames);
+			return SparkSqlExactArithmeticInput.sql(model, decision, slotNames);
+		}
 		if (products.contains(decision.id()))
 			return SparkSqlExactProductInput.sql(decision, slotNames);
 		if (sorts.contains(decision.id()))

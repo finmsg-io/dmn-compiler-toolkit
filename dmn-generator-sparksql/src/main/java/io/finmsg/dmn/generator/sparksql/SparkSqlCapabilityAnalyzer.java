@@ -19,7 +19,7 @@ public final class SparkSqlCapabilityAnalyzer {
 	}
 
 	public Capability analyze(RuntimeModel model, int decisionId, boolean hybridBoundary) {
-		Set<Integer> required = SparkSqlDecisionGraph.required(model, decisionId);
+		Set<Integer> required = SparkSqlDecisionGraph.required(model, decisionId, hybridBoundary);
 		Set<String> reasons = new LinkedHashSet<>();
 		Set<String> limitations = new LinkedHashSet<>();
 		Set<Integer> staticFunctions = new HashSet<>();
@@ -60,18 +60,20 @@ public final class SparkSqlCapabilityAnalyzer {
 			if (required.contains(decision.id()) && decision.id() != decisionId
 					&& SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)
 				reasons.add("Temporal ANY dependency requires lossless FEEL transport for its consumer");
-			if (required.contains(decision.id()) && !(decision.id() == decisionId && (!temporalTableSlots.isEmpty()
-					|| !dateTableSlots.isEmpty() || calendarSlot != null || lookupSlot != null
-					|| hybridBoundary && (SparkSqlFactorLoopInput.supports(model, decision)
-							|| SparkSqlExactArithmeticInput.supports(model, decision)
-							|| SparkSqlExactProductInput.supports(model, decision)
-							|| SparkSqlExactSortInput.supports(model, decision)
-							|| SparkSqlIndexedJoinInput.supports(model, decision)
-							|| SparkSqlNumericFilterInput.supports(model, decision)
-							|| SparkSqlStringListTerminal.supports(model, decision)
-							|| SparkSqlListPositionInput.inputSlot(model, decision) != null)
-					|| nativeConstantTemporalResult(decision) || nativeEmptyListResult(decision)
-					|| SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)))
+			if (required.contains(decision.id()) && !(hybridBoundary && SparkSqlScalarGraph.supports(model, decision))
+					&& !(decision.id() == decisionId && (!temporalTableSlots.isEmpty() || !dateTableSlots.isEmpty()
+							|| calendarSlot != null || lookupSlot != null
+							|| hybridBoundary && (SparkSqlNumericLoopInput.supports(model, decision)
+									|| SparkSqlFactorLoopInput.supports(model, decision)
+									|| SparkSqlExactArithmeticInput.supports(model, decision)
+									|| SparkSqlExactProductInput.supports(model, decision)
+									|| SparkSqlExactSortInput.supports(model, decision)
+									|| SparkSqlIndexedJoinInput.supports(model, decision)
+									|| SparkSqlNumericFilterInput.supports(model, decision)
+									|| SparkSqlStringListTerminal.supports(model, decision)
+									|| SparkSqlListPositionInput.inputSlot(model, decision) != null)
+							|| nativeConstantTemporalResult(decision) || nativeEmptyListResult(decision)
+							|| SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)))
 				inspect(decision, hybridBoundary, reasons, staticFunctions);
 		}
 		if (hybridBoundary) {

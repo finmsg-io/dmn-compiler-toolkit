@@ -23,6 +23,7 @@ final class SparkSqlStaticFunctionLowerer {
 	private int budget = 4096;
 	private boolean applied;
 	private boolean contextFunctions;
+	private boolean numericLoopBindings;
 	private int loopResults;
 	private int quantifiedResults;
 
@@ -381,8 +382,11 @@ final class SparkSqlStaticFunctionLowerer {
 				throw new Unsupported();
 			var rewritten = new RuntimePathExpression(source, path.member(), path.fieldIndex(), path.type());
 			var literal = SparkSqlClosedCollectionProof.result(rewritten);
-			if (literal == null)
+			if (literal == null) {
+				if (numericLoopBindings && source instanceof RuntimeLocalReference)
+					return rewritten;
 				throw new Unsupported();
+			}
 			applied = true;
 			return literal;
 		}
@@ -426,11 +430,19 @@ final class SparkSqlStaticFunctionLowerer {
 						new RuntimeLocalReference(iteration.localSlot(), source.type().elementType()));
 				var environment = new ArrayList<Map<Integer, Object>>(frames);
 				environment.set(0, frame);
-				var body = expression(loop.result(), List.copyOf(environment), depth + 1);
+				boolean previousBindings = numericLoopBindings;
+				numericLoopBindings = source.type().elementType().kind() == RuntimeTypeKind.CONTEXT;
+				RuntimeExpression body;
+				try {
+					body = expression(loop.result(), List.copyOf(environment), depth + 1);
+				} finally {
+					numericLoopBindings = previousBindings;
+				}
 				var rewritten = new RuntimeForExpression(loop.iterations(), body, -1,
 						RuntimeType.element(RuntimeTypeKind.LIST, body.type()));
 				var candidate = new RuntimeDecision(0, 0, rewritten.type(), List.of(), Optional.of(rewritten));
-				if (!SparkSqlFactorLoopInput.supports(model, candidate))
+				if (!SparkSqlFactorLoopInput.supports(model, candidate)
+						&& !SparkSqlNumericLoopInput.supports(model, candidate))
 					throw new Unsupported();
 				applied = true;
 				return rewritten;

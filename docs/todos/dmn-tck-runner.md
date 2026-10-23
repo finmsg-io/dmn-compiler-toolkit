@@ -1,3 +1,69 @@
+2026-10-23 requested confirmation full TCK rerun: 3,391/3,391 passed.
+Executable cases: 2,713 native (99.93%), 2 fallback (0.07%) of 2,715;
+676 expected model rejections; failed/errors/unknown 0. All case outcomes and
+routes are identical to the preceding scalar-context full run. Remaining fallback:
+0007-date-time#001 and 0014-loan-comparison#001. This confirms six conversions
+from the eight-fallback payment-loop checkpoint, with no reversals.
+Accounting: dmn-tck-runner/target/native-scalar-context-confirmation-full-accounting-2026-10-23.json.
+Log: dmn-tck-runner/target/native-scalar-context-confirmation-full-tck-2026-10-23.log.
+Generator artifact SHA256: 72FA1829B2E181FC7F027F3033ED00B49BE5E4527DD30DBEA85EACCD9BB223EA.
+Generator regression remains 149/149 passed: 2,916 native (96.81%), 96 fallback
+(3.19%) of 3,012 SQL actions; unknown 0, 56 expected SQL error assertions.
+No production changes were made during or after these verification runs.
+
+2026-10-23 verified full scalar-context checkpoint: 3,391/3,391 official
+cases passed. Executable denominator 2,715: 2,713 native (99.93%), 2 fallback
+(0.07%); failed/unknown 0. Expected model rejections remain 676; errors,
+unsupported, excluded and invalid 0. Exact comparison with the payment-loop
+checkpoint has identical case keys and six FALLBACK -> NATIVE conversions:
+0004-lending#001 and 0087-chapter-11-example#001/#002/#003d/#003e/#004.
+No route reversals or rejection changes. Fallback count decreased 75% (8 to 2).
+Bounded boolean BKM/context plans preserve exact numeric intermediates, eager
+context/argument evaluation, lazy branches and UTF-16 string comparison identity.
+Generator regression/install passed 149/149 tests: 2,916 native SQL actions
+(96.81%), 96 fallback (3.19%) of 3,012; unknown 0. Fifty-six native SQL errors
+are expected passing assertions; no JUnit failures/errors/skips. Corrected focused
+regression: 42 native (100%), 0 fallback (0%) of 42; unknown 0, eight expected
+native SQL errors. Per-run results and the corrected expression-level in semantics
+are recorded in docs/dev/slices/native-scalar-contexts-2026-10-23.md.
+Target/installed generator SHA256:
+72FA1829B2E181FC7F027F3033ED00B49BE5E4527DD30DBEA85EACCD9BB223EA.
+Accounting: dmn-tck-runner/target/native-scalar-context-full-accounting-2026-10-23.json.
+Log: dmn-tck-runner/target/native-scalar-context-full-tck-2026-10-23.log.
+Maven exited 0; Surefire logged a fork shutdown timeout after successful completion.
+Remaining: 0007-date-time#001 (temporal construction/validation) and
+0014-loan-comparison#001 (context/list metrics and sorting). Next work must retain
+precision, offsets and duration identity for temporal values, or prove the full
+loan-comparison result and sorting semantics. Official fixtures are unchanged.
+This checkpoint is included in the scalar-context and payment-loop implementation commit.
+
+2026-10-23 verified full numeric-context-loop checkpoint: 3,391/3,391 official
+cases passed. Executable denominator 2,715: 2,707 native (99.71%), 8 fallback
+(0.29%); failed/unknown 0. Expected model rejections remain 676; errors,
+unsupported, excluded and invalid 0. Exact prior-full comparison has identical
+case keys and one FALLBACK -> NATIVE conversion: 0003-iteration#001. No route
+reversals or rejection changes. The standalone payment iteration is now native.
+Generator regression/install passed 145/145 tests: 2,874 native SQL actions
+(96.77%), 96 fallback (3.23%) of 2,970; unknown 0. Forty-eight native SQL errors
+are intentional passed assertions; no JUnit failures/errors/skips. Final focused
+validation: 26 native (100%), 0 fallback (0%) of 26; unknown 0, fourteen expected
+native SQL errors. Earlier focused attempts exposed blocked dynamic context paths,
+an analyzer depth limit, and two incorrect null-input fixture expectations;
+all corrections and per-run counts are recorded in the numeric-context-loop slice.
+SQL computes bounded arithmetic steps in topological order under default analyzer
+settings. Power uses Spark's built-in java_method expression calling Math.pow,
+matching runtime double-to-decimal conversion. No FEEL evaluator UDF is used in
+this route; Java reflection inside a Spark built-in is part of its native metric.
+Target/installed generator SHA256:
+AEDE0F6878CDF7287CD1D08C578480C538C20C3B04CF887FB9D7BC5F4866AB00.
+Accounting: dmn-tck-runner/target/native-payment-loop-full-accounting-2026-10-23.json.
+Log: dmn-tck-runner/target/native-payment-loop-full-tck-2026-10-23.log.
+Remaining groups: temporal construction/validation (1), composite lending (7).
+Next: inspect shared lending BKM/scalar numeric result boundaries and reuse the
+flat exact arithmetic/power plan where the complete result can be proven native.
+Temporal construction needs a separate transport/validation chain implementation.
+This checkpoint is included in the scalar-context and payment-loop implementation commit.
+
 2026-10-22 verified full division/factor-loop checkpoint: 3,391/3,391 official
 cases passed. Executable denominator 2,715: 2,706 native (99.67%), 9 fallback
 (0.33%); failed/unknown 0. Expected model rejections remain 676; errors,

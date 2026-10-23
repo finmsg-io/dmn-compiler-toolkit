@@ -122,6 +122,23 @@ final class SparkSqlDecimalSql {
 						+ error("Invalid FEEL division numerator") + " ELSE " + output + " END"));
 	}
 
+	/**
+	 * SQL's reflection expression uses the same Math.pow and Double.toString as
+	 * FEEL.
+	 */
+	static String power(String left, String right) {
+		String a = "CAST(concat(CASE WHEN decimal_a.negative THEN '-' ELSE '' END,decimal_a.digits,'E',CAST(-decimal_a.scale AS STRING)) AS DOUBLE)";
+		String b = "CAST(concat(CASE WHEN decimal_b.negative THEN '-' ELSE '' END,decimal_b.digits,'E',CAST(-decimal_b.scale AS STRING)) AS DOUBLE)";
+		String result = number("regexp_replace(regexp_replace(div_power_mantissa,'[-.]',''),'^0+(?!$)','')",
+				"CASE WHEN instr(div_power_mantissa,'.')=0 THEN 0L ELSE CAST(length(div_power_mantissa)-instr(div_power_mantissa,'.') AS BIGINT) END-coalesce(try_cast(try_element_at(split(div_power_text,'E'),2) AS BIGINT),0L)",
+				"div_power_text LIKE '-%' AND CAST(div_power_text AS DOUBLE)<>0.0");
+		result = let("div_power_mantissa", "element_at(split(div_power_text,'E'),1)", result);
+		result = "CASE WHEN div_power_text IN ('NaN','Infinity','-Infinity') THEN "
+				+ error("Non-finite FEEL power result") + " ELSE " + result + " END";
+		return operands(left, right,
+				let("div_power_text", "java_method('java.lang.Math','pow'," + a + "," + b + ")", result));
+	}
+
 	private static String digit(String text, String index) {
 		return "CAST(coalesce(nullif(substring(" + text + "," + index + "+1,1),''),'0') AS BIGINT)";
 	}

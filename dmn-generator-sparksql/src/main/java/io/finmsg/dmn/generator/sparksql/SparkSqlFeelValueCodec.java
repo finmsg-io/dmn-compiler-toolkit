@@ -279,6 +279,26 @@ public final class SparkSqlFeelValueCodec {
 								.putLongArray("dmnFactorLoopSlots", SparkSqlFactorLoopInput.slots(model, decision))
 								.build()));
 
+		for (var decision : model.decisions())
+			if (SparkSqlNumericLoopInput.supports(model, decision))
+				fields.add(DataTypes.createStructField(SparkSqlNumericLoopInput.column(decision.id(), names),
+						SparkSqlNumericLoopInput.type(model, decision), true,
+						new MetadataBuilder()
+								.putLong("dmnNumericLoopSlot", SparkSqlNumericLoopInput.slot(model, decision))
+								.putStringArray("dmnNumericLoopFields",
+										SparkSqlNumericLoopInput.fields(model, decision))
+								.build()));
+
+		for (var decision : model.decisions())
+			if (SparkSqlScalarGraph.supports(model, decision))
+				fields.add(DataTypes.createStructField(SparkSqlScalarGraph.column(decision.id(), names),
+						SparkSqlScalarGraph.type(), false,
+						new MetadataBuilder()
+								.putLongArray("dmnScalarLeafSlots", SparkSqlScalarGraph.slots(model, decision))
+								.putStringArray("dmnScalarLeafPaths", SparkSqlScalarGraph.paths(model, decision))
+								.putStringArray("dmnScalarLeafKinds", SparkSqlScalarGraph.kinds(model, decision))
+								.build()));
+
 		return DataTypes.createStructType(fields);
 	}
 
@@ -292,6 +312,18 @@ public final class SparkSqlFeelValueCodec {
 			columns[index] = original.get(index);
 		for (int index = original.size(); index < columns.length; index++) {
 			Metadata metadata = generatedSchema.fields()[index].metadata();
+			if (metadata.contains("dmnScalarLeafSlots")) {
+				columns[index] = SparkSqlScalarGraph.project(model, metadata.getLongArray("dmnScalarLeafSlots"),
+						metadata.getStringArray("dmnScalarLeafPaths"), metadata.getStringArray("dmnScalarLeafKinds"),
+						values);
+				continue;
+			}
+			if (metadata.contains("dmnNumericLoopSlot")) {
+				columns[index] = SparkSqlNumericLoopInput.project(model,
+						Math.toIntExact(metadata.getLong("dmnNumericLoopSlot")),
+						metadata.getStringArray("dmnNumericLoopFields"), values);
+				continue;
+			}
 			if (metadata.contains("dmnFactorLoopSlots")) {
 				columns[index] = SparkSqlFactorLoopInput.project(metadata.getLongArray("dmnFactorLoopSlots"), values);
 				continue;

@@ -1,3 +1,20 @@
+2026-10-23 requested full confirmation: identical 3,391 passing outcomes and routes;
+2,713 native (99.93%), 2 fallback (0.07%) of 2,715 executable cases.
+676 expected rejections; failed/unknown 0. See [scalar contexts](native-scalar-contexts-2026-10-23.md).
+
+2026-10-23 latest full: [native scalar contexts](native-scalar-contexts-2026-10-23.md).
+3,391/3,391 passed: 2,713 native (99.93%), 2 fallback (0.07%) of 2,715;
+676 expected model rejections; failed/unknown 0. Six conversions, no reversals.
+Generator 149/149 passed: 2,916 native actions (96.81%), 96 fallback (3.19%)
+of 3,012; unknown 0, 56 expected native SQL error assertions.
+
+2026-10-23 latest full: [numeric context/payment loops](native-numeric-context-loops-2026-10-23.md).
+3,391/3,391 passed: 2,707 native (99.71%), 8 fallback (0.29%) of 2,715;
+676 expected model rejections; failed/unknown 0. One conversion, no reversals.
+Generator 145/145 passed: 2,874 native actions (96.77%), 96 fallback (3.23%)
+of 2,970; unknown 0, 48 intentional native SQL error assertions.
+Power uses Spark's java_method(Math.pow) built-in; no FEEL evaluator UDF in this route.
+
 2026-10-22 latest full: [native factor loops](native-factor-loops-2026-10-22.md)
 and [exact DECIMAL128 division](native-exact-division-2026-10-22.md).
 3,391/3,391 passed: 2,706 native (99.67%), 9 fallback (0.33%) of 2,715;
