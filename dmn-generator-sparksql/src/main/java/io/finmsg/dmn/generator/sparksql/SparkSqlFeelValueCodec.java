@@ -289,7 +289,21 @@ public final class SparkSqlFeelValueCodec {
 										SparkSqlNumericLoopInput.fields(model, decision))
 								.build()));
 
-		for (var decision : model.decisions())
+		for (var decision : model.decisions()) {
+			if (SparkSqlTemporalChain.supports(model, decision))
+				fields.add(DataTypes.createStructField(SparkSqlTemporalChain.column(decision.id(), names),
+						SparkSqlTemporalChain.type(), false,
+						new MetadataBuilder()
+								.putLongArray("dmnTemporalChainSlots", SparkSqlTemporalChain.slots(model, decision))
+								.build()));
+			if (SparkSqlRankedContextLoop.supports(model, decision))
+				fields.add(DataTypes.createStructField(SparkSqlScalarGraph.column(decision.id(), names),
+						SparkSqlScalarGraph.type(), false,
+						new MetadataBuilder()
+								.putLongArray("dmnScalarLeafSlots", SparkSqlRankedContextLoop.slots(model, decision))
+								.putStringArray("dmnScalarLeafPaths", SparkSqlRankedContextLoop.paths(model, decision))
+								.putStringArray("dmnScalarLeafKinds", SparkSqlRankedContextLoop.kinds(model, decision))
+								.build()));
 			if (SparkSqlScalarGraph.supports(model, decision))
 				fields.add(DataTypes.createStructField(SparkSqlScalarGraph.column(decision.id(), names),
 						SparkSqlScalarGraph.type(), false,
@@ -298,6 +312,8 @@ public final class SparkSqlFeelValueCodec {
 								.putStringArray("dmnScalarLeafPaths", SparkSqlScalarGraph.paths(model, decision))
 								.putStringArray("dmnScalarLeafKinds", SparkSqlScalarGraph.kinds(model, decision))
 								.build()));
+
+		}
 
 		return DataTypes.createStructType(fields);
 	}
@@ -312,6 +328,17 @@ public final class SparkSqlFeelValueCodec {
 			columns[index] = original.get(index);
 		for (int index = original.size(); index < columns.length; index++) {
 			Metadata metadata = generatedSchema.fields()[index].metadata();
+			if (metadata.contains("dmnTemporalChainSlots")) {
+				columns[index] = SparkSqlTemporalChain.project(model, metadata.getLongArray("dmnTemporalChainSlots"),
+						values);
+				continue;
+			}
+			if (metadata.contains("dmnFallbackInputSlot")) {
+				int slot = Math.toIntExact(metadata.getLong("dmnFallbackInputSlot"));
+				var input = model.inputs().stream().filter(i -> i.valueSlot() == slot).findFirst().orElseThrow();
+				columns[index] = encode(io.finmsg.dmn.runtime.DmnRuntime.coerce(values.get(slot), input.type()));
+				continue;
+			}
 			if (metadata.contains("dmnScalarLeafSlots")) {
 				columns[index] = SparkSqlScalarGraph.project(model, metadata.getLongArray("dmnScalarLeafSlots"),
 						metadata.getStringArray("dmnScalarLeafPaths"), metadata.getStringArray("dmnScalarLeafKinds"),

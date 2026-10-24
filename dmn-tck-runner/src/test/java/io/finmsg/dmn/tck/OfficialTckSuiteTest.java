@@ -697,11 +697,34 @@ class OfficialTckSuiteTest {
 		System.out.printf(" TOTAL TESTS : %d%n", total);
 		System.out.printf(" PASSED      : %d (%.2f%%)%n", passed, pct);
 		if (SPARK_HYBRID) {
-			for (String route : List.of("NATIVE", "FALLBACK", "EXPECTED_MODEL_REJECTION")) {
-				long count = outcomes.stream().filter(o -> o.status() == TckCatalogueStatus.PASSED
-						&& route.equals(sparkRoutes.get(o.entryId() + "#" + o.caseId()))).count();
-				System.out.printf(" %-12s: %d%n", route + " PASSES", count);
+			var sparkOutcomes = outcomes.stream().filter(o -> o.backend().contains("sparksql")).toList();
+			long nativeCases = sparkOutcomes.stream()
+					.filter(o -> o.status() == TckCatalogueStatus.PASSED && o.diagnostic().equals("NATIVE")).count();
+			long fallbackCases = sparkOutcomes.stream()
+					.filter(o -> o.status() == TckCatalogueStatus.PASSED && o.diagnostic().equals("FALLBACK")).count();
+			long rejectedCases = sparkOutcomes.stream().filter(
+					o -> o.status() == TckCatalogueStatus.PASSED && o.diagnostic().equals("EXPECTED_MODEL_REJECTION"))
+					.count();
+			long executableCases = sparkOutcomes.size() - rejectedCases;
+			System.out.printf(" NATIVE SPARK SQL PASSES : %d%n", nativeCases);
+			System.out.printf(" FALLBACK PASSES         : %d%n", fallbackCases);
+			System.out.printf(" COMPILER REJECTED       : %d (NO Spark SQL executed; neither native nor fallback)%n",
+					rejectedCases);
+			if (executableCases > 0) {
+				System.out.printf(" NATIVE / NON-REJECTED   : %d/%d (%.2f%%)%n", nativeCases, executableCases,
+						nativeCases * 100.0 / executableCases);
+				System.out.printf(" FALLBACK / NON-REJECTED : %d/%d (%.2f%%)%n", fallbackCases, executableCases,
+						fallbackCases * 100.0 / executableCases);
+			} else
+				System.out.println(" NON-REJECTED RATES      : undefined (denominator 0)");
+			if (!sparkOutcomes.isEmpty()) {
+				System.out.printf(" NATIVE / ALL SPARK TCK  : %d/%d (%.2f%%)%n", nativeCases, sparkOutcomes.size(),
+						nativeCases * 100.0 / sparkOutcomes.size());
+				System.out.printf(" REJECTED / ALL SPARK TCK: %d/%d (%.2f%%; NO SQL execution)%n", rejectedCases,
+						sparkOutcomes.size(), rejectedCases * 100.0 / sparkOutcomes.size());
 			}
+			System.out.println(" Rejection acceptance checks expected errors, not the precise diagnostic cause.");
+			System.out.println(" Rejection reasons: target/tck-expected-rejections" + variant + ".tsv");
 		}
 		System.out.printf(" FAILED      : %d%n", failed);
 		System.out.printf(" ERRORS      : %d%n", error);

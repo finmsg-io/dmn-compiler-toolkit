@@ -34,6 +34,11 @@ final class SparkSqlStaticFunctionLowerer {
 	static RuntimeModel lower(RuntimeModel model) {
 		List<RuntimeDecision> decisions = new ArrayList<>();
 		for (RuntimeDecision decision : model.decisions()) {
+			if (SparkSqlTemporalChain.supports(model, decision)
+					|| SparkSqlRankedContextLoop.supports(model, decision)) {
+				decisions.add(decision);
+				continue;
+			}
 			RuntimeDecision result = decision;
 			if (decision.expression().isPresent() && decision.decisionTable().isEmpty()) {
 				var lowerer = new SparkSqlStaticFunctionLowerer(model);

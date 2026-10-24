@@ -180,6 +180,16 @@ final class SparkSqlPayloadCodec {
 			string(out, value.toString());
 			return;
 		}
+		if (value instanceof Double d && !Double.isFinite(d)) {
+			out.writeByte(20);
+			out.writeDouble(d);
+			return;
+		}
+		if (value instanceof Float f && !Float.isFinite(f)) {
+			out.writeByte(21);
+			out.writeFloat(f);
+			return;
+		}
 		if (value instanceof Number n) {
 			out.writeByte(4);
 			string(out, new BigDecimal(n.toString()).toString());
@@ -259,6 +269,8 @@ final class SparkSqlPayloadCodec {
 				int scale = in.readInt();
 				yield new BigDecimal(new java.math.BigInteger(string(in)), scale);
 			}
+			case 20 -> in.readDouble();
+			case 21 -> in.readFloat();
 			default -> throw new IOException("Unknown DMN payload tag");
 		};
 	}

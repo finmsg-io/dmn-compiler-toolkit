@@ -72,6 +72,14 @@ class SparkSqlHybridTest {
 	}
 
 	@Test
+	void nonFiniteNumbersRetainTheirTypeAcrossPayloadTransport() {
+		for (Number value : List.<Number>of(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Float.NaN,
+				Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY)) {
+			Object actual = SparkSqlFeelValueCodec.decode(SparkSqlFeelValueCodec.encode(value));
+			assertThat(actual).isInstanceOf(value.getClass()).isEqualTo(value);
+		}
+	}
+	@Test
 	void roundTripsExactNestedFeelValues() {
 		var context = new LinkedHashMap<String, Object>();
 		context.put("number", new BigDecimal("1234567890123456789012345678901234567890.12345678901234567890"));

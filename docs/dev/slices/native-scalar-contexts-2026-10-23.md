@@ -26,6 +26,16 @@ leaf decisions. The default dependency walker used for runtime fallback slicing
 keeps the original complete function graph. Boolean outputs are standard Spark
 booleans and remain usable by existing native decision consumers.
 
+## Coverage boundary
+
+This implementation applies to proven runtime-IR patterns, not official case IDs.
+Its boolean result, binding, operation and expansion limits are intentional;
+nearby model variants can retain fallback. Passing the official lending cases
+does not establish support for arbitrary context results or dynamic calls.
+See [native coverage interpretation](../../sparksql-architecture.md#native-coverage-what-the-tck-rate-means)
+for the distinction between TCK routing and broader DMN/FEEL support, and the
+validation needed beyond the fixtures.
+
 ## Verification
 
 Initial focused regression passed both tests: 20 native SQL actions (100%),

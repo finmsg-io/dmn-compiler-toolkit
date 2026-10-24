@@ -1,3 +1,102 @@
+2026-10-24 verified full temporal-chain checkpoint: 3,391/3,391 official TCK
+outcomes passed. Native Spark SQL: 2,715/2,715 executable cases (100%), which is
+2,715/3,391 total cases (80.06%). Fallback: 0/2,715 executable cases (0%).
+Compiler-rejected with NO Spark SQL executed: 676/3,391 cases (19.94%). These
+negative cases are neither native nor fallback. Their exact rejection reasons
+have not been audited against the TCK's intended error; the runner currently
+checks error expectation at case level. Failed/errors/unknown 0; unsupported,
+excluded, invalid and compilation-error outcomes 0. The 676 compiler rejections
+are recorded as expected passing outcomes, separately from unexpected compilation
+errors. Identical case keys/statuses to the ranking checkpoint; exactly one route
+changed: 0007-date-time#001 FALLBACK -> NATIVE. No reversals or rejection changes.
+This proves native execution for this executable TCK inventory, not all possible
+DMN/FEEL models. Outside bounded proofs, models can still require fallback.
+Temporal SQL retains nanoseconds, offsets, period/duration identity and named-zone
+rules. It uses Spark try_reflect built-ins calling standard JDK java.time factories
+for parsing/validation/formatting; arithmetic and zone selection are SQL. No FEEL
+evaluator or custom calculation UDF is called from SQL. Generated-schema inputRow
+projections are required. Constant-only expressions retain existing native paths.
+Full generator regression/install: 161/161 tests passed; 2,973 native SQL actions
+(96.15%), 119 fallback actions (3.85%) of 3,092; unknown 0. All 59 failed SQL
+actions were expected assertions: 58 native and one fallback. This action metric
+includes intentional fallback/error tests and is not the TCK-case denominator.
+Generator SHA256 (target and installed):
+941A917B54C82D03B59C865D37193E21FBDB98132167E6C2CAD7EA0748C45E8C.
+Accounting: dmn-tck-runner/target/native-temporal-chain-full-accounting-2026-10-24.json.
+Rejections: dmn-tck-runner/target/native-temporal-chain-full-rejections-2026-10-24.tsv.
+TCK log: dmn-tck-runner/target/native-temporal-chain-full-tck-2026-10-24.log.
+Generator log: dmn-generator-sparksql/target/native-temporal-chain-corrected-full-generator-2026-10-24.log.
+Scope, per-run history, limitations and rejection semantics:
+docs/dev/slices/native-temporal-chains-2026-10-24.md.
+Next: audit the 676 expected rejection reasons and broaden beyond-TCK temporal
+proofs where useful; never imply rejected cases executed native SQL.
+Checkpoint implementation follows bb0e090; use Git history for its commit identity.
+
+2026-10-24 verified full structured-ranking checkpoint: 3,391/3,391 official
+cases passed. Executable denominator 2,715: 2,714 native (99.96%), 1 fallback
+(0.04%); failed/errors/unknown 0. Expected model rejections remain 676;
+unsupported, excluded, invalid and compilation errors 0. Exact comparison with
+the prior full checkpoint has identical case keys and statuses; the only route
+change is 0014-loan-comparison#001 FALLBACK -> NATIVE. No reversals or rejection
+changes. Remaining official fallback: 0007-date-time#001. Fallback count fell 50%.
+The new reusable proof computes scalar context records through static FEEL
+functions over bounded literal relations/lists, then ranks by exact numeric fields.
+Tests vary row count, sort direction, names, Unicode, bindings, precision, nulls
+and ties; coercing comparators, aliased slots and unproven consumers stay fallback.
+Native SQL performs calculation, sorting and final payload encoding; power retains
+the previously documented Spark java_method(Math.pow) built-in implementation.
+Lossless numeric fallback transport also now uses encoded original inputs and
+numeric results. Non-finite unused arguments retain their values until FEEL
+actually evaluates them. Ordinary native NUMBER columns still use DOUBLE unless
+an exact native proof/projection applies. Callers must use generated-schema input
+rows and regenerate SQL/schema/runner artifacts together; see the transport slice.
+Complete generator regression passed 154/154 tests: 2,954 native actions (96.16%),
+118 fallback (3.84%) of 3,072; unknown 0, 58 expected native SQL errors. After the
+final non-finite codec addition, focused regression/install passed five tests:
+18 native (38.30%), 29 fallback (61.70%) of 47; unknown 0, two expected native
+and one expected fallback SQL errors. Full TCK ran against this final artifact.
+Installed generator SHA256:
+5FC167F36DBEA59856A201A644416397408DA36D0DF41CF073C32A32ACDB05CF.
+Accounting: dmn-tck-runner/target/native-ranked-context-full-accounting-2026-10-24.json.
+Log: dmn-tck-runner/target/native-ranked-context-full-tck-2026-10-24.log.
+Implementation and per-run history: docs/dev/slices/native-ranked-contexts-2026-10-24.md.
+Next: general lossless temporal construction/validation and dependent arithmetic,
+retaining nanoseconds, offsets and duration kind identity. Zero TCK fallback would
+still describe these 2,715 executable cases, not unrestricted DMN/FEEL support.
+Changes remain uncommitted after bb0e090.
+
+2026-10-23 exact numeric scalar-context extension verified: generator 151/151
+passed, with 2,938 native SQL actions (96.80%), 97 fallback (3.20%) of 3,035;
+unknown 0, 58 expected native SQL error assertions. The added fallback action
+checks the unsupported consumer boundary. Full official TCK: 3,391/3,391 passed;
+2,713 native (99.93%), 2 fallback (0.07%) of 2,715 executable cases, plus 676
+expected model rejections. Failed/errors/unknown 0. All outcomes and routes are
+identical to the previous full checkpoint: no conversions or reversals this batch.
+This adds reusable exact NUMBER terminal results to scalar BKM/context plans,
+with renamed-field, binding, precision, null, lazy-branch and eager-error tests.
+Unproven numeric consumers retain fallback; proven aliases can expand natively.
+It does not yet lower the structured loan loop results and sorting operations.
+Important separate limitation: the ordinary declared NUMBER hybrid input/output
+bridge uses DOUBLE, including numeric fallback output; arbitrary BigDecimal
+precision is not preserved there. A reproducer and explicit follow-up are recorded
+in docs/dev/slices/native-numeric-scalar-contexts-2026-10-23.md. Do not conflate
+exact native scalar results with precision guarantees for every fallback route.
+Remaining official fallbacks: 0007-date-time#001 and 0014-loan-comparison#001.
+Next: lossless numeric hybrid transport and structured loan result/sort support.
+Accounting: dmn-tck-runner/target/native-numeric-scalar-full-accounting-2026-10-23.json.
+TCK log: dmn-tck-runner/target/native-numeric-scalar-full-tck-2026-10-23.log.
+Generator log: dmn-generator-sparksql/target/native-numeric-scalar-full-generator-2026-10-23.log.
+Installed generator SHA256:
+F361EF61D06275B0057A191D1F4F4E2643A0D760994D6346DFDD938D5A4BDC6D.
+Changes are uncommitted after bb0e090.
+
+Native coverage interpretation (2026-10-23): native lowering is reusable but
+bounded by supported IR shapes, types, bindings and representation limits. A small
+model change can cross a boundary and require fallback. Zero official TCK fallback
+would establish native coverage of 2,715 executable suite cases, not all DMN/FEEL.
+Broader validation must cover model variations and feature combinations beyond
+the fixtures. See docs/sparksql-architecture.md, "Native coverage: what the TCK rate means".
+
 2026-10-23 requested confirmation full TCK rerun: 3,391/3,391 passed.
 Executable cases: 2,713 native (99.93%), 2 fallback (0.07%) of 2,715;
 676 expected model rejections; failed/errors/unknown 0. All case outcomes and

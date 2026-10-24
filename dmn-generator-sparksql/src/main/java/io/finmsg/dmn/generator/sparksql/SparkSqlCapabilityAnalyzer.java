@@ -56,14 +56,35 @@ public final class SparkSqlCapabilityAnalyzer {
 						.map(d -> SparkSqlCalendarInput.inputSlot(model, d)).filter(Objects::nonNull).findFirst()
 						.orElse(null)
 				: null;
+		Set<Integer> temporalChainSlots = new HashSet<>();
+		if (hybridBoundary)
+			for (var d : model.decisions())
+				if (d.id() == decisionId && SparkSqlTemporalChain.supports(model, d))
+					for (long slot : SparkSqlTemporalChain.slots(model, d))
+						temporalChainSlots.add(Math.toIntExact(slot));
 		for (RuntimeDecision decision : model.decisions()) {
+			if (hybridBoundary && required.contains(decision.id()) && decision.id() != decisionId
+					&& SparkSqlTemporalChain.supports(model, decision))
+				reasons.add("Temporal chain dependency requires a lossless consumer plan");
+			if (hybridBoundary && required.contains(decision.id()) && decision.id() != decisionId
+					&& SparkSqlRankedContextLoop.supports(model, decision))
+				reasons.add("Structured ranking dependency requires a lossless consumer plan");
 			if (required.contains(decision.id()) && decision.id() != decisionId
 					&& SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision) != null)
 				reasons.add("Temporal ANY dependency requires lossless FEEL transport for its consumer");
-			if (required.contains(decision.id()) && !(hybridBoundary && SparkSqlScalarGraph.supports(model, decision))
+			if (hybridBoundary && required.contains(decision.id()) && decision.id() != decisionId
+					&& decision.type().kind() == RuntimeTypeKind.NUMBER
+					&& SparkSqlScalarGraph.supports(model, decision))
+				reasons.add("Exact scalar numeric dependency requires a lossless consumer plan");
+			if (required.contains(decision.id())
+					&& !(hybridBoundary && decision.id() == decisionId
+							&& SparkSqlTemporalChain.supports(model, decision))
+					&& !(hybridBoundary && SparkSqlScalarGraph.supports(model, decision)
+							&& (decision.id() == decisionId || decision.type().kind() == RuntimeTypeKind.BOOLEAN))
 					&& !(decision.id() == decisionId && (!temporalTableSlots.isEmpty() || !dateTableSlots.isEmpty()
 							|| calendarSlot != null || lookupSlot != null
-							|| hybridBoundary && (SparkSqlNumericLoopInput.supports(model, decision)
+							|| hybridBoundary && (SparkSqlRankedContextLoop.supports(model, decision)
+									|| SparkSqlNumericLoopInput.supports(model, decision)
 									|| SparkSqlFactorLoopInput.supports(model, decision)
 									|| SparkSqlExactArithmeticInput.supports(model, decision)
 									|| SparkSqlExactProductInput.supports(model, decision)
@@ -79,6 +100,7 @@ public final class SparkSqlCapabilityAnalyzer {
 		if (hybridBoundary) {
 			for (RuntimeInput input : model.inputs()) {
 				if (required.contains(input.id()) && !Objects.equals(calendarSlot, input.valueSlot())
+						&& !temporalChainSlots.contains(input.valueSlot())
 						&& !temporalTableSlots.contains(input.valueSlot())
 						&& !dateTableSlots.contains(input.valueSlot()) && !Objects.equals(lookupSlot, input.valueSlot())
 						&& !stringSlots.contains(input.valueSlot())

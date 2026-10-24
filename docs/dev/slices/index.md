@@ -1,3 +1,29 @@
+2026-10-24 latest full: [exact temporal chains](native-temporal-chains-2026-10-24.md).
+3,391/3,391 passing outcomes: 2,715 native (100% of 2,715 executable; 80.06% of
+all 3,391), zero fallback. Separately, 676 compiler-rejected cases (19.94% of all)
+executed no Spark SQL; rejection-reason audit remains outstanding. Failed/unknown 0.
+One conversion (0007-date-time#001), no reversals. Generator 161/161 passed:
+2,973 native actions (96.15%), 119 fallback (3.85%) of 3,092; unknown 0, all 59
+SQL errors expected. Spark built-ins invoke JDK temporal factories; no FEEL UDF.
+This is bounded reusable support, not unrestricted native FEEL coverage.
+
+2026-10-24 latest full: [native structured rankings](native-ranked-contexts-2026-10-24.md)
+and [lossless numeric fallback transport](lossless-numeric-fallback-transport-2026-10-23.md).
+3,391/3,391 passed: 2,714 native (99.96%), 1 fallback (0.04%) of 2,715 executable
+cases; 676 expected rejections; failed/unknown 0. One conversion, no reversals.
+Generator 154/154 passed: 2,954 native (96.16%), 118 fallback (3.84%) of 3,072;
+unknown 0, 58 expected native SQL errors. Final focused codec/transport/ranking
+run: five tests passed, 18 native (38.30%), 29 fallback (61.70%) of 47; unknown 0,
+two expected native SQL errors and one expected fallback SQL error.
+Only 0007-date-time#001 remains fallback.
+
+2026-10-23 latest full: [exact numeric scalar contexts](native-numeric-scalar-contexts-2026-10-23.md).
+3,391/3,391 passed: 2,713 native (99.93%), 2 fallback (0.07%) of 2,715;
+676 expected rejections; failed/unknown 0. No route changes this batch.
+Generator 151/151 passed: 2,938 native (96.80%), 97 fallback (3.20%) of 3,035;
+unknown 0, 58 expected SQL errors. Ordinary NUMBER fallback/input transport
+precision remains a separate documented limitation.
+
 2026-10-23 requested full confirmation: identical 3,391 passing outcomes and routes;
 2,713 native (99.93%), 2 fallback (0.07%) of 2,715 executable cases.
 676 expected rejections; failed/unknown 0. See [scalar contexts](native-scalar-contexts-2026-10-23.md).

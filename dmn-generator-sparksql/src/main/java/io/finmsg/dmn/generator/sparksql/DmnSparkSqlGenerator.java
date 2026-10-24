@@ -18,7 +18,8 @@ public final class DmnSparkSqlGenerator {
 
 		RuntimeModel originalModel = optimizedModel.model();
 		RuntimeModel model = options.hybridUdfFallback()
-				? SparkSqlScalarGraph.lowerDependencies(SparkSqlStaticFunctionLowerer.lower(originalModel))
+				? SparkSqlTemporalChain.lowerDependencies(SparkSqlRankedContextLoop.lowerDependencies(
+						SparkSqlScalarGraph.lowerDependencies(SparkSqlStaticFunctionLowerer.lower(originalModel))))
 				: originalModel;
 		Map<Integer, String> slotNames = new HashMap<>();
 		for (RuntimeInput input : model.inputs()) {
@@ -98,25 +99,33 @@ public final class DmnSparkSqlGenerator {
 			arithmetic.addAll(SparkSqlFactorLoopInput.ids(model));
 			arithmetic.addAll(SparkSqlNumericLoopInput.ids(model));
 			arithmetic.addAll(SparkSqlScalarGraph.ids(model));
+			arithmetic.addAll(SparkSqlRankedContextLoop.ids(model));
+			arithmetic.addAll(SparkSqlTemporalChain.ids(model));
 		}
 		StructType inputSchema = options.hybridUdfFallback()
 				? SparkSqlFeelValueCodec.calendarInputSchema(model, slotNames, calendarSlots, stringSlots)
 				: SparkSqlSchemaGenerator.generateInputSchema(model, slotNames);
 
 		Map<Integer, SparkSqlCapabilityAnalyzer.Capability> capabilities = new LinkedHashMap<>();
+		SparkSqlCapabilityAnalyzer analyzer = new SparkSqlCapabilityAnalyzer();
+		for (var decision : model.decisions())
+			capabilities.put(decision.id(), analyzer.analyze(model, decision.id(), options.hybridUdfFallback()));
+		boolean fallback = options.hybridUdfFallback() && capabilities.values().stream().anyMatch(c -> !c.nativeSql());
+		if (fallback)
+			inputSchema = SparkSqlFallbackTransport.schema(inputSchema, model, slotNames);
 		Map<String, SparkSqlDecisionUdf> udfs = new LinkedHashMap<>();
 		Map<Integer, String> udfNames = new LinkedHashMap<>();
 		Map<Integer, String> fallbackExpressions = new LinkedHashMap<>();
-		SparkSqlCapabilityAnalyzer analyzer = new SparkSqlCapabilityAnalyzer();
 		String modelKey = modelKey(originalModel);
-		String inputStruct = "struct("
-				+ String.join(", ",
-						model.inputs().stream()
-								.map(input -> "`" + slotNames.get(input.valueSlot()).replace("`", "``") + "`").toList())
+		String inputStruct = "struct(" + String.join(", ",
+				model.inputs().stream()
+						.map(input -> "`" + (fallback && SparkSqlFallbackTransport.numeric(input.type())
+								? SparkSqlFallbackTransport.column(input.valueSlot(), slotNames)
+								: slotNames.get(input.valueSlot())).replace("`", "``") + "`")
+						.toList())
 				+ ")";
 		for (RuntimeDecision decision : model.decisions()) {
-			var capability = analyzer.analyze(model, decision.id(), options.hybridUdfFallback());
-			capabilities.put(decision.id(), capability);
+			var capability = capabilities.get(decision.id());
 			if (!capability.nativeSql()) {
 				if (!options.hybridUdfFallback() || !capability.runtimeLimitations().isEmpty()) {
 					throw new UnsupportedRelationalSqlException(
@@ -211,6 +220,9 @@ public final class DmnSparkSqlGenerator {
 		String currentTable = "_base_input";
 
 		List<String> currentCols = new ArrayList<>();
+		if (!fallbackExpressions.isEmpty())
+			model.inputs().stream().filter(i -> SparkSqlFallbackTransport.numeric(i.type()))
+					.forEach(i -> currentCols.add(SparkSqlFallbackTransport.column(i.valueSlot(), slotNames)));
 		calendarSlots.forEach(slot -> currentCols.add(SparkSqlCalendarInput.column(slot, slotNames)));
 		stringSlots.forEach(slot -> currentCols.add(SparkSqlStringInput.column(slot, slotNames)));
 		positionSlots.forEach(slot -> currentCols.add(SparkSqlListPositionInput.column(slot, slotNames)));
@@ -290,6 +302,9 @@ public final class DmnSparkSqlGenerator {
 		String currentTable = "_base_input";
 
 		List<String> currentCols = new ArrayList<>();
+		if (!fallbackExpressions.isEmpty())
+			model.inputs().stream().filter(i -> SparkSqlFallbackTransport.numeric(i.type()))
+					.forEach(i -> currentCols.add(SparkSqlFallbackTransport.column(i.valueSlot(), slotNames)));
 		calendarSlots.forEach(slot -> currentCols.add(SparkSqlCalendarInput.column(slot, slotNames)));
 		stringSlots.forEach(slot -> currentCols.add(SparkSqlStringInput.column(slot, slotNames)));
 		positionSlots.forEach(slot -> currentCols.add(SparkSqlListPositionInput.column(slot, slotNames)));
@@ -375,6 +390,10 @@ public final class DmnSparkSqlGenerator {
 	}
 
 	private static String exactProjectionColumn(RuntimeModel model, RuntimeDecision d, Map<Integer, String> names) {
+		if (SparkSqlTemporalChain.supports(model, d))
+			return SparkSqlTemporalChain.column(d.id(), names);
+		if (SparkSqlRankedContextLoop.supports(model, d))
+			return SparkSqlScalarGraph.column(d.id(), names);
 		if (SparkSqlScalarGraph.supports(model, d))
 			return SparkSqlScalarGraph.column(d.id(), names);
 		if (SparkSqlNumericLoopInput.supports(model, d))
@@ -390,6 +409,10 @@ public final class DmnSparkSqlGenerator {
 			Set<Integer> temporalTables, Set<Integer> joins, Set<Integer> sorts, Set<Integer> products,
 			Set<Integer> arithmetic) {
 		if (arithmetic.contains(decision.id())) {
+			if (SparkSqlTemporalChain.supports(model, decision))
+				return SparkSqlTemporalChain.sql(model, decision, slotNames);
+			if (SparkSqlRankedContextLoop.supports(model, decision))
+				return SparkSqlRankedContextLoop.sql(model, decision, slotNames);
 			if (SparkSqlScalarGraph.supports(model, decision))
 				return SparkSqlScalarGraph.sql(model, decision, slotNames);
 			if (SparkSqlNumericLoopInput.supports(model, decision))

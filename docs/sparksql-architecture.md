@@ -1,3 +1,37 @@
+2026-10-24 verified full temporal-chain checkpoint: 3,391/3,391 official TCK
+outcomes passed. Native Spark SQL: 2,715/2,715 executable cases (100%), which is
+2,715/3,391 total cases (80.06%). Fallback: 0/2,715 executable cases (0%).
+Compiler-rejected with NO Spark SQL executed: 676/3,391 cases (19.94%). These
+negative cases are neither native nor fallback. Their exact rejection reasons
+have not been audited against the TCK's intended error; the runner currently
+checks error expectation at case level. Failed/errors/unknown 0; unsupported,
+excluded, invalid and compilation-error outcomes 0. The 676 compiler rejections
+are recorded as expected passing outcomes, separately from unexpected compilation
+errors. Identical case keys/statuses to the ranking checkpoint; exactly one route
+changed: 0007-date-time#001 FALLBACK -> NATIVE. No reversals or rejection changes.
+This proves native execution for this executable TCK inventory, not all possible
+DMN/FEEL models. Outside bounded proofs, models can still require fallback.
+Temporal SQL retains nanoseconds, offsets, period/duration identity and named-zone
+rules. It uses Spark try_reflect built-ins calling standard JDK java.time factories
+for parsing/validation/formatting; arithmetic and zone selection are SQL. No FEEL
+evaluator or custom calculation UDF is called from SQL. Generated-schema inputRow
+projections are required. Constant-only expressions retain existing native paths.
+Full generator regression/install: 161/161 tests passed; 2,973 native SQL actions
+(96.15%), 119 fallback actions (3.85%) of 3,092; unknown 0. All 59 failed SQL
+actions were expected assertions: 58 native and one fallback. This action metric
+includes intentional fallback/error tests and is not the TCK-case denominator.
+Generator SHA256 (target and installed):
+941A917B54C82D03B59C865D37193E21FBDB98132167E6C2CAD7EA0748C45E8C.
+Accounting: dmn-tck-runner/target/native-temporal-chain-full-accounting-2026-10-24.json.
+Rejections: dmn-tck-runner/target/native-temporal-chain-full-rejections-2026-10-24.tsv.
+TCK log: dmn-tck-runner/target/native-temporal-chain-full-tck-2026-10-24.log.
+Generator log: dmn-generator-sparksql/target/native-temporal-chain-corrected-full-generator-2026-10-24.log.
+Scope, per-run history, limitations and rejection semantics:
+docs/dev/slices/native-temporal-chains-2026-10-24.md.
+Next: audit the 676 expected rejection reasons and broaden beyond-TCK temporal
+proofs where useful; never imply rejected cases executed native SQL.
+Checkpoint implementation follows bb0e090; use Git history for its commit identity.
+
 # Spark SQL Backend Architecture & Execution Strategies
 
 ## Status and scope
@@ -11,6 +45,71 @@ The saved `optimized-generated-sparksql` report at the start of this work contai
 the hybrid bridge and is not a hybrid measurement. A future pinned TCK run must
 separately report native passes, fallback passes, failures, errors, and exclusions.
 Passing a pinned suite does not guarantee every possible DMN behavior.
+
+## Native coverage: what the TCK rate means
+
+The verified 2026-10-24 optimized hybrid TCK run passed all 3,391 cases:
+2,714 native (99.96%) and 1 fallback (0.04%) out of 2,715 executable cases,
+plus 676 expected model rejections. Failed, execution errors and unknown routes
+were zero. See the [structured-ranking checkpoint](dev/slices/native-ranked-contexts-2026-10-24.md)
+for evidence and the remaining cases. Earlier measurements and initial allowlists
+below describe historical implementation stages.
+
+Reaching zero fallback in this suite would mean 100% native routing across its
+2,715 executable cases. It would not prove native support for every valid DMN/FEEL
+model, every combination of features, or every production input. The 676 expected
+model rejections are separate from the native/fallback denominator. SQL action
+rates from generator regressions have a different denominator and must not be
+presented as official TCK coverage.
+
+Native lowering implements reusable patterns in the runtime IR rather than
+selecting implementations by official test-case names. Models with different
+names, constants and inputs can reuse a native implementation when their types,
+operations and dependency structures satisfy its capability checks. Work has
+prioritized patterns that unblock official cases; this is evidence of useful
+coverage, not evidence of unrestricted language support.
+
+Some implementations deliberately admit a bounded subset. For example, the
+scalar BKM/context expansion proves boolean and exact numeric terminal results,
+selected scalar operations and supported bindings under expansion limits. The
+structured-ranking proof additionally admits bounded literal record sources,
+context-valued loops and specific numeric field comparators.
+Changing that result to a nested context, adding a dynamic function target, or
+introducing an unsupported list operation can cross that implementation's
+boundary. Such a change can require fallback unless another native implementation
+covers the complete required subgraph. Even a small source change can therefore
+change routing; input values alone do not establish that a model is native.
+
+With hybrid mode enabled, unsupported required subgraphs use the Java fallback
+when that route is available. With hybrid mode disabled, they produce a capability
+diagnostic. Routing is chosen before execution: a native SQL error does not cause
+a retry through the interpreter, and a legitimate null is not a fallback signal.
+
+The ordinary native NUMBER column maps to Spark DOUBLE and does not preserve
+arbitrary FEEL BigDecimal precision. Verified exact native plans use additional
+lossless projections and exact result payloads. Generated hybrid fallback now
+uses dedicated encoded original inputs when their declared types contain numbers,
+and encoded numeric-bearing results, avoiding that DOUBLE boundary. Callers must
+retain exact source values, supply the generated schema's projection columns and
+decode FEEL results; an already rounded external DOUBLE cannot recover its
+original precision. See the [numeric fallback transport contract](dev/slices/lossless-numeric-fallback-transport-2026-10-23.md).
+These guarantees must not be generalized to all ordinary native numeric expressions.
+
+Broad production coverage requires validation beyond the official fixtures:
+
+- Exercise variations in types, nesting, nulls, numeric precision, temporal offsets,
+  lexical/function bindings and combinations of supported operations.
+- Compare native results and error behavior with the shared runtime, including
+  evaluation order and inactive branches.
+- Test immediately inside and outside each capability boundary; assert native
+  routing for supported variations and fallback or diagnostics for unsupported ones.
+- Document supported shapes and limits beside each lowering implementation.
+- Report routing for representative production models separately from TCK rates;
+  retain failed and unknown routes separately so they cannot inflate coverage.
+
+These are requirements for extending coverage, not a claim that all such
+variations have already been validated. The larger objective is broad native
+DMN/FEEL support; 100% native official TCK execution is one measurable milestone.
 
 ## Execution modes
 

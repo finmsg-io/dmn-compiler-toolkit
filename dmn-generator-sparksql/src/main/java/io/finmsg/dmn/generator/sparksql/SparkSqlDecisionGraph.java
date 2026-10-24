@@ -40,7 +40,11 @@ final class SparkSqlDecisionGraph {
 				continue;
 			Object node = nodes.get(id);
 			if (scalarProofs && node instanceof RuntimeDecision d) {
-				var dependencies = SparkSqlScalarGraph.dependencies(model, d);
+				Collection<Integer> dependencies = SparkSqlTemporalChain.dependencies(model, d);
+				if (dependencies == null)
+					dependencies = SparkSqlScalarGraph.dependencies(model, d);
+				if (dependencies == null)
+					dependencies = SparkSqlRankedContextLoop.dependencies(model, d);
 				if (dependencies != null) {
 					pending.addAll(dependencies);
 					continue;

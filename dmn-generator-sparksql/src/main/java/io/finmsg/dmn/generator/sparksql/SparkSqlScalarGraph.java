@@ -13,10 +13,10 @@ import org.apache.spark.sql.types.*;
  * guarded evaluation.
  */
 final class SparkSqlScalarGraph {
-	private enum Kind {
+	enum Kind {
 		NUMBER, STRING, BOOLEAN, NULL
 	}
-	private record Raw(int slot, List<String> path, Kind kind) {
+	record Raw(int slot, List<String> path, Kind kind) {
 	}
 	private record Input(int slot, List<String> path, RuntimeType type) {
 	}
@@ -26,7 +26,7 @@ final class SparkSqlScalarGraph {
 	}
 	private record Context(List<Node> effects, List<String> names, List<Node> values) {
 	}
-	private record Plan(Node root, List<Raw> raw, List<Integer> dependencies) {
+	record Plan(Node root, List<Raw> raw, List<Integer> dependencies) {
 	}
 	private static final class Unsupported extends RuntimeException {
 	}
@@ -45,7 +45,7 @@ final class SparkSqlScalarGraph {
 	}
 	private static Plan plan(RuntimeModel model, RuntimeDecision decision) {
 		if (decision.decisionTable().isPresent() || decision.expression().isEmpty()
-				|| decision.type().kind() != RuntimeTypeKind.BOOLEAN)
+				|| !Set.of(RuntimeTypeKind.BOOLEAN, RuntimeTypeKind.NUMBER).contains(decision.type().kind()))
 			return null;
 		try {
 			var parser = new Parser(model);
@@ -65,6 +65,68 @@ final class SparkSqlScalarGraph {
 		} catch (Unsupported unsupported) {
 			return null;
 		}
+	}
+	record ContextBody(Plan plan, List<String> names, List<Kind> kinds, List<Node> values) {
+	}
+	static ContextBody contextBody(RuntimeModel model, RuntimeForExpression loop, List<RuntimeField> fields) {
+		try {
+			var parser = new Parser(model);
+			var values = new ArrayList<Node>();
+			for (int i = 0; i < fields.size(); i++)
+				values.add(new Node("item", kind(fields.get(i).type()), List.of(), i));
+			var item = new Context(List.copyOf(values), fields.stream().map(RuntimeField::name).toList(),
+					List.copyOf(values));
+			Object parsed = parser.value(loop.result(),
+					new HashMap<>(Map.of(loop.iterations().getFirst().localSlot(), item)), 0);
+			if (!(parsed instanceof Context context) || context.values().isEmpty() || context.values().size() > 16)
+				return null;
+			var effects = new ArrayList<>(context.effects());
+			effects.addAll(context.values());
+			effects.add(constant(Kind.BOOLEAN, "true"));
+			Node root = new Node("sequence", Kind.BOOLEAN, List.copyOf(effects), null);
+			var raw = new LinkedHashSet<Raw>();
+			var deps = new LinkedHashSet<Integer>();
+			collect(root, raw, deps);
+			for (var leaf : raw)
+				deps.add(model.inputs().stream().filter(i -> i.valueSlot() == leaf.slot()).findFirst()
+						.orElseThrow(Unsupported::new).id());
+			steps(root, "TRUE", new ArrayList<>(), new HashMap<>());
+			return new ContextBody(new Plan(root, List.copyOf(raw), List.copyOf(deps)), context.names(),
+					context.values().stream().map(Node::kind).toList(), context.values());
+		} catch (Unsupported unsupported) {
+			return null;
+		}
+	}
+	static boolean safeContextStrings(ContextBody body) {
+		return body.values().stream().allMatch(SparkSqlScalarGraph::safeString);
+	}
+	private static boolean safeString(Node node) {
+		if (node.kind() != Kind.STRING)
+			return true;
+		return switch (node.op()) {
+			case "item", "column" -> true;
+			case "constant" -> ((String) node.value()).codePoints().noneMatch(c -> c >= 0xD800 && c <= 0xDFFF);
+			case "sequence" -> safeString(node.args().getLast());
+			case "if" -> safeString(node.args().get(1)) && safeString(node.args().get(2));
+			default -> false;
+		};
+	}
+	static String contextSql(ContextBody body, Map<Integer, String> names, String column) {
+		var steps = new ArrayList<Step>();
+		var memo = new HashMap<Key, Integer>();
+		steps(body.plan().root(), "TRUE", steps, memo);
+		var fields = new ArrayList<String>();
+		for (int i = 0; i < body.names().size(); i++) {
+			fields.add("'f" + i + "'");
+			fields.add("element_at(scalar_done," + (memo.get(new Key(body.values().get(i), "TRUE")) + 1) + ")");
+		}
+		return aggregateSql(body.plan(), steps, names, column, "named_struct(" + String.join(",", fields) + ")");
+	}
+	static String literal(RuntimeConstant constant) {
+		var node = new Parser(new RuntimeModel(List.of(), List.of(), List.of(), List.of(), 0))
+				.scalar(new Parser(new RuntimeModel(List.of(), List.of(), List.of(), List.of(), 0)).value(constant,
+						new HashMap<>(), 0));
+		return emit(new Plan(node, List.of(), List.of()), new Step(node, List.of(), "TRUE"), Map.of(), "unused");
 	}
 	private static void collect(Node n, Set<Raw> raw, Set<Integer> deps) {
 		if (n.value() instanceof Raw r)
@@ -91,6 +153,29 @@ final class SparkSqlScalarGraph {
 			if (type.kind() != RuntimeTypeKind.ANY && n.kind() != Kind.NULL && n.kind() != kind(type))
 				throw new Unsupported();
 			return n;
+		}
+		Object checkedValue(Object value, RuntimeType type) {
+			if (value instanceof Context c
+					&& (type.kind() == RuntimeTypeKind.CONTEXT || type.kind() == RuntimeTypeKind.ANY)) {
+				if (!type.fieldLayout().isEmpty()) {
+					if (type.fieldLayout().size() != c.names().size())
+						throw new Unsupported();
+					for (var field : type.fieldLayout()) {
+						int index = c.names().indexOf(field.name());
+						if (index < 0)
+							throw new Unsupported();
+						checked(c.values().get(index), field.type());
+					}
+				}
+				return c;
+			}
+			return checked(value, type);
+		}
+		void effects(Object value, List<Node> effects) {
+			if (value instanceof Context c)
+				effects.addAll(c.effects());
+			else
+				effects.add(scalar(value));
 		}
 		Object input(int slot, List<String> path, RuntimeType type) {
 			if (type.kind() == RuntimeTypeKind.CONTEXT)
@@ -224,29 +309,33 @@ final class SparkSqlScalarGraph {
 								throw new Unsupported();
 							var param = fn.parameters().stream().filter(p -> p.name().equals(a.name())).findFirst()
 									.orElseThrow(Unsupported::new);
-							var n = checked(value(a.expression(), frame, depth + 1), param.type());
+							var n = checkedValue(value(a.expression(), frame, depth + 1), param.type());
 							bindings.put(param.localSlot(), n);
-							effects.add(n);
+							effects(n, effects);
 						}
 					} else {
 						if (call.positionalArguments().size() != fn.parameters().size())
 							throw new Unsupported();
 						for (int j = 0; j < fn.parameters().size(); j++) {
 							var param = fn.parameters().get(j);
-							var n = checked(value(call.positionalArguments().get(j), frame, depth + 1), param.type());
+							var n = checkedValue(value(call.positionalArguments().get(j), frame, depth + 1),
+									param.type());
 							bindings.put(param.localSlot(), n);
-							effects.add(n);
+							effects(n, effects);
 						}
 					}
-					Node body = scalar(value(fn.body().get(), bindings, depth + 1));
+					Object body = value(fn.body().get(), bindings, depth + 1);
 					RuntimeType output = fn.type().kind() == RuntimeTypeKind.FUNCTION
 							? fn.type().returnType()
 							: fn.type();
 					if (output != null)
-						body = checked(body, output);
-					effects.add(body);
+						body = checkedValue(body, output);
+					effects(body, effects);
 					calls++;
-					return new Node("sequence", body.kind(), List.copyOf(effects), null);
+					if (body instanceof Context c)
+						return new Context(List.copyOf(effects), c.names(), c.values());
+					Node result = scalar(body);
+					return new Node("sequence", result.kind(), List.copyOf(effects), null);
 				} finally {
 					active.remove(bkm.resultSlot());
 				}
@@ -523,24 +612,33 @@ final class SparkSqlScalarGraph {
 		var p = Objects.requireNonNull(plan(m, d));
 		var steps = new ArrayList<Step>();
 		steps(p.root(), "TRUE", steps, new HashMap<>());
+		String finish = d.type().kind() == RuntimeTypeKind.NUMBER
+				? SparkSqlDecimalSql.payload("element_at(scalar_done,-1).n")
+				: "element_at(scalar_done,-1).b";
+		return aggregateSql(p, steps, names, column(d.id(), names), finish);
+	}
+	private static String aggregateSql(Plan p, List<Step> steps, Map<Integer, String> names, String column,
+			String finish) {
 		var branches = new StringBuilder("CASE scalar_step");
 		for (int i = 0; i < steps.size(); i++) {
-			var s = steps.get(i);
-			String expr = emit(p, s, names, column(d.id(), names));
-			if (!s.guard().equals("TRUE"))
-				expr = "CASE WHEN " + s.guard() + " THEN " + expr + " ELSE " + nil() + " END";
-			branches.append(" WHEN ").append(i).append(" THEN ").append(expr);
+			var step = steps.get(i);
+			String expression = emit(p, step, names, column);
+			if (!step.guard().equals("TRUE"))
+				expression = "CASE WHEN " + step.guard() + " THEN " + expression + " ELSE " + nil() + " END";
+			branches.append(" WHEN ").append(i).append(" THEN ").append(expression);
 		}
 		branches.append(" ELSE ").append(nil()).append(" END");
 		return "aggregate(sequence(0," + (steps.size() - 1)
 				+ "),CAST(array() AS ARRAY<STRUCT<n:STRUCT<digits:STRING,scale:BIGINT,negative:BOOLEAN,invalid:BOOLEAN>,s:STRING,b:BOOLEAN>>),(scalar_values,scalar_step) -> concat(scalar_values,array("
-				+ branches + ")),scalar_done -> element_at(scalar_done,-1)."
-				+ (p.root().kind() == Kind.STRING ? "s" : "b") + ")";
+				+ branches + ")),scalar_done -> " + finish + ")";
 	}
+
 	private static String emit(Plan p, Step step, Map<Integer, String> names, String column) {
 		var n = step.node();
 		String a = step.args().isEmpty() ? null : ref(step.args().getFirst()),
 				b = step.args().size() < 2 ? null : ref(step.args().get(1));
+		if (n.op().equals("item"))
+			return "structured_item.f" + n.value();
 		if (n.op().equals("raw"))
 			return "element_at(`" + column + "`," + (p.raw().indexOf((Raw) n.value()) + 1) + ")";
 		if (n.op().equals("column")) {
