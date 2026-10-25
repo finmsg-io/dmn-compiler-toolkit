@@ -19,6 +19,7 @@ final class SparkSqlStaticFunctionLowerer {
 	private static final class Unsupported extends RuntimeException {
 	}
 	private final RuntimeModel model;
+	private final io.finmsg.dmn.runtime.ExternalJavaPolicy policy;
 	private final Set<Integer> active = new HashSet<>();
 	private int budget = 4096;
 	private boolean applied;
@@ -27,11 +28,16 @@ final class SparkSqlStaticFunctionLowerer {
 	private int loopResults;
 	private int quantifiedResults;
 
-	private SparkSqlStaticFunctionLowerer(RuntimeModel model) {
+	private SparkSqlStaticFunctionLowerer(RuntimeModel model, io.finmsg.dmn.runtime.ExternalJavaPolicy policy) {
+		this.policy = policy;
 		this.model = model;
 	}
 
 	static RuntimeModel lower(RuntimeModel model) {
+		return lower(model, io.finmsg.dmn.runtime.ExternalJavaPolicy.denyAll());
+	}
+
+	static RuntimeModel lower(RuntimeModel model, io.finmsg.dmn.runtime.ExternalJavaPolicy policy) {
 		List<RuntimeDecision> decisions = new ArrayList<>();
 		for (RuntimeDecision decision : model.decisions()) {
 			if (SparkSqlTemporalChain.supports(model, decision)
@@ -41,7 +47,7 @@ final class SparkSqlStaticFunctionLowerer {
 			}
 			RuntimeDecision result = decision;
 			if (decision.expression().isPresent() && decision.decisionTable().isEmpty()) {
-				var lowerer = new SparkSqlStaticFunctionLowerer(model);
+				var lowerer = new SparkSqlStaticFunctionLowerer(model, policy);
 				try {
 					RuntimeExpression expression = lowerer.expression(decision.expression().get(),
 							List.of(new HashMap<>()), 0);
@@ -116,7 +122,7 @@ final class SparkSqlStaticFunctionLowerer {
 			return collection;
 		}
 		if (expression instanceof RuntimeFunctionDefinition function) {
-			if (SparkSqlJavaLiteralProof.supports(function))
+			if (SparkSqlJavaLiteralProof.supports(function, policy))
 				return new LiteralJava(function);
 			if (function.external() || function.body().isEmpty())
 				throw new Unsupported();
@@ -248,7 +254,7 @@ final class SparkSqlStaticFunctionLowerer {
 						invocation.positionalArguments().stream()
 								.map(argument -> expression(argument, frames, depth + 1)).toList(),
 						invocation.type());
-				RuntimeExpression literal = SparkSqlJavaLiteralProof.result(java.function(), call);
+				RuntimeExpression literal = SparkSqlJavaLiteralProof.result(java.function(), call, policy);
 				if (literal == null)
 					throw new Unsupported();
 				applied = true;

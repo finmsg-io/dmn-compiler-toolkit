@@ -40,7 +40,7 @@ Checkpoint implementation follows bb0e090; use Git history for its commit identi
 - [Current status](#contents-section-1)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-09-28
+Last reviewed: 2026-10-24
 
 The module owns native Spark SQL CTE generation and an opt-in decision-level Java
 UDF bridge. Hybrid runners require the interpreter and bridge dependencies on
@@ -55,11 +55,13 @@ input and numeric-result payloads, including lazy handling of non-finite argumen
 The ordinary native NUMBER column remains DOUBLE unless an exact projection is
 used. Callers must supply generated-schema rows; see
 [transport contract](../dev/slices/lossless-numeric-fallback-transport-2026-10-23.md).
-[Structured metric loops and rankings](../dev/slices/native-ranked-contexts-2026-10-24.md)
-converted loan comparison: full TCK 2,714 native (99.96%), 1 fallback (0.04%)
-of 2,715 executable cases; all 3,391 cases passed, including the separately
-counted 676 expected model rejections. Remaining work is temporal
-construction/validation with precise offsets and duration identity.
+[Structured rankings](../dev/slices/native-ranked-contexts-2026-10-24.md) and
+[exact temporal chains](../dev/slices/native-temporal-chains-2026-10-24.md) complete
+the native executable-TCK milestone: 2,715 native (100% of 2,715 executable;
+80.06% of all 3,391), zero fallback. The 676 compiler-rejected cases executed no
+SQL; their precise rejection reasons remain unaudited. All 3,391 outcomes passed,
+with failed/errors/unknown zero. General native FEEL coverage remains bounded;
+other model forms can still require fallback.
 
 
 | Priority | Work item | Status | Evidence |
@@ -72,4 +74,6 @@ construction/validation with precise offsets and duration identity.
 | Hybrid 1 | Decision-level UDF, model transport, and lossless FEEL value codec | `implemented` | `SparkSqlDecisionUdf`, `SparkSqlFeelValueCodec`, hybrid tests |
 | Hybrid 2 | Static subgraph routing and generated UDF registration | `implemented` | `SparkSqlCapabilityAnalyzer`, generator result and Java runner |
 | Hybrid 3 | Pinned TCK runner integration and separate native/fallback accounting | `done` | 100.00% conformance measured across 3,391 cases (0 failures, 0 errors) |
-| Hybrid 4 | Promote verified operations into native SQL | `in-progress` | Level 2 100% native (116/116 passes); Level 3 promotion in progress |
+| Hybrid 4 | Native execution of all executable official optimized TCK cases | `done` | 2,715 native, zero fallback; 676 no-SQL compiler rejections separately; 2026-10-24 checkpoint |
+| HARD-02 | Verify and consolidate SQL literal escaping | `open` | Owned by [hardening section 2](../dev/slices/security-correctness-hardening-task-2026-10-24.md) |
+| NATIVE-EXT | Broaden bounded native proofs beyond the executable TCK inventory | `proposed` | Prioritize actual model needs; preserve exact semantics and fallback boundaries |

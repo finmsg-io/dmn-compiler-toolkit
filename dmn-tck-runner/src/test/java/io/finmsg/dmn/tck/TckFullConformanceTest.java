@@ -45,7 +45,7 @@ class TckFullConformanceTest {
 			testDirectories.add(Path.of(tckResource.toURI()));
 
 		List<DynamicTest> dynamicTests = new ArrayList<>();
-		DmnToolkitTckEngine interpreterEngine = new DmnToolkitTckEngine();
+		DmnToolkitTckEngine interpreterEngine = new DmnToolkitTckEngine(OfficialExternalJavaPolicy.POLICY);
 
 		for (Path rootDir : testDirectories) {
 			try (Stream<Path> paths = Files.walk(rootDir)) {
@@ -73,7 +73,9 @@ class TckFullConformanceTest {
 					Class<?> genClass = compileInMemory("io.finmsg.dmn.tck.gen." + className,
 							genResult.sources().get("io.finmsg.dmn.tck.gen." + className));
 
-					Object engineInstance = genClass.getDeclaredConstructor().newInstance();
+					Object engineInstance = genClass
+							.getDeclaredConstructor(io.finmsg.dmn.runtime.ExternalJavaPolicy.class)
+							.newInstance(OfficialExternalJavaPolicy.POLICY);
 
 					for (TckTestCase testCase : cases) {
 						String testName = dir.getFileName() + " :: " + testCase.id() + " (" + testCase.name() + ")";

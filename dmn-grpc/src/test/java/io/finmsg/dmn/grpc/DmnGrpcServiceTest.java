@@ -31,6 +31,52 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class DmnGrpcServiceTest {
+	@Test
+	void externalJavaPolicyIsOwnedByHostAndDenialReachesGrpcClient() throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:test">
+				<decision id="result" name="result"><variable name="result"/>
+				<literalExpression><text>(function(x) external {java:{class:"java.lang.Math",method signature:"abs(int)"}})(-7)</text></literalExpression>
+				</decision></definitions>
+				""";
+		var compilation = new DmnCompiler().compile(new DmnSource(DmnSourceId.of("memory:grpc-policy"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compilation.isSuccess()).isTrue();
+		String pkg = "io.finmsg.dmn.grpc.gen";
+		var engine = new DmnJavaGenerator().generate(compilation.optimizedRuntimeModel().orElseThrow(),
+				DmnJavaGeneratorOptions.of(pkg, "PolicyEngine"));
+		var handler = new DmnGrpcGenerator().generate(compilation, pkg + ".PolicyEngine",
+				DmnGrpcGeneratorOptions.of(pkg, "PolicyService"));
+		var serviceClass = compileInMemory(
+				Map.of(pkg + ".PolicyEngine", engine.mainSource(), pkg + ".PolicyService", handler.mainSource()),
+				pkg + ".PolicyService");
+		var allowed = io.finmsg.dmn.runtime.ExternalJavaPolicy.allowOnly(
+				java.util.Set.of(new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math", "abs(int)")));
+		for (boolean approve : List.of(false, true)) {
+			var service = (DmnEvaluationServiceGrpc.DmnEvaluationServiceImplBase) (approve
+					? serviceClass.getDeclaredConstructor(io.finmsg.dmn.runtime.ExternalJavaPolicy.class)
+							.newInstance(allowed)
+					: serviceClass.getDeclaredConstructor().newInstance());
+			String name = InProcessServerBuilder.generateName();
+			var server = InProcessServerBuilder.forName(name).directExecutor().addService(service).build().start();
+			var channel = InProcessChannelBuilder.forName(name).directExecutor().build();
+			try {
+				var stub = DmnEvaluationServiceGrpc.newBlockingStub(channel);
+				var request = DmnEvaluationRequest.getDefaultInstance();
+				if (approve) {
+					assertThat(DmnGrpcValueConverter.toJavaObject(stub.evaluate(request).getOutputsOrThrow("result")))
+							.isEqualTo(BigDecimal.valueOf(7));
+				} else {
+					org.assertj.core.api.Assertions.assertThatThrownBy(() -> stub.evaluate(request))
+							.isInstanceOf(io.grpc.StatusRuntimeException.class)
+							.hasMessageContaining("INTERNAL: EXTERNAL_JAVA_DENIED:");
+				}
+			} finally {
+				channel.shutdownNow();
+				server.shutdownNow();
+			}
+		}
+	}
 
 	@Test
 	@DisplayName("DmnGrpcValueConverter: Bidirectional scalar, list, and context conversion")

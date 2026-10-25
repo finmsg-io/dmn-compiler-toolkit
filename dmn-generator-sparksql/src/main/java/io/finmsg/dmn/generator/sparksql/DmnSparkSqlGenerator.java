@@ -18,8 +18,9 @@ public final class DmnSparkSqlGenerator {
 
 		RuntimeModel originalModel = optimizedModel.model();
 		RuntimeModel model = options.hybridUdfFallback()
-				? SparkSqlTemporalChain.lowerDependencies(SparkSqlRankedContextLoop.lowerDependencies(
-						SparkSqlScalarGraph.lowerDependencies(SparkSqlStaticFunctionLowerer.lower(originalModel))))
+				? SparkSqlTemporalChain.lowerDependencies(
+						SparkSqlRankedContextLoop.lowerDependencies(SparkSqlScalarGraph.lowerDependencies(
+								SparkSqlStaticFunctionLowerer.lower(originalModel, options.externalJavaPolicy()))))
 				: originalModel;
 		Map<Integer, String> slotNames = new HashMap<>();
 		for (RuntimeInput input : model.inputs()) {
@@ -133,7 +134,7 @@ public final class DmnSparkSqlGenerator {
 									+ String.join("; ", capability.runtimeLimitations()));
 				}
 				String udfName = "dmn_" + modelKey + "_" + decision.id();
-				udfs.put(udfName, new SparkSqlDecisionUdf(originalModel, decision.id()));
+				udfs.put(udfName, new SparkSqlDecisionUdf(originalModel, decision.id(), options.externalJavaPolicy()));
 				udfNames.put(decision.id(), udfName);
 				fallbackExpressions.put(decision.id(), udfName + "(" + inputStruct + ")");
 			}
@@ -523,7 +524,7 @@ public final class DmnSparkSqlGenerator {
 			sb.append(");\n");
 			udfNames.forEach((id, name) -> sb.append("    UDFS.put(\"").append(name)
 					.append("\", io.finmsg.dmn.generator.sparksql.SparkSqlDecisionUdf.fromModelPayload(modelPayload, ")
-					.append(id).append("));\n"));
+					.append(id).append(", ").append(policySource(options.externalJavaPolicy())).append("));\n"));
 		}
 
 		for (Map.Entry<String, String> entry : sqlFiles.entrySet()) {
@@ -553,5 +554,29 @@ public final class DmnSparkSqlGenerator {
 		sb.append("}\n");
 
 		return sb.toString();
+	}
+	private static String policySource(io.finmsg.dmn.runtime.ExternalJavaPolicy policy) {
+		String type = "io.finmsg.dmn.runtime.ExternalJavaPolicy";
+		if (policy.isUnrestrictedTrustedUse())
+			return type + ".unrestrictedTrustedUse()";
+		return type + ".allowOnly(java.util.Set.of(" + policy.approvedMethods().stream()
+				.sorted(java.util.Comparator.comparing(io.finmsg.dmn.runtime.ExternalJavaPolicy.Method::className)
+						.thenComparing(io.finmsg.dmn.runtime.ExternalJavaPolicy.Method::signature))
+				.map(method -> "new " + type + ".Method(" + javaString(method.className()) + ", "
+						+ javaString(method.signature()) + ")")
+				.collect(java.util.stream.Collectors.joining(", ")) + "))";
+	}
+
+	private static String javaString(String text) {
+		StringBuilder value = new StringBuilder("\"");
+		for (char c : text.toCharArray()) {
+			if (c == '\\' || c == '"')
+				value.append('\\').append(c);
+			else if (c < 32 || c > 126)
+				value.append(String.format("\\u%04x", (int) c));
+			else
+				value.append(c);
+		}
+		return value.append('"').toString();
 	}
 }

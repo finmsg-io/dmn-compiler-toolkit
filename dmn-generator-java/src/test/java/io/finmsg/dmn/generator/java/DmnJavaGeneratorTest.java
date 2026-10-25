@@ -17,10 +17,61 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class DmnJavaGeneratorTest {
+	@Test
+	void externalCallsRequireInstancePolicyAndDoNotAuthorizeOtherInstances(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:test">
+				<decision id="result" name="result"><variable name="result"/>
+				<literalExpression><text>(function(x) external {java:{class:"java.lang.Math",method signature:"abs(int)"}})(-7)</text></literalExpression>
+				</decision></definitions>
+				""";
+		var compilation = compiler.compile(new DmnSource(DmnSourceId.of("memory:external-policy"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compilation.isSuccess()).isTrue();
+		var optimized = compilation.optimizedRuntimeModel().orElseThrow();
+		var policy = io.finmsg.dmn.runtime.ExternalJavaPolicy
+				.allowOnly(Set.of(new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math", "abs(int)")));
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> runtime.evaluate(optimized.model(), Map.of()))
+				.hasMessageStartingWith("EXTERNAL_JAVA_DENIED:");
+		assertThat(new DmnRuntime(policy).evaluate(optimized.model(), Map.of())
+				.decisionValue(optimized.model().decisions().getFirst().id())).isEqualTo(BigDecimal.valueOf(7));
+		var generated = generator.generate(optimized);
+		var type = compileJavaSource(tempDir, generated.mainClassName(), generated.mainSource());
+		var denied = (GeneratedDecisionEngine) type.getDeclaredConstructor().newInstance();
+		var approved = (GeneratedDecisionEngine) type
+				.getDeclaredConstructor(io.finmsg.dmn.runtime.ExternalJavaPolicy.class).newInstance(policy);
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> denied.evaluate(new Object[0]))
+				.hasMessageStartingWith("EXTERNAL_JAVA_DENIED:");
+		int slot = optimized.model().decisions().getFirst().resultSlot();
+		assertThat(approved.evaluate(new Object[0])[slot]).isEqualTo(BigDecimal.valueOf(7));
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> denied.evaluate(new Object[0]))
+				.hasMessageStartingWith("EXTERNAL_JAVA_DENIED:");
+	}
 
 	private final DmnCompiler compiler = new DmnCompiler();
 	private final DmnRuntime runtime = new DmnRuntime();
 	private final DmnJavaGenerator generator = new DmnJavaGenerator();
+
+	@Test
+	void comparatorCannotSwallowExternalPolicyDenial(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:test">
+				<decision id="result" name="result"><variable name="result"/>
+				<literalExpression><text>sort([2,1], function(a,b) (function(x) external {java:{class:"java.lang.Math",method signature:"abs(int)"}})(a) > 0)</text></literalExpression>
+				</decision></definitions>
+				""";
+		var compilation = compiler.compile(new DmnSource(DmnSourceId.of("memory:comparator-policy"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compilation.isSuccess()).isTrue();
+		var optimized = compilation.optimizedRuntimeModel().orElseThrow();
+		var generated = generator.generate(optimized);
+		var type = compileJavaSource(tempDir, generated.mainClassName(), generated.mainSource());
+		var engine = (GeneratedDecisionEngine) type.getDeclaredConstructor().newInstance();
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> engine.evaluate(new Object[0]))
+				.isInstanceOf(io.finmsg.dmn.runtime.ExternalJavaDeniedException.class);
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> runtime.evaluate(optimized.model(), Map.of()))
+				.isInstanceOf(io.finmsg.dmn.runtime.ExternalJavaDeniedException.class);
+	}
 
 	@Test
 	void generatesJavaSourceAndAssertsParityWithInterpreter(@TempDir Path tempDir) throws Exception {

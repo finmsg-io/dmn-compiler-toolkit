@@ -7,7 +7,7 @@
 - [Next planned work](#contents-section-2)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-09-06
+Last reviewed: 2026-10-24
 
 The `dmn-benchmarks` module owns JMH microbenchmarks, reference DMN model provider registries (`ReferenceModelRegistry`), realistic data-driven payload generators (`BenchmarkDataGenerator` via `net.datafaker`), and multi-threaded scalability evidence capture.
 
@@ -31,4 +31,4 @@ The `dmn-benchmarks` module owns JMH microbenchmarks, reference DMN model provid
 
 | Priority | Work item | Status | Target / Evidence |
 | --- | --- | --- | --- |
-| BENCH-003 | Continuous regression monitoring in CI | `ready` | Automated threshold validation against baseline scalability matrix |
+| BENCH-003 | Continuous regression monitoring in CI | `planned` | Existing suite/summarizer delivered; scheduled CI threshold enforcement and baseline acceptance remain unverified |

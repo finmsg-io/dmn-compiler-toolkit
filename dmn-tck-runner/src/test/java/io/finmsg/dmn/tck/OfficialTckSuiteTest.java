@@ -166,7 +166,7 @@ class OfficialTckSuiteTest {
 				.mapToInt(e -> e.testCases().size() * activeBackends.size()).sum();
 		currentTestIndex.set(0);
 		List<DynamicTest> dynamicTests = new ArrayList<>();
-		DmnToolkitTckEngine interpreterEngine = new DmnToolkitTckEngine();
+		DmnToolkitTckEngine interpreterEngine = new DmnToolkitTckEngine(OfficialExternalJavaPolicy.POLICY);
 
 		for (TckCatalogueEntry entry : inventory.entries()) {
 			if (!entry.executable()) {
@@ -396,7 +396,8 @@ class OfficialTckSuiteTest {
 		PreparationKey key = new PreparationKey(sourceKey, Set.copyOf(testCase.expectedResults().keySet()), modelMode);
 		DmnSparkSqlGeneratorResult generated = sparkSqlPreparationCache.computeIfAbsent(key,
 				ignored -> sparkSqlGenerator.generate(new RuntimeOptimizedModel(model, List.of(), List.of(), List.of()),
-						DmnSparkSqlGeneratorOptions.of("input_table", SPARK_HYBRID, slotNames)));
+						DmnSparkSqlGeneratorOptions.of("input_table", SPARK_HYBRID, slotNames)
+								.withExternalJavaPolicy(OfficialExternalJavaPolicy.POLICY)));
 		generated.registerUdfs(spark);
 		if (model.inputs().isEmpty()) {
 			spark.sql("SELECT 1 AS _dummy").createOrReplaceTempView("input_table");
@@ -654,7 +655,9 @@ class OfficialTckSuiteTest {
 					DmnJavaGeneratorOptions.of("io.finmsg.dmn.tck.gen", className));
 			Class<?> generatedClass = compileInMemory("io.finmsg.dmn.tck.gen." + className,
 					generated.sources().get("io.finmsg.dmn.tck.gen." + className));
-			return GeneratedPreparation.success(generatedClass, generatedClass.getDeclaredConstructor().newInstance());
+			return GeneratedPreparation.success(generatedClass,
+					generatedClass.getDeclaredConstructor(io.finmsg.dmn.runtime.ExternalJavaPolicy.class)
+							.newInstance(OfficialExternalJavaPolicy.POLICY));
 		} catch (Throwable exception) {
 			return GeneratedPreparation.failure("Generated-Java preparation threw: " + exception, exception);
 		}

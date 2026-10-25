@@ -7,7 +7,7 @@
 - [Next planned work](#contents-section-2)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-09-06
+Last reviewed: 2026-10-24
 
 The module provides ANTLR4 FEEL 1.5 grammars (`FeelLexer.g4`, `FeelParser.g4`), `FeelAstBuilder` (Protobuf AST builder), `DmnFeelParser` (immutable depth-first model pass), structured syntax diagnostics, and full integration into the `DmnCompiler` facade.
 
@@ -27,4 +27,4 @@ The module provides ANTLR4 FEEL 1.5 grammars (`FeelLexer.g4`, `FeelParser.g4`), 
 
 | Priority | Work item | Status | Target / Evidence |
 | --- | --- | --- | --- |
-| P19.2 | Continuous grammar fuzzing harness in CI | `ready` | Extended randomized property-based token generator |
+| FEEL-FUZZ-CI | Continuous grammar fuzzing harness in CI | `planned` | Existing bounded fuzz tests do not establish continuous randomized CI execution; verify generator, schedule and failure artifacts |

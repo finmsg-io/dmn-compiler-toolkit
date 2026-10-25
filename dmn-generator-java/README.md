@@ -15,3 +15,9 @@ DmnJavaGenerator generator = new DmnJavaGenerator();
 DmnJavaGeneratorResult result = generator.generate(optimizedRuntimeModel);
 String javaCode = result.mainSource();
 ```
+
+Generated engines deny model-defined external Java calls by default. After
+compiling the generated source, the host may construct an engine with an explicit
+`ExternalJavaPolicy` argument. Each engine retains its own immutable policy;
+authorizing one instance does not authorize another. See the
+[runtime policy API](../dmn-runtime/README.md#external-java-execution-policy).

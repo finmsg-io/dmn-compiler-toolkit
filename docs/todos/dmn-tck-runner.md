@@ -970,7 +970,7 @@ and correction of optimization-time fallback accounting. The 100% goal remains a
 - [Next planned work](#contents-section-2)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-09-06
+Last reviewed: 2026-10-24
 
 The `dmn-tck-runner` module executes the official OMG DMN Technology Compatibility Kit (TCK) against both the `DmnRuntime` interpreter and `dmn-generator-java` code generator with strict conformance assertions and machine-readable accounting.
 
@@ -980,7 +980,7 @@ The `dmn-tck-runner` module executes the official OMG DMN Technology Compatibili
 | Priority | Work item | Status | Evidence |
 | --- | --- | --- | --- |
 | P6.1 | Official OMG DMN 1.5 TCK runner harness | `done` | `OfficialTckSuiteTest` |
-| P6.2 | Hard assertions without skipped tests | `done` | Zero `assumeTrue` skips; 82/82 test files execute with strict assertions |
+| P6.2 | Hard assertions without skipped tests | `done` | Latest full checkpoint records 3,391 outcomes with no skipped cases; see current evidence above |
 | P6.3 | 100% strict CL2/CL3 conformance | `done` | 3,391/3,391 declared test cases pass across both backends (6,782/6,782 backend outcomes) |
 | P6.4 | Machine-readable canonical accounting | `done` | `tck-accounting.json` generated deterministically |
 | P6.5 | Standalone HTML dashboard generator | `done` | `tools/generate_tck_dashboard.py` (`docs/tck-dashboard.html`) |
@@ -991,8 +991,10 @@ The `dmn-tck-runner` module executes the official OMG DMN Technology Compatibili
 
 | Priority | Work item | Status | Target / Evidence |
 | --- | --- | --- | --- |
-| P19.1 | Automated TCK regression ratchet in CI | `ready` | Fails build if test case count drops below 3,391 or any failure occurs |
+| P19.1 | Explicit TCK inventory/outcome regression ratchet in CI | `planned` | Full-suite filter prohibition exists; an explicit case-key/backend baseline and count-drop guard still require implementation evidence |
 | P19.2 | Diagnose Spark SQL first-use timeout and evaluate representative warmup | `planned` | 2026-10-11 full run: `0035-test-structure-output-test-01.xml#001` exceeded 30 seconds; case 002 passed. Existing warmup is `SELECT 1`. |
+| TCK-REPORT | Separate native/fallback and no-SQL compiler rejections; explicit denominators | `done` | `OfficialTckSuiteTest` summary; implemented in 518e376 |
+| TCK-REJECT | Audit expected compiler rejections against intended TCK errors | `open` | Owned by [hardening section 5](../dev/slices/security-correctness-hardening-task-2026-10-24.md); 676 cases remain unaudited |
 
 P19.2 plan: reproduce case 001 in a fresh JVM and repeat it in the same Spark
 session. Record separate timings for model preparation, SQL generation, UDF
@@ -1005,7 +1007,7 @@ without changing routing or hiding a persistent slow case. Report actual native
 and fallback counts and rates after every run; preserve routing for failed cases
 so an unresolved timeout is explicitly accounted for.
 
-Latest run evidence: `dmn-tck-runner/target/current-native-fallback-full-approved.log`
+Historical 2026-10-11 run evidence (superseded by the current checkpoint at the top): `dmn-tck-runner/target/current-native-fallback-full-approved.log`
 and `dmn-tck-runner/target/current-native-fallback-full-accounting.json`.
 3,390/3,391 passed; one timeout; zero execution errors. Of 2,715 executable cases,
 2,475 native passes (91.16%), 239 fallback passes (8.80%), and one failed case

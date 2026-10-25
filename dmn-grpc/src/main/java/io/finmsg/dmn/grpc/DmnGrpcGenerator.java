@@ -38,9 +38,12 @@ public class DmnGrpcGenerator {
 		sb.append("public class ").append(options.serviceClassName())
 				.append(" extends DmnEvaluationServiceGrpc.DmnEvaluationServiceImplBase {\n\n");
 
-		sb.append("  private final ").append(compiledEngineFqcn).append(" engine = new ").append(compiledEngineFqcn)
-				.append("();\n\n");
-
+		sb.append("  private final ").append(compiledEngineFqcn).append(" engine;\n");
+		sb.append("  public ").append(options.serviceClassName())
+				.append("() { this(io.finmsg.dmn.runtime.ExternalJavaPolicy.denyAll()); }\n");
+		sb.append("  public ").append(options.serviceClassName())
+				.append("(io.finmsg.dmn.runtime.ExternalJavaPolicy policy) { this.engine = new ")
+				.append(compiledEngineFqcn).append("(policy); }\n\n");
 		sb.append("  @Override\n");
 		sb.append(
 				"  public void evaluate(DmnEvaluationRequest request, StreamObserver<DmnEvaluationResponse> responseObserver) {\n");

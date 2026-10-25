@@ -7,8 +7,21 @@ import java.time.*;
 import java.time.temporal.TemporalAmount;
 import java.util.*;
 
-/** Deterministic, side-effect-free interpreter for {@link RuntimeModel}. */
+/**
+ * Interpreter for {@link RuntimeModel}; model-selected Java calls are denied by
+ * default.
+ */
 public final class DmnRuntime {
+	private final ExternalJavaPolicy externalJavaPolicy;
+
+	public DmnRuntime() {
+		this(ExternalJavaPolicy.denyAll());
+	}
+
+	public DmnRuntime(ExternalJavaPolicy externalJavaPolicy) {
+		this.externalJavaPolicy = Objects.requireNonNull(externalJavaPolicy, "externalJavaPolicy");
+	}
+
 	public record NamedZoneTime(LocalTime value, ZoneId zone) {
 		@Override
 		public String toString() {
@@ -37,7 +50,7 @@ public final class DmnRuntime {
 		model.decisions().forEach(value -> decisions.put(value.id(), value));
 		Map<Integer, RuntimeBkm> bkms = new HashMap<>();
 		model.businessKnowledgeModels().forEach(value -> bkms.put(value.id(), value));
-		State state = new State(slots);
+		State state = new State(slots, externalJavaPolicy);
 		for (int id : model.evaluationOrder()) {
 			RuntimeBkm bkm = bkms.get(id);
 			if (bkm != null) {
@@ -159,7 +172,9 @@ public final class DmnRuntime {
 
 	private static final class State {
 		private final Object[] slots;
-		State(Object[] slots) {
+		private final ExternalJavaPolicy externalJavaPolicy;
+		State(Object[] slots, ExternalJavaPolicy externalJavaPolicy) {
+			this.externalJavaPolicy = externalJavaPolicy;
 			this.slots = slots;
 		}
 
@@ -603,7 +618,7 @@ public final class DmnRuntime {
 				return (positional, named) -> {
 					List<Object> args = new ArrayList<>(positional);
 					args.addAll(named.values());
-					return invokeExternalJava(desc, args);
+					return invokeExternalJava(desc, args, externalJavaPolicy);
 				};
 			}
 			if (definition.parameters().isEmpty() && definition.body().isPresent()
@@ -653,7 +668,7 @@ public final class DmnRuntime {
 					if (isExternalJavaDescriptor(bodyVal)) {
 						List<Object> args = new ArrayList<>(positional);
 						args.addAll(named.values());
-						return invokeExternalJava(bodyVal, args);
+						return invokeExternalJava(bodyVal, args, externalJavaPolicy);
 					}
 					RuntimeType returnType = definition.type().kind() == RuntimeTypeKind.FUNCTION
 							? definition.type().returnType()
@@ -695,7 +710,7 @@ public final class DmnRuntime {
 			if (isExternalJavaDescriptor(target)) {
 				List<Object> all = new ArrayList<>(positional);
 				all.addAll(named.values());
-				return invokeExternalJava(target, all);
+				return invokeExternalJava(target, all, externalJavaPolicy);
 			}
 			return null;
 		}
@@ -2608,6 +2623,11 @@ public final class DmnRuntime {
 	}
 
 	public static Object invokeExternalJava(Object desc, List<Object> args) {
+		return invokeExternalJava(desc, args, ExternalJavaPolicy.denyAll());
+	}
+
+	public static Object invokeExternalJava(Object desc, List<Object> args, ExternalJavaPolicy policy) {
+		Objects.requireNonNull(policy, "policy");
 		if (desc == null)
 			return null;
 		Map<?, ?> m;
@@ -2631,6 +2651,7 @@ public final class DmnRuntime {
 			return null;
 		String className = String.valueOf(clsObj).trim();
 		String signature = String.valueOf(sigObj).trim();
+		policy.check(className, signature);
 		try {
 			int pOpen = signature.indexOf('(');
 			int pClose = signature.lastIndexOf(')');
@@ -2655,6 +2676,7 @@ public final class DmnRuntime {
 				if (convertedArgs[i] == null && paramClasses[i].isPrimitive() && arg != null)
 					return null;
 			}
+			policy.check(className, signature);
 			Object result = targetMethod.invoke(null, convertedArgs);
 			return convertFromJavaType(result);
 		} catch (Exception e) {

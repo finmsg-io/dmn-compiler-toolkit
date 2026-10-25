@@ -23,11 +23,17 @@ final class SparkSqlJavaLiteralProof {
 	}
 
 	static boolean supports(RuntimeFunctionDefinition function) {
+		return supports(function, io.finmsg.dmn.runtime.ExternalJavaPolicy.denyAll());
+	}
+
+	static boolean supports(RuntimeFunctionDefinition function, io.finmsg.dmn.runtime.ExternalJavaPolicy policy) {
 		Map<String, Object> descriptor = descriptor(function);
 		if (descriptor == null)
 			return false;
 		String className = ((String) descriptor.get("class")).trim();
 		String signature = ((String) descriptor.get("method signature")).trim();
+		if (!policy.permits(className, signature))
+			return false;
 		Class<?> target = CLASSES.get(className);
 		int open = signature.indexOf('(');
 		if (open <= 0 || !signature.endsWith(")"))
@@ -78,8 +84,10 @@ final class SparkSqlJavaLiteralProof {
 		}
 	}
 
-	static RuntimeExpression result(RuntimeFunctionDefinition function, RuntimeInvocationExpression invocation) {
-		if (!supports(function) || invocation.positionalArguments().size() + invocation.namedArguments().size() > 16)
+	static RuntimeExpression result(RuntimeFunctionDefinition function, RuntimeInvocationExpression invocation,
+			io.finmsg.dmn.runtime.ExternalJavaPolicy policy) {
+		if (!supports(function, policy)
+				|| invocation.positionalArguments().size() + invocation.namedArguments().size() > 16)
 			return null;
 		if (invocation.positionalArguments().stream().anyMatch(argument -> !literal(argument))
 				|| invocation.namedArguments().stream().anyMatch(argument -> !literal(argument.expression())))
@@ -100,7 +108,7 @@ final class SparkSqlJavaLiteralProof {
 				invocation.positionalArguments(), invocation.type());
 		var decision = new RuntimeDecision(0, 0, RuntimeType.scalar(RuntimeTypeKind.ANY), List.of(), Optional.of(call));
 		try {
-			Object value = new io.finmsg.dmn.runtime.DmnRuntime()
+			Object value = new io.finmsg.dmn.runtime.DmnRuntime(policy)
 					.evaluate(new RuntimeModel(List.of(), List.of(decision), List.of(), List.of(0), 1), Map.of())
 					.decisionValue(0);
 			if (value instanceof String text && (text.length() > 32768

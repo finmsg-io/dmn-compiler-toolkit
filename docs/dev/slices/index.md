@@ -1,3 +1,6 @@
+Planned task: [security and correctness hardening](security-correctness-hardening-task-2026-10-24.md).
+Planned task: [documentation drift remediation](documentation-drift-remediation-task-2026-10-24.md).
+
 2026-10-24 latest full: [exact temporal chains](native-temporal-chains-2026-10-24.md).
 3,391/3,391 passing outcomes: 2,715 native (100% of 2,715 executable; 80.06% of
 all 3,391), zero fallback. Separately, 676 compiler-rejected cases (19.94% of all)

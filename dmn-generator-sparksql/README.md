@@ -37,6 +37,16 @@ Object value = SparkSqlFeelValueCodec.fromSpark(spark.sql(query).head().get(0));
 `includeJavaRunner` is enabled, embed the model and register UDFs automatically.
 The `of(...)` factory above generates SQL only.
 
+Model-defined external Java calls are denied by default, including calls evaluated
+during SQL generation. Hosts may explicitly use
+`options.withExternalJavaPolicy(policy)` with the
+[runtime policy API](../dmn-runtime/README.md#external-java-execution-policy).
+Fallback UDFs and generated runners retain that policy. Fixed generator-selected
+JDK built-ins remain separate from model-selected targets. Generated SQL and
+runner sources are trusted executable artifacts specific to their generation
+policy, including folded constants; regenerate from original IR when changing
+policy and keep artifact caches separate for different trust configurations.
+
 Hybrid schemas use native strings/booleans and versioned binary FEEL payloads for
 other types. This preserves decimals, mixed lists, null members, contexts, offsets,
 nanoseconds, and duration kinds. Build inputs with the codec and decode results

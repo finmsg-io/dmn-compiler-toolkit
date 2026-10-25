@@ -73,7 +73,7 @@
 ## v1.0.0 MVP: TCK 100%, Core Optimizers, and Benchmarks
 
 - [x] Full OMG DMN 1.5 TCK CL2/CL3 conformance for `DmnInterpreter` and `dmn-generator-java` (3,391/3,391 cases, 6,782/6,782 backend outcomes)
-- [x] Zero-dependency reflection-free AOT Java Generator (`dmn-generator-java`)
+- [ ] Complete the reflection-free AOT Java contract: source generation is delivered, but reflective comparator dispatch and failure handling remain [HARD-03](dev/slices/security-correctness-hardening-task-2026-10-24.md).
 - [x] Static optimization pipeline (`dmn-optimizer`): constant folding, algebraic simplification, range/between evaluation optimization
 - [x] Differential parity test harness verifying execution equivalence between optimized IR and baseline runtime
 - [x] JMH performance benchmark suite (`dmn-benchmarks`) with multi-threaded throughput/latency metrics
@@ -83,7 +83,9 @@
 <a id="contents-section-4"></a>
 ## v1.1.0: Incubating Module Graduation & Cloud Data Engine Ecosystem
 
-- [ ] Promote pure Spark / Databricks SQL CTE generator (`dmn-generator-sparksql`, zero UDFs, CTE query graphs) to Tier-1 Core Reactor
+- [x] Include Spark SQL and gRPC in the default reactor (implemented; does not alone prove production readiness).
+- [x] Native Spark SQL execution for all 2,715 executable official optimized TCK cases; 676 compiler rejections execute no SQL and are counted separately. See [checkpoint](dev/slices/native-temporal-chains-2026-10-24.md).
+- [ ] Broaden native Spark SQL support beyond bounded proven forms when required; unsupported models can still use fallback. See [active backlog](todos/index.md).
 - [ ] Finalize strongly-typed Protobuf schema and gRPC service contract generator (`dmn-grpc`, `DmnTypedGrpcGenerator`)
 - [ ] Add Spark SQL batch and streaming integration test harness against complex multi-table DMN models
 - [ ] Benchmark Spark SQL generated CTE queries against equivalent native PySpark / Scala Spark implementations

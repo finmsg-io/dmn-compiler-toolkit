@@ -7,9 +7,9 @@
 - [Next planned work](#contents-section-2)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-09-06
+Last reviewed: 2026-10-24
 
-The `dmn-generator-java` module compiles Runtime IR directly into standalone, high-performance Java source code classes implementing the `GeneratedDecisionEngine` interface. It provides zero-reflection bytecode generation, pre-allocated slot evaluations, direct primitive operations, unboxed control flow, and deterministic hit policy evaluation.
+The `dmn-generator-java` module compiles Runtime IR directly into standalone, high-performance Java source code classes implementing the `GeneratedDecisionEngine` interface. The intended direct-call design still has reflective comparator dispatch and swallowed invocation failures (HARD-03); it also provides pre-allocated slot evaluations, direct primitive operations, unboxed control flow, and deterministic hit policy evaluation.
 
 <a id="contents-section-1"></a>
 ## Current status
@@ -29,4 +29,5 @@ The `dmn-generator-java` module compiles Runtime IR directly into standalone, hi
 
 | Priority | Work item | Status | Target / Evidence |
 | --- | --- | --- | --- |
-| P20 | Native language code generation SPI (Rust, Go, C++) | `proposed` | Define backend generator SPI and lower Runtime IR to native targets |
+| HARD-03 | Remove reflective comparator dispatch and define failure propagation | `open` | Owned by [hardening section 3](../dev/slices/security-correctness-hardening-task-2026-10-24.md); reconcile ADR-0013 |
+| P20 | Java-generator dependency of cross-language generation | `proposed` | Single proposal owner: [compiler P20](dmn-compiler.md) |

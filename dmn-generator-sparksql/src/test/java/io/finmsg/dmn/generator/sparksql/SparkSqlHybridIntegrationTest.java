@@ -1627,11 +1627,11 @@ class SparkSqlHybridIntegrationTest {
 					var model = new RuntimeModel(List.of(),
 							List.of(new RuntimeDecision(10, 0, SparkSqlHybridTest.ANY, List.of(), Optional.of(call))),
 							List.of(), List.of(10), 1);
-					var generated = SparkSqlHybridTest.generate(model);
+					var generated = generateApprovedJava(model);
 					assertThat(generated.capabilities().get(10).nativeSql()).isTrue();
 					assertThat(generated.udfs()).isEmpty();
-					assertThat(new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10))
-							.isNull();
+					assertThat(new io.finmsg.dmn.runtime.DmnRuntime(JAVA_TEST_POLICY).evaluate(model, Map.of())
+							.decisionValue(10)).isNull();
 					spark.range(1).createOrReplaceTempView("hybrid_inputs");
 					assertThat(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0)).isNull();
 					assertThat(spark.sql(generated.sqlFiles().get("AllDecisions.sql")).head().get(0)).isNull();
@@ -2351,13 +2351,14 @@ class SparkSqlHybridIntegrationTest {
 			var model = new RuntimeModel(List.of(),
 					List.of(new RuntimeDecision(10, 0, SparkSqlHybridTest.ANY, List.of(), Optional.of(call))),
 					List.of(), List.of(10), 1);
-			var generated = SparkSqlHybridTest.generate(model);
+			var generated = generateApprovedJava(model);
 			assertThat(generated.capabilities().get(10).nativeSql()).isTrue();
 			assertThat(generated.udfs()).isEmpty();
 			spark.range(1).createOrReplaceTempView("hybrid_inputs");
 			assertThat(SparkSqlFeelValueCodec
 					.fromSpark(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0)))
-					.isEqualTo(new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10));
+					.isEqualTo(new io.finmsg.dmn.runtime.DmnRuntime(JAVA_TEST_POLICY).evaluate(model, Map.of())
+							.decisionValue(10));
 		}
 	}
 
@@ -3623,15 +3624,15 @@ class SparkSqlHybridIntegrationTest {
 			var model = new RuntimeModel(List.of(),
 					List.of(new RuntimeDecision(10, 0, SparkSqlHybridTest.ANY, List.of(), Optional.of(call))),
 					List.of(), List.of(10), 1);
-			var generated = SparkSqlHybridTest.generate(model);
+			var generated = generateApprovedJava(model);
 			assertThat(generated.capabilities().get(10).nativeSql())
 					.as("%s.%s: %s", sample[0], sample[1], generated.capabilities()).isEqualTo(sample[3]);
 			generated.registerUdfs(spark);
 			spark.range(1).createOrReplaceTempView("hybrid_inputs");
 			Object actual = SparkSqlFeelValueCodec
 					.fromSpark(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0));
-			assertThat(actual)
-					.isEqualTo(new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10));
+			assertThat(actual).isEqualTo(
+					new io.finmsg.dmn.runtime.DmnRuntime(JAVA_TEST_POLICY).evaluate(model, Map.of()).decisionValue(10));
 		}
 		var formatFunction = literalJavaFixture("java.lang.String", "format(java.lang.String, [Ljava.lang.Object;)", 2);
 		for (RuntimeInvocationExpression call : List.of(
@@ -3649,12 +3650,13 @@ class SparkSqlHybridIntegrationTest {
 			var model = new RuntimeModel(List.of(),
 					List.of(new RuntimeDecision(10, 0, SparkSqlHybridTest.ANY, List.of(), Optional.of(call))),
 					List.of(), List.of(10), 1);
-			var generated = SparkSqlHybridTest.generate(model);
+			var generated = generateApprovedJava(model);
 			assertThat(generated.capabilities().get(10).nativeSql()).isTrue();
 			spark.range(1).createOrReplaceTempView("hybrid_inputs");
 			assertThat(SparkSqlFeelValueCodec
 					.fromSpark(spark.sql(generated.sqlFiles().get("Decision_0.sql")).head().get(0)))
-					.isEqualTo(new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10));
+					.isEqualTo(new io.finmsg.dmn.runtime.DmnRuntime(JAVA_TEST_POLICY).evaluate(model, Map.of())
+							.decisionValue(10));
 		}
 		var dynamic = new RuntimeValueReference(0, SparkSqlHybridTest.NUMBER);
 		var dynamicCall = new RuntimeInvocationExpression(Optional.empty(),
@@ -3663,7 +3665,7 @@ class SparkSqlHybridIntegrationTest {
 		var dynamicModel = new RuntimeModel(List.of(new RuntimeInput(5, 0, SparkSqlHybridTest.NUMBER)),
 				List.of(new RuntimeDecision(10, 1, SparkSqlHybridTest.ANY, List.of(5), Optional.of(dynamicCall))),
 				List.of(), List.of(10), 2);
-		var dynamicGenerated = SparkSqlHybridTest.generate(dynamicModel);
+		var dynamicGenerated = generateApprovedJava(dynamicModel);
 		assertThat(dynamicGenerated.capabilities().get(10).nativeSql()).isFalse();
 		dynamicGenerated.registerUdfs(spark);
 		for (String value : List.of("123", "900")) {
@@ -3673,7 +3675,8 @@ class SparkSqlHybridIntegrationTest {
 					dynamicGenerated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 			assertThat(SparkSqlFeelValueCodec
 					.fromSpark(spark.sql(dynamicGenerated.sqlFiles().get("Decision_1.sql")).head().get(0)))
-					.isEqualTo(new io.finmsg.dmn.runtime.DmnRuntime().evaluate(dynamicModel, inputs).decisionValue(10));
+					.isEqualTo(new io.finmsg.dmn.runtime.DmnRuntime(JAVA_TEST_POLICY).evaluate(dynamicModel, inputs)
+							.decisionValue(10));
 		}
 		var surrogateCall = new RuntimeInvocationExpression(Optional.empty(),
 				Optional.of(literalJavaFixture("java.lang.String", "valueOf(char)", 1)), List.of(),
@@ -3681,7 +3684,7 @@ class SparkSqlHybridIntegrationTest {
 		var surrogateModel = new RuntimeModel(List.of(),
 				List.of(new RuntimeDecision(10, 0, SparkSqlHybridTest.ANY, List.of(), Optional.of(surrogateCall))),
 				List.of(), List.of(10), 1);
-		assertThat(SparkSqlHybridTest.generate(surrogateModel).capabilities().get(10).nativeSql()).isFalse();
+		assertThat(generateApprovedJava(surrogateModel).capabilities().get(10).nativeSql()).isFalse();
 		for (String[] signature : List.of(new String[]{"java.lang.Math", "random()"},
 				new String[]{"example.Untrusted", "valueOf(double)"})) {
 			var function = literalJavaFixture(signature[0], signature[1], 0);
@@ -3689,6 +3692,37 @@ class SparkSqlHybridIntegrationTest {
 		}
 	}
 
+	private static final io.finmsg.dmn.runtime.ExternalJavaPolicy JAVA_TEST_POLICY = io.finmsg.dmn.runtime.ExternalJavaPolicy
+			.allowOnly(java.util.Set.of(
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math", "cos(double)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math", "foo(double)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Foo", "valueOf(double)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.DmnCompilerToolkitAbsentClass",
+							"valueOf(double)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math",
+							"max(java.lang.String, java.lang.String)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math", "max(double,double)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math", "max(double, double)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math", "max(int,int)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math", "max(float,float)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math", "pow(double,double)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Short", "valueOf(short)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Byte", "valueOf(byte)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.String", "valueOf(char)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Integer",
+							"valueOf(java.lang.String)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Float", "valueOf(java.lang.String)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Double",
+							"valueOf(java.lang.String)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.String",
+							"format(java.lang.String, [Ljava.lang.Object;)"),
+					new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.String",
+							"format (java.lang.String, [Ljava.lang.Object;)")));
+	private static DmnSparkSqlGeneratorResult generateApprovedJava(RuntimeModel model) {
+		return new DmnSparkSqlGenerator().generate(new RuntimeOptimizedModel(model, List.of(), List.of(), List.of()),
+				DmnSparkSqlGeneratorOptions.of("hybrid_inputs", true, Map.of())
+						.withExternalJavaPolicy(JAVA_TEST_POLICY));
+	}
 	private static RuntimeFunctionDefinition literalJavaFixture(String className, String signature, int arity) {
 		var parameters = new ArrayList<RuntimeFunctionParameter>();
 		for (int index = 0; index < arity; index++)
@@ -5072,21 +5106,47 @@ class SparkSqlHybridIntegrationTest {
 	void trustedImplicitJavaDescriptorsUseNativeLiterals() {
 		var nondeterministic = compiledFilterModel(
 				"(function() {class: \"java.lang.Math\", method signature: \"random()\"})()", true);
-		assertThat(SparkSqlHybridTest.generate(nondeterministic).capabilities()
+		assertThat(generateApprovedJava(nondeterministic).capabilities()
 				.get(nondeterministic.decisions().getFirst().id()).nativeSql()).isFalse();
 		var model = compiledFilterModel(
 				"(function(d1: number, d2: number) {class: \"java.lang.Math\", method signature: \"max(double,double)\"})(123,456)",
 				true);
 		var decision = model.decisions().getFirst();
-		Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(decision.id());
+		Object expected = new io.finmsg.dmn.runtime.DmnRuntime(JAVA_TEST_POLICY).evaluate(model, Map.of())
+				.decisionValue(decision.id());
 		assertThat(new BigDecimal(expected.toString())).isEqualByComparingTo("456");
-		var generated = SparkSqlHybridTest.generate(model);
+		var generated = generateApprovedJava(model);
 		assertThat(generated.capabilities().get(decision.id()).nativeSql()).isTrue();
 		assertThat(generated.udfs()).isEmpty();
 		spark.range(1).createOrReplaceTempView("hybrid_inputs");
 		Object actual = SparkSqlFeelValueCodec.fromSpark(
 				spark.sql(generated.sqlFiles().get("Decision_" + decision.resultSlot() + ".sql")).head().get(0));
 		assertThat(new BigDecimal(actual.toString())).isEqualByComparingTo("456");
+	}
+
+	@Test
+	void defaultDenialSurvivesGenerationAndDoesNotReuseApprovedFoldedResults() {
+		var model = compiledFilterModel(
+				"(function(x) external {java:{class: \"java.lang.Math\", method signature: \"cos(double)\"}})(0)",
+				true);
+		int id = model.decisions().getFirst().id();
+		var approved = generateApprovedJava(model);
+		assertThat(approved.capabilities().get(id).nativeSql()).isTrue();
+		var denied = SparkSqlHybridTest.generate(model);
+		assertThat(denied.capabilities().get(id).nativeSql()).isFalse();
+		assertThat(denied.udfs()).isNotEmpty();
+		assertThatThrownBy(
+				() -> denied.udfs().values().iterator().next().evaluate(org.apache.spark.sql.RowFactory.create()))
+				.isInstanceOf(io.finmsg.dmn.runtime.ExternalJavaDeniedException.class);
+		denied.registerUdfs(spark);
+		spark.range(1).createOrReplaceTempView("hybrid_inputs");
+		assertThatThrownBy(() -> spark.sql(denied.sqlFiles().get("AllDecisions.sql")).collectAsList())
+				.hasStackTraceContaining("EXTERNAL_JAVA_DENIED:");
+		approved.registerUdfs(spark);
+		assertThat(
+				SparkSqlFeelValueCodec.fromSpark(spark.sql(approved.sqlFiles().get("AllDecisions.sql")).head().get(0)))
+				.isEqualTo(new io.finmsg.dmn.runtime.DmnRuntime(JAVA_TEST_POLICY).evaluate(model, Map.of())
+						.decisionValue(id));
 	}
 
 	@Test

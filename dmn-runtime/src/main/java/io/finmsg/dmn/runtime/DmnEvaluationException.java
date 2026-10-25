@@ -1,6 +1,6 @@
 package io.finmsg.dmn.runtime;
 
-public final class DmnEvaluationException extends RuntimeException {
+public class DmnEvaluationException extends RuntimeException {
 	public DmnEvaluationException(String message) {
 		super(message);
 	}

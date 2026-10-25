@@ -37,6 +37,12 @@ DmnGrpcGeneratorResult result = generator.generate(
 );
 ```
 
+Generated generic service handlers deny model-defined external Java execution by
+default. A host may pass an immutable `ExternalJavaPolicy` to the generated service
+constructor; request messages cannot change it. Denials retain the
+`EXTERNAL_JAVA_DENIED:` diagnostic in the existing INTERNAL error response.
+See the [runtime policy API](../dmn-runtime/README.md#external-java-execution-policy).
+
 ### Strongly-Typed Protobuf Schema Generator
 ```java
 DmnTypedGrpcGenerator generator = new DmnTypedGrpcGenerator();

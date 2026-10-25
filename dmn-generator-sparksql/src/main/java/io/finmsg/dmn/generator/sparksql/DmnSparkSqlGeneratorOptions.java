@@ -5,9 +5,11 @@ import java.util.Objects;
 
 /** Configuration options for DMN Spark SQL generation. */
 public record DmnSparkSqlGeneratorOptions(String packageName, String className, String inputTableName,
-		boolean includeJavaRunner, boolean hybridUdfFallback, Map<Integer, String> customSlotNames) {
+		boolean includeJavaRunner, boolean hybridUdfFallback, Map<Integer, String> customSlotNames,
+		io.finmsg.dmn.runtime.ExternalJavaPolicy externalJavaPolicy) {
 
 	public DmnSparkSqlGeneratorOptions {
+		Objects.requireNonNull(externalJavaPolicy, "externalJavaPolicy");
 		Objects.requireNonNull(packageName, "packageName");
 		Objects.requireNonNull(className, "className");
 		Objects.requireNonNull(inputTableName, "inputTableName");
@@ -24,6 +26,16 @@ public record DmnSparkSqlGeneratorOptions(String packageName, String className, 
 		this(packageName, className, inputTableName, includeJavaRunner, false, Map.of());
 	}
 
+	public DmnSparkSqlGeneratorOptions(String packageName, String className, String inputTableName,
+			boolean includeJavaRunner, boolean hybridUdfFallback, Map<Integer, String> customSlotNames) {
+		this(packageName, className, inputTableName, includeJavaRunner, hybridUdfFallback, customSlotNames,
+				io.finmsg.dmn.runtime.ExternalJavaPolicy.denyAll());
+	}
+
+	public DmnSparkSqlGeneratorOptions withExternalJavaPolicy(io.finmsg.dmn.runtime.ExternalJavaPolicy policy) {
+		return new DmnSparkSqlGeneratorOptions(packageName, className, inputTableName, includeJavaRunner,
+				hybridUdfFallback, customSlotNames, policy);
+	}
 	public static DmnSparkSqlGeneratorOptions defaults() {
 		return new DmnSparkSqlGeneratorOptions("io.finmsg.dmn.spark", "DmnSparkSqlRunner", "input_table", true, false,
 				Map.of());

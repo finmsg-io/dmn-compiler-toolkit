@@ -21,6 +21,13 @@ import java.util.Map;
  * interpreter.
  */
 public final class DmnToolkitTckEngine {
+	private final io.finmsg.dmn.runtime.ExternalJavaPolicy policy;
+	public DmnToolkitTckEngine() {
+		this(io.finmsg.dmn.runtime.ExternalJavaPolicy.denyAll());
+	}
+	public DmnToolkitTckEngine(io.finmsg.dmn.runtime.ExternalJavaPolicy policy) {
+		this.policy = java.util.Objects.requireNonNull(policy);
+	}
 	public TckExecutionResult execute(Path modelPath, TckTestCase testCase) throws IOException {
 		DmnSource source = new DmnSource(new DmnSourceId(modelPath.toAbsolutePath().normalize().toUri()),
 				Files.readAllBytes(modelPath));
@@ -99,7 +106,7 @@ public final class DmnToolkitTckEngine {
 					inputs.put(slot, testCase.inputs().get(name).runtimeValue());
 				}
 			});
-			DmnEvaluationResult evaluation = new DmnRuntime().evaluate(model, inputs);
+			DmnEvaluationResult evaluation = new DmnRuntime(policy).evaluate(model, inputs);
 			Object callableObj = evaluation.value(bkmSlot);
 			Object result = null;
 			try {
@@ -137,7 +144,7 @@ public final class DmnToolkitTckEngine {
 				inputs.put(slot, value.runtimeValue());
 			}
 		});
-		DmnEvaluationResult evaluation = new DmnRuntime()
+		DmnEvaluationResult evaluation = new DmnRuntime(policy)
 				.evaluate(compilation.optimizedRuntimeModel().orElseThrow().model(), inputs);
 
 		Map<String, Object> actual = new LinkedHashMap<>();

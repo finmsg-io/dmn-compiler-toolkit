@@ -8,17 +8,23 @@ import org.apache.spark.sql.api.java.UDF1;
 import org.apache.spark.sql.types.DataType;
 
 /**
- * Serializable executor-side evaluator. Only the versioned model bytes cross
- * Spark's task boundary.
+ * Serializable executor-side evaluator. Model bytes and the immutable host
+ * policy cross Spark's task boundary.
  */
 public final class SparkSqlDecisionUdf implements UDF1<Row, Object> {
 	private static final long serialVersionUID = 1L;
 	private final byte[] modelPayload;
+	private final io.finmsg.dmn.runtime.ExternalJavaPolicy policy;
 	private final int decisionId;
 	private final int[] inputSlots;
 	private transient volatile RuntimeModel model;
 
 	public SparkSqlDecisionUdf(RuntimeModel model, int decisionId) {
+		this(model, decisionId, io.finmsg.dmn.runtime.ExternalJavaPolicy.denyAll());
+	}
+
+	public SparkSqlDecisionUdf(RuntimeModel model, int decisionId, io.finmsg.dmn.runtime.ExternalJavaPolicy policy) {
+		this.policy = Objects.requireNonNull(policy, "policy");
 		this.decisionId = decisionId;
 		this.inputSlots = model.inputs().stream().mapToInt(RuntimeInput::valueSlot).toArray();
 		this.modelPayload = SparkSqlPayloadCodec.encode(SparkSqlDecisionGraph.slice(model, decisionId));
@@ -29,8 +35,13 @@ public final class SparkSqlDecisionUdf implements UDF1<Row, Object> {
 	 * toolkit version.
 	 */
 	public static SparkSqlDecisionUdf fromModelPayload(String base64, int decisionId) {
+		return fromModelPayload(base64, decisionId, io.finmsg.dmn.runtime.ExternalJavaPolicy.denyAll());
+	}
+
+	public static SparkSqlDecisionUdf fromModelPayload(String base64, int decisionId,
+			io.finmsg.dmn.runtime.ExternalJavaPolicy policy) {
 		return new SparkSqlDecisionUdf((RuntimeModel) SparkSqlPayloadCodec.decode(Base64.getDecoder().decode(base64)),
-				decisionId);
+				decisionId, policy);
 	}
 
 	private RuntimeModel model() {
@@ -65,7 +76,7 @@ public final class SparkSqlDecisionUdf implements UDF1<Row, Object> {
 		model().inputs().forEach(input -> inputs.put(input.valueSlot(), null));
 		for (int i = 0; i < inputSlots.length; i++)
 			inputs.put(inputSlots[i], SparkSqlFeelValueCodec.fromSpark(row.get(i)));
-		return new DmnRuntime().evaluate(model(), inputs).decisionValue(decisionId);
+		return new DmnRuntime(policy).evaluate(model(), inputs).decisionValue(decisionId);
 	}
 
 	@Override
