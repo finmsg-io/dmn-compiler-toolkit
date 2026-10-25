@@ -471,7 +471,7 @@ public final class DmnSparkSqlGenerator {
 				return "X'" + java.util.HexFormat.of().formatHex(SparkSqlFeelValueCodec.encode(terminalTemporal)) + "'";
 			if (SparkSqlCapabilityAnalyzer.nativeConstantTemporalResult(decision)) {
 				var constant = (io.finmsg.dmn.ir.RuntimeConstant) expr;
-				return "'" + constant.value().replace("'", "''") + "'";
+				return SparkSqlLiterals.string(constant.value());
 			}
 			String emitted = SparkSqlExpressionEmitter.emitWithBkms(expr, bkmBySlot, resolver);
 			if (decision.type() != null && decision.type().kind() != io.finmsg.dmn.ir.RuntimeTypeKind.LIST

@@ -86,6 +86,12 @@ class OfficialTckSuiteTest {
 					.config("spark.sql.datetime.java8API.enabled", "true").config("spark.sql.session.timeZone", "UTC")
 					.config("spark.sql.mapKeyDedupPolicy", "LAST_WIN").getOrCreate();
 			if (spark != null && spark.sparkContext() != null) {
+				String actualParserMode = spark.conf().get("spark.sql.parser.escapedStringLiterals");
+				String requestedParserMode = System.getProperty("spark.sql.parser.escapedStringLiterals");
+				if (requestedParserMode != null && !requestedParserMode.equals(actualParserMode))
+					throw new IllegalStateException("Requested escapedStringLiterals=" + requestedParserMode
+							+ " but Spark uses " + actualParserMode);
+				System.out.println("TCK SQL PARSER: escapedStringLiterals=" + actualParserMode);
 				spark.sparkContext().setLogLevel("ERROR");
 				spark.sql("SELECT 1 AS _warmup").collectAsList();
 			}

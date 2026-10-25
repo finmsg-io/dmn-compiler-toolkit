@@ -124,7 +124,7 @@ final class SparkSqlExactArithmeticInput {
 		var fields = new ArrayList<String>();
 		String source = "`" + column(decision.id(), names) + "`";
 		for (var entry : p.context().entries()) {
-			fields.add("'" + entry.name().replace("\\", "\\\\").replace("'", "\\'") + "'");
+			fields.add(SparkSqlLiterals.string(entry.name()));
 			fields.add(SparkSqlDecimalSql.payload(number(entry.expression(), source)));
 		}
 		return "named_struct(" + String.join(",", fields) + ")";

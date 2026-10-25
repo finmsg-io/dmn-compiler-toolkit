@@ -27,11 +27,12 @@ final class SparkSqlDecimalSql {
 		return number("CAST(NULL AS STRING)", "0L", "FALSE");
 	}
 	static String constant(BigDecimal n) {
-		return number("'" + n.unscaledValue().abs() + "'", n.scale() + "L", n.signum() < 0 ? "TRUE" : "FALSE");
+		return number(SparkSqlLiterals.string(n.unscaledValue().abs().toString()), n.scale() + "L",
+				n.signum() < 0 ? "TRUE" : "FALSE");
 	}
 	private static String error(String message) {
-		return "CAST(raise_error('" + message
-				+ "') AS STRUCT<digits:STRING,scale:BIGINT,negative:BOOLEAN,invalid:BOOLEAN>)";
+		return "CAST(raise_error(" + SparkSqlLiterals.string(message)
+				+ ") AS STRUCT<digits:STRING,scale:BIGINT,negative:BOOLEAN,invalid:BOOLEAN>)";
 	}
 	static String let(String name, String value, String expression) {
 		return "element_at(transform(array(" + value + ")," + name + " -> " + expression + "),1)";

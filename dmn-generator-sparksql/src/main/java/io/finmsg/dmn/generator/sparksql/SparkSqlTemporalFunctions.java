@@ -19,7 +19,7 @@ final class SparkSqlTemporalFunctions {
 				.add("z", SparkSqlTemporalZoneFacts.type()).add("zs", SparkSqlTemporalZoneFacts.type());
 	}
 	static String q(String s) {
-		return "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'";
+		return SparkSqlLiterals.string(s);
 	}
 	static String let(String name, String value, String body) {
 		return SparkSqlDecimalSql.let(name, value, body);

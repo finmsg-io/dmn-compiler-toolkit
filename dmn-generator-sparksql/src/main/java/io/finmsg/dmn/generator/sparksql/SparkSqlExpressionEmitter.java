@@ -104,7 +104,7 @@ public final class SparkSqlExpressionEmitter {
 		if (absoluteDuration != null)
 			return absoluteDuration.kind() == RuntimeConstantKind.NULL
 					? "NULL"
-					: "regexp_replace('" + escapeSqlString(absoluteDuration.value()) + "', '-', '')";
+					: "regexp_replace(" + SparkSqlLiterals.string(absoluteDuration.value()) + ", '-', '')";
 		return switch (expr) {
 			case RuntimeConstant constant -> emitConstant(constant);
 			case RuntimeValueReference ref -> {
@@ -203,7 +203,7 @@ public final class SparkSqlExpressionEmitter {
 									+ ", 'T(?:.*?)?([0-9]+)M', 1) as bigint), 0L) ELSE NULL END)";
 							case "seconds" -> "(CASE WHEN " + src + " LIKE '%D%' OR " + src
 									+ " LIKE '%T%' THEN coalesce(try_cast(regexp_extract(" + src
-									+ ", 'T(?:.*?)?([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0D) ELSE NULL END)";
+									+ ", 'T(?:.*?)?([0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0D) ELSE NULL END)";
 							default -> "(" + src + "." + sanitizeColumn(path.member()) + ")";
 						};
 					}
@@ -230,7 +230,7 @@ public final class SparkSqlExpressionEmitter {
 							+ ", 'T(?:.*?)?([0-9]+)M', 1) as bigint), 0L) ELSE NULL END)";
 					case "seconds" -> "(CASE WHEN " + src + " LIKE '%D%' OR " + src
 							+ " LIKE '%T%' THEN coalesce(try_cast(regexp_extract(" + src
-							+ ", 'T(?:.*?)?([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0D) ELSE NULL END)";
+							+ ", 'T(?:.*?)?([0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0D) ELSE NULL END)";
 					case "time offset" -> "(CASE WHEN " + src
 							+ " rlike '[+-][0-9]{2}:[0-9]{2}' THEN concat('PT', try_cast(regexp_extract(" + src
 							+ ", '([+-][0-9]{2})(:[0-9]{2})?', 1) as int), 'H') ELSE NULL END)";
@@ -309,19 +309,22 @@ public final class SparkSqlExpressionEmitter {
 		}
 		return switch (constant.kind()) {
 			case BOOLEAN -> String.valueOf(constant.value()).toUpperCase();
-			case STRING -> "'" + escapeSqlString(constant.value()) + "'";
+			case STRING -> SparkSqlLiterals.string(constant.value());
 			case NUMBER -> constant.value();
-			case DATE -> "DATE '" + escapeSqlString(constant.value()) + "'";
+			case DATE -> {
+				String literal = SparkSqlLiterals.string(constant.value());
+				yield literal.startsWith("'") ? "DATE " + literal : "CAST(" + literal + " AS DATE)";
+			}
 			case TIME -> {
 				try {
 					var time = java.time.LocalTime.parse(constant.value());
 					if (time.getNano() == 0)
-						yield "TIMESTAMP_NTZ '1970-01-01 "
-								+ time.format(java.time.format.DateTimeFormatter.ISO_LOCAL_TIME) + "'";
+						yield "TIMESTAMP_NTZ " + SparkSqlLiterals
+								.string("1970-01-01 " + time.format(java.time.format.DateTimeFormatter.ISO_LOCAL_TIME));
 				} catch (java.time.DateTimeException ignored) {
 					// Zoned and unverified precision cases retain their existing representation.
 				}
-				yield "'" + escapeSqlString(constant.value()) + "'";
+				yield SparkSqlLiterals.string(constant.value());
 			}
 			case DATE_TIME -> {
 				String val = constant.value();
@@ -338,13 +341,13 @@ public final class SparkSqlExpressionEmitter {
 				// Zoned / offset / BC datetimes: emit as raw string literal
 				// (try_to_timestamp cannot parse '+11:00', '@Tz', or '-2021-...' forms)
 				if (val.contains("@") || val.startsWith("-") || val.matches(".*([zZ]|[+-]\\d{2}:\\d{2})$")) {
-					yield "'" + escapeSqlString(val) + "'";
+					yield SparkSqlLiterals.string(val);
 				}
 				// Plain local datetime
-				yield "try_cast('" + escapeSqlString(val.replace("T", " ")) + "' as timestamp_ntz)";
+				yield "try_cast(" + SparkSqlLiterals.string(val.replace("T", " ")) + " as timestamp_ntz)";
 			}
-			case DURATION -> "'" + escapeSqlString(constant.value()) + "'";
-			default -> "'" + escapeSqlString(constant.value()) + "'";
+			case DURATION -> SparkSqlLiterals.string(constant.value());
+			default -> SparkSqlLiterals.string(constant.value());
 		};
 	}
 
@@ -405,12 +408,12 @@ public final class SparkSqlExpressionEmitter {
 						+ ", '([0-9]+)D', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract(" + left
 						+ ", '([0-9]+)H', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract(" + left
 						+ ", 'T.*?([0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract(" + left
-						+ ", '([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) + (CASE WHEN " + right
+						+ ", '([0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0)) + (CASE WHEN " + right
 						+ " LIKE '-%' THEN -1.0 ELSE 1.0 END) * (coalesce(try_cast(regexp_extract(" + right
 						+ ", '([0-9]+)D', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract(" + right
 						+ ", '([0-9]+)H', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract(" + right
 						+ ", 'T.*?([0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract(" + right
-						+ ", '([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)))")
+						+ ", '([0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0)))")
 				+ " ELSE NULL END)";
 	}
 
@@ -433,12 +436,12 @@ public final class SparkSqlExpressionEmitter {
 						+ ", '([0-9]+)D', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract(" + left
 						+ ", '([0-9]+)H', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract(" + left
 						+ ", 'T.*?([0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract(" + left
-						+ ", '([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) - (CASE WHEN " + right
+						+ ", '([0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0)) - (CASE WHEN " + right
 						+ " LIKE '-%' THEN -1.0 ELSE 1.0 END) * (coalesce(try_cast(regexp_extract(" + right
 						+ ", '([0-9]+)D', 1) as bigint), 0L) * 86400 + coalesce(try_cast(regexp_extract(" + right
 						+ ", '([0-9]+)H', 1) as bigint), 0L) * 3600 + coalesce(try_cast(regexp_extract(" + right
 						+ ", 'T.*?([0-9]+)M', 1) as bigint), 0L) * 60 + coalesce(try_cast(regexp_extract(" + right
-						+ ", '([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)))")
+						+ ", '([0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0)))")
 				+ " ELSE NULL END)";
 	}
 
@@ -547,7 +550,7 @@ public final class SparkSqlExpressionEmitter {
 				+ ", 'P(?:(-?[0-9]+)D)?', 1) as bigint), 0L) * 86400" + " + coalesce(try_cast(regexp_extract(" + dur
 				+ ", 'T(?:(-?[0-9]+)H)?', 1) as bigint), 0L) * 3600" + " + coalesce(try_cast(regexp_extract(" + dur
 				+ ", 'T(?:.*?)?(-?[0-9]+)M', 1) as bigint), 0L) * 60" + " + coalesce(try_cast(regexp_extract(" + dur
-				+ ", 'T(?:.*?)?(-?[0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0))";
+				+ ", 'T(?:.*?)?(-?[0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0))";
 
 		String lStr = "cast(" + left + " as string)";
 
@@ -577,7 +580,7 @@ public final class SparkSqlExpressionEmitter {
 		// unix_timestamp(rawString)
 		// which causes Spark Catalyst to attempt cast(string as DATE) during type
 		// resolution.
-		String lTimeHms = "regexp_extract(" + lStr + ", '^([0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\\\\.[0-9]+)?)?)', 1)";
+		String lTimeHms = "regexp_extract(" + lStr + ", '^([0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:[.][0-9]+)?)?)', 1)";
 		String lTimeEpoch = "unix_timestamp(try_to_timestamp(concat('1970-01-01 ', " + lTimeHms + ")))";
 		String timeSum = "(" + lTimeEpoch + " + cast(" + secsExpr + " as bigint))";
 		String timeMod = "(" + timeSum + " % 86400 + (CASE WHEN " + timeSum + " % 86400 < 0 THEN 86400 ELSE 0 END))";
@@ -1001,9 +1004,9 @@ public final class SparkSqlExpressionEmitter {
 			// TIME - TIME → day-time duration
 			if (lk == RuntimeTypeKind.TIME && rk == RuntimeTypeKind.TIME) {
 				String lHms = "regexp_extract(cast(" + left
-						+ " as string), '^([0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\\\\.[0-9]+)?)?)', 1)";
+						+ " as string), '^([0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:[.][0-9]+)?)?)', 1)";
 				String rHms = "regexp_extract(cast(" + right
-						+ " as string), '^([0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\\\\.[0-9]+)?)?)', 1)";
+						+ " as string), '^([0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:[.][0-9]+)?)?)', 1)";
 				String lSec = "unix_timestamp(try_to_timestamp(concat('1970-01-01 ', " + lHms + ")))";
 				String rSec = "unix_timestamp(try_to_timestamp(concat('1970-01-01 ', " + rHms + ")))";
 				return formatDayTimeDurationSql("(" + lSec + " - " + rSec + ")");
@@ -1063,7 +1066,7 @@ public final class SparkSqlExpressionEmitter {
 						+ ", '([0-9]+)D', 1) as bigint), 0L) * 86400.0 + coalesce(try_cast(regexp_extract(" + left
 						+ ", '([0-9]+)H', 1) as bigint), 0L) * 3600.0 + coalesce(try_cast(regexp_extract(" + left
 						+ ", 'T.*?([0-9]+)M', 1) as bigint), 0L) * 60.0 + coalesce(try_cast(regexp_extract(" + left
-						+ ", '([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) * cast(" + right + " as double))";
+						+ ", '([0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0)) * cast(" + right + " as double))";
 				return "(CASE WHEN " + left + " LIKE '%Y%' OR (" + left + " LIKE '%M%' AND " + left
 						+ " NOT LIKE '%T%') THEN " + formatYearMonthDurationSql(ymTot) + " ELSE "
 						+ formatDayTimeDurationSql(dtTot) + " END)";
@@ -1077,7 +1080,7 @@ public final class SparkSqlExpressionEmitter {
 						+ ", '([0-9]+)D', 1) as bigint), 0L) * 86400.0 + coalesce(try_cast(regexp_extract(" + right
 						+ ", '([0-9]+)H', 1) as bigint), 0L) * 3600.0 + coalesce(try_cast(regexp_extract(" + right
 						+ ", 'T.*?([0-9]+)M', 1) as bigint), 0L) * 60.0 + coalesce(try_cast(regexp_extract(" + right
-						+ ", '([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)) * cast(" + left + " as double))";
+						+ ", '([0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0)) * cast(" + left + " as double))";
 				return "(CASE WHEN " + right + " LIKE '%Y%' OR (" + right + " LIKE '%M%' AND " + right
 						+ " NOT LIKE '%T%') THEN " + formatYearMonthDurationSql(ymTot) + " ELSE "
 						+ formatDayTimeDurationSql(dtTot) + " END)";
@@ -1105,7 +1108,7 @@ public final class SparkSqlExpressionEmitter {
 						+ ", '([0-9]+)D', 1) as bigint), 0L) * 86400.0 + coalesce(try_cast(regexp_extract(" + left
 						+ ", '([0-9]+)H', 1) as bigint), 0L) * 3600.0 + coalesce(try_cast(regexp_extract(" + left
 						+ ", 'T.*?([0-9]+)M', 1) as bigint), 0L) * 60.0 + coalesce(try_cast(regexp_extract(" + left
-						+ ", '([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0))) / NULLIF(cast(" + right
+						+ ", '([0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0))) / NULLIF(cast(" + right
 						+ " as double), 0.0))";
 				return "(CASE WHEN cast(" + right + " as double) = 0 OR cast(" + right
 						+ " as double) IS NULL THEN NULL WHEN " + left + " LIKE '%Y%' OR (" + left + " LIKE '%M%' AND "
@@ -1125,12 +1128,12 @@ public final class SparkSqlExpressionEmitter {
 						+ ", '([0-9]+)D', 1) as double), 0.0) * 86400 + coalesce(try_cast(regexp_extract(" + left
 						+ ", '([0-9]+)H', 1) as double), 0.0) * 3600 + coalesce(try_cast(regexp_extract(" + left
 						+ ", 'T.*?([0-9]+)M', 1) as double), 0.0) * 60 + coalesce(try_cast(regexp_extract(" + left
-						+ ", '([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)))";
+						+ ", '([0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0)))";
 				String rdt = "(" + rds + " * (coalesce(try_cast(regexp_extract(" + right
 						+ ", '([0-9]+)D', 1) as double), 0.0) * 86400 + coalesce(try_cast(regexp_extract(" + right
 						+ ", '([0-9]+)H', 1) as double), 0.0) * 3600 + coalesce(try_cast(regexp_extract(" + right
 						+ ", 'T.*?([0-9]+)M', 1) as double), 0.0) * 60 + coalesce(try_cast(regexp_extract(" + right
-						+ ", '([0-9]+(?:\\\\.[0-9]+)?)S', 1) as double), 0.0)))";
+						+ ", '([0-9]+(?:[.][0-9]+)?)S', 1) as double), 0.0)))";
 				return "(CASE WHEN " + left + " LIKE '%Y%' OR (" + left + " LIKE '%M%' AND " + left
 						+ " NOT LIKE '%T%') THEN (CASE WHEN " + right + " LIKE '%Y%' OR (" + right + " LIKE '%M%' AND "
 						+ right + " NOT LIKE '%T%') THEN " + lym + " / NULLIF(" + rym
@@ -1263,7 +1266,7 @@ public final class SparkSqlExpressionEmitter {
 		for (int i = 0; i < entries.size(); i++) {
 			if (i > 0)
 				sb.append(", ");
-			sb.append("'").append(escapeSqlString(entries.get(i).name())).append("', ").append(emittedExprs.get(i));
+			sb.append(SparkSqlLiterals.string(entries.get(i).name())).append(", ").append(emittedExprs.get(i));
 		}
 		sb.append(")");
 		return sb.toString();
@@ -1296,7 +1299,7 @@ public final class SparkSqlExpressionEmitter {
 					RuntimeConstant constant = (RuntimeConstant) element;
 					return "CAST(" + (constant.kind() == RuntimeConstantKind.NULL
 							? "NULL"
-							: "'" + escapeSqlString(constant.value()) + "'") + " AS " + decimal + ")";
+							: SparkSqlLiterals.string(constant.value())) + " AS " + decimal + ")";
 				}).collect(java.util.stream.Collectors.joining(", ", "array(", ")"));
 			}
 		}
@@ -1453,7 +1456,7 @@ public final class SparkSqlExpressionEmitter {
 				if (c > 0)
 					sb.append(", ");
 				String colName = c < rel.columns().size() ? rel.columns().get(c).name() : "col" + c;
-				sb.append("'").append(escapeSqlString(colName)).append("', ")
+				sb.append(SparkSqlLiterals.string(colName)).append(", ")
 						.append(emitWithBkms(row.get(c), bkmBySlot, slotNameResolver));
 			}
 			sb.append(")");
@@ -1761,7 +1764,7 @@ public final class SparkSqlExpressionEmitter {
 							+ (flags.contains("s") ? "s" : "");
 					if (!javaFlags.isEmpty())
 						translated = "(?" + javaFlags + ")" + translated;
-					yield "(" + in + " rlike '" + escapeSqlString(translated) + "')";
+					yield "(" + in + " rlike " + SparkSqlLiterals.string(translated) + ")";
 				}
 				String pat = emitArg(args, 1, bkmBySlot, slotNameResolver);
 				if (args.size() == 2) {
@@ -2477,7 +2480,7 @@ public final class SparkSqlExpressionEmitter {
 					String keyName = ((RuntimeConstant) args.get(1)).value();
 					String replacement = emitArg(args, 2, bkmBySlot, slotNameResolver);
 					String fields = nativeType.fieldLayout().stream()
-							.map(field -> "'" + escapeSqlString(field.name()) + "', "
+							.map(field -> SparkSqlLiterals.string(field.name()) + ", "
 									+ (field.name().equals(keyName)
 											? replacement
 											: "(" + source + ").`" + field.name().replace("`", "``") + "`"))
@@ -2516,8 +2519,8 @@ public final class SparkSqlExpressionEmitter {
 					yield "NULL";
 				String contextSql = emitArg(args, 0, bkmBySlot, slotNameResolver);
 				String entries = fields.stream()
-						.map(field -> "named_struct('key', '" + escapeSqlString(field) + "', 'value', (" + contextSql
-								+ ")." + sanitizeColumn(field) + ")")
+						.map(field -> "named_struct('key', " + SparkSqlLiterals.string(field) + ", 'value', ("
+								+ contextSql + ")." + sanitizeColumn(field) + ")")
 						.collect(java.util.stream.Collectors.joining(", "));
 				yield "(CASE WHEN " + contextSql + " IS NULL THEN NULL ELSE array(" + entries + ") END)";
 			}
@@ -2700,9 +2703,8 @@ public final class SparkSqlExpressionEmitter {
 		String key = emitWithBkms(args.get(1), bkms, resolver);
 		StringBuilder sql = new StringBuilder("(CASE");
 		for (RuntimeField field : fields)
-			sql.append(" WHEN cast(").append(key).append(" as string) = '").append(escapeSqlString(field.name()))
-					.append("' THEN (").append(source).append(").`").append(field.name().replace("`", "``"))
-					.append("`");
+			sql.append(" WHEN cast(").append(key).append(" as string) = ").append(SparkSqlLiterals.string(field.name()))
+					.append(" THEN (").append(source).append(").`").append(field.name().replace("`", "``")).append("`");
 		return sql.append(" ELSE NULL END)").toString();
 	}
 
@@ -3639,7 +3641,7 @@ public final class SparkSqlExpressionEmitter {
 					var number = new java.math.BigDecimal(constant.value()).stripTrailingZeros();
 					// Numeric operands on this path are literals only. Fold their comparisons
 					// exactly; Spark's common decimal type can truncate two valid literals.
-					return new MembershipScalar(kind, "'" + number.toPlainString() + "'", number);
+					return new MembershipScalar(kind, SparkSqlLiterals.string(number.toPlainString()), number);
 				}
 				if (kind == RuntimeTypeKind.TIME && java.time.LocalTime.parse(constant.value()).getNano() != 0)
 					return null;
@@ -3815,7 +3817,7 @@ public final class SparkSqlExpressionEmitter {
 		try {
 			java.time.Period period = java.time.Period.between(from, to);
 			java.time.Period months = java.time.Period.of(period.getYears(), period.getMonths(), 0);
-			return "'" + (months.isZero() ? "P0M" : months.toString()) + "'";
+			return SparkSqlLiterals.string(months.isZero() ? "P0M" : months.toString());
 		} catch (ArithmeticException ignored) {
 			return null;
 		}
@@ -4280,7 +4282,7 @@ public final class SparkSqlExpressionEmitter {
 				String valExpr = o < rule.outputEntries().size()
 						? emitWithBkms(rule.outputEntries().get(o), bkmBySlot, slotNameResolver)
 						: "NULL";
-				sb.append("'").append(escapeSqlString(name)).append("', ").append(valExpr);
+				sb.append(SparkSqlLiterals.string(name)).append(", ").append(valExpr);
 			}
 			sb.append(")");
 			return sb.toString();
@@ -4366,12 +4368,6 @@ public final class SparkSqlExpressionEmitter {
 		}
 		sb.append("), x -> x IS NOT NULL)");
 		return sb.toString();
-	}
-
-	private static String escapeSqlString(String str) {
-		if (str == null)
-			return "";
-		return str.replace("'", "''").replace("\\", "\\\\");
 	}
 
 	private static String sanitizeColumn(String name) {

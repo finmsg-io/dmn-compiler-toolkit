@@ -541,7 +541,7 @@ final class SparkSqlScalarGraph {
 	}
 
 	private static String quote(String s) {
-		return "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'";
+		return SparkSqlLiterals.string(s);
 	}
 	private static String wrap(String n, String s, String b) {
 		return "named_struct('n'," + n + ",'s'," + s + ",'b'," + b + ")";

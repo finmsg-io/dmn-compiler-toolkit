@@ -68,7 +68,7 @@ final class SparkSqlStringInput {
 		if (expression instanceof RuntimeConstant constant)
 			return constant.kind() == RuntimeConstantKind.NULL
 					? "CAST(NULL AS STRING)"
-					: "'" + constant.value().replace("\\", "\\\\").replace("'", "''") + "'";
+					: SparkSqlLiterals.string(constant.value());
 		if (expression instanceof RuntimeValueReference reference) {
 			String name = reference.type().kind() == RuntimeTypeKind.ANY
 					? column(reference.sourceSlot(), names)

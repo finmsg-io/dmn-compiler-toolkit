@@ -100,3 +100,19 @@ does not convert Spark exceptions into null or skip execution when Spark is abse
 
 See [Spark SQL architecture](../docs/sparksql-architecture.md) for the transport
 contract, routing policy, validation scope, and native-promotion plan.
+
+## SQL text literals
+
+Generated text literals preserve their values with either setting of
+`spark.sql.parser.escapedStringLiterals` (`false` is Spark's default). The shared
+encoder uses ordinary single-quoted text when no escaping is needed. Apostrophes,
+backslashes and ASCII controls use a foldable UTF-8 binary-to-string cast, such as
+`CAST(X'4f275265696c6c79' AS STRING)` for `O'Reilly`. This also works for struct
+field names and regex arguments. Fixed duration/time regexes use `[.]` for literal
+decimal points to avoid parser-dependent backslash processing.
+
+SQL identifier quoting and versioned FEEL binary payloads are separate operations.
+The generated Java runner escapes the completed SQL once for Java source; it does
+not escape model text a second time. Regenerate SQL and runner source together
+when adopting this change. Executing regressions cover both parser settings on
+Spark 4.2.0; see [HARD-02 evidence](../docs/dev/slices/security-correctness-hardening-task-2026-10-24.md#2-spark-sql-literal-escaping-correctness-priority).

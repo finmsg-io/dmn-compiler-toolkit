@@ -75,5 +75,5 @@ other model forms can still require fallback.
 | Hybrid 2 | Static subgraph routing and generated UDF registration | `implemented` | `SparkSqlCapabilityAnalyzer`, generator result and Java runner |
 | Hybrid 3 | Pinned TCK runner integration and separate native/fallback accounting | `done` | 100.00% conformance measured across 3,391 cases (0 failures, 0 errors) |
 | Hybrid 4 | Native execution of all executable official optimized TCK cases | `done` | 2,715 native, zero fallback; 676 no-SQL compiler rejections separately; 2026-10-24 checkpoint |
-| HARD-02 | Verify and consolidate SQL literal escaping | `open` | Owned by [hardening section 2](../dev/slices/security-correctness-hardening-task-2026-10-24.md) |
+| HARD-02 | Verify and consolidate SQL literal escaping | `validation open; two legacy full-TCK timeouts` | Owned by [hardening section 2](../dev/slices/security-correctness-hardening-task-2026-10-24.md) |
 | NATIVE-EXT | Broaden bounded native proofs beyond the executable TCK inventory | `proposed` | Prioritize actual model needs; preserve exact semantics and fallback boundaries |

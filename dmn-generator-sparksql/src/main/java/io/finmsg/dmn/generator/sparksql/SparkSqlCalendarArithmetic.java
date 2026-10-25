@@ -130,7 +130,7 @@ final class SparkSqlCalendarArithmetic {
 		var fields = new ArrayList<String>();
 		String source = "`" + column.replace("`", "``") + "`";
 		for (var item : plan(model, decision)) {
-			fields.add("'" + item.name().replace("\\", "\\\\").replace("'", "\\'") + "'");
+			fields.add(SparkSqlLiterals.string(item.name()));
 			String epoch = shiftedDay(item, source);
 			String result = item.function().equals("day of week")
 					? "element_at(array('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'), CAST(pmod(cal_day + 3,7)+1 AS INT))"

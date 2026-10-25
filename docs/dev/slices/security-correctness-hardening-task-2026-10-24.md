@@ -2,7 +2,7 @@
 
 Date: 2026-10-24
 
-Status: HARD-01 implemented and validated on 2026-10-25; HARD-02 is next. Remaining hardening work stays open.
+Status: HARD-01 implemented and validated on 2026-10-25; HARD-02 implementation is under validation. Remaining hardening work stays open.
 
 Baseline commit: `518e37668f145305cd132ca5004167150804eb79`
 
@@ -198,6 +198,108 @@ their semantics, denial is tested without executing the forbidden operation, and
 trust assumptions plus compatibility changes are documented.
 
 ## 2. Spark SQL literal escaping — correctness priority
+
+HARD-02 in progress, 2026-10-25. Executing reproducers on Spark 4.2.0 showed that
+the original encoder preserved the nine tested strings with the default parser,
+but `spark.sql.parser.escapedStringLiterals=true` returned extra apostrophes or
+backslashes for six of them. This is a value-preservation defect under the legacy
+parser setting; no SQL syntax injection was observed in that reproduction.
+
+The shared package-private `SparkSqlLiterals.string` emits ordinary single-quoted
+text without escapes when possible. Text containing apostrophes, backslashes or
+ASCII controls is encoded as UTF-8 hex and emitted as `CAST(X'…' AS STRING)`.
+This is a foldable text expression under both parser settings. An initial
+`decode(X'…','UTF-8')` implementation returned correct scalar values but was not
+foldable for Spark's `named_struct` field-name analysis; the executing context test
+caught it before delivery. Safe DATE constants retain typed DATE literal syntax.
+
+Inventory and consolidation:
+
+| Construction site | Convention |
+| --- | --- |
+| Expression constants, temporal text, regex arguments, contexts, table output field names, context lookup/update names | Shared text encoder; old emitter escaping helper removed |
+| Generator constant temporal result | Shared text encoder |
+| Projected string constants | Shared text encoder |
+| Calendar and exact arithmetic context field names | Shared text encoder |
+| Scalar graph and temporal function `q` wrappers | Delegate to the shared text encoder |
+| Exact decimal digit constants and error messages | Shared text encoder; digits retain their original quoted representation |
+| Fixed duration/time regexes embedded in the emitter | Literal decimal points use `[.]`, removing parser-dependent backslash escapes |
+| Fixed enums, generated ordinal field labels and fixed SQL messages | Generator-selected safe literals; no model text interpolation |
+| SQL identifiers | Existing backtick quoting, kept separate from text encoding |
+| FEEL binary payloads | Existing versioned codec and binary literal encoding, kept separate from text encoding |
+| Generated Java runner | SQL text is encoded as Java source once; executing compilation checks both unsafe encoded text and ordinary text with double quotes |
+
+Focused tests compare full runtime values for apostrophes, backslashes, combined
+escapes, actual newlines/carriage returns/tabs, NUL/DEL, valid Unicode, empty text,
+and SQL-looking text in both parser modes. They also cover dynamic struct field
+names, calendar and exact arithmetic contexts, regex literals, nanosecond/offset
+date-time parsing and invalid temporal input. They execute per-decision and combined
+queries, and compile/execute the generated Java runner.
+
+| Run (logs in `dmn-generator-sparksql/target/`) | JUnit result | Native SQL actions | Fallback | Denominator | Unknown | Failed SQL |
+| --- | --- | --- | --- | --- | --- | --- |
+| `literal-escaping-before-fix.log` | 1 passed, 1 failed: six legacy value mismatches | 18 (100%) | 0 (0%) | 18 | 0 | 0 |
+| `literal-escaping-focused.log` | 3 passed, 1 error: non-foldable struct field names | 24 (100%) | 0 (0%) | 24 | 0 | 1 unexpected |
+| `literal-escaping-focused-cast.log` | 4 passed, no failures/errors/skips | 48 (100%) | 0 (0%) | 48 | 0 | 0 |
+| `literal-escaping-full-generator.log` | 166 passed, no failures/errors/skips | 3,024 (96.18%) | 120 (3.82%) | 3,144 | 0 | 60 expected |
+| `literal-escaping-legacy-full-generator.log` | 166 passed, no failures/errors/skips; startup verified legacy parser true | 3,024 (96.18%) | 120 (3.82%) | 3,144 | 0 | 60 expected |
+
+The final runner test now also exercises ordinary double-quoted Unicode text at
+the Java/SQL boundary. Both full generator regressions passed; their action totals
+each include all four executing suites. Production sources remain frozen during
+full TCK validation. Target and installed generator JARs match SHA256
+`E4C1D70E96CED2EDC95AC77281604F128DDE3E144FA60A82B7FD002DC740D491`;
+the previous HARD-01 checkpoint is not evidence for these source changes.
+
+Full optimized official TCK with the default parser (`escapedStringLiterals=false`,
+verified at startup) passed **3,391/3,391**: **2,715 native (100% of 2,715
+executable; 80.06% of all cases), zero fallback (0%)**, and **676 expected
+compiler rejections (19.94%, no SQL)**. Failed, execution errors, unexpected
+compilation errors, unsupported, excluded, invalid and unknown: zero. All case
+keys, complete outcomes and routes match the HARD-01 checkpoint: zero changes.
+Maven exited 0 but emitted the same Surefire 30-second fork-shutdown warning
+quoted in section 1; clean process shutdown remains unverified for this run.
+Evidence in `dmn-tck-runner/target/`: `literal-escaping-default-full-tck.log`,
+`literal-escaping-default-full-accounting.json`,
+`literal-escaping-default-full-rejections.tsv`, and
+`literal-escaping-default-baseline-comparison.json`.
+
+Full legacy-parser TCK finished with **3,389/3,391 passed**, **2 failed**
+(30-second timeouts), Maven exit **1**. Startup verified
+`escapedStringLiterals=true`. Native passes: **2,713/2,715 non-rejected cases
+(99.93%; 80.01% of all 3,391)**; fallback **0/2,715 (0%)**. Separately,
+**676 expected compiler rejections (19.94%)** executed no SQL. The two timed-out
+cases have no recorded native/fallback route; unknown route count is **2**.
+Execution errors, unexpected compilation errors, unsupported, excluded and invalid
+outcomes: zero. These are failed TCK cases, not expected failed-SQL assertions
+from the generator regressions. No failed-SQL action count is inferred from them.
+
+Exactly two complete outcomes changed against HARD-01, both previously native:
+`compliance-level-3/0004-lending/0004-lending-test-01.xml#001` and
+`compliance-level-3/0035-test-structure-output/0035-test-structure-output-test-01.xml#001`.
+Both now report `timeout: execution exceeded 30 seconds`. All case keys and the
+other 3,389 outcomes match. The cause is unverified; neither parser correctness
+nor a cold-start explanation is established for these timeouts. This legacy run
+is not a passing conformance checkpoint. Its evidence in `dmn-tck-runner/target/`:
+`literal-escaping-legacy-full-tck.log`, `literal-escaping-legacy-full-accounting.json`,
+`literal-escaping-legacy-full-rejections.tsv`, and
+`literal-escaping-legacy-baseline-comparison.json`.
+Reproduce the full command in section 1 with
+`-Dspark.sql.parser.escapedStringLiterals=false` or `true` respectively.
+The generator artifact hash remained unchanged after validation.
+
+Handover, 2026-10-25: HARD-01 was committed and pushed as `fdb2bf39d71e942f12b5bddec162c8bc3f6e4620`.
+HARD-02 implementation and regression tests are ready for review, but final
+validation remains open because of the two legacy-parser full-TCK timeouts.
+The user requested committing and pushing this implementation and handover.
+At 10% remaining in the primary usage window, the checkpoint rule stopped new
+implementation. Resume by investigating/rechecking those two cases and obtaining
+a passing full legacy-parser run without weakening the timeout or excluding cases.
+Then close HARD-02 and start HARD-03, which has not started. The 676 rejection
+reasons and fork-shutdown investigation remain separate open work. Formatting,
+documentation facts (12 modules), strict MkDocs and whitespace checks passed;
+these checks execute no SQL (native/fallback 0/0, denominator 0, rates undefined,
+failed/unknown SQL 0/0).
 
 - [ ] Inventory literal construction in the emitter, generator, calendar helpers,
   exact arithmetic helpers and the new temporal functions.

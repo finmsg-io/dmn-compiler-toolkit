@@ -1,3 +1,12 @@
+Current handover — 2026-10-25: see [HARD-02 validation and next steps](slices/security-correctness-hardening-task-2026-10-24.md#2-spark-sql-literal-escaping-correctness-priority).
+Both generator regressions passed; the default-parser full TCK passed. The
+legacy-parser full TCK finished with two 30-second timeouts (3,389/3,391 passed).
+HARD-02 validation remains open; resume with those cases and a full legacy recheck.
+New implementation is stopped under the usage checkpoint rule. HARD-03 is next
+after HARD-02 validation. The user requested committing and pushing this checkpoint; HARD-01 was already pushed.
+
+Historical checkpoint follows; its figures describe its dated source state.
+
 2026-10-12 latest full Spark SQL checkpoint and updated goal
 
 **User goal: 100% native execution and zero fallback.** This replaces the earlier
