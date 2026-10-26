@@ -1,16 +1,18 @@
-Current requirement/checkpoint — 2026-10-26: [hardening evidence](slices/security-correctness-hardening-task-2026-10-24.md).
-Every TCK case must execute and return its expected result. Compiler rejection
-is not a pass. The duration([]) fallback is fixed: 2,729/3,391 cases executed
-natively and matched expected results (80.48% of inventory), zero fallback;
-662 cases remain unexecuted (19.52%). Native/fallback rates among executed cases
-are 100%/0%, but whole-inventory execution remains incomplete. The current
-runner's 3,391-pass total still includes the 662 rejections and does not satisfy
-the clarified requirement. Full generator regression: 168 tests passed.
-User order: commit/push this checkpoint, then remove rejection-as-pass and fix
-blocked execution. Do not count the historical static negative classifications
-as runtime conformance. Legacy-parser timeouts remain deferred.
+Current Spark execution checkpoint - 2026-10-26: [hardening evidence](slices/security-correctness-hardening-task-2026-10-24.md).
+All 3,391 official cases executed natively and produced expected results:
+**3,391 native passes (100%), zero fallback (0%), zero failures, compilation
+blocks, errors or unknown routes**. Denominator: all 3,391 cases; no static
+rejection passes. Pinned TCK revision: 20274cd2ba9cad805db6114f331c743f4b2603a1.
+The final 0082-feel-coercion invoke_007 fallback is converted; exactly one route
+changed from the preceding 3,390-native/one-fallback run, with no other changes.
+Maven exited 0 with no fork-shutdown warning in the final run. Evidence:
+runner target native-invalid-binding-full-tck.log,
+native-invalid-binding-full-accounting.json and
+native-invalid-binding-baseline-comparison.json.
+The implementation, handover and retained accounting are published together in this checkpoint. Legacy-parser timeouts remain deferred.
+This proves this optimized pinned official suite, not unrestricted native FEEL.
 
-Historical checkpoint follows; its figures describe its dated source state.
+Historical checkpoints below describe dated sources and older acceptance rules.
 
 2026-10-12 latest full Spark SQL checkpoint and updated goal
 

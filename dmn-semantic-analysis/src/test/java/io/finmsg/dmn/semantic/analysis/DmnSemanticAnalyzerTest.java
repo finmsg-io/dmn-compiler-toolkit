@@ -257,8 +257,8 @@ class DmnSemanticAnalyzerTest {
 				.addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm))
 				.addDrgElements(DrgElement.newBuilder().setDecision(target)).build();
 
-		assertThat(analyzer.analyze(model).diagnostics()).extracting(DmnSemanticDiagnostic::code).containsExactly(
-				"DUPLICATE_INVOCATION_BINDING", "UNKNOWN_INVOCATION_PARAMETER", "MISSING_INVOCATION_BINDING");
+		assertThat(analyzer.analyze(model).diagnostics()).extracting(DmnSemanticDiagnostic::code)
+				.containsExactly("DUPLICATE_INVOCATION_BINDING");
 	}
 
 	@Test

@@ -286,6 +286,19 @@ final class SparkSqlStaticFunctionLowerer {
 				throw new Unsupported();
 			if (parameters.size() != invocation.namedArguments().size() + invocation.positionalArguments().size())
 				throw new Unsupported();
+			if (!invocation.namedArguments().isEmpty()) {
+				Set<String> parameterNames = new HashSet<>();
+				parameters.forEach(parameter -> parameterNames.add(parameter.name()));
+				Set<String> suppliedNames = new HashSet<>();
+				for (RuntimeNamedArgument argument : invocation.namedArguments()) {
+					if (!parameterNames.contains(argument.name()) || !suppliedNames.add(argument.name())) {
+						// Invalid bindings prevent invocation, including argument/body evaluation.
+						applied = true;
+						return new RuntimeConstant(RuntimeConstantKind.NULL, "null",
+								RuntimeType.scalar(RuntimeTypeKind.NULL));
+					}
+				}
+			}
 			Map<Integer, Object> bindings = new HashMap<>();
 			for (int index = 0; index < parameters.size(); index++) {
 				RuntimeFunctionParameter parameter = parameters.get(index);

@@ -1,18 +1,21 @@
 # DMN Generator Spark SQL (`dmn-generator-sparksql`)
 
 Generates Spark SQL queries from Runtime IR with an optional decision-level Java
-UDF fallback. Pure SQL is the default. Hybrid execution is a Phase 1 correctness
-baseline; full TCK conformance and performance remain to be measured.
+UDF fallback. Pure SQL is the default. On 2026-10-26, the optimized hybrid
+configuration executed **all 3,391 pinned official TCK cases natively (100%)**,
+with **zero fallback, failures, compilation blocks or errors**. See the
+[conformance record and retained accounting](../docs/tck-conformance.md).
 
 ## Execution modes
 
 - **Pure SQL:** emits native CTE queries. Known unsupported constructs produce
-  `UnsupportedRelationalSqlException`. This mode retains a broader native surface
-  than the initial hybrid allowlist and still has known TCK failures.
-- **Hybrid:** statically inspects each decision's dependency subgraph. Simple
-  string/boolean constants, projections, and compatible conditionals stay native.
-  Other decisions evaluate their required subgraphs through `DmnRuntime` in a JVM
-  UDF. Closures stay inside Java. SQL exceptions and nulls never trigger fallback.
+  `UnsupportedRelationalSqlException`. The measured TCK checkpoint below uses
+  the optimized hybrid configuration; it does not separately verify this mode.
+- **Hybrid:** statically inspects each decision's dependency subgraph. Verified
+  native patterns execute as SQL; unsupported required subgraphs use `DmnRuntime`
+  in a JVM UDF. Native support is bounded by capability checks, although every
+  case in the pinned official suite now passes natively. SQL exceptions and
+  nulls never trigger fallback.
 
 ## Using hybrid execution
 
@@ -77,7 +80,7 @@ decision parameter overrides its normal global calculation inside the service.
 Run the pinned hybrid suite from the repository root:
 
 ```powershell
-& 'C:\10-tools\apache-maven-3.9.12\bin\mvn.cmd' -Ptck -pl dmn-tck-runner -am '-Dtck.backend=sparksql' '-Dtck.spark.hybrid=true' '-Dtck.modelVariant=optimized' '-Dtck.requireFull=true' '-Dtck.timeoutSeconds=60' '-Dtest=OfficialTckSuiteTest' '-Dsurefire.failIfNoSpecifiedTests=false' test
+& 'C:\10-tools\apache-maven-3.9.12\bin\mvn.cmd' -Ptck -pl dmn-tck-runner -am '-Dtck.backend=sparksql' '-Dtck.spark.hybrid=true' '-Dtck.modelVariant=optimized' '-Dtck.requireFull=true' '-Dtck.timeoutSeconds=30' '-Dtest=OfficialTckSuiteTest' '-Dsurefire.failIfNoSpecifiedTests=false' test
 ```
 
 The report is written to
@@ -95,8 +98,9 @@ does not convert Spark exceptions into null or skip execution when Spark is abse
   external Java descriptors require referenced classes on executors.
 - Function values cannot be exported as Spark values. Evaluate their consumer
   decision instead. `AllDecisions.sql` requires transportable outputs.
-- Shared dependencies may be recomputed. No fixed planning-time, cluster
-  throughput, or 100% TCK guarantee is claimed.
+- Shared dependencies may be recomputed. The 100% native TCK result covers the
+  pinned suite and configuration above; arbitrary model coverage, cluster
+  throughput and planning time require separate validation.
 
 See [Spark SQL architecture](../docs/sparksql-architecture.md) for the transport
 contract, routing policy, validation scope, and native-promotion plan.

@@ -47,6 +47,11 @@ public-production maturity or identical backend coverage; consult the
 [capability maturity page](capabilities.md), [TCK conformance record](tck-conformance.md), and
 [roadmap](roadmap.md) for the verified boundaries and current work.
 
+The optimized Spark SQL backend now executes **3,391/3,391 pinned official TCK
+cases natively (100%)**, with zero fallback, failed cases, compilation blocks or
+errors (2026-10-26). See the [conformance record](tck-conformance.md) for the
+configuration and retained per-case evidence.
+
 <a id="contents-section-2"></a>
 ## Design goals
 

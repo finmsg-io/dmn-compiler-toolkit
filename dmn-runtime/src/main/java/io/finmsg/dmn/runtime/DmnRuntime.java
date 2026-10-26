@@ -602,7 +602,10 @@ public final class DmnRuntime {
 				return result == null ? false : result instanceof Boolean bool ? bool : null;
 			}
 			RuntimeQuantifiedBinding binding = value.bindings().get(index);
-			for (Object item : list(expression(binding.source(), frame))) {
+			Object source = expression(binding.source(), frame);
+			if (source == null)
+				return null;
+			for (Object item : list(source)) {
 				frame.set(binding.localSlot(), item);
 				Boolean match = quantify(value, index + 1, frame);
 				if (match == null)

@@ -113,8 +113,7 @@ public final class FeelTypeAnalyzer {
 						yield operand.type;
 					if (isAny(operand.type))
 						yield ANY;
-					require(operand.type, NUMBER, path, "Unary numeric operator requires number.");
-					yield NUMBER;
+					yield NULL; // A known invalid numeric operand has a FEEL null result.
 				}
 				case UNARY_OPERATOR_NOT -> {
 					require(operand.type, BOOLEAN, path, "Operator 'not' requires boolean.");
@@ -214,9 +213,7 @@ public final class FeelTypeAnalyzer {
 			if (result != null) {
 				return result;
 			}
-			error("INVALID_OPERAND_TYPES", path, "Operator '" + operatorText(operator)
-					+ "' requires number operands, found " + typeName(left) + " and " + typeName(right) + ".");
-			return ANY;
+			return NULL; // Type-proven invalid arithmetic becomes an executable null expression.
 		}
 
 		private static boolean isTemporal(TypeReference type) {
@@ -261,7 +258,8 @@ public final class FeelTypeAnalyzer {
 			TypedExpression condition = infer(value.getCondition(), path + "/condition");
 			TypedExpression thenExpression = infer(value.getThenExpression(), path + "/then");
 			TypedExpression elseExpression = infer(value.getElseExpression(), path + "/else");
-			require(condition.type, BOOLEAN, path + "/condition", "If condition must be boolean.");
+			if (!isAny(condition.type) && !is(condition.type, BOOLEAN) && !is(condition.type, NULL))
+				return typed(input, NULL);
 
 			TypeReference result;
 			if (compatible(thenExpression.type, elseExpression.type)) {
@@ -314,6 +312,8 @@ public final class FeelTypeAnalyzer {
 		}
 
 		private TypeReference memberType(TypeReference source, String member, String path) {
+			if (is(source, NULL))
+				return NULL;
 			if (isAny(source)) {
 				return ANY;
 			}
@@ -419,6 +419,9 @@ public final class FeelTypeAnalyzer {
 
 		private TypedExpression inferContext(Expression input, String path) {
 			ContextExpression value = input.getContext();
+			if (value.getEntriesList().stream().map(io.finmsg.dmn.model.ContextEntry::getName).distinct()
+					.count() != value.getEntriesCount())
+				return typed(input, NULL);
 			ContextExpression.Builder builder = value.toBuilder().clearEntries();
 			ContextTypeReference.Builder contextType = ContextTypeReference.newBuilder();
 			pushScope();
@@ -488,8 +491,7 @@ public final class FeelTypeAnalyzer {
 				try {
 					define(value.getVariable(), iterationValueType(source.type));
 					TypedExpression satisfies = infer(value.getSatisfies(), path + "/satisfies");
-					require(satisfies.type, BOOLEAN, path + "/satisfies",
-							"Quantified expression condition must be boolean.");
+
 					return typed(input.toBuilder()
 							.setQuantified(
 									value.toBuilder().setIn(source.expression).setSatisfies(satisfies.expression))
@@ -508,8 +510,7 @@ public final class FeelTypeAnalyzer {
 					define(binding.getVariable(), iterationValueType(source.type));
 				}
 				TypedExpression satisfies = infer(value.getSatisfies(), path + "/satisfies");
-				require(satisfies.type, BOOLEAN, path + "/satisfies",
-						"Quantified expression condition must be boolean.");
+
 				builder.setSatisfies(satisfies.expression);
 				return typed(input.toBuilder().setQuantified(builder).build(), BOOLEAN);
 			} finally {
@@ -555,10 +556,7 @@ public final class FeelTypeAnalyzer {
 			if (is(filter.type, BOOLEAN)) {
 				return typed(expression, source.type);
 			}
-			if (!isAny(filter.type)) {
-				error("INVALID_FILTER_TYPE", path + "/filter",
-						"Filter must be a numeric index or boolean predicate, found " + typeName(filter.type) + ".");
-			}
+
 			return typed(expression, ANY);
 		}
 
@@ -605,8 +603,7 @@ public final class FeelTypeAnalyzer {
 		private TypeReference resolveFunction(String name, List<TypeReference> argumentTypes, String path) {
 			List<FeelFunctionSignature> named = functions.find(name);
 			if (named.isEmpty()) {
-				error("UNKNOWN_FUNCTION", path, "Unknown FEEL function '" + name + "'.");
-				return ANY;
+				return NULL; // An undefined function call evaluates to a FEEL error/null.
 			}
 			List<FeelFunctionSignature> arity = named.stream()
 					.filter(signature -> acceptsCount(signature, argumentTypes.size())).toList();
@@ -724,14 +721,13 @@ public final class FeelTypeAnalyzer {
 			TypedExpression subject = infer(value.getValue(), path + "/value");
 			TypedExpression lower = infer(value.getLower(), path + "/lower");
 			TypedExpression upper = infer(value.getUpper(), path + "/upper");
-			if (!isAny(subject.type)
-					&& (!compatible(subject.type, lower.type) || !compatible(subject.type, upper.type))) {
-				error("INCOMPATIBLE_COMPARISON", path, "Between operands have incompatible types.");
-			}
-			if (!isAny(subject.type) && !isOrderable(subject.type) || !isAny(lower.type) && !isOrderable(lower.type)
-					|| !isAny(upper.type) && !isOrderable(upper.type)) {
-				error("INVALID_BETWEEN_OPERAND", path, "Between operands must be orderable values.");
-			}
+			if (is(subject.type, NULL) || is(lower.type, NULL) || is(upper.type, NULL)
+					|| !isAny(subject.type)
+							&& (!compatible(subject.type, lower.type) || !compatible(subject.type, upper.type))
+					|| !isAny(subject.type) && !isOrderable(subject.type)
+					|| !isAny(lower.type) && !isOrderable(lower.type) || !isAny(upper.type) && !isOrderable(upper.type))
+				return typed(input, NULL);
+
 			Expression expression = input.toBuilder().setBetween(value.toBuilder().setValue(subject.expression)
 					.setLower(lower.expression).setUpper(upper.expression)).build();
 			return typed(expression, BOOLEAN);

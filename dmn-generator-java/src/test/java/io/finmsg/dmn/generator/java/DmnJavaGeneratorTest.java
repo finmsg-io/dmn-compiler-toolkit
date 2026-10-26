@@ -25,13 +25,18 @@ class DmnJavaGeneratorTest {
 				"every x in [1,2] satisfies if x = 1 then true else \"bad\"",
 				"some x in [1,2] satisfies if x = 1 then true else \"bad\"",
 				"every x in [1,2] satisfies if x = 1 then false else \"bad\"", "duration(\"P1D\")",
-				"if true then 7 else \"text\"");
+				"if true then 7 else \"text\"", "\"x\" - 2", "2 ** \"2\"", "-\"2\"", "-date(\"2020-01-01\")",
+				"null between 1 and 2", "1 between null and 2", "1 between 0 and null", "{foo:1,foo:2}", "null.b",
+				"non_existing_function()", "some x in 1 satisfies \"bad\"", "every x in 1 satisfies \"bad\"",
+				"[1,2][\"bad\"]", "if 1 then 2 else 3", "-\"x\"", "1+2", "\"a\"+\"b\"", "some x in 1 satisfies true",
+				"every x in 1 satisfies true", "\"text\"");
 		List<Object> expected = Arrays.asList(null, null, null, null, null, null, null, null, true, false,
-				java.time.Duration.ofDays(1), BigDecimal.valueOf(7));
+				java.time.Duration.ofDays(1), BigDecimal.valueOf(7), null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, BigDecimal.valueOf(3), "ab", true, true, null);
 		StringBuilder decisions = new StringBuilder();
 		for (int i = 0; i < expressions.size(); i++) {
-			decisions.append("<decision id=\"d" + i + "\" name=\"d" + i + "\"><variable name=\"d" + i
-					+ "\" typeRef=\"Loose\"/>" + "<literalExpression><text>"
+			decisions.append("<decision id=\"d" + i + "\" name=\"d" + i + "\"><variable name=\"d" + i + "\" typeRef=\""
+					+ (i == expressions.size() - 1 ? "number" : "Loose") + "\"/>" + "<literalExpression><text>"
 					+ expressions.get(i).replace("&", "&amp;").replace("<", "&lt;")
 					+ "</text></literalExpression></decision>");
 		}

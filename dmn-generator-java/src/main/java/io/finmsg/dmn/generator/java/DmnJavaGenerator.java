@@ -799,7 +799,8 @@ public final class DmnJavaGenerator {
 						    return value == null ? false : value instanceof Boolean bool ? bool : null;
 						  }
 						  private static Boolean quantify(boolean isEvery, Object listObj, java.util.function.Function<Object, Object> predicate) {
-						    if (!(listObj instanceof List<?> list)) return isEvery;
+						                    if (listObj == null) return null;
+						    List<?> list = listObj instanceof List<?> values ? values : java.util.Collections.singletonList(listObj);
 						    for (Object item : list) {
 						      Object result = predicate.apply(item);
 						      if (!(result instanceof Boolean)) return null;

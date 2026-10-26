@@ -12,7 +12,6 @@ Historical checkpoints remain dated evidence and do not override the current bac
 | ID | Priority | Work item | Status | Primary owner / acceptance |
 | --- | --- | --- | --- | --- |
 | HARD-02 | P1 | Reproduce and consolidate Spark SQL literal escaping | legacy timeout validation deferred | [Hardening task, section 2](../dev/slices/security-correctness-hardening-task-2026-10-24.md); encoder and both generator regressions passed; default full TCK passed; legacy full TCK has two timeouts, deferred by user; validation remains open |
-| TCK-EXECUTE | P0 | Every official case executes and returns its expected result | open | [Hardening section 5](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections); 2,729 executed native, zero fallback, 662 blocked; remove rejection-as-pass and fix blocked paths |
 | DOC-01 | P1 | Public documentation, evidence provenance and drift checks | open | [Documentation task](../dev/slices/documentation-drift-remediation-task-2026-10-24.md); public descriptions and CI checks, not duplicate backend implementation |
 | COVERAGE | P2 | Measured coverage baselines and enforcement | open | [Hardening task, section 4](../dev/slices/security-correctness-hardening-task-2026-10-24.md); measured thresholds and missing error-path tests |
 | P19.1 | P2 | Explicit TCK inventory/outcome regression ratchet | planned | [Runner task](dmn-tck-runner.md); case-key/backend baseline and failure checks, beyond forbidding filters |
@@ -29,14 +28,16 @@ named deliverable with evidence. The former `ready` label is not proof of delive
 
 ## Completed milestones and continuing boundaries
 
-- Case-level audit inventory and 14 runtime fixes are recorded (2026-10-26).
-  This did not establish runtime conformance for 662 unexecuted cases. The user
-  now explicitly requires their execution; TCK-EXECUTE above remains open.
-  Full Spark TCK passed 3,391/3,391, with 2,728 native, one fallback and 662 static
-  rejections separately; all 14 fixed cases also passed on interpreter and Java.
-  See [section 5 evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections).
-  The duration([]) fallback was subsequently fixed. Whole-inventory execution
-  remains open because 662 cases are still blocked.
+- All-case native Spark TCK goal achieved (2026-10-26): **3,391/3,391**
+  official cases executed natively and matched expected results; **100% native,
+  zero fallback**, zero failures, errors, compilation blocks or unknown routes.
+  No static rejection counted as a pass. Pinned revision:
+  `20274cd2ba9cad805db6114f331c743f4b2603a1`. The final invoke_007 binding fix
+  changed exactly one route from fallback to native; other outcomes were identical.
+  Maven exit 0, no shutdown warning. See
+  [section 5 evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections).
+  The implementation, handover and retained accounting are published together in this checkpoint. Broader native FEEL and deferred
+  legacy-parser timeouts remain outside this completed milestone.
 
 - HARD-03 typed comparator dispatch and failure propagation are implemented and
   validated (2026-10-25): eight module tests and 25 focused official Java TCK
@@ -50,17 +51,12 @@ named deliverable with evidence. The former `ready` label is not proof of delive
   The full Spark TCK retained 3,391 passing outcomes and identical routes; this run
   emitted a Surefire fork-shutdown warning, retained with its evidence.
 
-- Official optimized Spark SQL TCK native conversion is **done for the executable
-  inventory**: 2,715 native (100% of 2,715 executable; 80.06% of all 3,391), zero
-  fallback. Separately, 676 compiler-rejected cases (19.94% of all) executed no SQL.
-  All 3,391 outcomes passed; failed/errors/unknown zero. See the
-  [verified checkpoint](../dev/slices/native-temporal-chains-2026-10-24.md).
-- Runner summaries explicitly label compiler rejection as no SQL execution and
-  show non-rejected/all-case denominators. That reporting change is done; the
-  rejection audit and public-documentation adoption remain open.
-- Broader native FEEL support is a separate, demand-driven extension. Bounded proofs
-  can still route other models to fallback. Do not reopen the completed official
-  TCK conversion milestone or claim unrestricted native support.
+- Earlier native milestones excluded compiler-rejected cases from execution.
+  Those historical results did not satisfy the current all-3,391 requirement;
+  the strict run above supersedes them. Static rejection cannot pass in the
+  current runner, and every requested output must be present and match.
+- Broader native FEEL support remains a separate extension. Bounded proofs
+  can still route models outside this pinned TCK inventory to fallback.
 - Spark SQL and gRPC default-reactor membership is implemented. Broader maturity,
   streaming, performance and contract-completion goals remain separately scoped.
 

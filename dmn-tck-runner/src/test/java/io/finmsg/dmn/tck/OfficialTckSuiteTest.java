@@ -238,14 +238,7 @@ class OfficialTckSuiteTest {
 			dynamicTests
 					.add(recordedTest(testName + " @" + interpreterBackend, entry, testCase, interpreterBackend, () -> {
 						Preparation preparation = getPreparation(sources, testCase, modelMode);
-						if (preparation.failureDiagnostic() != null) {
-							if (expectsOnlyErrors(testCase) && preparation.modelRejected()) {
-								ExpectedRejectionAudit.requireReviewed(entry, testCase,
-										preparation.failureDiagnostic());
-								return;
-							}
-							throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
-						}
+						requireCompilationSucceeded(preparation.failureDiagnostic(), preparation.failureCause());
 						TckExecutionResult result = interpreterEngine.execute(preparation.compilation(), testCase);
 						assertExpected(testName, testCase, result.decisionValues(), variant + " interpreter");
 					}));
@@ -255,14 +248,7 @@ class OfficialTckSuiteTest {
 			dynamicTests.add(
 					recordedTest(testName + " @" + generatedJavaBackend, entry, testCase, generatedJavaBackend, () -> {
 						Preparation preparation = getPreparation(sources, testCase, modelMode);
-						if (preparation.failureDiagnostic() != null) {
-							if (expectsOnlyErrors(testCase) && preparation.modelRejected()) {
-								ExpectedRejectionAudit.requireReviewed(entry, testCase,
-										preparation.failureDiagnostic());
-								return;
-							}
-							throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
-						}
+						requireCompilationSucceeded(preparation.failureDiagnostic(), preparation.failureCause());
 						GeneratedPreparation generated = getGeneratedPreparation(sources, testCase, modelMode,
 								preparation);
 						if (generated.failureDiagnostic() != null)
@@ -276,17 +262,11 @@ class OfficialTckSuiteTest {
 					generatedSparkSqlBackend, () -> {
 						Preparation preparation = getPreparation(sources, testCase, modelMode);
 						if (preparation.failureDiagnostic() != null) {
-							if (expectsOnlyErrors(testCase) && preparation.modelRejected()) {
-								sparkRoutes.put(testName, "UNVERIFIED_MODEL_REJECTION");
-								ExpectedRejectionAudit.requireReviewed(entry, testCase,
-										preparation.failureDiagnostic());
-								sparkRoutes.put(testName, "EXPECTED_MODEL_REJECTION");
-								expectedRejectionDiagnostics.put(testName + " @" + generatedSparkSqlBackend,
-										preparation.failureDiagnostic());
-								return;
-							}
-							throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
+							sparkRoutes.put(testName, "UNEXECUTED_COMPILATION_FAILURE");
+							expectedRejectionDiagnostics.put(testName + " @" + generatedSparkSqlBackend,
+									preparation.failureDiagnostic());
 						}
+						requireCompilationSucceeded(preparation.failureDiagnostic(), preparation.failureCause());
 						executeGeneratedSparkSql(sources, preparation, testCase, modelMode, testName);
 					}));
 		}
@@ -678,9 +658,9 @@ class OfficialTckSuiteTest {
 		}
 	}
 
-	private static boolean expectsOnlyErrors(TckTestCase testCase) {
-		return !testCase.expectedErrorResults().isEmpty()
-				&& testCase.expectedErrorResults().equals(testCase.expectedResults().keySet());
+	static void requireCompilationSucceeded(String diagnostic, Throwable cause) {
+		if (diagnostic != null)
+			throw new AssertionError("UNEXECUTED_COMPILATION_FAILURE: " + diagnostic, cause);
 	}
 
 	@AfterAll
@@ -698,7 +678,7 @@ class OfficialTckSuiteTest {
 		}
 
 		Files.write(
-				Path.of("target", "tck-expected-rejections" + variant
+				Path.of("target", "tck-compilation-failures" + variant
 						+ ".tsv"),
 				expectedRejectionDiagnostics.entrySet().stream().sorted(Map.Entry.comparingByKey())
 						.map(entry -> entry.getKey() + "\t"
@@ -720,40 +700,29 @@ class OfficialTckSuiteTest {
 					.filter(o -> o.status() == TckCatalogueStatus.PASSED && o.diagnostic().equals("NATIVE")).count();
 			long fallbackCases = sparkOutcomes.stream()
 					.filter(o -> o.status() == TckCatalogueStatus.PASSED && o.diagnostic().equals("FALLBACK")).count();
-			long rejectedCases = sparkOutcomes.stream().filter(
-					o -> o.status() == TckCatalogueStatus.PASSED && o.diagnostic().equals("EXPECTED_MODEL_REJECTION"))
-					.count();
-			long executableCases = sparkOutcomes.size() - rejectedCases;
-			System.out.printf(" NATIVE SPARK SQL PASSES : %d%n", nativeCases);
-			System.out.printf(" FALLBACK PASSES         : %d%n", fallbackCases);
-			System.out.printf(" COMPILER REJECTED       : %d (NO Spark SQL executed; neither native nor fallback)%n",
-					rejectedCases);
-			if (executableCases > 0) {
-				System.out.printf(" NATIVE / NON-REJECTED   : %d/%d (%.2f%%)%n", nativeCases, executableCases,
-						nativeCases * 100.0 / executableCases);
-				System.out.printf(" FALLBACK / NON-REJECTED : %d/%d (%.2f%%)%n", fallbackCases, executableCases,
-						fallbackCases * 100.0 / executableCases);
-			} else
-				System.out.println(" NON-REJECTED RATES      : undefined (denominator 0)");
-			if (!sparkOutcomes.isEmpty()) {
-				System.out.printf(" NATIVE / ALL SPARK TCK  : %d/%d (%.2f%%)%n", nativeCases, sparkOutcomes.size(),
-						nativeCases * 100.0 / sparkOutcomes.size());
-				System.out.printf(" REJECTED / ALL SPARK TCK: %d/%d (%.2f%%; NO SQL execution)%n", rejectedCases,
-						sparkOutcomes.size(), rejectedCases * 100.0 / sparkOutcomes.size());
-			}
-			long unverified = sparkOutcomes.stream()
-					.filter(o -> "UNVERIFIED_MODEL_REJECTION".equals(sparkRoutes.get(o.entryId() + "#" + o.caseId())))
+			long requiredCases = sparkOutcomes.size();
+			long blocked = sparkOutcomes.stream().filter(
+					o -> "UNEXECUTED_COMPILATION_FAILURE".equals(sparkRoutes.get(o.entryId() + "#" + o.caseId())))
 					.count();
 			long unknown = sparkOutcomes.stream()
-					.filter(o -> !Set.of("NATIVE", "FALLBACK", "EXPECTED_MODEL_REJECTION", "UNVERIFIED_MODEL_REJECTION")
+					.filter(o -> !Set.of("NATIVE", "FALLBACK", "UNEXECUTED_COMPILATION_FAILURE")
 							.contains(sparkRoutes.getOrDefault(o.entryId() + "#" + o.caseId(), "")))
 					.count();
-			System.out.printf(" UNVERIFIED REJECTIONS   : %d (failed; NO SQL; included in non-rejected denominator)%n",
-					unverified);
+			System.out.printf(" NATIVE SPARK SQL PASSES : %d%n", nativeCases);
+			System.out.printf(" FALLBACK PASSES         : %d%n", fallbackCases);
+			System.out.printf(" COMPILATION BLOCKED     : %d (FAILED; NO SQL executed; not accepted as passes)%n",
+					blocked);
+			if (requiredCases > 0) {
+				System.out.printf(" NATIVE / REQUIRED CASES : %d/%d (%.2f%%)%n", nativeCases, requiredCases,
+						nativeCases * 100.0 / requiredCases);
+				System.out.printf(" FALLBACK / REQUIRED    : %d/%d (%.2f%%)%n", fallbackCases, requiredCases,
+						fallbackCases * 100.0 / requiredCases);
+			} else
+				System.out.println(" REQUIRED CASE RATES     : undefined (denominator 0)");
 			System.out.printf(" UNKNOWN SPARK ROUTES    : %d%n", unknown);
 			System.out.println(
-					" Rejection acceptance requires matching case review, fixtures, requested errors and exact diagnostic.");
-			System.out.println(" Rejection reasons: target/tck-expected-rejections" + variant + ".tsv");
+					" Every case must execute and produce all requested results; compilation rejection cannot pass.");
+			System.out.println(" Compilation failures: target/tck-compilation-failures" + variant + ".tsv");
 		}
 		System.out.printf(" FAILED      : %d%n", failed);
 		System.out.printf(" ERRORS      : %d%n", error);
@@ -816,8 +785,11 @@ class OfficialTckSuiteTest {
 		});
 	}
 
-	private static void assertExpected(String testName, TckTestCase testCase, Map<String, Object> actual,
-			String backend) {
+	static void assertExpected(String testName, TckTestCase testCase, Map<String, Object> actual, String backend) {
+		Set<String> missing = new LinkedHashSet<>(testCase.expectedResults().keySet());
+		missing.removeAll(actual.keySet());
+		if (!missing.isEmpty())
+			throw new AssertionError(backend + " did not produce requested results " + missing + " in " + testName);
 		for (String errorDecision : testCase.expectedErrorResults()) {
 			Object val = actual.get(errorDecision);
 			if (val != null) {
@@ -826,9 +798,6 @@ class OfficialTckSuiteTest {
 			}
 		}
 		for (Map.Entry<String, TckValue> expected : testCase.expectedResults().entrySet()) {
-			if (testCase.expectedErrorResults().contains(expected.getKey())) {
-				continue;
-			}
 			Object normalizedExpected = normalize(expected.getValue().runtimeValue());
 			Object normalizedActual = normalize(actual.get(expected.getKey()));
 			if (normalizedExpected != null)

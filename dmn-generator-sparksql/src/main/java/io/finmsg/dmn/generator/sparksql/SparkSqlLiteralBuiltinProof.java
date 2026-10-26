@@ -80,7 +80,8 @@ final class SparkSqlLiteralBuiltinProof {
 			slot = binding.localSlot();
 		} else
 			return null;
-		if (slot < 0 || slot >= 64 || !(source instanceof RuntimeListExpression list) || list.elements().size() > 64
+		if (slot < 0 || slot >= 64 || !(source instanceof RuntimeListExpression || source instanceof RuntimeConstant)
+				|| source instanceof RuntimeListExpression list && list.elements().size() > 64
 				|| !literal(source, 0, new int[]{512}) || !closedPredicate(predicate, slot, 0, new int[]{128}))
 			return null;
 		var any = RuntimeType.scalar(RuntimeTypeKind.ANY);

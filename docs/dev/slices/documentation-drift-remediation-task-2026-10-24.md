@@ -2,7 +2,7 @@
 
 Date: 2026-10-24
 
-Status: Planned; implementation has not started
+Status: Open; Spark achievement publication completed 2026-10-26, broader drift work remains
 
 Verified implementation baseline: `518e37668f145305cd132ca5004167150804eb79`
 
@@ -19,7 +19,14 @@ This task owns public documentation, evidence publication and documentation chec
 Backend behavior, execution policy, coverage enforcement and rejection-reason auditing
 belong to the hardening task; reference its results rather than duplicate delivery.
 
-## Confirmed starting problems
+Spark publication checkpoint (2026-10-26): the README badge target, default-reactor
+wording and TCK commands were corrected. Public conformance and Spark architecture
+now record 3,391/3,391 native cases, zero fallback, and zero failures/errors/blocks,
+with retained per-case accounting. This fulfills the user-requested achievement
+publication; capability-matrix review, broader link review and drift-check expansion
+below remain open. See [verified execution evidence](security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections).
+
+## Confirmed starting problems (before this publication)
 
 - README's TCK badge links to missing `docs/tck/index.md`; the published source
   page is `docs/tck-conformance.md`.

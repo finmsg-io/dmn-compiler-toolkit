@@ -1,66 +1,23 @@
-2026-10-24 verified full temporal-chain checkpoint: 3,391/3,391 official TCK
-outcomes passed. Native Spark SQL: 2,715/2,715 executable cases (100%), which is
-2,715/3,391 total cases (80.06%). Fallback: 0/2,715 executable cases (0%).
-Compiler-rejected with NO Spark SQL executed: 676/3,391 cases (19.94%). These
-negative cases are neither native nor fallback. Their exact rejection reasons
-have not been audited against the TCK's intended error; the runner currently
-checks error expectation at case level. Failed/errors/unknown 0; unsupported,
-excluded, invalid and compilation-error outcomes 0. The 676 compiler rejections
-are recorded as expected passing outcomes, separately from unexpected compilation
-errors. Identical case keys/statuses to the ranking checkpoint; exactly one route
-changed: 0007-date-time#001 FALLBACK -> NATIVE. No reversals or rejection changes.
-This proves native execution for this executable TCK inventory, not all possible
-DMN/FEEL models. Outside bounded proofs, models can still require fallback.
-Temporal SQL retains nanoseconds, offsets, period/duration identity and named-zone
-rules. It uses Spark try_reflect built-ins calling standard JDK java.time factories
-for parsing/validation/formatting; arithmetic and zone selection are SQL. No FEEL
-evaluator or custom calculation UDF is called from SQL. Generated-schema inputRow
-projections are required. Constant-only expressions retain existing native paths.
-Full generator regression/install: 161/161 tests passed; 2,973 native SQL actions
-(96.15%), 119 fallback actions (3.85%) of 3,092; unknown 0. All 59 failed SQL
-actions were expected assertions: 58 native and one fallback. This action metric
-includes intentional fallback/error tests and is not the TCK-case denominator.
-Generator SHA256 (target and installed):
-941A917B54C82D03B59C865D37193E21FBDB98132167E6C2CAD7EA0748C45E8C.
-Accounting: dmn-tck-runner/target/native-temporal-chain-full-accounting-2026-10-24.json.
-Rejections: dmn-tck-runner/target/native-temporal-chain-full-rejections-2026-10-24.tsv.
-TCK log: dmn-tck-runner/target/native-temporal-chain-full-tck-2026-10-24.log.
-Generator log: dmn-generator-sparksql/target/native-temporal-chain-corrected-full-generator-2026-10-24.log.
-Scope, per-run history, limitations and rejection semantics:
-docs/dev/slices/native-temporal-chains-2026-10-24.md.
-Next: audit the 676 expected rejection reasons and broaden beyond-TCK temporal
-proofs where useful; never imply rejected cases executed native SQL.
-Checkpoint implementation follows bb0e090; use Git history for its commit identity.
-
 # Spark SQL Backend Architecture & Execution Strategies
 
 ## Status and scope
 
-The backend supports native SQL generation and an opt-in, decision-level Java
-interpreter fallback. Phase 1 establishes the execution bridge and static routing;
-it does **not** establish 100% TCK coverage.
-
-The saved `optimized-generated-sparksql` report at the start of this work contained
-2,883 passes, 482 failures, and 26 execution errors across 3,391 cases. It predates
-the hybrid bridge and is not a hybrid measurement. A future pinned TCK run must
-separately report native passes, fallback passes, failures, errors, and exclusions.
-Passing a pinned suite does not guarantee every possible DMN behavior.
+The optimized Spark SQL backend executed **all 3,391 pinned official TCK cases
+natively (100%)** on 2026-10-26, with **zero fallback, failed cases, compilation
+blocks, errors or unknown routes**. See the [conformance record](tck-conformance.md)
+for configuration, reproduction and retained per-case accounting.
 
 ## Native coverage: what the TCK rate means
 
-The verified 2026-10-24 optimized hybrid TCK run passed all 3,391 cases:
-2,714 native (99.96%) and 1 fallback (0.04%) out of 2,715 executable cases,
-plus 676 expected model rejections. Failed, execution errors and unknown routes
-were zero. See the [structured-ranking checkpoint](dev/slices/native-ranked-contexts-2026-10-24.md)
-for evidence and the remaining cases. Earlier measurements and initial allowlists
-below describe historical implementation stages.
+The denominator is all 3,391 official CL2/CL3 cases, including the formerly
+compiler-blocked negative cases. Every requested result is produced and checked;
+compilation rejection cannot count as passing. The measured configuration allows
+hybrid fallback but used none. Earlier milestones excluding rejected cases are
+historical and do not describe this result.
 
-Reaching zero fallback in this suite would mean 100% native routing across its
-2,715 executable cases. It would not prove native support for every valid DMN/FEEL
-model, every combination of features, or every production input. The 676 expected
-model rejections are separate from the native/fallback denominator. SQL action
-rates from generator regressions have a different denominator and must not be
-presented as official TCK coverage.
+This establishes self-verified conformance for the pinned suite. It does not prove
+native support for every model or production input. Regression SQL-action rates
+are separate measurements and must not be presented as official TCK coverage.
 
 Native lowering implements reusable patterns in the runtime IR rather than
 selecting implementations by official test-case names. Models with different
@@ -136,7 +93,8 @@ context-path inlining remains available. Capability checks reject external
 functions, captured lexical variables, function-returning functions, unresolved
 dynamic invocation targets, decision-table function references, and heterogeneous
 or untyped list literals conservatively. These checks do not prove every remaining
-native expression correct; native TCK failures remain work to do.
+native expression correct; the standalone pure-mode configuration has not been
+separately verified by the latest full TCK run.
 
 Spark SQL generation does not imply portable ANSI SQL. Catalyst/Photon support,
 planning time, and throughput depend on the plan and deployment. No fixed
@@ -145,11 +103,10 @@ planning-time or enterprise-coverage percentage is asserted.
 ### Hybrid mode
 
 `hybridUdfFallback=true` enables `SparkSqlCapabilityAnalyzer` and
-`SparkSqlDecisionUdf`. The initial native allowlist is intentionally small:
-string/boolean constants and value references, and conditionals whose complete
-subgraphs pass the same checks. Other expressions and decision tables use the
-Java baseline. This is an initial correctness boundary, not the final native
-coverage target.
+`SparkSqlDecisionUdf`. Capability checks admit supported expressions, decision
+tables and bounded lowering proofs. Unsupported required subgraphs retain the
+Java fallback; this broader-model boundary remains even though the pinned
+official suite now needs zero fallback.
 
 Analysis follows dependency **IDs** and expression value **slots** as distinct
 address spaces, including BKM dependencies. Each fallback UDF receives original

@@ -405,12 +405,81 @@ cover identified behavioral gaps rather than duplicating implementation details.
 
 ## 5. Audit expected TCK rejections
 
-**Current requirement and checkpoint, 2026-10-26:** the user requires every TCK
-case to execute and return its expected result. Compilation rejection is not a
-pass, regardless of a related diagnostic. The earlier audit-based acceptance
-below is historical and does not satisfy this requirement. The next runner change
-must remove rejection-as-pass, verify that each requested result was produced,
-and then fix the compiler/runtime/backend paths that block execution.
+Publication: the [public conformance record](../../tck-conformance.md) now describes
+this achievement, its tested configuration and reproduction command. The complete
+case ledger is retained at `docs/assets/tck-accounting-sparksql-native.json`,
+beyond ignored target logs. README, module README and Spark architecture now link
+the measured result. The user requested commit and push of this checkpoint.
+Documentation facts, strict MkDocs and whitespace checks are rerun before commit.
+
+**Final full native Spark checkpoint, 2026-10-26:** all **3,391/3,391**
+official cases executed natively and produced their expected results.
+**Native passed 3,391 (100%); fallback passed 0 (0%); failed 0; compilation
+blocked 0; execution/compilation errors 0; unknown routes 0**. Denominator:
+all 3,391 cases, none excluded or accepted through compiler rejection.
+Pinned TCK revision: `20274cd2ba9cad805db6114f331c743f4b2603a1`.
+Maven exited 0 with no Surefire fork-shutdown warning in this final run.
+Evidence in `dmn-tck-runner/target/`: `native-invalid-binding-full-tck.log`,
+`native-invalid-binding-full-accounting.json`,
+`native-invalid-binding-full-compilation-failures.tsv` (empty) and
+`native-invalid-binding-baseline-comparison.json`. Exactly one outcome route
+changed from the preceding strict full run: `0082-feel-coercion#invoke_007`,
+FALLBACK to NATIVE. All case keys, statuses and other routes are identical.
+The all-case native goal is achieved for this optimized pinned TCK inventory;
+models outside bounded native support can still require fallback.
+
+Preceding strict checkpoint (before the final binding fix):
+Execution-required checkpoint after pushed `f10ed08`, 2026-10-26:
+all **3,391 official Spark cases executed and produced expected results**.
+**3,390 native passes (99.97%), one fallback pass (0.03%), denominator 3,391**;
+zero failed cases, errors, compilation blocks, unsupported/excluded/invalid
+outcomes or unknown routes. All formerly blocked 662 cases executed. Maven exit 0;
+the known 30-second Surefire fork-shutdown warning followed completed tests.
+Evidence: `dmn-tck-runner/target/execution-required-full-spark-tck.log`,
+`execution-required-full-spark-accounting.json` and
+`execution-required-full-spark-compilation-failures.tsv` (empty).
+
+The sole fallback was `0082-feel-coercion#invoke_007`: an unknown named binding
+must prevent function invocation and return null. The native static function
+lowerer now checks names against the statically resolved signature before
+arguments/body evaluation, emitting native SQL null for invalid bindings.
+It uses no fixture inputs or expected answers. A regression verifies valid `arg`
+returns the body's 42 while `arg1` and `ARG` return null, all with no UDFs.
+Focused generator run: two tests passed, SQL actions six native (66.67%), three
+fallback (33.33%), denominator nine, zero unknown/failed actions. The fallbacks
+are existing guard scenarios. Log: `native-invalid-binding-focused-generator.log`
+in the generator target directory. Focused official coercion TCK: **36/36 passed,
+36 native (100%), zero fallback (0%), failed/errors/blocks/unknown zero**, Maven 0.
+Evidence: runner target `native-invalid-binding-focused-retry-tck.log` and
+`native-invalid-binding-focused-accounting.json`. The initial focused attempt
+was blocked by inherited full-suite enforcement before executing any cases; its
+harness errors are not conformance results. A command quoting retry also failed
+before Maven started. Full latest-source verification completed as recorded above.
+Target and installed generator JAR SHA256:
+`3DA4C4B17229EB93DE58A20CE6F22EAC3F0EC5D6D63960CC73CCC66438F15C44`.
+
+All three runner preparation paths now fail compilation rejection. Missing
+requested result nodes fail rather than masquerading as null. Four runner
+regressions passed, including refusal of all 676 historical diagnostics as
+execution evidence. The obsolete acceptance helper was removed; the table is
+historical only. Core verification passed 319 tests across eight modules,
+including a 32-expression interpreter/generated-Java result parity matrix.
+These checks execute no Spark SQL (native/fallback 0/0, denominator 0, rates N/A).
+Full Spark regression before the binding fix: 168 tests passed; measured SQL
+actions **3,030 native (96.19%), 120 fallback (3.81%), denominator 3,150**, unknown
+zero and 60 expected failed actions. These SQL-action counts are not TCK cases.
+Logs: runtime-IR target `execution-required-core-final.log`, runner target
+`execution-required-runner-tests.log`, generator target
+`execution-required-full-generator.log`.
+
+Production changes permit executable type-proven null plans and retain dynamic
+runtime coercion for invalid operations, predicates, invocation bindings and
+result declarations. No official fixture changes. The implementation and evidence
+are published together in this checkpoint. The user approved continuing this one fallback fix below the saved
+20% usage reserve. Legacy-parser timeouts remain deferred.
+
+Historical duration checkpoint below used rejection-as-pass and does not prove
+whole-inventory execution; it is superseded by the strict run above.
 
 The duration([]) fallback is fixed by extending the existing bounded pure-literal
 builtin proof to duration. It evaluates model arguments through the shared

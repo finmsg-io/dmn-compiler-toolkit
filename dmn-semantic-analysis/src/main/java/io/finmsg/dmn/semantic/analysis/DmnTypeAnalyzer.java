@@ -165,12 +165,8 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 					decision.getNode().getSourceLocation());
 			TypeReference declared = decision.getVariable().getType();
 			TypeReference inferred = logicType(typedLogic);
-			if (!isUnknown(declared) && !isUnknown(inferred) && !assignable(inferred, declared)) {
-				diagnostics.add(new DmnSemanticDiagnostic("DECISION_TYPE_MISMATCH",
-						"definitions/decision[" + decision.getNode().getName() + "]/variable", "Decision declares type "
-								+ typeName(declared) + " but its logic produces " + typeName(inferred) + ".",
-						decision.getNode().getSourceLocation()));
-			}
+			// Declared types are enforced by the runtime's FEEL coercion boundary.
+
 			return decision.toBuilder().setLogic(typedLogic).build();
 		}
 
@@ -195,9 +191,7 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 			if (actual.hasFunction()) {
 				actual = actual.getFunction().getReturnType();
 			}
-			validateValueType(actual, expected, "BKM_RETURN_TYPE_MISMATCH",
-					"definitions/businessKnowledgeModel[" + bkm.getNode().getName() + "]/variable",
-					bkm.getNode().getSourceLocation());
+
 			return bkm.toBuilder().setFunction(function).build();
 		}
 
@@ -484,7 +478,7 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 				}
 			}
 			Invocation typed = output.build();
-			validateBkmInvocation(typed, scope, path, location);
+			// Formal argument coercion is checked before executing the BKM body.
 			return typed;
 		}
 

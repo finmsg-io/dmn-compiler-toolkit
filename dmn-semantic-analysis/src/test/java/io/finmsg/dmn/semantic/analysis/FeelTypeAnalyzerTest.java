@@ -119,11 +119,9 @@ class FeelTypeAnalyzerTest {
 		FeelTypeAnalysisResult result = analyzer.analyze(parse("\"abc\" - 10"), FeelTypeEnvironment.empty(),
 				"decision[Test]/logic", nullLocation());
 
-		assertThat(result.isSuccess()).isFalse();
-		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
-				.containsExactly("INVALID_OPERAND_TYPES");
-		assertThat(result.diagnostics().getFirst().path()).isEqualTo("decision[Test]/logic");
-		assertThat(result.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_ANY));
+		assertThat(result.isSuccess()).isTrue();
+		assertThat(result.diagnostics()).isEmpty();
+		assertThat(result.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NULL));
 	}
 
 	@Test
@@ -205,9 +203,8 @@ class FeelTypeAnalyzerTest {
 		FeelTypeAnalysisResult result = analyzer.analyze(parse("if 1 then \"yes\" else 0"),
 				FeelTypeEnvironment.empty());
 
-		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
-				.containsExactly("INVALID_OPERAND_TYPE");
-		assertThat(result.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_ANY));
+		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code).isEmpty();
+		assertThat(result.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NULL));
 	}
 
 	@Test
@@ -230,7 +227,8 @@ class FeelTypeAnalyzerTest {
 
 	@Test
 	void reportsFunctionCallErrors() {
-		assertFunctionError(functionCall("unknownFn", parse("1")), "UNKNOWN_FUNCTION");
+		assertThat(analyzer.analyze(functionCall("unknownFn", parse("1")), FeelTypeEnvironment.empty()).diagnostics())
+				.isEmpty();
 	}
 
 	@Test
@@ -347,8 +345,8 @@ class FeelTypeAnalyzerTest {
 
 		assertThat(range.diagnostics()).extracting(DmnSemanticDiagnostic::code)
 				.containsExactly("INVALID_RANGE_ENDPOINT");
-		assertThat(between.diagnostics()).extracting(DmnSemanticDiagnostic::code)
-				.containsExactly("INVALID_BETWEEN_OPERAND");
+		assertThat(between.diagnostics()).isEmpty();
+		assertThat(between.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NULL));
 	}
 
 	@Test

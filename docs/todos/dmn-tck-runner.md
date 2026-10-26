@@ -1,17 +1,18 @@
-Current requirement — 2026-10-26: all 3,391 official cases must execute and return
-their expected results. Latest checkpoint: 2,729 native executions (80.48% of
-inventory), zero fallback, 662 unexecuted compiler rejections (19.52%). Rejections
-must not count as passes. The duration([]) fallback is fixed; next remove static
-acceptance and fix blocked execution. See [hardening evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections).
-The following dated checkpoints used older acceptance rules.
+Current Spark execution checkpoint - 2026-10-26: [hardening evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections).
+All 3,391 official cases executed natively and produced expected results:
+**3,391 native passes (100%), zero fallback (0%), zero failures, compilation
+blocks, errors or unknown routes**. Denominator: all 3,391 cases; no static
+rejection passes. Pinned TCK revision: 20274cd2ba9cad805db6114f331c743f4b2603a1.
+The final 0082-feel-coercion invoke_007 fallback is converted; exactly one route
+changed from the preceding 3,390-native/one-fallback run, with no other changes.
+Maven exited 0 with no fork-shutdown warning in the final run. Evidence:
+runner target native-invalid-binding-full-tck.log,
+native-invalid-binding-full-accounting.json and
+native-invalid-binding-baseline-comparison.json.
+The implementation, handover and retained accounting are published together in this checkpoint. Legacy-parser timeouts remain deferred.
+This proves this optimized pinned official suite, not unrestricted native FEEL.
 
-Current checkpoint — 2026-10-26: the 14 failures exposed by the stricter rejection
-audit are fixed, with all three backends passing each case. Full Spark TCK passed
-3,391/3,391: 2,728 native/2,729 executable (99.96%), one fallback (0.04%), 662
-static no-SQL rejections separately, failures/errors/unknown zero, Maven exit 0
-without shutdown warning. Remaining native work: duration([]), 1120#044_f3b338d877.
-See [hardening evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections).
-The dated checkpoints below used the earlier acceptance rule.
+Historical checkpoints below describe dated sources and older acceptance rules.
 
 2026-10-24 verified full temporal-chain checkpoint: 3,391/3,391 official TCK
 outcomes passed. Native Spark SQL: 2,715/2,715 executable cases (100%), which is

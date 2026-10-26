@@ -5267,6 +5267,37 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	void staticNamedBindingsRejectUnknownNamesBeforeInvokingBodyNatively() {
+		var number = SparkSqlHybridTest.NUMBER;
+		var functionType = RuntimeType.function(List.of(number), number);
+		var function = new RuntimeFunctionDefinition(List.of(new RuntimeFunctionParameter("arg", 0, number)),
+				Optional.of(SparkSqlHybridTest.number("42")), false, functionType);
+		for (String name : List.of("arg", "arg1", "ARG")) {
+			var invocation = new RuntimeInvocationExpression(Optional.empty(),
+					Optional.of(new RuntimeValueReference(0, functionType)),
+					List.of(new RuntimeNamedArgument(name, SparkSqlHybridTest.number("123"))), List.of(), number);
+			var model = new RuntimeModel(List.of(),
+					List.of(new RuntimeDecision(10, 1, number, List.of(7), Optional.of(invocation))),
+					List.of(new RuntimeBkm(7, 0, functionType, List.of(), RuntimeFunctionKind.FEEL,
+							Optional.of(function))),
+					List.of(7, 10), 2);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(10);
+			var generated = SparkSqlHybridTest.generate(model);
+			assertThat(generated.capabilities().get(10).nativeSql()).as(name).isTrue();
+			assertThat(generated.udfs()).isEmpty();
+			spark.range(1).createOrReplaceTempView("hybrid_inputs");
+			Object actual = spark.sql(generated.sqlFiles().get("Decision_1.sql")).head().get(0);
+			if (name.equals("arg")) {
+				assertThat(new BigDecimal(actual.toString())).isEqualByComparingTo("42");
+				assertThat(new BigDecimal(expected.toString())).isEqualByComparingTo("42");
+			} else {
+				assertThat(expected).isNull();
+				assertThat(actual).isNull();
+			}
+		}
+	}
+
+	@Test
 	void staticFunctionGuardsPreserveInvalidCallsAndBoundExpansion() {
 		var number = SparkSqlHybridTest.NUMBER;
 		var functionType = RuntimeType.function(List.of(number), number);

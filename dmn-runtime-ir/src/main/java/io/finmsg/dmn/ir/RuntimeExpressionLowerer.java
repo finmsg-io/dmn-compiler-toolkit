@@ -15,6 +15,10 @@ final class RuntimeExpressionLowerer {
 			List<io.finmsg.dmn.semantic.analysis.DmnSymbolBinding> bindings, Map<String, Integer> slots,
 			Map<String, ItemDefinition> itemTypes, Map<String, LocalSlotAddress> localSlots, int[] nextLocalSlot) {
 		RuntimeType type = RuntimeTypeLowerer.lower(expression.getInferredType(), itemTypes);
+		// A type-proven FEEL error is a null-valued executable plan, not a compilation
+		// rejection.
+		if (type.kind() == RuntimeTypeKind.NULL && !expression.hasLiteral())
+			return new RuntimeConstant(RuntimeConstantKind.NULL, "null", type);
 		return switch (expression.getNodeCase()) {
 			case LITERAL -> new RuntimeConstant(constantKind(expression.getLiteral().getKind()),
 					expression.getLiteral().getValue(), type);

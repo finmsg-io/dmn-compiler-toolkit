@@ -1,97 +1,41 @@
 package io.finmsg.dmn.tck;
 
 import static org.assertj.core.api.Assertions.*;
-import java.nio.file.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 class ExpectedRejectionAuditTest {
-	private static final Path ROOT = Path.of("src/test/resources/tck-official/TestCases");
-	private static final String ENTRY = "compliance-level-3/0057-feel-context/0057-feel-context-test-01.xml";
-	private static final String KEY = ENTRY + "#008";
-
-	private TckCatalogueEntry entry(String id) throws Exception {
-		Path test = ROOT.resolve(id);
-		Path model = test.getParent().resolve(test.getParent().getFileName() + ".dmn");
-		return new TckCatalogueEntry(id, test, Optional.of(model), List.of(model), new TckTestCaseReader().read(test),
-				Optional.empty());
-	}
-	private TckTestCase testCase(TckCatalogueEntry entry, String id) {
-		return entry.testCases().stream().filter(c -> c.id().equals(id)).findFirst().orElseThrow();
-	}
+	private final TckTestCase errorCase = new TckTestCase("error", "error", Map.of(),
+			Map.of("result", TckValue.nullValue()), Set.of("result"));
 
 	@Test
-	void verifiesEveryReviewedCaseAgainstOfficialFixtures() throws Exception {
-		Map<String, TckCatalogueEntry> entries = new HashMap<>();
-		int accepted = 0, requiresExecution = 0;
-		for (var row : ExpectedRejectionAudit.reviews().entrySet()) {
-			String[] key = row.getKey().split("#", 2);
-			TckCatalogueEntry entry = entries.get(key[0]);
-			if (entry == null) {
-				entry = entry(key[0]);
-				entries.put(key[0], entry);
-			}
-			TckTestCase testCase = testCase(entry, key[1]);
-			final TckCatalogueEntry current = entry;
-			if (row.getValue().classification().equals("RELATED_STATIC_REJECTION")) {
-				ExpectedRejectionAudit.requireReviewed(entry, testCase, row.getValue().diagnostic());
-				accepted++;
-			} else {
-				assertThatThrownBy(
-						() -> ExpectedRejectionAudit.requireReviewed(current, testCase, row.getValue().diagnostic()))
-						.isInstanceOf(AssertionError.class).hasMessageStartingWith("UNVERIFIED_MODEL_REJECTION:");
-				requiresExecution++;
+	void noHistoricalCompilationDiagnosticCanSatisfyExecution() throws Exception {
+		try (var input = getClass().getResourceAsStream("/expected-rejection-audit.tsv")) {
+			assertThat(input).isNotNull();
+			var rows = new String(input.readAllBytes(), StandardCharsets.UTF_8).lines().skip(1).toList();
+			assertThat(rows).hasSize(676);
+			for (String row : rows) {
+				var fields = row.split("\t", -1);
+				assertThatThrownBy(() -> OfficialTckSuiteTest.requireCompilationSucceeded(fields[9], null))
+						.isInstanceOf(AssertionError.class).hasMessageStartingWith("UNEXECUTED_COMPILATION_FAILURE:");
 			}
 		}
-		assertThat(accepted).isEqualTo(662);
-		assertThat(requiresExecution).isEqualTo(14);
 	}
-
 	@Test
-	void unrelatedCompilerErrorCannotSatisfyAnExpectedError() throws Exception {
-		var entry = entry(ENTRY);
-		assertThatThrownBy(() -> ExpectedRejectionAudit.requireReviewed(entry, testCase(entry, "008"),
-				"Compilation unsuccessful: SEMANTIC_ANALYSIS/UNKNOWN_NAME: unrelated error"))
-				.isInstanceOf(AssertionError.class).hasMessageContaining("diagnostic changed");
+	void missingOutputIsNotANullErrorResult() {
+		assertThatThrownBy(() -> OfficialTckSuiteTest.assertExpected("case", errorCase, Map.of(), "test"))
+				.isInstanceOf(AssertionError.class).hasMessageContaining("did not produce requested results");
 	}
-
 	@Test
-	void missingCaseReviewFailsClosed() throws Exception {
-		var entry = entry(ENTRY);
-		assertThatThrownBy(() -> ExpectedRejectionAudit.requireReviewed(entry, testCase(entry, "009"), "anything"))
-				.isInstanceOf(AssertionError.class).hasMessageContaining("No case-level review");
+	void producedNullIsCheckedAndAccepted() {
+		Map<String, Object> actual = new HashMap<>();
+		actual.put("result", null);
+		OfficialTckSuiteTest.assertExpected("case", errorCase, actual, "test");
 	}
-
 	@Test
-	void successOrMixedResultExpectationsCannotUseStaticAcceptance() throws Exception {
-		var entry = entry(ENTRY);
-		var values = Map.of("decision008", TckValue.nullValue(), "other", TckValue.bool(true));
-		var mixed = new TckTestCase("008", "mixed", Map.of(), values, Set.of("decision008"));
-		assertThatThrownBy(() -> ExpectedRejectionAudit.requireReviewed(entry, mixed,
-				ExpectedRejectionAudit.reviews().get(KEY).diagnostic())).isInstanceOf(AssertionError.class)
-				.hasMessageContaining("Not every requested result");
-	}
-
-	@Test
-	void changedRequestedResultCannotReuseReview() throws Exception {
-		var entry = entry(ENTRY);
-		var changed = new TckTestCase("008", "changed", Map.of(), Map.of("other", TckValue.nullValue()),
-				Set.of("other"));
-		assertThatThrownBy(() -> ExpectedRejectionAudit.requireReviewed(entry, changed,
-				ExpectedRejectionAudit.reviews().get(KEY).diagnostic())).isInstanceOf(AssertionError.class)
-				.hasMessageContaining("Requested result nodes changed");
-	}
-
-	@Test
-	void changedModelCannotReuseReview(@TempDir Path temporary) throws Exception {
-		var original = entry(ENTRY);
-		Path model = temporary.resolve("changed.dmn");
-		Files.writeString(model, "<changed/>");
-		var changed = new TckCatalogueEntry(ENTRY, original.testXml(), Optional.of(model), List.of(model),
-				original.testCases(), Optional.empty());
-		assertThatThrownBy(() -> ExpectedRejectionAudit.requireReviewed(changed, testCase(original, "008"),
-				ExpectedRejectionAudit.reviews().get(KEY).diagnostic())).isInstanceOf(AssertionError.class)
-				.hasMessageContaining("fixture changed");
+	void wrongProducedValueFailsEvenWhenCaseExpectsError() {
+		assertThatThrownBy(() -> OfficialTckSuiteTest.assertExpected("case", errorCase, Map.of("result", true), "test"))
+				.isInstanceOf(AssertionError.class).hasMessageContaining("expected FEEL error / null");
 	}
 }
