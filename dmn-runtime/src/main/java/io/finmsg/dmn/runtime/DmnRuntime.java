@@ -521,6 +521,8 @@ public final class DmnRuntime {
 					int index = position > 0 ? position - 1 : list.size() + position;
 					return index >= 0 && index < list.size() ? list.get(index) : null;
 				}
+				if (selector != null && !(selector instanceof Boolean))
+					return null;
 				if (Boolean.TRUE.equals(selector)) {
 					result.add(item);
 				}
@@ -594,13 +596,17 @@ public final class DmnRuntime {
 			}
 		}
 
-		private boolean quantify(RuntimeQuantifiedExpression value, int index, Frame frame) {
-			if (index == value.bindings().size())
-				return truth(expression(value.satisfies(), frame));
+		private Boolean quantify(RuntimeQuantifiedExpression value, int index, Frame frame) {
+			if (index == value.bindings().size()) {
+				Object result = expression(value.satisfies(), frame);
+				return result == null ? false : result instanceof Boolean bool ? bool : null;
+			}
 			RuntimeQuantifiedBinding binding = value.bindings().get(index);
 			for (Object item : list(expression(binding.source(), frame))) {
 				frame.set(binding.localSlot(), item);
-				boolean match = quantify(value, index + 1, frame);
+				Boolean match = quantify(value, index + 1, frame);
+				if (match == null)
+					return null;
 				if (value.quantifier() == RuntimeQuantifier.SOME && match)
 					return true;
 				if (value.quantifier() == RuntimeQuantifier.EVERY && !match)

@@ -13,6 +13,9 @@ final class SparkSqlLiteralBuiltinProof {
 	}
 
 	static RuntimeExpression result(RuntimeExpression expression) {
+		RuntimeExpression predicate = predicateResult(expression);
+		if (predicate != null)
+			return predicate;
 		String name;
 		List<RuntimeExpression> arguments = new ArrayList<>();
 		if (expression instanceof RuntimeFunctionCall call) {
@@ -25,7 +28,7 @@ final class SparkSqlLiteralBuiltinProof {
 		} else {
 			return null;
 		}
-		if (!Set.of("all", "any", "string join", "product", "median", "mode", "stddev")
+		if (!Set.of("all", "any", "string join", "product", "median", "mode", "stddev", "duration")
 				.contains(name.toLowerCase(Locale.ROOT)))
 			return null;
 		int[] budget = {512};
@@ -59,6 +62,56 @@ final class SparkSqlLiteralBuiltinProof {
 			return null;
 		return result.type().kind() == RuntimeTypeKind.NULL || expression.type().kind() == RuntimeTypeKind.ANY
 				|| expression.type().kind() == result.type().kind() ? result : null;
+	}
+
+	// Closed, bounded literal predicates are independent of host inputs and
+	// external functions.
+	private static RuntimeExpression predicateResult(RuntimeExpression expression) {
+		RuntimeExpression source, predicate;
+		int slot;
+		if (expression instanceof RuntimeFilterExpression filter) {
+			source = filter.source();
+			predicate = filter.filter();
+			slot = filter.localSlot();
+		} else if (expression instanceof RuntimeQuantifiedExpression quantified && quantified.bindings().size() == 1) {
+			var binding = quantified.bindings().getFirst();
+			source = binding.source();
+			predicate = quantified.satisfies();
+			slot = binding.localSlot();
+		} else
+			return null;
+		if (slot < 0 || slot >= 64 || !(source instanceof RuntimeListExpression list) || list.elements().size() > 64
+				|| !literal(source, 0, new int[]{512}) || !closedPredicate(predicate, slot, 0, new int[]{128}))
+			return null;
+		var any = RuntimeType.scalar(RuntimeTypeKind.ANY);
+		var decision = new RuntimeDecision(0, 0, any, List.of(), Optional.of(expression), Optional.empty(), slot + 1);
+		var model = new RuntimeModel(List.of(), List.of(decision), List.of(), List.of(0), 1);
+		Object value = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of()).decisionValue(0);
+		if (value == null)
+			return new RuntimeConstant(RuntimeConstantKind.NULL, "null", RuntimeType.scalar(RuntimeTypeKind.NULL));
+		if (value instanceof Boolean bool)
+			return new RuntimeConstant(RuntimeConstantKind.BOOLEAN, bool.toString(),
+					RuntimeType.scalar(RuntimeTypeKind.BOOLEAN));
+		return null;
+	}
+
+	private static boolean closedPredicate(RuntimeExpression expression, int slot, int depth, int[] budget) {
+		if (depth > 12 || --budget[0] < 0)
+			return false;
+		if (expression instanceof RuntimeConstant)
+			return literal(expression, 0, new int[]{1});
+		if (expression instanceof RuntimeLocalReference ref)
+			return ref.lexicalDepth() == 0 && ref.localSlot() == slot;
+		if (expression instanceof RuntimeConditionalExpression conditional)
+			return closedPredicate(conditional.condition(), slot, depth + 1, budget)
+					&& closedPredicate(conditional.thenExpression(), slot, depth + 1, budget)
+					&& closedPredicate(conditional.elseExpression(), slot, depth + 1, budget);
+		if (expression instanceof RuntimeBinaryExpression binary && Set.of(RuntimeBinaryOperator.EQUAL,
+				RuntimeBinaryOperator.NOT_EQUAL, RuntimeBinaryOperator.LESS, RuntimeBinaryOperator.LESS_EQUAL,
+				RuntimeBinaryOperator.GREATER, RuntimeBinaryOperator.GREATER_EQUAL).contains(binary.operator()))
+			return closedPredicate(binary.left(), slot, depth + 1, budget)
+					&& closedPredicate(binary.right(), slot, depth + 1, budget);
+		return false;
 	}
 
 	private static boolean literal(RuntimeExpression expression, int depth, int[] budget) {

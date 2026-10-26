@@ -1,3 +1,18 @@
+Current requirement — 2026-10-26: all 3,391 official cases must execute and return
+their expected results. Latest checkpoint: 2,729 native executions (80.48% of
+inventory), zero fallback, 662 unexecuted compiler rejections (19.52%). Rejections
+must not count as passes. The duration([]) fallback is fixed; next remove static
+acceptance and fix blocked execution. See [hardening evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections).
+The following dated checkpoints used older acceptance rules.
+
+Current checkpoint — 2026-10-26: the 14 failures exposed by the stricter rejection
+audit are fixed, with all three backends passing each case. Full Spark TCK passed
+3,391/3,391: 2,728 native/2,729 executable (99.96%), one fallback (0.04%), 662
+static no-SQL rejections separately, failures/errors/unknown zero, Maven exit 0
+without shutdown warning. Remaining native work: duration([]), 1120#044_f3b338d877.
+See [hardening evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections).
+The dated checkpoints below used the earlier acceptance rule.
+
 2026-10-24 verified full temporal-chain checkpoint: 3,391/3,391 official TCK
 outcomes passed. Native Spark SQL: 2,715/2,715 executable cases (100%), which is
 2,715/3,391 total cases (80.06%). Fallback: 0/2,715 executable cases (0%).

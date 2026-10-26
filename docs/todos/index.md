@@ -1,6 +1,6 @@
 # Module TODOs and active backlog
 
-Last reviewed: 2026-10-25
+Last reviewed: 2026-10-26
 
 Module delivery status records the implemented foundation, not completion of all
 security, correctness, operational or documentation work. Spark SQL and gRPC are
@@ -11,9 +11,8 @@ Historical checkpoints remain dated evidence and do not override the current bac
 
 | ID | Priority | Work item | Status | Primary owner / acceptance |
 | --- | --- | --- | --- | --- |
-| HARD-02 | P1 | Reproduce and consolidate Spark SQL literal escaping | in progress | [Hardening task, section 2](../dev/slices/security-correctness-hardening-task-2026-10-24.md); encoder and both generator regressions passed; default full TCK passed; legacy full TCK has two timeouts, validation remains open |
-| HARD-03 | P1 | Generated comparator reflection and error propagation | open | [Hardening task, section 3](../dev/slices/security-correctness-hardening-task-2026-10-24.md); behavior and ADR reconciliation |
-| TCK-REJECT | P1 | Audit the 676 expected compiler rejections | open | [Hardening task, section 5](../dev/slices/security-correctness-hardening-task-2026-10-24.md); case-level attribution to intended errors |
+| HARD-02 | P1 | Reproduce and consolidate Spark SQL literal escaping | legacy timeout validation deferred | [Hardening task, section 2](../dev/slices/security-correctness-hardening-task-2026-10-24.md); encoder and both generator regressions passed; default full TCK passed; legacy full TCK has two timeouts, deferred by user; validation remains open |
+| TCK-EXECUTE | P0 | Every official case executes and returns its expected result | open | [Hardening section 5](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections); 2,729 executed native, zero fallback, 662 blocked; remove rejection-as-pass and fix blocked paths |
 | DOC-01 | P1 | Public documentation, evidence provenance and drift checks | open | [Documentation task](../dev/slices/documentation-drift-remediation-task-2026-10-24.md); public descriptions and CI checks, not duplicate backend implementation |
 | COVERAGE | P2 | Measured coverage baselines and enforcement | open | [Hardening task, section 4](../dev/slices/security-correctness-hardening-task-2026-10-24.md); measured thresholds and missing error-path tests |
 | P19.1 | P2 | Explicit TCK inventory/outcome regression ratchet | planned | [Runner task](dmn-tck-runner.md); case-key/backend baseline and failure checks, beyond forbidding filters |
@@ -29,6 +28,20 @@ initiative has not been accepted for implementation. `done` applies only to the
 named deliverable with evidence. The former `ready` label is not proof of delivery.
 
 ## Completed milestones and continuing boundaries
+
+- Case-level audit inventory and 14 runtime fixes are recorded (2026-10-26).
+  This did not establish runtime conformance for 662 unexecuted cases. The user
+  now explicitly requires their execution; TCK-EXECUTE above remains open.
+  Full Spark TCK passed 3,391/3,391, with 2,728 native, one fallback and 662 static
+  rejections separately; all 14 fixed cases also passed on interpreter and Java.
+  See [section 5 evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections).
+  The duration([]) fallback was subsequently fixed. Whole-inventory execution
+  remains open because 662 cases are still blocked.
+
+- HARD-03 typed comparator dispatch and failure propagation are implemented and
+  validated (2026-10-25): eight module tests and 25 focused official Java TCK
+  cases passed. See [section 3 evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md#3-generated-comparator-reflection-and-failure-propagation).
+  This is focused Java evidence; HARD-02's Spark timeouts remain deferred.
 
 - HARD-01 external Java policy is implemented and validated (2026-10-25): default
   denial before class resolution, explicit exact-target permission, and host-owned

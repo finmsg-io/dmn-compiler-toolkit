@@ -899,7 +899,8 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 			} else if (item.hasType()) {
 				resolved = item.getType();
 			} else {
-				return type;
+				// An item definition without a base type or components is unconstrained.
+				resolved = ANY;
 			}
 			return item.getIsCollection() ? list(resolved) : resolved;
 		}

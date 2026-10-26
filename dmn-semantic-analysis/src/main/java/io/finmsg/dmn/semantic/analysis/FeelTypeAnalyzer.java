@@ -267,8 +267,8 @@ public final class FeelTypeAnalyzer {
 			if (compatible(thenExpression.type, elseExpression.type)) {
 				result = commonType(thenExpression.type, elseExpression.type);
 			} else {
-				error("INCOMPATIBLE_BRANCH_TYPES", path, "If branches have incompatible types "
-						+ typeName(thenExpression.type) + " and " + typeName(elseExpression.type) + ".");
+				// FEEL conditionals may return different types; validate the selected value at
+				// runtime.
 				result = ANY;
 			}
 			Expression expression = input.toBuilder()

@@ -239,8 +239,11 @@ class OfficialTckSuiteTest {
 					.add(recordedTest(testName + " @" + interpreterBackend, entry, testCase, interpreterBackend, () -> {
 						Preparation preparation = getPreparation(sources, testCase, modelMode);
 						if (preparation.failureDiagnostic() != null) {
-							if (expectsOnlyErrors(testCase) && preparation.modelRejected())
+							if (expectsOnlyErrors(testCase) && preparation.modelRejected()) {
+								ExpectedRejectionAudit.requireReviewed(entry, testCase,
+										preparation.failureDiagnostic());
 								return;
+							}
 							throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
 						}
 						TckExecutionResult result = interpreterEngine.execute(preparation.compilation(), testCase);
@@ -253,8 +256,11 @@ class OfficialTckSuiteTest {
 					recordedTest(testName + " @" + generatedJavaBackend, entry, testCase, generatedJavaBackend, () -> {
 						Preparation preparation = getPreparation(sources, testCase, modelMode);
 						if (preparation.failureDiagnostic() != null) {
-							if (expectsOnlyErrors(testCase) && preparation.modelRejected())
+							if (expectsOnlyErrors(testCase) && preparation.modelRejected()) {
+								ExpectedRejectionAudit.requireReviewed(entry, testCase,
+										preparation.failureDiagnostic());
 								return;
+							}
 							throw new AssertionError(preparation.failureDiagnostic(), preparation.failureCause());
 						}
 						GeneratedPreparation generated = getGeneratedPreparation(sources, testCase, modelMode,
@@ -271,6 +277,9 @@ class OfficialTckSuiteTest {
 						Preparation preparation = getPreparation(sources, testCase, modelMode);
 						if (preparation.failureDiagnostic() != null) {
 							if (expectsOnlyErrors(testCase) && preparation.modelRejected()) {
+								sparkRoutes.put(testName, "UNVERIFIED_MODEL_REJECTION");
+								ExpectedRejectionAudit.requireReviewed(entry, testCase,
+										preparation.failureDiagnostic());
 								sparkRoutes.put(testName, "EXPECTED_MODEL_REJECTION");
 								expectedRejectionDiagnostics.put(testName + " @" + generatedSparkSqlBackend,
 										preparation.failureDiagnostic());
@@ -732,7 +741,18 @@ class OfficialTckSuiteTest {
 				System.out.printf(" REJECTED / ALL SPARK TCK: %d/%d (%.2f%%; NO SQL execution)%n", rejectedCases,
 						sparkOutcomes.size(), rejectedCases * 100.0 / sparkOutcomes.size());
 			}
-			System.out.println(" Rejection acceptance checks expected errors, not the precise diagnostic cause.");
+			long unverified = sparkOutcomes.stream()
+					.filter(o -> "UNVERIFIED_MODEL_REJECTION".equals(sparkRoutes.get(o.entryId() + "#" + o.caseId())))
+					.count();
+			long unknown = sparkOutcomes.stream()
+					.filter(o -> !Set.of("NATIVE", "FALLBACK", "EXPECTED_MODEL_REJECTION", "UNVERIFIED_MODEL_REJECTION")
+							.contains(sparkRoutes.getOrDefault(o.entryId() + "#" + o.caseId(), "")))
+					.count();
+			System.out.printf(" UNVERIFIED REJECTIONS   : %d (failed; NO SQL; included in non-rejected denominator)%n",
+					unverified);
+			System.out.printf(" UNKNOWN SPARK ROUTES    : %d%n", unknown);
+			System.out.println(
+					" Rejection acceptance requires matching case review, fixtures, requested errors and exact diagnostic.");
 			System.out.println(" Rejection reasons: target/tck-expected-rejections" + variant + ".tsv");
 		}
 		System.out.printf(" FAILED      : %d%n", failed);

@@ -25,6 +25,13 @@ class FeelTypeAnalyzerTest {
 	private final FeelTypeAnalyzer analyzer = new FeelTypeAnalyzer();
 
 	@Test
+	void heterogeneousConditionalHasAnyType() {
+		var result = analyzer.analyze(parse("if true then true else \"not boolean\""), FeelTypeEnvironment.empty());
+		assertThat(result.diagnostics()).isEmpty();
+		assertThat(result.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_ANY));
+	}
+
+	@Test
 	void preservesInlineNestedItemFieldsAndCollectionLayers() {
 		for (boolean collection : List.of(false, true)) {
 			var monthly = ItemComponent.newBuilder().setNode(Node.newBuilder().setName("Monthly"))
@@ -194,12 +201,12 @@ class FeelTypeAnalyzerTest {
 	}
 
 	@Test
-	void reportsNonBooleanIfConditionAndIncompatibleBranches() {
+	void reportsNonBooleanIfConditionButAllowsHeterogeneousBranches() {
 		FeelTypeAnalysisResult result = analyzer.analyze(parse("if 1 then \"yes\" else 0"),
 				FeelTypeEnvironment.empty());
 
-		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code).containsExactly("INVALID_OPERAND_TYPE",
-				"INCOMPATIBLE_BRANCH_TYPES");
+		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
+				.containsExactly("INVALID_OPERAND_TYPE");
 		assertThat(result.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_ANY));
 	}
 

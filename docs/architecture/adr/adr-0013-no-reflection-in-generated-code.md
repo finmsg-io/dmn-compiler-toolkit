@@ -25,6 +25,17 @@ Reflection inhibits JVM optimizations and increases runtime overhead.
 ## Decision
 
 Generated code must use direct method calls and strongly typed APIs.
+Sort comparators dispatch through the same generated `FeelCallable` interface as
+FEEL functions, or the existing `BiFunction` adapter for two-argument BKMs.
+Comparator exceptions propagate; a returned null retains the runtime's equality
+mapping and is distinct from a failed invocation.
+
+This rule governs generated dispatch. Model-defined external Java functions call
+the explicit `DmnRuntime.invokeExternalJava` helper, whose policy-controlled
+reflection is a deliberate runtime boundary (HARD-01), not generated reflective
+method discovery. Production engines deny these calls by default; hosts must
+approve exact targets. This ADR does not claim that the entire runtime call graph
+is reflection-free. See the [hardening evidence](../../dev/slices/security-correctness-hardening-task-2026-10-24.md).
 
 ---
 

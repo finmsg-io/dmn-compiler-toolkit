@@ -2,7 +2,7 @@
 
 Date: 2026-10-24
 
-Status: HARD-01 implemented and validated on 2026-10-25; HARD-02 implementation is under validation. Remaining hardening work stays open.
+Status: HARD-01 implemented and validated on 2026-10-25; HARD-02 legacy full-TCK timeouts are deferred at user request; HARD-03 is implemented and validated. Remaining hardening work stays open.
 
 Baseline commit: `518e37668f145305cd132ca5004167150804eb79`
 
@@ -320,18 +320,70 @@ documented. Inconsistent style alone must not be reported as a reproduced bug.
 
 ## 3. Generated comparator reflection and failure propagation
 
-- [ ] Replace reflective sort-comparator dispatch with an explicit callable
+Implementation, 2026-10-25: sort now directly invokes the existing generated
+`FeelCallable` interface, retaining the `BiFunction` adapter for two-argument
+BKMs. Reflective call/apply discovery, accessibility changes and catch/retry
+suppression are removed. True/false/null results retain the shared runtime's
+-1/+1/0 mapping; null is an intentional result, not a caught failure. Policy
+denial and host comparator exceptions propagate unchanged. No public interface,
+dependency or runtime implementation changed.
+
+The user explicitly deferred HARD-02's two legacy-parser full-TCK timeouts and
+authorized moving on. They remain unresolved evidence, not passing cases.
+
+JUnit baseline `dmn-generator-java/target/comparator-before-fix.log`: six tests,
+five passed and one failed because generated source contained reflection. Final
+module regression/format/install `comparator-final-generator.log`: **8/8 passed**,
+zero failures/errors/skips, Maven exit 0. Tests compile and execute generated Java
+for ascending/descending, constant true/false/null, ties, captured bindings,
+named arguments, BKM adapters, policy denial and host comparator failure identity.
+These runs execute no Spark SQL: native/fallback 0/0, denominator 0, rates not
+applicable, failed/unknown SQL actions 0/0. Target generator SHA256:
+`4D8A902A79343516FF5479CC24D070A68BF06506C322FC82C1C0EEC569DCBC91`.
+
+Inspection found no remaining reflection in Java generator production templates.
+Other catches handle range bounds or temporal parsing/construction, including
+offset parsing retries; they do not dispatch comparators. External method
+reflection remains in the explicit policy-controlled runtime helper, documented
+as the boundary in ADR-0013; this is not a reflection-free runtime claim.
+
+The final module rerun after adding ordinary `FeelCallable` exception-identity
+coverage also passed **8/8**, zero failures/errors/skips, Maven exit 0:
+`dmn-generator-java/target/comparator-final-callable-generator.log`. Production
+sources were unchanged. Native/fallback SQL 0/0, denominator 0, rates not
+applicable, failed/unknown SQL actions 0/0.
+
+Focused official optimized generated-Java TCK passed **25/25** (0013-sort and
+0084-feel-for-loops), zero failures, execution/compilation errors, unsupported,
+excluded or invalid outcomes, Maven exit 0. This is focused Java evidence, not a
+full-suite or Spark checkpoint. Spark native/fallback SQL 0/0, executable Spark
+denominator 0, rates undefined/not applicable; compiler rejections and unknown
+Spark routes 0. Log and retained accounting:
+`dmn-tck-runner/target/comparator-focused-java-tck-retry.log` and
+`comparator-focused-java-accounting.json`. The first command failed before any
+tests because Windows interpreted a pipe in the filter; no SQL or TCK cases ran.
+Successful reproduction: `mvn -Ptck -pl dmn-tck-runner test
+-Dtest=OfficialTckSuiteTest -Dtck.skip=false -Dtck.requireFull=false
+-Dtck.filter=0013-sort,0084 -Dtck.backend=java -Dtck.modelVariant=optimized`.
+
+Documentation facts (12 reactor modules), strict MkDocs and whitespace checks
+passed. These checks execute no SQL (0/0 native/fallback, denominator 0, rates
+undefined, failed/unknown 0/0). HARD-03 changes remain uncommitted. No new Spark
+source changed, and no Spark TCK was rerun for this Java-only change; the two
+HARD-02 legacy timeouts remain deferred at user request. Next active priority is
+the separate 676-case expected-rejection semantic audit (TCK-REJECT).
+
+- [x] Replace reflective sort-comparator dispatch with an explicit callable
   interface or strongly typed adapter shared with generated functions.
-- [ ] Define and preserve behavior for comparator true, false, null and errors.
+- [x] Define and preserve behavior for comparator true, false, null and errors.
   Do not silently turn invocation failures into equality.
-- [ ] Exercise comparator closures, bindings, nulls, ties and failures through
+- [x] Exercise comparator closures, bindings, nulls, ties and failures through
   generated Java, comparing behavior with the shared runtime.
-- [ ] Search emitted sources for reflective dispatch and swallowed exceptions
+- [x] Search emitted sources for reflective dispatch and swallowed exceptions
   after the change. Investigate other occurrences rather than assuming sort is
   the only path.
-- [ ] Resolve ADR-0013 implementation compliance and any deliberate external-function
-  exception as part of HARD-03. Supply verified behavior and limitations to the
-  documentation task, which owns publishing the updated parity descriptions.
+- [x] Resolve ADR-0013 implementation compliance and the external-function
+  boundary. Public parity wording remains owned by the documentation task.
 
 Acceptance: generated comparator execution uses the intended callable API, failures
 follow the defined semantics, and architecture claims match the implementation.
@@ -353,19 +405,220 @@ cover identified behavioral gaps rather than duplicating implementation details.
 
 ## 5. Audit expected TCK rejections
 
-- [ ] Classify all 676 saved rejection diagnostics and relate each case to its
+**Current requirement and checkpoint, 2026-10-26:** the user requires every TCK
+case to execute and return its expected result. Compilation rejection is not a
+pass, regardless of a related diagnostic. The earlier audit-based acceptance
+below is historical and does not satisfy this requirement. The next runner change
+must remove rejection-as-pass, verify that each requested result was produced,
+and then fix the compiler/runtime/backend paths that block execution.
+
+The duration([]) fallback is fixed by extending the existing bounded pure-literal
+builtin proof to duration. It evaluates model arguments through the shared
+runtime and emits the resulting null as native SQL; dynamic arguments remain
+guarded. Full Spark generator verification passed 168 JUnit tests, zero
+failures/errors/skips. SQL actions: **3,030 native (96.19%), 120 intentional
+fallback (3.81%), denominator 3,150, unknown 0, 60 expected SQL-error assertions**.
+Log: `dmn-generator-sparksql/target/duration-empty-list-full-generator.log`.
+
+Full official inventory: **2,729/3,391 cases executed natively and matched
+expected results (80.48% of the inventory); zero executed fallback**. This is
+**100% native and 0% fallback of the 2,729 cases that executed**, not execution
+of the entire inventory. **662 cases remain unexecuted (19.52%)**. The current
+runner still reports 3,391 passes by accepting those rejections; that reported
+pass total is not valid under the user's clarified requirement. No executed-case
+failures/errors or unknown routes were recorded. Exactly one route changed from
+the preceding checkpoint: 1120#044_f3b338d877 duration([]), FALLBACK -> NATIVE.
+All case keys, other outcomes and artifact hashes were stable during the run.
+
+Evidence in `dmn-tck-runner/target/`: `duration-empty-list-full-tck.log`,
+`duration-empty-list-full-accounting.json`, `duration-empty-list-full-rejections.tsv`,
+and `duration-empty-list-baseline-comparison.json`. Target/installed Spark JAR
+SHA256: `6F26C6434D140F1A122D325FDC6B2A040D4F1D4A05469398352E6BA4AC5D97C9`.
+Maven exited 0, but this run emitted the known 30-second Surefire fork-shutdown
+warning; clean process shutdown remains unverified. Documentation facts (12
+reactor modules), strict MkDocs and whitespace checks passed. Formatting was
+applied in the passing builds; the additional final read-only formatting check
+was declined. These documentation checks execute no SQL (native/fallback 0/0,
+denominator 0, rates undefined, failed/unknown 0/0).
+This checkpoint will be committed/pushed at the user's request before implementing
+the all-cases-execute requirement. The 662-case execution work remains open;
+none of those cases may be silently accepted, excluded or supplied with fixture
+expected answers instead of evaluating the model.
+
+
+Acceptance terminology clarification, 2026-10-26: the 662 classifications were
+made by this toolkit's agent-authored audit/runner rule, not individually approved
+by the user, TCK authors or a standards body. Matching a diagnostic to an intended
+negative operation establishes related static negative evidence. It does not
+establish that rejecting compilation satisfies that case's required runtime
+behavior. These cases remain unexecuted, and standards/runtime-conformance
+justification remains open. Counts described below as accepted or passed use
+that limited runner classification; they are not certification. The audit
+inventory and stricter guard are implemented, but the broader rejection semantic
+review must not be described as complete on that basis alone.
+
+Audit in progress, 2026-10-25. The former runner accepted any unsuccessful
+compilation when all requested results expected errors. The new test-only guard
+requires a case-level review with the exact diagnostic, requested error-result
+names, and SHA256 hashes of the official model and test XML (CRLF normalized to
+LF). Missing/stale reviews fail visibly on interpreter, generated Java and Spark.
+Official fixtures, compiler behavior, and Spark generation remain unchanged.
+
+The tracked `dmn-tck-runner/src/test/resources/expected-rejection-audit.tsv`
+contains all **676 unique cases** from the last passing default-parser checkpoint.
+Each row records requested result names, case description, the diagnosed model
+node/expression, full diagnostic, source/diagnostic hashes, classification and
+justification. Diagnostic paths were resolved to the requested decision or its
+referenced BKM. `tools/audit_tck_rejections.py` reproduces the table from
+`literal-escaping-default-full-rejections.tsv`; it pins the reviewed input digest
+and refuses different inventories rather than approving future diagnostics by
+category. Regeneration matched the tracked table byte for byte.
+
+| Attribution | Cases | Meaning |
+| --- | --- | --- |
+| Related static negative evidence | 662 | Diagnostic addresses the negative operation/type contract in that specific case; not proof of runtime error behavior or SQL execution |
+| Duration argument/null behavior masked by declared result-type rejection | 11 | 1120 cases 001 and 041–050: the diagnosed result type does not test the duration expression |
+| Predicate behavior masked by mixed branch-type rejection | 3 | 1151 case 005, 1153 case 006, 1154 case 006: runtime predicate evaluation is still required |
+
+The 14 `REQUIRES_EXECUTION` rows are refused by static acceptance. No replacement
+native/fallback error plan has been implemented, and they are not claimed fixed.
+For example, 1120 case 001 asks for `duration(null)` but compilation fails on its
+declared result type; 1151 case 005 asks for a filtering error after evaluating
+`if item <= 3 then true else "not a boolean"`, while compilation rejects its
+branch types. Those rejections do not establish the requested runtime behavior.
+The 662 related rows remain bounded static negative evidence; their acceptance
+does not imply all of their runtime paths were tested.
+
+Guard JUnit verification: **6/6 passed**, zero failures/errors/skips, Maven exit 0.
+It checks every row against the official fixtures and tests unrelated diagnostics,
+missing reviews, mixed success/error expectations, changed requested results and
+changed models. Log: `dmn-tck-runner/target/rejection-audit-unit.log`.
+Native/fallback SQL 0/0, denominator 0, rates undefined/not applicable,
+failed/unknown SQL actions 0/0. Audit generation also executes no FEEL or SQL.
+
+Full latest optimized default-parser Spark TCK, 2026-10-25:
+**3,377/3,391 passed (99.59%), 14 failed**, zero execution errors, unexpected
+compilation errors, unsupported, excluded, invalid or unknown routes. Native:
+**2,715/2,729 non-rejected cases (99.49%; 80.06% of all cases)**; fallback:
+**0/2,729 (0%)**. Separately, **662 accepted static compiler rejections
+(19.52% of all cases)** executed no SQL. The **14 unverified compiler rejections**
+also executed no SQL, fail acceptance, and remain in the 2,729 denominator. They
+are failed TCK cases, not expected failed-SQL action assertions. SQL-action failure
+counts are not measured by this case-accounting report.
+
+All 3,391 case keys match the prior passing default-parser checkpoint. Exactly
+14 complete outcomes changed: `EXPECTED_MODEL_REJECTION` passes became
+`UNVERIFIED_MODEL_REJECTION` failures for the reviewed runtime-required cases.
+All 2,715 native outcomes and the other 662 static outcomes are unchanged; no
+native/fallback route changed. No timeout occurred in this run. This does not
+resolve or explain the separately deferred HARD-02 legacy-parser timeouts.
+Production sources and runner logic remained frozen. Target and installed
+Spark generator hashes remained identical after the run:
+`E4C1D70E96CED2EDC95AC77281604F128DDE3E144FA60A82B7FD002DC740D491`.
+Maven exited **1** because of those 14 test failures. The 30-second Surefire
+fork-shutdown warning also recurred; this failed run does not establish clean
+process shutdown.
+
+Evidence in `dmn-tck-runner/target/`: `rejection-audit-full-spark-tck.log`,
+`rejection-audit-full-accounting.json`, `rejection-audit-full-rejections.tsv`
+(662 accepted reasons), and `rejection-audit-baseline-comparison.json` (all 14
+changes). Reproduce the full command in section 1 with
+`-Dspark.sql.parser.escapedStringLiterals=false`, using the new runner sources.
+The runner now reports unverified no-SQL rejections separately, includes them in
+the non-rejected denominator, and prints unknown route counts explicitly.
+
+The audit and acceptance guard are implemented, but TCK-REJECT remains open:
+provide correct executable error plans for the 11 duration and three predicate
+cases, compare actual behavior across backends, and repeat full TCK. Do not
+restore blanket acceptance, edit official fixtures, exclude cases or label the
+14 failures as passing rejections merely to retain the former pass count.
+Current runner/audit changes and the preceding HARD-03 changes are uncommitted.
+
+Runtime-plan fix implemented and validated (user request; handover 2026-10-26). Known unconstrained
+item definitions now resolve to ANY for decision assignability. Heterogeneous
+conditional branches infer ANY instead of causing a compilation failure. Runtime
+and generated Java propagate null for an evaluated non-boolean filter/quantifier
+predicate; existing null-selector behavior and quantifier short-circuiting remain.
+The generated quantifier adapter preserves invalid-result propagation through
+nested bindings. A bounded Spark literal predicate proof evaluates only closed
+literal lists and a restricted local comparison/conditional tree, with no host
+inputs, calls or captured bindings. Null/boolean results become native constants.
+It is model-literal folding, not a fixture-name or expected-answer lookup.
+
+Reproducer: 46 semantic tests, 3 failures, no errors/skips, no SQL; log
+`dmn-semantic-analysis/target/rejected14-before-fix.log`. Core regression/install:
+319 tests across eight modules, all passed, no failures/errors/skips; log
+`dmn-generator-java/target/rejected14-core-regressions.log`. Both runs execute
+no SQL (native/fallback 0/0, denominator 0, rates undefined, failed/unknown 0/0).
+Focused executing Spark regression: 1 test passed, **5 native actions (100%),
+0 fallback (0%), denominator 5, failed/unknown 0/0**; log
+`dmn-generator-sparksql/target/rejected14-focused-generator.log`.
+
+Final generator regression/install passed **9 Java + 168 Spark JUnit tests**,
+zero failures/errors/skips, Maven exit 0. SQL actions across all four executing
+Spark suites: **3,029 native (96.19%), 120 fallback (3.81%), denominator 3,149,
+unknown 0; 60 failed SQL actions, all expected assertions**. Per-suite counts:
+DMN 13/0/13, hybrid 2,947/120/3,067 (60 expected failures), literal escaping
+50/0/50, temporal chains 19/0/19 (native/fallback/denominator). Log:
+`dmn-generator-sparksql/target/rejected14-full-generators.log`.
+
+Focused official suites 1120/1151/1153/1154 passed **192/192 backend outcomes**:
+64 interpreter, 64 generated Java, 64 Spark. All 14 formerly failed cases passed
+on every backend (42 checked outcomes). Spark: **60 native/61 non-rejected
+(98.36%), 1 fallback/61 (1.64%)**, plus 3 accepted static rejections with no SQL.
+Failed, errors, unexpected compilation errors and unknown routes: zero. Maven
+exit 0, no fork-shutdown warning. Evidence in `dmn-tck-runner/target/`:
+`rejected14-focused-all-tck.log`, `rejected14-focused-all-accounting.json`, and
+`rejected14-focused-all-rejections.tsv`. Reproduce with the full command in
+section 1, replacing requireFull with false and adding
+`-Dtck.filter=1120,1151,1153,1154 -Dtck.backend=all`.
+
+Full latest optimized default-parser Spark TCK passed **3,391/3,391**, Maven
+exit 0, no fork-shutdown warning. **2,728 native/2,729 executable (99.96%;
+80.45% of all cases), 1 fallback/2,729 (0.04%)**, separately **662 accepted
+static rejections (19.52%, no SQL)**. Failed, execution errors, unexpected
+compilation errors, unsupported, excluded, invalid, unverified rejections and
+unknown routes: zero. These are TCK cases; SQL-action failure counts are not
+inferred from this report.
+
+All 3,391 keys match the stricter audit baseline. Exactly 14 outcomes changed:
+13 failed no-SQL rejections became native passes; one became a fallback pass.
+All previous 2,715 native outcomes and 662 static outcomes are unchanged. The
+remaining fallback is **1120-feel-duration-function#044_f3b338d877,
+`duration([])`**. This fixes all 14 failures but does not achieve the continuing
+100%-native/zero-fallback goal. Do not report the fallback as native or call it
+a Spark platform limitation. It needs a separate verified native argument/error
+proof; no further implementation began under the usage checkpoint rule.
+
+Evidence in `dmn-tck-runner/target/`: `rejected14-full-spark-tck.log`,
+`rejected14-full-accounting.json`, `rejected14-full-rejections.tsv` and
+`rejected14-baseline-comparison.json`. Production sources stayed frozen during
+validation. Target and installed Spark generator SHA256 match before/after TCK:
+`FC7846FCBECAE88FD47DC703179E3CF7E81DFE025EDA71289E15FE2EBFEEF9A4`.
+The audit manifest deliberately retains its historical 14 REQUIRES_EXECUTION
+rows: those cases now compile and execute, and cannot regress to accepted static
+rejections. Neither the strict guard nor official fixtures were weakened.
+
+Handover 2026-10-26: TCK-REJECT audit and its 14 runtime fixes are validated;
+662 accepted rows remain static negative evidence, not runtime execution.
+HARD-03, audit/runner and runtime-fix changes remain uncommitted. Next measured
+native work is the single `duration([])` fallback. HARD-02 legacy-parser timeouts
+remain deferred at user request. The last usage check left 7% in the primary
+window, so only verification/handover continued; check usage before new work.
+
+- [x] Classify all 676 saved rejection diagnostics and relate each case to its
   expected error condition. Repeated diagnostic categories are not a substitute
   for case-level attribution.
-- [ ] Distinguish correct static rejection, a different compiler error masking the
+- [x] Distinguish related static negative evidence, a different compiler error masking the
   intended error, and an error that requires runtime execution to test properly.
-- [ ] Tighten acceptance where necessary so an unrelated compilation failure cannot
+- [x] Tighten acceptance where necessary so an unrelated compilation failure cannot
   satisfy an error-expecting case. Preserve official fixtures unchanged.
-- [ ] Where runtime evaluation is required, define a correct executable error plan
+- [x] Where runtime evaluation is required, define a correct executable error plan
   and verify its behavior before classifying it as native or fallback.
 - [x] Runner summary distinguishes native/fallback passes from compiler rejection
   with no SQL execution and prints non-rejected/all-case denominators. Implemented
   in `518e376`; this completed reporting work is not part of the remaining audit.
-- [ ] Check unclassified/unknown routes explicitly in the accounting/ratchet work
+- [x] Check unclassified/unknown routes explicitly in the accounting/ratchet work
   and prevent them from being hidden by aggregate pass counts. Public propagation
   of the existing reporting distinctions belongs to the documentation task.
 

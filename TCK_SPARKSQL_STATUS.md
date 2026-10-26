@@ -1,9 +1,14 @@
-Current handover — 2026-10-25: see [HARD-02 validation and next steps](docs/dev/slices/security-correctness-hardening-task-2026-10-24.md#2-spark-sql-literal-escaping-correctness-priority).
-Both generator regressions passed; the default-parser full TCK passed. The
-legacy-parser full TCK finished with two 30-second timeouts (3,389/3,391 passed).
-HARD-02 validation remains open; resume with those cases and a full legacy recheck.
-New implementation is stopped under the usage checkpoint rule. HARD-03 is next
-after HARD-02 validation. The user requested committing and pushing this checkpoint; HARD-01 was already pushed.
+Current requirement/checkpoint — 2026-10-26: [hardening evidence](docs/dev/slices/security-correctness-hardening-task-2026-10-24.md).
+Every TCK case must execute and return its expected result. Compiler rejection
+is not a pass. The duration([]) fallback is fixed: 2,729/3,391 cases executed
+natively and matched expected results (80.48% of inventory), zero fallback;
+662 cases remain unexecuted (19.52%). Native/fallback rates among executed cases
+are 100%/0%, but whole-inventory execution remains incomplete. The current
+runner's 3,391-pass total still includes the 662 rejections and does not satisfy
+the clarified requirement. Full generator regression: 168 tests passed.
+User order: commit/push this checkpoint, then remove rejection-as-pass and fix
+blocked execution. Do not count the historical static negative classifications
+as runtime conformance. Legacy-parser timeouts remain deferred.
 
 Historical checkpoint follows; its figures describe its dated source state.
 

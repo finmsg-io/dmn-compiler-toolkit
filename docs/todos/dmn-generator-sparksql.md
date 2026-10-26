@@ -1,3 +1,16 @@
+Current requirement — 2026-10-26: all 3,391 official cases must execute and return
+their expected results. Latest checkpoint: 2,729 native executions (80.48% of
+inventory), zero fallback, 662 unexecuted compiler rejections (19.52%). Rejections
+must not count as passes. The duration([]) fallback is fixed; next remove static
+acceptance and fix blocked execution. See [hardening evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections).
+The following dated checkpoints used older acceptance rules.
+
+Current checkpoint — 2026-10-26: full optimized TCK passed 3,391/3,391;
+2,728 native/2,729 executable (99.96%), one fallback (0.04%), 662 static rejections
+with no SQL. The remaining fallback is duration([]), 1120#044_f3b338d877; the
+100%-native goal remains open. See [hardening evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md#5-audit-expected-tck-rejections).
+Older checkpoint figures below describe their dated source state.
+
 2026-10-24 verified full temporal-chain checkpoint: 3,391/3,391 official TCK
 outcomes passed. Native Spark SQL: 2,715/2,715 executable cases (100%), which is
 2,715/3,391 total cases (80.06%). Fallback: 0/2,715 executable cases (0%).
@@ -76,4 +89,4 @@ other model forms can still require fallback.
 | Hybrid 3 | Pinned TCK runner integration and separate native/fallback accounting | `done` | 100.00% conformance measured across 3,391 cases (0 failures, 0 errors) |
 | Hybrid 4 | Native execution of all executable official optimized TCK cases | `done` | 2,715 native, zero fallback; 676 no-SQL compiler rejections separately; 2026-10-24 checkpoint |
 | HARD-02 | Verify and consolidate SQL literal escaping | `validation open; two legacy full-TCK timeouts` | Owned by [hardening section 2](../dev/slices/security-correctness-hardening-task-2026-10-24.md) |
-| NATIVE-EXT | Broaden bounded native proofs beyond the executable TCK inventory | `proposed` | Prioritize actual model needs; preserve exact semantics and fallback boundaries |
+| TCK-EXECUTE | Execute the 662 compiler-blocked official cases and verify their results | `open` | Static rejection does not satisfy the user requirement; duration([]) fallback is fixed |

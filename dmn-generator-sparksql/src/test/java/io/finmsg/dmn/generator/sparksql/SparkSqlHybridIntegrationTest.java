@@ -165,6 +165,31 @@ class SparkSqlHybridIntegrationTest {
 		return input;
 	}
 	@Test
+	void closedInvalidPredicatesProduceNativeRuntimeNull() {
+		var expressions = List.of("[1,2,3,4][if item <= 3 then true else \"bad\"]",
+				"some x in [1,2] satisfies if x = 2 then true else \"bad\"",
+				"every x in [1,2] satisfies if x = 1 then true else \"bad\"",
+				"some x in [1,2] satisfies if x = 1 then true else \"bad\"",
+				"every x in [1,2] satisfies if x = 1 then false else \"bad\"", "duration([])");
+		var expected = Arrays.asList(null, null, null, true, false, null);
+		for (int i = 0; i < expressions.size(); i++) {
+			var model = compiledFilterModel(expressions.get(i));
+			var decision = model.decisions().getFirst();
+			var interpreted = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of())
+					.decisionValue(decision.id());
+			assertThat(interpreted).as(expressions.get(i)).isEqualTo(expected.get(i));
+			var generated = SparkSqlHybridTest.generate(model);
+			assertThat(generated.capabilities().get(decision.id()).nativeSql()).as(expressions.get(i)).isTrue();
+			assertThat(generated.udfs()).isEmpty();
+			spark.range(1).createOrReplaceTempView("hybrid_inputs");
+			Object raw = spark.sql(generated.sqlFiles().get("Decision_" + decision.resultSlot() + ".sql")).head()
+					.get(0);
+			assertThat(SparkSqlFeelValueCodec.fromSpark(raw, decision.type())).as(expressions.get(i))
+					.isEqualTo(interpreted);
+		}
+	}
+
+	@Test
 	void scalarContextsPreserveExactAffordabilityAndLazyBranches() {
 		var model = scalarAffordabilityFixture();
 		var generated = SparkSqlHybridTest.generate(model);

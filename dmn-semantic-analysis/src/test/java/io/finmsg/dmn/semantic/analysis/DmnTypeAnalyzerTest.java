@@ -48,6 +48,16 @@ class DmnTypeAnalyzerTest {
 	private final DmnTypeAnalyzer analyzer = new DmnTypeAnalyzer();
 
 	@Test
+	void unconstrainedNamedItemAcceptsDurationValues() {
+		var named = TypeReference.newBuilder()
+				.setNamed(io.finmsg.dmn.model.NamedTypeReference.newBuilder().setName("Loose")).build();
+		var model = Definitions.newBuilder()
+				.addItemDefinitions(ItemDefinition.newBuilder().setNode(Node.newBuilder().setName("Loose")))
+				.addDrgElements(decision("Result", named, "duration(\"P1D\")")).build();
+		assertThat(analyzer.analyze(model).diagnostics()).isEmpty();
+	}
+
+	@Test
 	void validatesDeclaredDecisionTypeAgainstLiteralExpression() {
 		Definitions model = Definitions.newBuilder()
 				.addDrgElements(decision("Valid", builtin(BuiltinType.BUILTIN_TYPE_NUMBER), "1"))
