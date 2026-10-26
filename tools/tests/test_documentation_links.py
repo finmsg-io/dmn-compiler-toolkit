@@ -78,6 +78,74 @@ class DocumentationLinksTest(unittest.TestCase):
         errors = self.check("# Guide\n\n[bad](file:///C:/old/example.md)")
         self.assertIn("README.md:3:", errors[0])
 
+    def project(self, extra_config=""):
+        docs = self.root / "docs"
+        docs.mkdir(exist_ok=True)
+        (docs / "index.md").write_text("# Home", encoding="utf-8")
+        self.page.write_text("# README", encoding="utf-8")
+        (self.root / "mkdocs.yml").write_text(
+            "site_name: Test\nnav:\n  - Home: index.md\n" + extra_config, encoding="utf-8")
+        return docs
+
+    def test_new_orphan_fails(self):
+        docs = self.project()
+        (docs / "forgotten.md").write_text("# Forgotten", encoding="utf-8")
+        errors, _ = documentation_link_errors(self.root)
+        self.assertTrue(any("docs/forgotten.md: orphan/unclassified" in error for error in errors))
+
+    def test_indexed_reference_is_maintained_and_checked(self):
+        docs = self.project()
+        (docs / "index.md").write_text("# Home\n[Reference](reference.md)", encoding="utf-8")
+        reference = docs / "reference.md"
+        reference.write_text("# Reference", encoding="utf-8")
+        errors, count = documentation_link_errors(self.root)
+        self.assertEqual([], errors)
+        self.assertEqual(3, count)
+        reference.write_text("[bad](missing.md)", encoding="utf-8")
+        errors, _ = documentation_link_errors(self.root)
+        self.assertTrue(any("missing target" in error for error in errors))
+
+    def test_disconnected_link_cycle_does_not_establish_publication(self):
+        docs = self.project()
+        (docs / "a.md").write_text("[B](b.md)", encoding="utf-8")
+        (docs / "b.md").write_text("[A](a.md)", encoding="utf-8")
+        errors, _ = documentation_link_errors(self.root)
+        self.assertEqual(2, len([e for e in errors if "orphan/unclassified" in e]))
+
+    def test_explicit_history_proposals_and_excluded_notes_are_valid(self):
+        docs = self.project("exclude_docs: |\n  notes/**\n")
+        for name in ("dev/history/snapshot.md", "improvements/proposal.md", "notes/private.md"):
+            path = docs / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("[historical example](file:///C:/example.md)", encoding="utf-8")
+        self.assertEqual([], documentation_link_errors(self.root)[0])
+
+    def test_historical_link_cannot_hide_current_orphan(self):
+        docs = self.project()
+        (docs / "dev/history").mkdir(parents=True)
+        (docs / "dev/history/snapshot.md").write_text("[Current](../../orphan.md)", encoding="utf-8")
+        (docs / "orphan.md").write_text("# Current", encoding="utf-8")
+        errors, _ = documentation_link_errors(self.root)
+        self.assertTrue(any("orphan/unclassified" in error for error in errors))
+
+    def test_excluded_page_cannot_be_published_through_navigation_or_links(self):
+        docs = self.project("  - Hidden: notes/private.md\nexclude_docs: |\n  notes/**\n")
+        (docs / "notes").mkdir()
+        (docs / "notes/private.md").write_text("# Private", encoding="utf-8")
+        (docs / "index.md").write_text("[Hidden](notes/private.md)", encoding="utf-8")
+        errors, _ = documentation_link_errors(self.root)
+        self.assertTrue(any("navigation target" in e and "excluded" in e for e in errors))
+        self.assertTrue(any("link to excluded page" in e for e in errors))
+
+    def test_navigation_fragments_are_checked(self):
+        self.project()
+        config = self.root / "mkdocs.yml"
+        text = config.read_text(encoding="utf-8")
+        config.write_text(text.replace("index.md", "index.md#home"), encoding="utf-8")
+        self.assertEqual([], documentation_link_errors(self.root)[0])
+        config.write_text(text.replace("index.md", "index.md#absent"), encoding="utf-8")
+        self.assertTrue(any("navigation fragment" in e for e in documentation_link_errors(self.root)[0]))
+
 
 if __name__ == "__main__":
     unittest.main()

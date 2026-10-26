@@ -113,7 +113,7 @@ def main() -> int:
         return 1
     print(f"Documentation facts verified for {len(expected)} reactor modules; "
           "current Spark checkpoint matches 3,391 unique native passing outcomes. "
-          f"Local links/fragments checked on {page_count} maintained pages and all navigation targets. "
+          f"Publication/orphan policy enforced; local links/fragments checked on {page_count} maintained pages and all navigation targets. "
           "Historical/proposal/ADR bodies and remote URLs are outside the link-check scope; "
           "architectural claims are not proved by these checks.")
     return 0

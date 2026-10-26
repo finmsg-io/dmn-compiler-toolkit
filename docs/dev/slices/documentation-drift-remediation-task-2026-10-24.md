@@ -2,10 +2,49 @@
 
 Date: 2026-10-24
 
-Status: In progress; public capability/evidence refresh verified 2026-10-26; link and publication-policy checks remain open
+Status: Completed, 2026-10-26; included in the user-requested closing publication checkpoint
 
 Reviewed implementation baseline: `f2af3954273a60c56dff3de5804fb05057ab37c2`.
 Original intake baseline: `518e37668f145305cd132ca5004167150804eb79`.
+
+## Completion evidence - 2026-10-26
+
+DOC-01 is complete for its declared publication and checker scope. The remaining
+orphan/publication policy is enforced through `tools/documentation_links.py`,
+already invoked by the existing CI and docs-deployment verifier commands. Every
+Markdown page must be navigated, reachable from maintained entry pages, explicitly
+historical/proposal material, or excluded by MkDocs. Disconnected link cycles,
+links from historical bodies, and exposure of excluded notes do not bypass the
+rule. Indexed current references receive full link checks. Remote URLs and dated
+historical bodies remain explicit offline-check exceptions, not unverified
+current guidance.
+
+Final inventory: **166 Markdown pages**: 68 navigation guidance, 68 historical/ADR
+records, 30 proposals/examples; zero unclassified pages and zero excluded Markdown
+files in this checkout. The 69 maintained link-check sources include the root
+README. Inventory evidence: runner target `doc01-publication-final-inventory.json`.
+
+MkDocs severities are explicit: omitted navigation pages are informational because
+classified history/indexed references may be intentional; missing navigation,
+missing/absolute/unrecognized links and missing anchors are warnings that fail the
+strict build. Policy enforcement separately prevents an omitted current orphan
+from being ignored. Historical run prefixes were archived from the development
+method guide; public guidance now leads with current meaning and evidence links.
+
+Validation: **49 repository-tool tests passed**, zero failures/errors; the focused
+publication/link suite passed **17/17**. Initial development found six test errors
+when optional `exclude_docs` was absent; handling MkDocs' `None` default fixed
+them before the passing runs. Facts, publication/link checks, strict MkDocs and
+whitespace checks passed. Logs: runner target `doc01-publication-tool-tests.log`,
+`doc01-publication-policy-docs.log` and `doc01-publication-policy-final-docs.log`.
+All these checks execute no Spark SQL: native/fallback actions 0/0, denominator 0,
+rates N/A, failed/unknown SQL actions 0/0. Production backend code is unchanged;
+the separately verified full TCK remains 3,391 native passes and zero fallback.
+
+The preceding documentation/logging checkpoint is pushed as `97b03b2`. This final
+policy/guide-cleanup completion is uncommitted. HARD-02 legacy timeouts remain
+deferred; coverage and the other master-backlog work remain separately open.
+Older continuation notes below retain their dated intermediate states.
 
 ## Objective
 
@@ -135,17 +174,17 @@ can distinguish SQL execution from expected compiler rejection and historical ru
 
 ## 4. Separate published guidance from working history
 
-- [ ] Inventory Markdown pages and classify them as public guidance, historical
+- [x] Inventory Markdown pages and classify them as public guidance, historical
   evidence, proposal/example material or unpublished working notes.
-- [ ] Decide which pages belong in navigation, which are intentionally reachable
+- [x] Decide which pages belong in navigation, which are intentionally reachable
   through an index, and which should be excluded from the published site. A page
   outside direct navigation is not automatically an error.
-- [ ] Give intentional exceptions an explicit policy or allowlist with rationale.
+- [x] Give intentional exceptions an explicit policy or allowlist with rationale.
   Add checks for pages that violate the chosen policy.
 - [x] Move or archive the root Spark status journal under an appropriate development
   history location. Update links and consider a short compatibility pointer at the
   old path if external references exist.
-- [ ] Replace chronological checkpoint prefixes in public architecture/status pages
+- [x] Replace chronological checkpoint prefixes in public architecture/status pages
   with current summaries and links to dated evidence.
 - [x] Preserve historical numbers, warnings and source context. Do not rewrite old
   checkpoints to make them agree with today's results.
@@ -164,7 +203,7 @@ navigation warnings.
 - [x] Reject machine-specific `file:///` links in published guidance. Explicitly
   scope or allowlist historical quotations/examples instead of silently ignoring
   all development documentation.
-- [ ] Validate navigation targets and enforce the agreed publication/orphan policy.
+- [x] Validate navigation targets and enforce the agreed publication/orphan policy.
 - [x] Validate maintained current metric blocks against their designated accounting
   evidence. Check backend/revision/scope compatibility as well as totals and
   percentages. Do not grep every historical number against the latest JSON.
@@ -173,7 +212,7 @@ navigation warnings.
 - [x] Add focused tool tests for broken links, invalid fragments, local paths,
   metric mismatches and intended exceptions. Include positive cases so valid
   archived history and intentionally indexed pages remain supported.
-- [ ] Run all planned checks in CI and review publication/link severities. The
+- [x] Run all planned checks in CI and review publication/link severities. The
   evidence and maintained-scope link checks and their tests run through existing
   CI and docs deployment. General orphan/publication enforcement remains pending.
 

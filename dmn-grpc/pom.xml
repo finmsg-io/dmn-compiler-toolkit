@@ -94,6 +94,51 @@
             </extension>
         </extensions>
         <plugins>
+            <!-- Protobuf messages and the generic gRPC stub are generated.
+                 Exclude exact classes/nested classes, retaining handwritten
+                 DmnGrpcGenerator, value conversion and typed-schema generation. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>report</id>
+                        <configuration>
+                            <excludes>
+                                <exclude>io/finmsg/dmn/grpc/ContextValue.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/ContextValue$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/ContextValueOrBuilder.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/ContextValueOrBuilder$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/DmnEvaluationRequest.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/DmnEvaluationRequest$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/DmnEvaluationRequestOrBuilder.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/DmnEvaluationRequestOrBuilder$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/DmnEvaluationResponse.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/DmnEvaluationResponse$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/DmnEvaluationResponseOrBuilder.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/DmnEvaluationResponseOrBuilder$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/EvaluationError.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/EvaluationError$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/EvaluationErrorOrBuilder.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/EvaluationErrorOrBuilder$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/EvaluationProto.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/EvaluationProto$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/ListValue.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/ListValue$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/ListValueOrBuilder.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/ListValueOrBuilder$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/Value.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/Value$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/ValueOrBuilder.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/ValueOrBuilder$*.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/DmnEvaluationServiceGrpc.class</exclude>
+                                <exclude>io/finmsg/dmn/grpc/DmnEvaluationServiceGrpc$*.class</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>

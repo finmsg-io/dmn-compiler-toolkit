@@ -103,16 +103,29 @@ all-native outcomes. It deliberately leaves dated historical metrics unchanged.
 
 The same command checks local link/image targets, reference-style links and
 fragments using the configured Markdown extensions. Its maintained scope is the
-repository README and navigation-listed guidance, including the development style
-and evidence guides, slice index and ADR index. All navigation targets must exist.
+repository README, navigation-listed guidance and current Markdown references
+reachable from those entry pages. This includes the development style/evidence
+guides, slice index and ADR index. All navigation targets must exist.
 Source paths and available line numbers identify failures.
 
 Bodies under `dev/slices/`, `dev/history/`, `improvements/` and individual ADRs are
 explicit historical/proposal exceptions: they preserve dated examples or immutable
 records. Their navigation targets remain checked. These exceptions do not exempt
-all development documentation. Other pages outside navigation remain reference or
-working material pending the DOC-01 inventory/publication review; their bodies are
-not claimed to be link-validated. Remote URLs are never fetched by this check.
+all development documentation. An indexed current reference receives the same link
+checks as a navigated page. Reachability starts at maintained entry pages; isolated
+link cycles and links from historical bodies cannot qualify a current page.
+
+Every Markdown page must be one of:
+
+- maintained guidance in navigation or reachable from a maintained entry/index;
+- a dated slice/history, individual ADR, or proposal/example under the explicit
+  prefixes above (rationale: retain immutable decisions and dated evidence);
+- working material explicitly excluded through MkDocs `exclude_docs`.
+
+Unclassified/orphan pages fail CI with their path and remediation choices. A
+maintained link or navigation entry exposing an excluded page also fails. Remote
+URLs are never fetched. These rules classify publication roles; they do not claim
+to verify every historical assertion.
 
 The root `TCK_SPARKSQL_STATUS.md` is now a compatibility pointer. Its dated journal
 is preserved at [historical Spark checkpoints](dev/history/spark-sql-checkpoints-through-2026-10-26.md).
@@ -122,5 +135,10 @@ Run `python -m unittest discover -s tools/tests -p test_documentation_links.py`
 and `python -m unittest discover -s tools/tests -p test_verify_documentation.py`
 for checker regression tests; use `mkdocs build --strict` for site validation.
 Existing CI and docs deployment run these through the tooling discovery command.
-These checks do not prove architectural correctness. General orphan classification
-and publication-policy enforcement remain in [DOC-01](dev/slices/documentation-drift-remediation-task-2026-10-24.md).
+MkDocs validation explicitly treats omitted navigation files as informational,
+because indexed references and dated records may be intentional. Missing navigation
+entries, missing/absolute/unrecognized links and missing anchors are warnings,
+which fail `mkdocs build --strict`. The repository checker enforces publication
+classification independently; a successful site build cannot waive that rule.
+These checks do not prove architectural correctness. See the completed
+[DOC-01 evidence](dev/slices/documentation-drift-remediation-task-2026-10-24.md).

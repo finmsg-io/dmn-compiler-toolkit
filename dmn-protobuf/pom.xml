@@ -33,6 +33,23 @@
             </extension>
         </extensions>
         <plugins>
+            <!-- This module contains generated protobuf Java only; it has no
+                 handwritten Java coverage denominator. Schema tests are owned
+                 by the consuming modules. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>report</id>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/*.class</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>

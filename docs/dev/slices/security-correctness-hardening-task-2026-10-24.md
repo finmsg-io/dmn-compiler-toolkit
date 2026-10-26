@@ -390,18 +390,67 @@ follow the defined semantics, and architecture claims match the implementation.
 
 ## 4. Coverage baseline and missing error paths
 
-- [ ] Measure current line and branch coverage per module using a documented test
-  profile. Distinguish default-build tests from opt-in TCK coverage.
-- [ ] Select targeted tests for malformed input, coercion boundaries, denied external
-  calls and backend error propagation based on uncovered behavior.
-- [ ] Exclude generated ANTLR sources and other justified generated artifacts from
-  hand-written-code coverage metrics.
-- [ ] Add JaCoCo checks using measured baselines and an agreed ratchet policy.
-  Do not invent thresholds or derive quality from test/main line-count ratios.
-- [ ] Record commands, exclusions and baseline values so CI results are reproducible.
+Status: baseline recorded, 2026-10-26. **Coverage thresholds/enforcement are deferred
+at the user's explicit choice: record the baseline only for now.**
 
-Acceptance: CI detects coverage regression for the agreed scope, and focused tests
-cover identified behavioral gaps rather than duplicating implementation details.
+- [x] Measure line and branch coverage per default-reactor module.
+- [x] Add focused tests for uncovered coercion and external-invocation error paths.
+- [x] Exclude generated ANTLR/protobuf/gRPC artifacts from handwritten-code metrics.
+- [ ] Add JaCoCo floors/ratchet: deferred by user; no thresholds invented or added.
+- [x] Record commands, scope, exclusions, outcomes and measured baselines.
+
+A clean `mvn --batch-mode --no-transfer-progress clean verify` passed **503 tests**,
+zero failures/errors/skips, Maven exit 0. Reports are **module-own test-JVM
+coverage**, not downstream-aggregated coverage and not opt-in TCK coverage.
+Low unit coverage must not be confused with the separate 100% official TCK result.
+The generated gRPC classes initially appeared in its report; exact exclusions and
+`mvn -pl dmn-grpc jacoco:report@report` regenerated that report from the same
+successful execution data. No runtime implementation changed.
+
+| Module | Line | Branch |
+| --- | ---: | ---: |
+| dmn-protobuf | N/A | N/A |
+| dmn-frontend-xml | 70.58% | 46.08% |
+| dmn-feel-parser | 70.06% | 53.78% |
+| dmn-semantic-analysis | 72.38% | 50.71% |
+| dmn-runtime-ir | 74.14% | 55.67% |
+| dmn-runtime | 13.91% | 6.79% |
+| dmn-optimizer | 13.54% | 10.07% |
+| dmn-compiler | 88.89% | 67.66% |
+| dmn-generator-java | 58.53% | 46.68% |
+| dmn-generator-sparksql | 76.24% | 61.10% |
+| dmn-grpc | 86.98% | 66.23% |
+| dmn-smoke-test | N/A | N/A |
+
+Generated-only protobuf and test-only smoke modules have no handwritten Java
+denominator; N/A is not 0%. Exact ANTLR exclusions retain `FeelParserFacade`.
+The report tool rejects missing reports, failing test data, invalid counters,
+accidental generated-code inclusion, and accidentally excluded handwritten facades.
+Use `python tools/report_coverage.py --output baseline.json` after clean verify.
+The [retained clean baseline](../../assets/coverage-default-reactor-2026-10-26.json)
+records counters, scope and exclusions. No line-count proxy or arbitrary quality
+threshold was used.
+
+The clean run's developer Spark suites executed **3,034 native actions (96.23%)
+and 119 intentional fallback actions (3.77%), denominator 3,153**, unknown zero;
+all 60 failed SQL actions were expected assertions. These are regression actions,
+not official TCK cases. Log: runner target `coverage-default-reactor-baseline.log`.
+
+Five new runtime tests cover scalar/singleton/list boundaries, null and invalid
+list members, context shape/missing/invalid fields, malformed descriptors,
+unresolvable approved Java targets, permitted host failures and unchanged default
+denial. All **17 runtime tests passed** in a separate focused verify, zero
+failures/errors/skips, Maven exit 0. Runtime line coverage rose **13.91% to 15.34%**,
+branch **6.79% to 8.18%**. This does not rewrite the earlier clean baseline.
+See [separate runtime impact](../../assets/coverage-runtime-boundaries-2026-10-26.json).
+Log: runner target `coverage-runtime-boundaries.log`.
+
+All **56 repository-tool tests passed**, including seven coverage-report tests.
+An initial fixture directory rename was blocked by the Windows sandbox; creating
+that fixture directly resolved it. Tool tests and focused runtime tests execute
+no Spark SQL: native/fallback 0/0, denominator 0, rates N/A, failed/unknown zero.
+The baseline/tool/boundary-test changes are uncommitted. Prior DOC-01 completion
+changes remain preserved. No new enforcement policy or backend behavior was added.
 
 ## 5. Audit expected TCK rejections
 

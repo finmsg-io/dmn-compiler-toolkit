@@ -9,6 +9,31 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ExternalJavaPolicyTest {
+	@Test
+	void malformedDescriptorsAndUnresolvableApprovedTargetsReturnNull() {
+		assertThat(DmnRuntime.invokeExternalJava(null, List.of())).isNull();
+		assertThat(DmnRuntime.invokeExternalJava("not a descriptor", List.of())).isNull();
+		assertThat(DmnRuntime.invokeExternalJava(Map.of("class", "java.lang.Math"), List.of())).isNull();
+		var missingClass = descriptor("missing.Target", "run()");
+		var missingMethod = descriptor("java.lang.Math", "missing()");
+		var policy = ExternalJavaPolicy.allowOnly(Set.of(new ExternalJavaPolicy.Method("missing.Target", "run()"),
+				new ExternalJavaPolicy.Method("java.lang.Math", "missing()")));
+		assertThat(DmnRuntime.invokeExternalJava(missingClass, List.of(), policy)).isNull();
+		assertThat(DmnRuntime.invokeExternalJava(missingMethod, List.of(), policy)).isNull();
+	}
+
+	@Test
+	void permittedHostConversionAndInvocationFailuresReturnNull() {
+		var call = descriptor("java.lang.Integer", "parseInt(java.lang.String)");
+		var policy = ExternalJavaPolicy
+				.allowOnly(Set.of(new ExternalJavaPolicy.Method("java.lang.Integer", "parseInt(java.lang.String)")));
+		assertThat(DmnRuntime.invokeExternalJava(Map.of("java", call), List.of("42"), policy))
+				.isEqualTo(BigDecimal.valueOf(42));
+		assertThat(DmnRuntime.invokeExternalJava(call, List.of("not an integer"), policy)).isNull();
+		assertThatThrownBy(() -> DmnRuntime.invokeExternalJava(call, List.of("42")))
+				.isInstanceOf(ExternalJavaDeniedException.class);
+	}
+
 	private static boolean initialized;
 
 	public static class Forbidden {

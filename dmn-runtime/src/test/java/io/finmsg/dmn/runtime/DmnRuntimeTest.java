@@ -12,6 +12,41 @@ import org.junit.jupiter.api.Test;
 
 class DmnRuntimeTest {
 	@Test
+	void scalarAndSingletonCoercionRejectsEmptyMultipleAndNestedLists() {
+		var number = RuntimeType.scalar(RuntimeTypeKind.NUMBER);
+		var numbers = RuntimeType.element(RuntimeTypeKind.LIST, number);
+		assertThat(DmnRuntime.coerce(BigDecimal.ONE, numbers)).isEqualTo(List.of(BigDecimal.ONE));
+		assertThat(DmnRuntime.coerce(List.of(BigDecimal.ONE), number)).isEqualTo(BigDecimal.ONE);
+		assertThat(DmnRuntime.coerce(List.of(), number)).isNull();
+		assertThat(DmnRuntime.coerce(List.of(BigDecimal.ONE, BigDecimal.TEN), number)).isNull();
+		assertThat(DmnRuntime.coerce(List.of(List.of(BigDecimal.ONE)), number)).isNull();
+		assertThat(DmnRuntime.coerce("1", number)).isNull();
+	}
+
+	@Test
+	void typedListsPreserveNullMembersAndRejectNonconformingValues() {
+		var numbers = RuntimeType.element(RuntimeTypeKind.LIST, RuntimeType.scalar(RuntimeTypeKind.NUMBER));
+		var nullable = java.util.Arrays.asList(BigDecimal.ONE, null, BigDecimal.TEN);
+		assertThat(DmnRuntime.coerce(nullable, numbers)).isEqualTo(nullable);
+		assertThat(DmnRuntime.coerce(List.of(), numbers)).isEqualTo(List.of());
+		assertThat(DmnRuntime.coerce(List.of(BigDecimal.ONE, "wrong"), numbers)).isNull();
+		assertThat(DmnRuntime.coerce("wrong", numbers)).isNull();
+	}
+
+	@Test
+	void declaredContextsRejectWrongShapeMissingFieldsAndInvalidFieldValues() {
+		var context = RuntimeType
+				.contextFields(List.of(new RuntimeField(0, "amount", RuntimeType.scalar(RuntimeTypeKind.NUMBER))));
+		var valid = Map.of("amount", BigDecimal.ONE, "extra", "preserved");
+		assertThat(DmnRuntime.coerce(valid, context)).isEqualTo(valid);
+		var nullable = java.util.Collections.singletonMap("amount", null);
+		assertThat(DmnRuntime.coerce(nullable, context)).isEqualTo(nullable);
+		assertThat(DmnRuntime.coerce("wrong shape", context)).isNull();
+		assertThat(DmnRuntime.coerce(Map.of("other", BigDecimal.ONE), context)).isNull();
+		assertThat(DmnRuntime.coerce(Map.of("amount", "wrong type"), context)).isNull();
+	}
+
+	@Test
 	void durationSubtypeCoercionPreservesIdentityAndRejectsWrongKinds() {
 		var days = RuntimeType.scalar(RuntimeTypeKind.DAYS_TIME_DURATION);
 		var months = RuntimeType.scalar(RuntimeTypeKind.YEARS_MONTHS_DURATION);

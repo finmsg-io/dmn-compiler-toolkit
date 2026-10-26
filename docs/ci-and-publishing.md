@@ -39,11 +39,11 @@ permissions, but repository environment protection is the external approval boun
 `.github/workflows/ci.yml` runs for pull requests to `main` and every branch push with only
 `contents: read`. It performs:
 
-- canonical documentation-fact and repository-tool tests;
+- canonical facts, retained-evidence, maintained-link and publication/orphan checks, plus repository-tool tests;
 - strict MkDocs construction;
 - fail-fast Spotless validation;
-- lean Tier-1 reactor tests and coverage generation;
-- a separate complete optimized-interpreter/generated-Java TCK gate with accounting evidence;
+- default-reactor tests and coverage generation;
+- a separate TCK job running optimized interpreter, generated Java and Spark hybrid conformance with accounting evidence;
 - a tracked-source drift check after the build.
 
 Apply or check formatting locally with `tools/format.ps1` and `tools/check-format.ps1`, or their
@@ -75,11 +75,11 @@ The tag starts `.github/workflows/publish-release.yml`. Before deployment it:
 1. checks out the exact tag with complete history;
 2. validates strict SemVer, reactor-wide POM agreement, non-snapshot version, and `main` ancestry;
 3. builds documentation strictly;
-4. runs a clean Tier-1 Maven verification with formatting and release profiles;
-5. runs the complete strict TCK against the optimized interpreter and generated Java;
-6. verifies non-empty source and Javadoc JARs for every Tier-1 JAR module;
+4. runs a clean default-reactor Maven verification with formatting and release profiles;
+5. runs the complete strict TCK against the configured optimized interpreter, generated Java and Spark hybrid backends;
+6. verifies non-empty source and Javadoc JARs for every default-reactor JAR module;
 7. proves the tagged checkout remains clean;
-8. deploys the Tier-1 artifacts through GitHub Packages with Maven `deployAtEnd` enabled.
+8. deploys the default-reactor artifacts through GitHub Packages with Maven `deployAtEnd` enabled.
 
 The default Maven configuration sets `maven.deploy.skip=true`. Only the explicit `release` profile
 enables deployment and attaches sources and Javadocs. This local guard prevents an ordinary

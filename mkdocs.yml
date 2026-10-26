@@ -12,6 +12,21 @@ exclude_docs: |
   ideation/*
   ideation/**/*
 
+# Omitted navigation entries can be intentional dated history/proposals.
+# The repository checker enforces their role and current-page reachability.
+# Warnings below fail the existing strict build; maintained fragments also have
+# source-level checks in tools/documentation_links.py.
+validation:
+  nav:
+    omitted_files: info
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
+
 theme:
   name: material
   features:

@@ -12,8 +12,7 @@ Historical checkpoints remain dated evidence and do not override the current bac
 | ID | Priority | Work item | Status | Primary owner / acceptance |
 | --- | --- | --- | --- | --- |
 | HARD-02 | P1 | Reproduce and consolidate Spark SQL literal escaping | legacy timeout validation deferred | [Hardening task, section 2](../dev/slices/security-correctness-hardening-task-2026-10-24.md); encoder and both generator regressions passed; default full TCK passed; legacy full TCK has two timeouts, deferred by user; validation remains open |
-| DOC-01 | P1 | Public documentation, evidence provenance and drift checks | in progress: evidence and maintained-page links checked; orphan/publication policy pending | [Documentation task](../dev/slices/documentation-drift-remediation-task-2026-10-24.md); public descriptions and CI checks, not duplicate backend implementation |
-| COVERAGE | P2 | Measured coverage baselines and enforcement | open | [Hardening task, section 4](../dev/slices/security-correctness-hardening-task-2026-10-24.md); measured thresholds and missing error-path tests |
+| COVERAGE | P2 | Measured coverage baselines and enforcement | baseline recorded; enforcement deferred by user | [Hardening task, section 4](../dev/slices/security-correctness-hardening-task-2026-10-24.md); measured thresholds and missing error-path tests |
 | P19.1 | P2 | Explicit TCK inventory/outcome regression ratchet | planned | [Runner task](dmn-tck-runner.md); case-key/backend baseline and failure checks, beyond forbidding filters |
 | TCK-COLD | P2 | Diagnose prior first-use timeout; evaluate warmup from measurements | planned | [Runner P19.2](dmn-tck-runner.md); later passing runs do not prove the cause or a fix |
 | BENCH-003 | P2 | Continuous benchmark regression monitoring | planned; CI acceptance unverified | [Benchmarks](dmn-benchmarks.md) |
@@ -27,6 +26,13 @@ initiative has not been accepted for implementation. `done` applies only to the
 named deliverable with evidence. The former `ready` label is not proof of delivery.
 
 ## Completed milestones and continuing boundaries
+
+- DOC-01 documentation drift remediation completed locally (2026-10-26): public
+  claims/evidence refreshed; current links and publication/orphan roles enforced;
+  historical journals archived; strict MkDocs severities reviewed. All 49 tooling
+  tests passed and all 166 Markdown pages classified, zero unclassified. See
+  [completion evidence](../dev/slices/documentation-drift-remediation-task-2026-10-24.md#completion-evidence-2026-10-26).
+  Final policy/guide changes are uncommitted; the preceding checkpoint is 97b03b2.
 
 - All-case native Spark TCK goal achieved (2026-10-26): **3,391/3,391**
   official cases executed natively and matched expected results; **100% native,
