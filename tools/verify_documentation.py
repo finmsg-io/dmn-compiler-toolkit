@@ -1,12 +1,75 @@
 """Fail CI when canonical documentation facts drift from repository metadata."""
 
 from pathlib import Path
+from collections import Counter
+import json
 import re
 import sys
 import xml.etree.ElementTree as ET
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SPARK_BACKEND = "optimized-generated-sparksql-hybrid"
+TCK_REVISION = "20274cd2ba9cad805db6114f331c743f4b2603a1"
+
+
+def validate_spark_evidence(data: dict, page: str) -> list[str]:
+    """Validate only the maintained Spark checkpoint, never dated history."""
+    try:
+        if data["revision"] != TCK_REVISION or TCK_REVISION not in page:
+            raise ValueError("pinned TCK revision mismatch")
+        if data["backends"] != [SPARK_BACKEND]:
+            raise ValueError("expected the optimized Spark hybrid backend only")
+        outcomes = data["outcomes"]
+        denominator = data["inventory"]["decodedCases"]
+        if denominator != 3391 or len(outcomes) != denominator:
+            raise ValueError("expected all 3,391 pinned official cases")
+        keys = set()
+        counts = Counter()
+        for outcome in outcomes:
+            key = (outcome["entryId"], outcome["caseId"], outcome["backend"])
+            if key in keys:
+                raise ValueError(f"duplicate case key: {key}")
+            keys.add(key)
+            if outcome["backend"] != SPARK_BACKEND:
+                raise ValueError("outcome backend does not match declared backend")
+            if not outcome["entryId"].startswith(("compliance-level-2/", "compliance-level-3/")):
+                raise ValueError("outcome is outside the declared CL2/CL3 roots")
+            if not outcome["caseId"]:
+                raise ValueError("empty case ID")
+            counts[outcome["status"]] += 1
+        if dict(counts) != {k: v for k, v in data["statusCounts"].items() if v != 0}:
+            raise ValueError("status totals do not match case outcomes")
+        # This published checkpoint specifically claims every case executed natively.
+        if any(o["status"] != "PASSED" or o["diagnostic"] != "NATIVE" for o in outcomes):
+            raise ValueError("all-native achievement requires every case to pass with NATIVE routing")
+        block = page.split("### Native Spark SQL checkpoint - 2026-10-26\n", 1)[1]
+        block = block.split("### Historical interpreter/Java baseline", 1)[0]
+        expected = {"Native passed": (denominator, "100.00%"), "Fallback passed": (0, "0.00%"),
+                    "Failed": (0, "0.00%"), "Compilation blocked": (0, "0.00%"),
+                    "Execution / compilation errors": (0, "0.00%"), "Unknown routes": (0, "0.00%")}
+        rows = {}
+        for line in block.splitlines():
+            if line.startswith("|"):
+                cells = [cell.strip().replace("**", "") for cell in line.strip("|").split("|")]
+                if len(cells) == 3 and cells[0] in expected:
+                    if cells[0] in rows:
+                        raise ValueError(f"duplicate metric row: {cells[0]}")
+                    rows[cells[0]] = (int(cells[1].replace(",", "")), cells[2])
+        if rows != expected:
+            raise ValueError("current Spark result table does not match the retained ledger")
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError) as exc:
+        return [f"docs/assets/tck-accounting-sparksql-native.json / docs/tck-conformance.md: {exc}"]
+    return []
+
+
+def spark_evidence_errors() -> list[str]:
+    try:
+        data = json.loads((ROOT / "docs/assets/tck-accounting-sparksql-native.json").read_text(encoding="utf-8"))
+        page = (ROOT / "docs/tck-conformance.md").read_text(encoding="utf-8")
+    except (OSError, ValueError) as exc:
+        return [f"Spark conformance evidence unavailable or malformed: {exc}"]
+    return validate_spark_evidence(data, page)
 
 
 def reactor_modules() -> list[str]:
@@ -21,7 +84,7 @@ def documented_modules() -> list[str]:
 
 
 def main() -> int:
-    errors: list[str] = []
+    errors: list[str] = spark_evidence_errors()
     expected = reactor_modules()
     documented = documented_modules()
     if documented != expected:
@@ -45,7 +108,10 @@ def main() -> int:
         print("Documentation verification failed:")
         print("\n".join(f"- {error}" for error in errors))
         return 1
-    print(f"Documentation facts verified for {len(expected)} reactor modules.")
+    print(f"Documentation facts verified for {len(expected)} reactor modules; "
+          "current Spark checkpoint matches 3,391 unique native passing outcomes. "
+          "Checks cover reactor order, selected certification wording and designated Spark evidence; "
+          "they do not validate all links or architectural claims.")
     return 0
 
 

@@ -24,7 +24,7 @@ DMN Compiler Toolkit.
 
 Latest Spark assessment: 2026-10-26. Interpreter/Java baseline below: 2026-09-04.
 
-Spark source: changes following `f10ed08`, published with this record. The measured
+Spark implementation source: `f2af3954273a60c56dff3de5804fb05057ab37c2`. The measured
 generator JAR SHA-256 is recorded below. The earlier interpreter/Java baseline used
 `1.0.0-SNAPSHOT`; these are separately dated runs, not one combined execution.
 

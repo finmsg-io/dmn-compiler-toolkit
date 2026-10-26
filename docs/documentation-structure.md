@@ -92,3 +92,17 @@ documents. The glossary is maintained independently at `docs/glossary.md` and is
 available globally through site navigation.
 
 Accepted ADR decision bodies were not changed during this classification cleanup.
+
+## Automated checks and their limits
+
+`python tools/verify_documentation.py` checks the default reactor module order,
+selected current-page certification wording, and the maintained Spark conformance
+table against its designated retained ledger. It verifies the pinned revision,
+optimized backend, complete 3,391-case inventory, unique keys, status totals and
+all-native outcomes. It deliberately leaves dated historical metrics unchanged.
+
+Run `python -m unittest discover -s tools/tests -p test_verify_documentation.py`
+for positive/negative checker scenarios and `mkdocs build --strict` for the site.
+These commands already run in CI and docs deployment. They do not establish
+architectural correctness or complete link/fragment and publication-policy
+validation; those extensions remain in [DOC-01](dev/slices/documentation-drift-remediation-task-2026-10-24.md).
