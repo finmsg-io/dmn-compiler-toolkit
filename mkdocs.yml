@@ -37,6 +37,7 @@ nav:
       - Overview: architecture.md
       - Architecture Specification: architecture/architecture-spec.md
       - Backend Capability Matrix: architecture/backend-parity-matrix.md
+      - Toolkit Assets and Evidence: architecture/toolkit-assets-and-differentiators.md
       - Spark SQL Architecture & Impedance Mismatch: sparksql-architecture.md
       - Architecture Decisions:
           - ADR Guide and Index: architecture/adr/generall-adr.md

@@ -1,3 +1,9 @@
+Current delivery: [documentation drift remediation](documentation-drift-remediation-task-2026-10-24.md).
+Native Spark TCK completed: [3,391/3,391 native passes, zero fallback](../../tck-conformance.md).
+[Historical Spark checkpoint journal](../history/spark-sql-checkpoints-through-2026-10-26.md).
+
+The dated continuation entries below are historical.
+
 Planned task: [security and correctness hardening](security-correctness-hardening-task-2026-10-24.md).
 Planned task: [documentation drift remediation](documentation-drift-remediation-task-2026-10-24.md).
 

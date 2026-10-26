@@ -64,8 +64,9 @@ for the applicable tests rather than interpreting this table as a new certificat
 
 The [public TCK record](../tck-conformance.md) owns current figures and provenance:
 
-- Optimized Spark SQL: **3,391/3,391 native passes (100%), zero fallback**, failed
-  cases, compilation blocks, errors or unknown routes; all official cases executed.
+- Optimized Spark SQL: **3,391/3,391 native passes (100%)**. Fallback passes: **0**;
+  failed cases: **0**; compilation blocks: **0**; unexpected errors: **0**; unknown
+  routes: **0**. Every official case executed and matched its expected results.
 - Interpreter and generated-Java results have separately dated checkpoints. They
   are not silently combined with the Spark run into one three-backend execution.
 - [Retained Spark ledger](../assets/tck-accounting-sparksql-native.json): pinned TCK

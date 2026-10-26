@@ -120,3 +120,22 @@ The generated Java runner escapes the completed SQL once for Java source; it doe
 not escape model text a second time. Regenerate SQL and runner source together
 when adopting this change. Executing regressions cover both parser settings on
 Spark 4.2.0; see [HARD-02 evidence](../docs/dev/slices/security-correctness-hardening-task-2026-10-24.md#2-spark-sql-literal-escaping-correctness-priority).
+
+## Expected failures in CI regression tests
+
+Some developer regressions deliberately execute invalid arithmetic, overflowing
+powers or denied external calls. Spark normally logs those expected failures at
+ERROR before JUnit verifies the exception. The nine negative-test methods now
+capture Spark WARN/ERROR diagnostics within their test scope and print:
+
+```text
+[INFO] EXPECTED SPARK FAILURE TEST BEGIN: ... (intentional failed SQL jobs)
+[INFO] EXPECTED SPARK FAILURE ASSERTIONS PASSED: ... (N diagnostic records captured)
+```
+
+Assertions still execute unchanged. If a marked test fails, its captured messages
+and exception stacks are printed under `FAILED TEST: CAPTURED SPARK DIAGNOSTICS`,
+and JUnit fails normally. Logging filters are removed in `finally`; application
+logging and other tests retain their normal configuration. SQL processing counts
+can include deliberately failed actions even when every JUnit test passes. Those
+counts are separate from official TCK cases.

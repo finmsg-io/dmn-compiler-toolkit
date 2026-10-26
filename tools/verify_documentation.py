@@ -6,6 +6,7 @@ import json
 import re
 import sys
 import xml.etree.ElementTree as ET
+from documentation_links import documentation_link_errors
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -85,6 +86,8 @@ def documented_modules() -> list[str]:
 
 def main() -> int:
     errors: list[str] = spark_evidence_errors()
+    link_errors, page_count = documentation_link_errors(ROOT)
+    errors.extend(link_errors)
     expected = reactor_modules()
     documented = documented_modules()
     if documented != expected:
@@ -110,8 +113,9 @@ def main() -> int:
         return 1
     print(f"Documentation facts verified for {len(expected)} reactor modules; "
           "current Spark checkpoint matches 3,391 unique native passing outcomes. "
-          "Checks cover reactor order, selected certification wording and designated Spark evidence; "
-          "they do not validate all links or architectural claims.")
+          f"Local links/fragments checked on {page_count} maintained pages and all navigation targets. "
+          "Historical/proposal/ADR bodies and remote URLs are outside the link-check scope; "
+          "architectural claims are not proved by these checks.")
     return 0
 
 

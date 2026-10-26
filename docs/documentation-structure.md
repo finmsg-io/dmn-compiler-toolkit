@@ -101,8 +101,26 @@ table against its designated retained ledger. It verifies the pinned revision,
 optimized backend, complete 3,391-case inventory, unique keys, status totals and
 all-native outcomes. It deliberately leaves dated historical metrics unchanged.
 
-Run `python -m unittest discover -s tools/tests -p test_verify_documentation.py`
-for positive/negative checker scenarios and `mkdocs build --strict` for the site.
-These commands already run in CI and docs deployment. They do not establish
-architectural correctness or complete link/fragment and publication-policy
-validation; those extensions remain in [DOC-01](dev/slices/documentation-drift-remediation-task-2026-10-24.md).
+The same command checks local link/image targets, reference-style links and
+fragments using the configured Markdown extensions. Its maintained scope is the
+repository README and navigation-listed guidance, including the development style
+and evidence guides, slice index and ADR index. All navigation targets must exist.
+Source paths and available line numbers identify failures.
+
+Bodies under `dev/slices/`, `dev/history/`, `improvements/` and individual ADRs are
+explicit historical/proposal exceptions: they preserve dated examples or immutable
+records. Their navigation targets remain checked. These exceptions do not exempt
+all development documentation. Other pages outside navigation remain reference or
+working material pending the DOC-01 inventory/publication review; their bodies are
+not claimed to be link-validated. Remote URLs are never fetched by this check.
+
+The root `TCK_SPARKSQL_STATUS.md` is now a compatibility pointer. Its dated journal
+is preserved at [historical Spark checkpoints](dev/history/spark-sql-checkpoints-through-2026-10-26.md).
+The [public TCK record](tck-conformance.md) owns current results and evidence.
+
+Run `python -m unittest discover -s tools/tests -p test_documentation_links.py`
+and `python -m unittest discover -s tools/tests -p test_verify_documentation.py`
+for checker regression tests; use `mkdocs build --strict` for site validation.
+Existing CI and docs deployment run these through the tooling discovery command.
+These checks do not prove architectural correctness. General orphan classification
+and publication-policy enforcement remain in [DOC-01](dev/slices/documentation-drift-remediation-task-2026-10-24.md).

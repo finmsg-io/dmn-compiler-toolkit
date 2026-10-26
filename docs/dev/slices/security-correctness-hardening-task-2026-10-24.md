@@ -736,3 +736,33 @@ or adding deployment machinery outside the module's intended responsibility.
 - [Backend parity matrix](../../architecture/backend-parity-matrix.md)
 - [Spark SQL generator work](../../todos/dmn-generator-sparksql.md)
 - [TCK runner work](../../todos/dmn-tck-runner.md)
+
+## CI negative-test logging clarification - 2026-10-26
+
+The user reported misleading Spark ERROR stack traces from intentionally failing
+developer tests. Nine `SparkSqlHybridIntegrationTest` methods now use the test-only
+`SparkSqlExpectedFailureLogs.Capture` interceptor. It captures Spark WARN/ERROR
+appender events only during a marked test; successful assertions emit explicit
+EXPECTED FAILURE BEGIN/PASSED information. Failed tests print captured diagnostics
+and keep the original JUnit failure. Filters are always removed. Production
+logging, SQL generation, test assertions and the official TCK runner are unchanged.
+
+Initial focused run: three tests passed and one new logging-unit test failed
+because the root logger initially disabled INFO; the Spark negative test passed.
+SQL actions: 16 native (100%), zero fallback (0%), denominator 16, unknown zero,
+14 deliberately failed actions. Correcting the unit fixture to set and restore
+its root level resolved that setup failure.
+
+Final validation: **12/12 tests passed**, no failures/errors/skips: three logging
+regressions and all nine marked Spark methods. SQL actions: **81 native (89.01%),
+10 intentional fallback (10.99%), denominator 91, unknown zero; 60 expected failed
+SQL actions**. No raw Spark ERROR lines remained in the verified log. Logs:
+`dmn-generator-sparksql/target/expected-failure-ci-logging-focused.log` (initial)
+and `expected-failure-ci-logging-verified.log` (passing correction). Formatting
+was applied in both runs. Production generator sources are unchanged, so the
+verified full official TCK remains 3,391 native passes, zero fallback; no new
+TCK measurement is inferred from these developer tests.
+
+The 20% usage reserve was reached during this work; finish verification/handover
+and start no additional implementation. Logging and prior link/history changes
+remain uncommitted; `0d5ac94` is the latest pushed capability/evidence checkpoint.

@@ -219,6 +219,7 @@ class SparkSqlHybridIntegrationTest {
 		}
 	}
 	@Test
+	@SparkSqlExpectedFailureLogs.Capture
 	void scalarContextsEvaluateUnusedEntriesAndBothArithmeticOperands() {
 		var model = scalarAffordabilityFixture();
 		var generated = SparkSqlHybridTest.generate(model);
@@ -271,6 +272,7 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	@SparkSqlExpectedFailureLogs.Capture
 	void scalarInTestsEvaluateCandidatesForWildcardAndEmptyTests() {
 		var n = SparkSqlHybridTest.NUMBER;
 		var bool = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
@@ -381,6 +383,7 @@ class SparkSqlHybridIntegrationTest {
 		}
 	}
 	@Test
+	@SparkSqlExpectedFailureLogs.Capture
 	void numericScalarContextsRetainUnusedEntryErrorsAndConsumerBoundary() {
 		var model = numericScalarContextFixture(true, "metric");
 		var generated = SparkSqlHybridTest.generate(model);
@@ -696,6 +699,7 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	@SparkSqlExpectedFailureLogs.Capture
 	void nativeNumericContextLoopsPreservePowerAndNullResultErrors() {
 		var power = powerLoopFixture();
 		var generated = SparkSqlHybridTest.generate(power);
@@ -800,6 +804,7 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	@SparkSqlExpectedFailureLogs.Capture
 	void factorLoopValidationPreservesFailuresAndRejectsOtherRoundScales() {
 		var model = factorLoopFixture();
 		var generated = SparkSqlHybridTest.generate(model);
@@ -868,6 +873,7 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	@SparkSqlExpectedFailureLogs.Capture
 	void exactDivisionRetainsInvalidNumberOrderAndScaleOverflow() {
 		var model = exactDivisionFixture();
 		var type = model.decisions().getFirst().type();
@@ -1025,6 +1031,7 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	@SparkSqlExpectedFailureLogs.Capture
 	void exactProductLoopsRetainNullInvalidNumberAndScaleOverflowErrors() {
 		var model = exactProductFixture();
 		var generated = SparkSqlHybridTest.generate(model);
@@ -1244,6 +1251,7 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	@SparkSqlExpectedFailureLogs.Capture
 	void indexedJoinsRetainErrorsAfterEarlierMatchesAndForNullMatchedRows() {
 		var model = indexedJoinFixture();
 		var generated = SparkSqlHybridTest.generate(model);
@@ -5150,6 +5158,7 @@ class SparkSqlHybridIntegrationTest {
 	}
 
 	@Test
+	@SparkSqlExpectedFailureLogs.Capture
 	void defaultDenialSurvivesGenerationAndDoesNotReuseApprovedFoldedResults() {
 		var model = compiledFilterModel(
 				"(function(x) external {java:{class: \"java.lang.Math\", method signature: \"cos(double)\"}})(0)",

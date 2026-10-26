@@ -49,8 +49,8 @@ below remain open. See [verified execution evidence](security-correctness-harden
 
 ## 1. Repair public entry points — first priority
 
-- [ ] Fix the README badge target and validate every README relative link.
-- [ ] Align README module status, default build descriptions and commands with
+- [x] Fix the README badge target and validate every README relative link.
+- [x] Align README module status, default build descriptions and commands with
   `pom.xml` and the documented graduation decision. Do not infer production
   readiness merely from default-reactor membership.
 - [x] Review roadmap wording so implemented Java and Spark generation are clearly
@@ -142,12 +142,12 @@ can distinguish SQL execution from expected compiler rejection and historical ru
   outside direct navigation is not automatically an error.
 - [ ] Give intentional exceptions an explicit policy or allowlist with rationale.
   Add checks for pages that violate the chosen policy.
-- [ ] Move or archive the root Spark status journal under an appropriate development
+- [x] Move or archive the root Spark status journal under an appropriate development
   history location. Update links and consider a short compatibility pointer at the
   old path if external references exist.
 - [ ] Replace chronological checkpoint prefixes in public architecture/status pages
   with current summaries and links to dated evidence.
-- [ ] Preserve historical numbers, warnings and source context. Do not rewrite old
+- [x] Preserve historical numbers, warnings and source context. Do not rewrite old
   checkpoints to make them agree with today's results.
 
 Acceptance: public pages explain the current system; working history remains
@@ -158,10 +158,10 @@ navigation warnings.
 
 - [x] Retain the existing reactor-module and certification-wording checks, while
   making their scope explicit in tool output and contributor documentation.
-- [ ] Check relative links in README and the agreed published-document scope,
+- [x] Check relative links in README and the agreed published-document scope,
   including reference-style links, images, fragments and URL-encoded paths where
   applicable. Resolve against the source page and documented MkDocs conventions.
-- [ ] Reject machine-specific `file:///` links in published guidance. Explicitly
+- [x] Reject machine-specific `file:///` links in published guidance. Explicitly
   scope or allowlist historical quotations/examples instead of silently ignoring
   all development documentation.
 - [ ] Validate navigation targets and enforce the agreed publication/orphan policy.
@@ -170,12 +170,12 @@ navigation warnings.
   percentages. Do not grep every historical number against the latest JSON.
 - [x] Fail clearly when designated evidence is missing, malformed or internally
   inconsistent, including duplicate case keys or inconsistent status totals.
-- [ ] Add focused tool tests for broken links, invalid fragments, local paths,
+- [x] Add focused tool tests for broken links, invalid fragments, local paths,
   metric mismatches and intended exceptions. Include positive cases so valid
   archived history and intentionally indexed pages remain supported.
 - [ ] Run all planned checks in CI and review publication/link severities. The
-  evidence checks and their tests already run through the existing CI and docs
-  deployment workflows; general link/navigation policy checks are still pending.
+  evidence and maintained-scope link checks and their tests run through existing
+  CI and docs deployment. General orphan/publication enforcement remains pending.
 
 Acceptance: representative regressions produce actionable file/line diagnostics
 and fail CI; valid current documents and explicitly permitted historical material
@@ -204,10 +204,35 @@ no Spark SQL: native/fallback actions 0/0, denominator 0, rates N/A, failed/unkn
 SQL actions 0/0. The full Spark TCK remains the measured 3,391-native/zero-fallback
 checkpoint; no runtime or generator code changed in this continuation.
 
-Remaining work: complete link/fragment/image checking, machine-local-path checks
-across an explicit published scope, navigation/orphan classification and policy,
-and journal/history separation. Add negative and positive tool tests for those
-checks. Changes in this continuation are uncommitted; no new push was requested.
+## Link/history continuation after pushed `0d5ac94` - 2026-10-26
+
+Added `tools/documentation_links.py` to the existing documentation verifier. It
+checks local links, reference links, image targets, URL-encoded paths, Markdown
+fragments and explicit anchors using the configured Markdown renderer. Fenced
+examples are not treated as live links. File/drive URLs, repository escapes and
+missing targets fail with source locations. Remote URLs are outside this offline
+check. All navigation targets are checked; maintained scope is now 68 pages.
+Historical slice/proposal/individual-ADR bodies are explicit exceptions documented
+in the structure guide; current development guides and indexes remain checked.
+
+The root Spark status journal was archived, preserving historical numbers and
+warnings, to `docs/dev/history/spark-sql-checkpoints-through-2026-10-26.md`.
+Only relative link paths were rebased. The root file is a concise compatibility
+pointer, and the slice index links the archive and current conformance record.
+The capability matrix's zero-failure statement was also clarified after the
+user asked what it meant.
+
+Validation: 10 link-check tests and 10 evidence/documentation tests passed; 68
+maintained pages and all navigation targets passed; strict MkDocs and whitespace
+checks passed. No SQL executed (native/fallback 0/0, denominator 0, rates N/A;
+failed/unknown SQL actions 0/0). Backend sources and measured TCK results unchanged.
+New link/history changes are uncommitted; the preceding capability/evidence batch
+was committed and pushed as `0d5ac94` at the user's request.
+
+Remaining DOC-01 work: full Markdown inventory and orphan classification, a policy
+for pages outside navigation/indexes, enforcement of that policy, and final
+publication severity review. The maintained-page link checker does not claim to
+validate every historical or unlisted Markdown body.
 
 ## Delivery and validation
 
@@ -232,3 +257,53 @@ checks. Changes in this continuation are uncommitted; no new push was requested.
 - [Public TCK conformance page](../../tck-conformance.md)
 - [Documentation structure](../../documentation-structure.md)
 - [Verified temporal checkpoint](native-temporal-chains-2026-10-24.md)
+
+## Read-only publication inventory checkpoint - 2026-10-26
+
+Inventory: **165 Markdown pages** under docs: 67 navigation guidance pages,
+67 dated evidence/ADR records, 30 proposal/example pages, and one maintained
+indexed reference, `architecture/toolkit-assets-and-differentiators.md`.
+The latter is linked directly from `docs/index.md`; it is not an orphan simply
+because it is absent from navigation. These are role/scope classifications,
+not a claim that all historical prose has been semantically reviewed.
+Local inventory: `dmn-tck-runner/target/doc01-publication-inventory.json`.
+
+The indexed assets page needs the next accuracy review: it still says ten modules,
+Java 21+, zero runtime reflection and unqualified competitive/performance
+superiority. The current reactor has twelve default modules and JDK 25; reflection
+and performance claims require the already documented policy/evidence boundaries.
+Next: correct or remove unsupported assertions, include this indexed public page
+in maintained link checks, then encode and test the publication/orphan policy.
+Do not discard or silently reclassify historical evidence to make checks pass.
+
+Only 4% of the usage window remained at this checkpoint. Per the saved 20% reserve
+instruction, no new implementation was started; this continuation was read-only
+inventory plus handover. Prior checks remain: 20 documentation tool tests, strict
+MkDocs and facts passed; CI logging fix passed all 12 focused tests. No new tests
+or SQL execution occurred in this inventory. New link/history/logging work remains
+uncommitted, latest pushed checkpoint `0d5ac94`. Official Spark TCK remains the
+verified 3,391 native passes, zero fallback on unchanged production sources.
+
+## Assets-page correction - 2026-10-26
+
+After the reserve checkpoint, the user repeatedly instructed continuation. This
+was treated as an override of the saved reserve stop for a documentation-only
+batch. The public assets page now uses the actual twelve-module/JDK-25 build
+boundary and removes unsupported superiority, zero-allocation, JDK-only dependency
+and flawless native-image assertions. Conformance links the retained 3,391-native
+checkpoint; external reflection and deployment/performance require their actual
+policy and evidence boundaries. The page is in architecture navigation, bringing
+maintained link scope to 69 pages (including the repository README). It is no
+longer an unlisted reference; the original inventory remains a dated checkpoint.
+
+Validation: canonical facts, maintained links/navigation, strict MkDocs and
+whitespace checks passed. No runtime/generator implementation changed and no SQL
+executed: native/fallback actions 0/0, denominator 0, rates N/A; failed/unknown
+SQL actions 0/0. This documentation batch remains uncommitted alongside the prior
+link/history and CI logging changes. Publication/orphan-policy enforcement remains
+open; the task is not marked complete by these documentation corrections.
+
+Publication checkpoint: the user requested commit and push after the assets-page
+review. This publication includes the verified link/history, assets-page and CI
+logging changes. Earlier uncommitted-state notes describe their dated work states.
+Remaining publication/orphan enforcement is still open; no backend behavior changed.
