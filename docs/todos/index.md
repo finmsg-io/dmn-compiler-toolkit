@@ -1,6 +1,6 @@
 # Module TODOs and active backlog
 
-Last reviewed: 2026-10-26
+Last reviewed: 2026-10-27
 
 Module delivery status records the implemented foundation, not completion of all
 security, correctness, operational or documentation work. Spark SQL and gRPC are
@@ -27,12 +27,17 @@ named deliverable with evidence. The former `ready` label is not proof of delive
 
 ## Completed milestones and continuing boundaries
 
+- Generic gRPC Evaluate TCK goal achieved locally (2026-10-27): **3,391/3,391**
+  expected-result passes, 3,391 RPC attempts and completed responses through
+  generated Java handlers over HTTP/2/protobuf. Zero failures/errors/blocks;
+  typed services remain separate. See the [conformance record](../tck-conformance.md#generic-grpc-checkpoint-2026-10-27).
+
 - DOC-01 documentation drift remediation completed locally (2026-10-26): public
   claims/evidence refreshed; current links and publication/orphan roles enforced;
   historical journals archived; strict MkDocs severities reviewed. All 49 tooling
   tests passed and all 166 Markdown pages classified, zero unclassified. See
   [completion evidence](../dev/slices/documentation-drift-remediation-task-2026-10-24.md#completion-evidence-2026-10-26).
-  Final policy/guide changes are uncommitted; the preceding checkpoint is 97b03b2.
+  Policy/guide changes were committed and pushed in 256715d.
 
 - All-case native Spark TCK goal achieved (2026-10-26): **3,391/3,391**
   official cases executed natively and matched expected results; **100% native,

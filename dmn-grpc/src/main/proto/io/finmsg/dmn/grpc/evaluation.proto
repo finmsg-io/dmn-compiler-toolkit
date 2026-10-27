@@ -34,6 +34,9 @@ message DmnEvaluationRequest {
   string model_namespace = 1;
   string model_name = 2;
   map<string, Value> inputs = 3;
+  // Optional direct FEEL BKM/decision-service invocation; empty retains Evaluate.
+  string invocable_name = 4;
+  map<string, Value> arguments = 5;
 }
 
 message DmnEvaluationResponse {
@@ -41,6 +44,8 @@ message DmnEvaluationResponse {
   string model_name = 2;
   map<string, Value> outputs = 3;
   repeated EvaluationError errors = 4;
+  // Present for an invocation, including an explicit FEEL null result.
+  Value invocation_result = 5;
 }
 
 message EvaluationError {

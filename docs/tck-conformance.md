@@ -6,6 +6,7 @@
 - [Overview](#contents-section-1)
 - [TCK suite version](#contents-section-2)
 - [Test results](#contents-section-3)
+  - [Generic gRPC checkpoint](#generic-grpc-checkpoint-2026-10-27)
   - [Native Spark SQL checkpoint](#native-spark-sql-checkpoint-2026-10-26)
   - [Historical interpreter/Java baseline](#historical-interpreterjava-baseline-2026-09-04-officialtcksuitetest)
   - [Overall summary](#contents-section-3-1)
@@ -22,7 +23,8 @@ This document pins the exact OMG DMN TCK revision used for conformance
 testing and records per-backend, per-compliance-level results for the
 DMN Compiler Toolkit.
 
-Latest Spark assessment: 2026-10-26. Interpreter/Java baseline below: 2026-09-04.
+Latest generic gRPC assessment: 2026-10-27. Spark assessment: 2026-10-26.
+Interpreter/Java baseline below: 2026-09-04. These are separately measured runs.
 
 Spark implementation source: `f2af3954273a60c56dff3de5804fb05057ab37c2`. The measured
 generator JAR SHA-256 is recorded below. The earlier interpreter/Java baseline used
@@ -44,6 +46,49 @@ in the checkout step. Locally: `git submodule update --init --recursive`.
 
 <a id="contents-section-3"></a>
 ## Test results
+
+### Generic gRPC checkpoint - 2026-10-27
+
+All **3,391 official CL2/CL3 cases passed through the generic Evaluate API**:
+**3,391 RPC attempts and 3,391 completed responses**, with zero failed cases,
+execution errors, compilation blocks, skipped or excluded cases. Every requested
+result was checked; a missing output cannot pass. This establishes **100%
+self-verified TCK conformance** for this API and the pinned inventory.
+
+The backend is `optimized-generated-grpc`: generated production handlers call
+generated Java engines, with no interpreter fallback. Requests and responses cross
+real loopback HTTP/2 and protobuf; this is not an in-process or direct-engine-only
+TCK run. All eleven direct-invocation cases execute through the additive
+`invocable_name`/`arguments` request fields and `invocation_result` response field.
+The test host permits only the official fixtures' required external Java calls
+through its host-owned policy; generated services still deny them by default.
+
+Configuration: JDK 25, gRPC 1.76.0, optimized runtime model, 120-second per-case
+limit including preparation. The final run took 3,771.424 seconds and Maven exited
+0. Surefire emitted a fork-shutdown warning after all results were written; it is
+retained as a verification limitation, not a failed TCK case. A prior focused
+30-second retest timed out; its later pass does not establish the cause or a fix
+for that timeout.
+
+The retained [per-case gRPC accounting](assets/tck-accounting-grpc.json) contains
+3,391 distinct `PASSED` outcomes marked `GRPC_HTTP2`. Local evidence is in
+`dmn-tck-runner/target/grpc-http2-full-corrected.log` and
+`grpc-http2-full-corrected-accounting.json`. Source changes were uncommitted at
+measurement, based on `256715d`. Measured artifact SHA-256 values:
+
+- Installed `dmn-grpc`: `C4FA6E21FFD62B0CA4BF067A8995197A54B5707F30492C269BAA6AE0AA665D2E`
+- `dmn-generator-java`: `7884E62094B15C23563B9F9C625AB53F97B7B1E32A9BDF90F457E399BB787AE4`
+
+Reproduce after installing current reactor dependencies:
+
+```bash
+mvn -Ptck -pl dmn-tck-runner -Dtck.skip=false -Dtck.requireFull=true -Dtck.backend=grpc -Dtck.modelVariant=optimized -Dtck.timeoutSeconds=120 -Dtest=OfficialTckSuiteTest test
+```
+
+The separate model-specific typed service generator, deployment security, remote
+network conditions and performance are outside this checkpoint. SQL native and
+fallback counts/rates are not applicable to gRPC execution. The existing CI TCK
+jobs do not yet include this opt-in backend.
 
 ### Native Spark SQL checkpoint - 2026-10-26
 
@@ -92,6 +137,15 @@ CI separately runs interpreter, generated-Java and Spark hybrid conformance in
 `.github/workflows/ci.yml`; this checkpoint records a completed local run, not a
 claim that a new CI run has already passed. Production models outside the pinned
 suite still need validation against the generator's capability boundaries.
+
+Latest-source revalidation on 2026-10-27 also passed all 3,391 cases natively
+(100%), fallback 0 (0%), failures/errors/compilation blocks/unknown routes 0,
+using a 120-second limit. Its complete ledger exactly matches the retained Spark
+ledger. Local evidence: `dmn-tck-runner/target/grpc-checkpoint-full-sparksql.log`
+and `grpc-checkpoint-full-sparksql-accounting.json`. This separately measured run
+checks that the gRPC/compiler changes preserve the native Spark result.
+Maven exited 0; a post-results Surefire fork-shutdown warning was logged in this
+revalidation and remains separate from the zero failed TCK cases.
 
 ### Historical interpreter/Java baseline - 2026-09-04 (`OfficialTckSuiteTest`)
 

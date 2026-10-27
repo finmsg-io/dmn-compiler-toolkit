@@ -58,6 +58,9 @@ class OfficialTckSuiteTest {
 	private final List<TckCatalogueOutcome> outcomes = Collections.synchronizedList(new ArrayList<>());
 	private final Map<PreparationKey, Preparation> preparationCache = new HashMap<>();
 	private final Map<PreparationKey, GeneratedPreparation> generatedPreparationCache = new HashMap<>();
+	private final Map<PreparationKey, GrpcTckExecution> grpcPreparationCache = new HashMap<>();
+	private final AtomicInteger grpcRequests = new AtomicInteger();
+	private final AtomicInteger grpcResponses = new AtomicInteger();
 	private final Map<PreparationKey, DmnSparkSqlGeneratorResult> sparkSqlPreparationCache = new HashMap<>();
 	private final AtomicInteger currentTestIndex = new AtomicInteger(0);
 	private List<RuntimeModelMode> activeModelModes = List.of();
@@ -212,6 +215,8 @@ class OfficialTckSuiteTest {
 		String backendProp = System.getProperty("tck.backend", "all").trim().toLowerCase(Locale.ROOT);
 		return modes.stream().flatMap(mode -> {
 			String variant = mode.name().toLowerCase(Locale.ROOT);
+			if (backendProp.equals("grpc"))
+				return Stream.of(variant + "-generated-grpc");
 			if (backendProp.equals("sparksql") || backendProp.equals("spark")) {
 				return Stream.of(variant + "-generated-sparksql" + (SPARK_HYBRID ? "-hybrid" : ""));
 			}
@@ -233,6 +238,15 @@ class OfficialTckSuiteTest {
 		String interpreterBackend = variant + "-interpreter";
 		String generatedJavaBackend = variant + "-generated-java";
 		String generatedSparkSqlBackend = variant + "-generated-sparksql" + (SPARK_HYBRID ? "-hybrid" : "");
+		String generatedGrpcBackend = variant + "-generated-grpc";
+		if (activeBackends.contains(generatedGrpcBackend)) {
+			dynamicTests.add(
+					recordedTest(testName + " @" + generatedGrpcBackend, entry, testCase, generatedGrpcBackend, () -> {
+						var preparation = getPreparation(sources, testCase, modelMode);
+						requireCompilationSucceeded(preparation.failureDiagnostic(), preparation.failureCause());
+						executeGeneratedGrpc(sources, preparation.compilation(), testCase, modelMode, testName);
+					}));
+		}
 
 		if (activeBackends.contains(interpreterBackend)) {
 			dynamicTests
@@ -270,6 +284,36 @@ class OfficialTckSuiteTest {
 						executeGeneratedSparkSql(sources, preparation, testCase, modelMode, testName);
 					}));
 		}
+	}
+
+	private void executeGeneratedGrpc(List<DmnSource> sources, DmnCompilationResult compilation, TckTestCase testCase,
+			RuntimeModelMode mode, String testName) throws Exception {
+		var key = new PreparationKey(sources.stream().map(source -> source.id().toString()).toList(),
+				Set.copyOf(testCase.expectedResults().keySet()), mode);
+		var grpc = grpcPreparationCache.get(key);
+		if (grpc == null) {
+			grpc = GrpcTckExecution.prepare(compilation);
+			grpcPreparationCache.put(key, grpc);
+		}
+		var model = compilation.compiledModel().orElseThrow();
+		var request = io.finmsg.dmn.grpc.DmnEvaluationRequest.newBuilder().setModelNamespace(model.namespace())
+				.setModelName(model.modelName());
+		testCase.inputs().forEach((name, value) -> request.putInputs(name,
+				io.finmsg.dmn.grpc.DmnGrpcValueConverter.toProtoValue(value.runtimeValue())));
+		testCase.invocableName().ifPresent(request::setInvocableName);
+		if (testCase.invocableName().isPresent())
+			testCase.inputs().forEach((name, value) -> request.putArguments(name,
+					io.finmsg.dmn.grpc.DmnGrpcValueConverter.toProtoValue(value.runtimeValue())));
+		grpcRequests.incrementAndGet();
+		var response = grpc.execute(request.build(), TIMEOUT_SECONDS);
+		grpcResponses.incrementAndGet();
+		if (testCase.invocableName().isPresent())
+			assertThat(response.hasInvocationResult()).as(testName + " gRPC invocation result presence").isTrue();
+		assertThat(response.getErrorsList()).as(testName + " gRPC response errors").isEmpty();
+		Map<String, Object> actual = new LinkedHashMap<>();
+		response.getOutputsMap().forEach(
+				(name, value) -> actual.put(name, io.finmsg.dmn.grpc.DmnGrpcValueConverter.toJavaObject(value)));
+		assertExpected(testName, testCase, actual, "Generated gRPC over loopback HTTP/2");
 	}
 
 	private Preparation getPreparation(List<DmnSource> sources, TckTestCase testCase, RuntimeModelMode modelMode) {
@@ -664,6 +708,16 @@ class OfficialTckSuiteTest {
 	}
 
 	@AfterAll
+	void tearDownGrpcTransport() throws Exception {
+		try {
+			GrpcTckExecution.closeTransport();
+		} finally {
+			for (var grpc : grpcPreparationCache.values())
+				grpc.close();
+		}
+	}
+
+	@AfterAll
 	void writeAccountingEvidence() throws Exception {
 		if (inventory == null)
 			return;
@@ -672,9 +726,14 @@ class OfficialTckSuiteTest {
 				? "-" + activeModelModes.getFirst().name().toLowerCase(Locale.ROOT)
 				: "";
 		new TckCatalogueReportWriter().write(Path.of("target", "tck-accounting" + variant + ".json"), report);
-		if (SPARK_HYBRID) {
+		if (SPARK_HYBRID && activeBackends.stream().anyMatch(backend -> backend.contains("sparksql"))) {
 			new TckCatalogueReportWriter()
 					.write(Path.of("target", "tck-accounting" + variant + "-sparksql-hybrid.json"), report);
+		}
+		if (activeBackends.stream().anyMatch(backend -> backend.endsWith("-generated-grpc"))) {
+			new TckCatalogueReportWriter().write(Path.of("target", "tck-accounting" + variant + "-grpc.json"), report);
+			System.out.printf(" GRPC RPC ATTEMPTS: %d; COMPLETED RESPONSES: %d; REQUIRED CASES: %d%n",
+					grpcRequests.get(), grpcResponses.get(), outcomes.size());
 		}
 
 		Files.write(
@@ -694,7 +753,7 @@ class OfficialTckSuiteTest {
 		System.out.printf(" DMN TCK CONFORMANCE SUMMARY [%s]:%n", activeBackends);
 		System.out.printf(" TOTAL TESTS : %d%n", total);
 		System.out.printf(" PASSED      : %d (%.2f%%)%n", passed, pct);
-		if (SPARK_HYBRID) {
+		if (SPARK_HYBRID && activeBackends.stream().anyMatch(backend -> backend.contains("sparksql"))) {
 			var sparkOutcomes = outcomes.stream().filter(o -> o.backend().contains("sparksql")).toList();
 			long nativeCases = sparkOutcomes.stream()
 					.filter(o -> o.status() == TckCatalogueStatus.PASSED && o.diagnostic().equals("NATIVE")).count();
@@ -770,7 +829,7 @@ class OfficialTckSuiteTest {
 				outcomes.add(new TckCatalogueOutcome(entry.id(), testCase.id(), backend, TckCatalogueStatus.PASSED,
 						backend.contains("sparksql")
 								? sparkRoutes.getOrDefault(entry.id() + "#" + testCase.id(), "")
-								: ""));
+								: backend.endsWith("-generated-grpc") ? "GRPC_HTTP2" : ""));
 			} catch (Throwable failure) {
 				System.err.printf("[INFO] [TCK %4d/%4d] [FAIL] %s -> %s%n", idx, totalTestCount, name,
 						failure.getMessage());

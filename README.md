@@ -36,6 +36,7 @@ Current status & focus:
 
 - Default reactor includes the interpreter, Java and Spark SQL generators, gRPC, and consumer smoke tests
 - Optimized Spark SQL: **3,391/3,391 official TCK cases executed natively (100%), zero fallback, failures or errors**; [pinned suite and evidence](docs/tck-conformance.md)
+- Generic gRPC Evaluate: **3,391/3,391 official TCK cases passed (100%) over real HTTP/2 and binary protobuf**, with 3,391 completed RPC responses and zero failures, errors or compilation blocks. Generated Java executes every case, including direct BKM/service invocation; [retained evidence and scope](docs/tck-conformance.md#generic-grpc-checkpoint-2026-10-27).
 - Optimized interpreter and generated Java also have recorded 3,391/3,391 passing checkpoints
 - Static optimization passes (`dmn-optimizer`) enabled by default through `DmnCompiler`
 - Spark SQL conformance is self-verified against the pinned suite; broader native model coverage remains bounded
@@ -72,7 +73,7 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-runtime` | Deterministic interpreter for executable Runtime IR |
 | `dmn-compiler` | Compiler orchestration and resolver-independent model-source contracts |
 | `dmn-generator-java` | High-performance Java source code generator directly from Runtime IR |
-| `dmn-tck-runner` | Opt-in OMG DMN TCK runner for strict optimized interpreter, Java and Spark SQL conformance |
+| `dmn-tck-runner` | Opt-in OMG DMN TCK runner for strict interpreter, Java, Spark SQL and generic gRPC conformance |
 | `dmn-benchmarks` | Opt-in JMH microbenchmarks & DataFaker reference model workloads |
 | `dmn-optimizer` | Constant folding, algebraic simplification, and rule pruning passes |
 | `dmn-grpc` | Generic and strongly-typed Protobuf schema & gRPC service adapter generator |
@@ -99,6 +100,7 @@ explicit:
 
 ```bash
 mvn -Ptck verify          # optimized interpreter, generated Java and Spark SQL TCK
+mvn -Ptck -Dtck.backend=grpc -Dtck.timeoutSeconds=120 verify # generic gRPC TCK
 mvn -Pbenchmarks verify   # benchmark support modules
 ```
 

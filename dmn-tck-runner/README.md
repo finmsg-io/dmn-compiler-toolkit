@@ -2,6 +2,23 @@
 
 This module is conformance test infrastructure. It reads input and expected result values from DMN TCK-style `*-test-01.xml` files, binds them to adjacent DMN models by name, compiles those models through `DmnCompiler`, and evaluates them across both `DmnRuntime` (interpreter) and `dmn-generator-java` (compiled Java code).
 
+It also supports Spark SQL and the opt-in generic gRPC backend. Generic gRPC
+achieved **3,391/3,391 official expected-result passes**, with 3,391 actual RPC
+attempts and completed responses over HTTP/2/protobuf (2026-10-27), including all
+eleven direct-invocation cases. Generated production handlers execute generated
+Java; no interpreter fallback or compilation rejection counts as a pass. See
+the [dated conformance record](../docs/tck-conformance.md#generic-grpc-checkpoint-2026-10-27).
+
+After installing the reactor dependencies, reproduce with:
+
+```text
+mvn -Ptck -pl dmn-tck-runner -Dtck.backend=grpc -Dtck.requireFull=true -Dtck.timeoutSeconds=120 -Dtest=OfficialTckSuiteTest test
+```
+
+The gRPC ledger is `target/tck-accounting-optimized-grpc.json`; retained public
+evidence is `docs/assets/tck-accounting-grpc.json`. The historical interpreter/Java
+figures below are a separately dated checkpoint, not one combined backend run.
+
 ## Official OMG DMN TCK status
 
 The module embeds the official vendor-neutral [OMG DMN Technology Compatibility Kit (TCK)](https://dmn-tck.github.io/tck/) repository as a Git submodule under `src/test/resources/tck-official` (pointing to [`https://github.com/dmn-tck/tck.git`](https://github.com/dmn-tck/tck.git)).

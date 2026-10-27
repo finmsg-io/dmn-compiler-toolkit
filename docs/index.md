@@ -52,6 +52,15 @@ cases natively (100%)**, with zero fallback, failed cases, compilation blocks or
 errors (2026-10-26). See the [conformance record](tck-conformance.md) for the
 configuration and retained per-case evidence.
 
+The generic gRPC Evaluate API also achieved **3,391/3,391 official TCK passes
+(100%)** on 2026-10-27. Every case crossed **real HTTP/2 and binary protobuf**,
+executed generated Java, and returned its expected result: **3,391 completed RPC
+responses, zero failures, errors or compilation blocks**. All eleven direct
+invocations executed. This verifies the complete generic API path; typed services
+are separate. See the [gRPC evidence](tck-conformance.md#generic-grpc-checkpoint-2026-10-27)
+for the pinned suite, configuration and retained case-level results. Backend
+checkpoints were measured separately.
+
 <a id="contents-section-2"></a>
 ## Design goals
 
