@@ -86,7 +86,7 @@
 - [x] Include Spark SQL and gRPC in the default reactor (implemented; does not alone prove production readiness).
 - [x] Native Spark SQL execution and expected results for all 3,391 official optimized TCK cases (100%), zero fallback, failed cases, compilation blocks or errors. See the [conformance record](tck-conformance.md).
 - [ ] Broaden native Spark SQL support beyond bounded proven forms when required; unsupported models can still use fallback. See [active backlog](todos/index.md).
-- [ ] Finalize strongly-typed Protobuf schema and gRPC service contract generator (`dmn-grpc`, `DmnTypedGrpcGenerator`)
+- [x] Generate model-specific typed Protobuf contracts and executable Java handlers; all 3,391 official cases pass through typed RPCs. The replacement requires regenerated clients; [separate evidence](tck-conformance.md#typed-grpc-checkpoint-2026-10-29) records scope and compatibility boundaries.
 - [ ] Add Spark SQL batch and streaming integration test harness against complex multi-table DMN models
 - [ ] Benchmark Spark SQL generated CTE queries against equivalent native PySpark / Scala Spark implementations
 

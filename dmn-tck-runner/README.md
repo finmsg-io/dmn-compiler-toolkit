@@ -9,6 +9,13 @@ eleven direct-invocation cases. Generated production handlers execute generated
 Java; no interpreter fallback or compilation rejection counts as a pass. See
 the [dated conformance record](../docs/tck-conformance.md#generic-grpc-checkpoint-2026-10-27).
 
+The model-specific typed backend (`tck.backend=typed-grpc`) is measured separately:
+**3,391/3,391 cases passed**, with **3,494 completed typed RPCs**, zero assertion
+failures, execution errors, unsupported invocations or compilation errors. Each
+requested decision uses its own typed RPC, so calls outnumber cases. Generated
+typed BKM/service invocation methods cover direct invocation cases. See the
+[typed checkpoint](../docs/tck-conformance.md#typed-grpc-checkpoint-2026-10-29).
+
 After installing the reactor dependencies, reproduce with:
 
 ```text

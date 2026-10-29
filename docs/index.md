@@ -61,6 +61,14 @@ are separate. See the [gRPC evidence](tck-conformance.md#generic-grpc-checkpoint
 for the pinned suite, configuration and retained case-level results. Backend
 checkpoints were measured separately.
 
+Model-specific typed gRPC services now also pass **all 3,391 official cases
+(100%)**, using **3,494 completed typed RPCs**. Every former failure, execution
+error, unsupported invocation and compilation block is resolved. The directly
+replaced typed contract preserves exact decimals, explicit nulls and nested
+collections; typed clients must be regenerated. See the
+[typed checkpoint](tck-conformance.md#typed-grpc-checkpoint-2026-10-29) for separate
+case/call counts, provenance and retained evidence.
+
 <a id="contents-section-2"></a>
 ## Design goals
 

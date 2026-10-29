@@ -1,6 +1,6 @@
 # Module TODOs and active backlog
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-10-29
 
 Module delivery status records the implemented foundation, not completion of all
 security, correctness, operational or documentation work. Spark SQL and gRPC are
@@ -11,6 +11,7 @@ Historical checkpoints remain dated evidence and do not override the current bac
 
 | ID | Priority | Work item | Status | Primary owner / acceptance |
 | --- | --- | --- | --- | --- |
+| TCK-EXIT | P1 | Resolve post-results Surefire shutdown warning | final reporting policy verified for full interpreter/Spark; typed rerun pending | [Investigation](dmn-grpc.md#typed-service-execution-and-conformance-measurement); duplicate passed-test XML output removed, console/failure diagnostics retained, unchanged shutdown timeout |
 | HARD-02 | P1 | Reproduce and consolidate Spark SQL literal escaping | legacy timeout validation deferred | [Hardening task, section 2](../dev/slices/security-correctness-hardening-task-2026-10-24.md); encoder and both generator regressions passed; default full TCK passed; legacy full TCK has two timeouts, deferred by user; validation remains open |
 | COVERAGE | P2 | Measured coverage baselines and enforcement | baseline recorded; enforcement deferred by user | [Hardening task, section 4](../dev/slices/security-correctness-hardening-task-2026-10-24.md); measured thresholds and missing error-path tests |
 | P19.1 | P2 | Explicit TCK inventory/outcome regression ratchet | planned | [Runner task](dmn-tck-runner.md); case-key/backend baseline and failure checks, beyond forbidding filters |
@@ -26,6 +27,12 @@ initiative has not been accepted for implementation. `done` applies only to the
 named deliverable with evidence. The former `ready` label is not proof of delivery.
 
 ## Completed milestones and continuing boundaries
+
+- Typed gRPC TCK conformance achieved (2026-10-29): **3,391/3,391 expected-result
+  passes (100%)**, 3,494 completed typed RPCs, zero failed/error/unsupported/blocked
+  cases. The directly replaced typed contract requires regenerated clients and
+  servers. The old 55.53% baseline is retained separately; see the
+  [passing typed record](../tck-conformance.md#typed-grpc-checkpoint-2026-10-29).
 
 - Generic gRPC Evaluate TCK goal achieved locally (2026-10-27): **3,391/3,391**
   expected-result passes, 3,391 RPC attempts and completed responses through

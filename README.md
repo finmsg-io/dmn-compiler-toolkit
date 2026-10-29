@@ -37,6 +37,10 @@ Current status & focus:
 - Default reactor includes the interpreter, Java and Spark SQL generators, gRPC, and consumer smoke tests
 - Optimized Spark SQL: **3,391/3,391 official TCK cases executed natively (100%), zero fallback, failures or errors**; [pinned suite and evidence](docs/tck-conformance.md)
 - Generic gRPC Evaluate: **3,391/3,391 official TCK cases passed (100%) over real HTTP/2 and binary protobuf**, with 3,391 completed RPC responses and zero failures, errors or compilation blocks. Generated Java executes every case, including direct BKM/service invocation; [retained evidence and scope](docs/tck-conformance.md#generic-grpc-checkpoint-2026-10-27).
+- Model-specific typed gRPC: **3,391/3,391 official TCK cases passed (100%)**, using
+  3,494 completed typed RPCs over HTTP/2/protobuf. Exact decimals, explicit nulls,
+  nested lists and direct invocations are verified; [typed evidence and the
+  required client regeneration](docs/tck-conformance.md#typed-grpc-checkpoint-2026-10-29).
 - Optimized interpreter and generated Java also have recorded 3,391/3,391 passing checkpoints
 - Static optimization passes (`dmn-optimizer`) enabled by default through `DmnCompiler`
 - Spark SQL conformance is self-verified against the pinned suite; broader native model coverage remains bounded

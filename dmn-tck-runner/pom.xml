@@ -12,6 +12,8 @@
   <name>DMN TCK Runner</name>
   <description>Test infrastructure for executing DMN TCK cases through the toolkit</description>
   <properties>
+    <!-- This scoped version supports the passed-test XML-output policy below. -->
+    <maven.surefire.plugin.version>3.5.5</maven.surefire.plugin.version>
     <!-- Default: skip TCK test execution during ordinary local builds unless -Ptck is explicitly specified -->
     <tck.skip>true</tck.skip>
     <tck.modelVariant>all</tck.modelVariant>
@@ -80,6 +82,9 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${maven.surefire.plugin.version}</version>
         <configuration>
+          <!-- Do not replay thousands of passing-case logs into XML before acknowledging fork exit.
+               Console logs, case results and failure output remain available. -->
+          <enableOutErrElements>false</enableOutErrElements>
           <skipTests>${tck.skip}</skipTests>
           <argLine>@{argLine} ${surefire.jvm.args}</argLine>
           <useFile>false</useFile>

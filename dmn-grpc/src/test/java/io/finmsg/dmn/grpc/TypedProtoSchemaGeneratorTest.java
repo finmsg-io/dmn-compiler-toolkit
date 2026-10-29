@@ -33,5 +33,7 @@ class TypedProtoSchemaGeneratorTest {
 		assertThat(result.protoContent()).contains("package finmsg.dmn.typed;");
 		assertThat(result.protoContent()).contains("message InputData");
 		assertThat(result.protoContent()).contains("service DmnTypedDecisionService");
+		assertThat(result.javaSources()).containsKeys(options.javaPackage() + "." + options.serviceName() + "Handler",
+				options.javaPackage() + "." + options.outerClassName() + "Engine");
 	}
 }

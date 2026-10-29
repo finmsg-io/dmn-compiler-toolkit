@@ -1,6 +1,6 @@
 # `dmn-grpc` TODO List
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-10-28
 Current status: **Listed generator/adapter foundation delivered; operational follow-up remains open.**
 
 ## Work Items
@@ -21,6 +21,44 @@ investigation of deployment responsibilities (P2). Establish whether authenticat
 TLS, request limits and deadlines belong to this adapter or its hosting service.
 Absence of server bootstrap code is not, by itself, a defect in a service adapter.
 The broader strongly typed contract milestone remains separate roadmap work.
+
+## Typed service execution and conformance measurement
+
+Typed conformance completed, 2026-10-29: **3,391/3,391 actual expected-result
+passes**, with **3,494 typed RPC attempts and completed responses**, zero failures,
+execution errors, unsupported cases or compilation errors. The user explicitly
+authorized replacing the typed contract directly; regenerate typed clients and
+servers. See the [passing checkpoint](../tck-conformance.md#typed-grpc-checkpoint-2026-10-29).
+
+Generated bundles now include the Java engine and typed service handler. The
+handler denies external Java by default and accepts a host-owned policy. Actual
+HTTP/2/protobuf boundary tests now verify exact large decimals, explicit nulls,
+nested null/empty lists, typed invocation and policy denial/permission. The
+replacement regression build passed 17 tests, including four typed HTTP/2 tests.
+Focused official verification passed 91/91 cases; the subsequent full run passed
+all 3,391 cases. The generic API result is not substituted for typed execution.
+
+Opt-in runner backend: `tck.backend=typed-grpc`. Coverage uses its own per-case
+ledger and RPC/case counts; unsupported cases and schema/Java compilation errors
+remain non-passing outcomes in the full 3,391-case denominator. A focused run
+passed 2/3 cases and recorded one unsupported direct invocation, with two actual
+RPC attempts/responses. Full measurement finished: **1,883/3,391 passed (55.53%)**,
+1,369 failed assertions, 125 execution/decoding errors, 11 unsupported cases and
+three schema compilation errors. RPC attempts/responses: 3,461/3,454. See the
+[coverage record](../tck-conformance.md#typed-grpc-coverage-2026-10-28) and
+[historical ledger](../assets/tck-accounting-typed-grpc-baseline.json). These figures
+describe the original contract, not the replacement's current pass rate.
+
+Lifecycle follow-up: the full passing typed run emitted a post-results Surefire
+warning. Parent/fork captures showed XML replay of passed-test logs delaying the
+exit acknowledgement. The runner uses Surefire 3.5.5 and omits duplicate passed-test
+XML output; console logs, XML case results and failed-test stdout/stderr/stacks are
+preserved. The TCP experiment was removed; the original shutdown timeout remains.
+Full interpreter and Spark runs passed cleanly under the final reporting policy;
+Spark retained 3,391 native passes and zero fallback. An isolated reporting probe
+verified failure diagnostics remain present. The complete reactor passed 513 tests.
+An additional full typed rerun is still checking clean shutdown under the final
+reporting policy; its completion remains pending, separately from typed conformance.
 
 ## Official gRPC TCK conformance
 
