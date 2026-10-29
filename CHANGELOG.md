@@ -9,8 +9,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-10-29
+
 ### Added
 
+- **100% native Spark SQL TCK conformance:** all 3,391 pinned official cases
+  execute and match expected results, with zero fallback, failures, errors or
+  compilation blocks. See the [conformance record](docs/tck-conformance.md).
+- Spark SQL and gRPC modules are included in the default Maven reactor and release.
 - Generated model-specific typed gRPC Java engines/handlers and a separately
   accounted official TCK backend (`tck.backend=typed-grpc`), using actual
   HTTP/2/protobuf requests, including direct BKM/decision-service invocation.
@@ -25,6 +31,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- Upgrade AssertJ to 3.27.7 and MkDocs Material to 9.7.7 to address the reported
+  XML assertion XXE and documentation search-suggestion XSS vulnerabilities.
+- External Java calls are denied by default across interpreter, generated Java,
+  Spark and gRPC; hosts can explicitly permit exact targets through their policy.
 - TCK reporting uses Surefire 3.5.5 without duplicating successful-test stdout
   and stderr in XML. Console logs, XML case results and failed-test diagnostics
   remain available. This removes report-file replay that delayed the fork exit
@@ -38,6 +48,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- Release reactor version: `1.1.0`. The Spark SQL and gRPC modules were excluded
+  from the default `1.0.0` release reactor. Their deployment and compatibility
+  boundaries remain documented separately from pinned TCK conformance.
 - **Breaking typed protobuf replacement:** regenerate typed clients and servers.
   Model-specific nullable wrappers replace primitive defaults, exact decimal
   strings replace `double`, and list containers preserve nested/empty lists and

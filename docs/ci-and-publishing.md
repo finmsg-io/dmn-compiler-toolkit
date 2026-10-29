@@ -8,7 +8,7 @@
 - [Release preparation](#contents-section-3)
 - [Protected publication](#contents-section-4)
 - [Failure and recovery](#contents-section-5)
-- [GitHub Packages repository](#contents-section-6)
+- [Publication repositories](#contents-section-6)
 <!-- generated-toc:end -->
 
 The repository separates read-only verification from Maven package publication. A successful
@@ -79,7 +79,7 @@ The tag starts `.github/workflows/publish-release.yml`. Before deployment it:
 5. runs the complete strict TCK against the configured optimized interpreter, generated Java and Spark hybrid backends;
 6. verifies non-empty source and Javadoc JARs for every default-reactor JAR module;
 7. proves the tagged checkout remains clean;
-8. deploys the default-reactor artifacts through GitHub Packages with Maven `deployAtEnd` enabled.
+8. publishes the default-reactor artifacts to Maven Central through the Central Portal plugin.
 
 The default Maven configuration sets `maven.deploy.skip=true`. Only the explicit `release` profile
 enables deployment and attaches sources and Javadocs. This local guard prevents an ordinary
@@ -103,14 +103,14 @@ match the checked-in reactor version, and belong to `main`; the protected enviro
 the attempt again.
 
 <a id="contents-section-6"></a>
-## GitHub Packages repository
+## Publication repositories
 
-Artifacts are deployed to:
+The release profile uses `central-publishing-maven-plugin` and server ID `central`
+to publish to Maven Central. The release workflow obtains Sonatype credentials and
+GPG signing material from repository secrets. Ordinary CI has no publication authority.
+The plugin automatically publishes an uploaded deployment; a successful upload alone
+is not confirmation that all artifacts are available from Central.
 
-```text
-https://maven.pkg.github.com/finmsg-io/dmn-compiler-toolkit
-```
-
-The parent POM repository ID and the release workflow's `actions/setup-java` server ID are both
-`github`. Publication uses the workflow-scoped `GITHUB_TOKEN`; credentials are unavailable to
-ordinary CI and untrusted pull requests.
+The POM also retains a GitHub Packages distribution-management endpoint:
+`https://maven.pkg.github.com/finmsg-io/dmn-compiler-toolkit`. This is distinct from
+the active Central Portal release path.
