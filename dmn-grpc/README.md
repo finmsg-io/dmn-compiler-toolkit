@@ -62,7 +62,7 @@ FEEL null; an unknown invocable returns gRPC `NOT_FOUND`.
 
 Numbers use decimal strings. Lists and contexts retain nested null values; time
 and date-time values retain supported offsets, zone identifiers and nanoseconds.
-This generic contract is separate from the typed schema's `double` number mapping.
+The typed contract also preserves exact decimals, through model-specific nullable wrappers.
 
 ### Strongly-Typed Protobuf Schema Generator
 ```java

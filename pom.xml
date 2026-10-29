@@ -8,7 +8,7 @@
 
     <groupId>io.finmsg.dmn</groupId>
     <artifactId>dmn-compiler-toolkit</artifactId>
-    <version>1.1.0-SNAPSHOT</version>
+    <version>1.1.0</version>
 
     <packaging>pom</packaging>
 
@@ -71,7 +71,7 @@
         <vtdxml.version>2.13.4</vtdxml.version>
         <junit.version>5.13.4</junit.version>
         <slf4j.version>2.0.17</slf4j.version>
-        <assertj.version>3.27.6</assertj.version>
+        <assertj.version>3.27.7</assertj.version>
         <jmh.version>1.37</jmh.version>
         <datafaker.version>1.9.0</datafaker.version>
         <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
