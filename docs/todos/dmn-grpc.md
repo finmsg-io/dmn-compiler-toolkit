@@ -57,8 +57,9 @@ preserved. The TCP experiment was removed; the original shutdown timeout remains
 Full interpreter and Spark runs passed cleanly under the final reporting policy;
 Spark retained 3,391 native passes and zero fallback. An isolated reporting probe
 verified failure diagnostics remain present. The complete reactor passed 513 tests.
-An additional full typed rerun is still checking clean shutdown under the final
-reporting policy; its completion remains pending, separately from typed conformance.
+The final full typed rerun passed 3,391/3,391 cases with 3,494 completed RPCs,
+Maven exit 0 and no shutdown warning (7,320.949 seconds). Its ledger exactly
+matches the retained passing evidence. Both requested tasks are complete.
 
 ## Official gRPC TCK conformance
 

@@ -28,8 +28,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - TCK reporting uses Surefire 3.5.5 without duplicating successful-test stdout
   and stderr in XML. Console logs, XML case results and failed-test diagnostics
   remain available. This removes report-file replay that delayed the fork exit
-  acknowledgement; final lifecycle verification is in progress. The default
-  fork channel and original shutdown timeout are retained.
+  acknowledgement. Full interpreter, Spark and typed gRPC TCK runs each passed
+  all 3,391 cases and exited without the shutdown warning. The default fork
+  channel and original shutdown timeout are retained.
 - Preserve explicit null decision outputs, nested null list/context members,
   offset/zoned temporal values and dependent decision evaluation across gRPC.
 - Preserve compiler decision slot metadata when decision services occur between

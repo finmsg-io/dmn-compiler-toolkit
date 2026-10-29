@@ -91,9 +91,20 @@ unique passing outcomes marked `TYPED_GRPC_HTTP2`. Local artifacts:
 `optimized-generated-typed-grpc`, JDK 25, gRPC 1.76.0, protoc 4.31.1,
 Surefire 3.5.5/TCP, 120-second case limit including preparation. Duration:
 7,246.298 seconds. Maven exited 0; a post-results Surefire shutdown warning
-occurred, and report-I/O lifecycle verification is being completed separately.
+occurred. The final lifecycle verification below supersedes that shutdown result.
 Source was uncommitted, based on `3c3c0b8`; installed `dmn-grpc` JAR SHA-256:
 `8DBDDC9EE8F11F8EE34D9E12A2B551AF1C9033E4EA82FA269A78AE2A2DB689F7`.
+
+Final clean-shutdown verification on 2026-10-29, using the implementation published
+in `2c39eb3`: **3,391/3,391 passed**, **3,494/3,494 RPC responses**, zero failures,
+errors or skipped cases; Maven exited 0 without a shutdown warning. Duration:
+7,320.949 seconds. The case ledger exactly matches the retained passing ledger.
+Artifacts: `dmn-tck-runner/target/typed-clean-exit-full-tck.log` and
+`typed-clean-exit-full-accounting.json`. This run used Surefire 3.5.5, the default
+fork channel, `enableOutErrElements=false` and the original shutdown timeout.
+All 3,391 console PASS records remained; redundant passed-test XML output was
+absent. Full interpreter and Spark TCK runs also exited cleanly under this policy;
+failed-test diagnostics were separately verified with an intentional failure probe.
 
 Reproduce after installing the reactor dependencies and protoc tools:
 

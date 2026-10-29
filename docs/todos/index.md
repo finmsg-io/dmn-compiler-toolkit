@@ -11,7 +11,6 @@ Historical checkpoints remain dated evidence and do not override the current bac
 
 | ID | Priority | Work item | Status | Primary owner / acceptance |
 | --- | --- | --- | --- | --- |
-| TCK-EXIT | P1 | Resolve post-results Surefire shutdown warning | final reporting policy verified for full interpreter/Spark; typed rerun pending | [Investigation](dmn-grpc.md#typed-service-execution-and-conformance-measurement); duplicate passed-test XML output removed, console/failure diagnostics retained, unchanged shutdown timeout |
 | HARD-02 | P1 | Reproduce and consolidate Spark SQL literal escaping | legacy timeout validation deferred | [Hardening task, section 2](../dev/slices/security-correctness-hardening-task-2026-10-24.md); encoder and both generator regressions passed; default full TCK passed; legacy full TCK has two timeouts, deferred by user; validation remains open |
 | COVERAGE | P2 | Measured coverage baselines and enforcement | baseline recorded; enforcement deferred by user | [Hardening task, section 4](../dev/slices/security-correctness-hardening-task-2026-10-24.md); measured thresholds and missing error-path tests |
 | P19.1 | P2 | Explicit TCK inventory/outcome regression ratchet | planned | [Runner task](dmn-tck-runner.md); case-key/backend baseline and failure checks, beyond forbidding filters |
@@ -27,6 +26,11 @@ initiative has not been accepted for implementation. `done` applies only to the
 named deliverable with evidence. The former `ready` label is not proof of delivery.
 
 ## Completed milestones and continuing boundaries
+
+Surefire shutdown cleanup is complete: full interpreter, Spark and typed gRPC TCK
+runs each passed all 3,391 cases and exited cleanly under the final reporting
+policy. [Lifecycle evidence](dmn-grpc.md#typed-service-execution-and-conformance-measurement)
+records the cause, retained diagnostics and final typed rerun.
 
 - Typed gRPC TCK conformance achieved (2026-10-29): **3,391/3,391 expected-result
   passes (100%)**, 3,494 completed typed RPCs, zero failed/error/unsupported/blocked
