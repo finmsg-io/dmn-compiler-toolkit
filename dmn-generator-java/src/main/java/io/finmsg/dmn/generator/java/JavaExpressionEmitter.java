@@ -458,7 +458,7 @@ public final class JavaExpressionEmitter {
 	private static String emitNestedQuantifiedB(boolean isEvery, List<RuntimeQuantifiedBinding> bindings, int index,
 			RuntimeExpression satisfies, Map<Integer, RuntimeBkm> bkmBySlot, List<Integer> fnIds) {
 		if (index == bindings.size()) {
-			return emitWithBkms(satisfies, bkmBySlot, fnIds);
+			return "quantifiedPredicate(" + emitWithBkms(satisfies, bkmBySlot, fnIds) + ")";
 		}
 		RuntimeQuantifiedBinding binding = bindings.get(index);
 		String src = emitWithBkms(binding.source(), bkmBySlot, fnIds);

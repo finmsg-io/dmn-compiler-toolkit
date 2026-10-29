@@ -1,89 +1,138 @@
 package io.finmsg.dmn.grpc;
 
 import io.finmsg.dmn.compiler.DmnCompilationResult;
-import io.finmsg.dmn.compiler.DmnCompiledModel;
-import io.finmsg.dmn.ir.RuntimeOptimizedModel;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Objects;
+import io.finmsg.dmn.ir.*;
+import java.util.*;
 
-/**
- * Generator emitting ultra-lean Java gRPC service stub classes backed by
- * compiled Java decision engines.
- */
+/** Generates generic gRPC handlers backed by compiled Java decision engines. */
 public class DmnGrpcGenerator {
-
 	public DmnGrpcGeneratorResult generate(DmnCompilationResult compilation, String compiledEngineFqcn,
 			DmnGrpcGeneratorOptions options) {
 		Objects.requireNonNull(compilation, "compilation");
 		Objects.requireNonNull(compiledEngineFqcn, "compiledEngineFqcn");
 		Objects.requireNonNull(options, "options");
-
-		RuntimeOptimizedModel optModel = compilation.optimizedRuntimeModel().orElseThrow();
-		int slotCount = optModel.model().valueSlotCount();
-
-		DmnCompiledModel compiledModel = compilation.compiledModel().orElseThrow();
-		Map<String, Integer> inputSlots = compiledModel.inputSlots();
-		Map<String, Integer> decisionSlots = compiledModel.decisionSlots();
-
+		var model = compilation.compiledModel().orElseThrow();
 		String fqcn = options.packageName() + "." + options.serviceClassName();
-
-		StringBuilder sb = new StringBuilder();
-		sb.append("package ").append(options.packageName()).append(";\n\n");
-		sb.append("import io.finmsg.dmn.grpc.*;\n");
-		sb.append("import io.grpc.stub.StreamObserver;\n");
-		sb.append("import java.util.Map;\n");
-		sb.append("import java.util.LinkedHashMap;\n\n");
-
+		var sb = new StringBuilder("package " + options.packageName() + ";\n\n");
+		sb.append("import io.finmsg.dmn.grpc.*;\nimport io.grpc.stub.StreamObserver;\nimport java.util.Map;\n\n");
 		sb.append("public class ").append(options.serviceClassName())
-				.append(" extends DmnEvaluationServiceGrpc.DmnEvaluationServiceImplBase {\n\n");
-
-		sb.append("  private final ").append(compiledEngineFqcn).append(" engine = new ").append(compiledEngineFqcn)
-				.append("();\n\n");
-
-		sb.append("  @Override\n");
+				.append(" extends DmnEvaluationServiceGrpc.DmnEvaluationServiceImplBase {\n");
+		sb.append("  private final ").append(compiledEngineFqcn).append(" engine;\n");
+		sb.append("  public ").append(options.serviceClassName())
+				.append("() { this(io.finmsg.dmn.runtime.ExternalJavaPolicy.denyAll()); }\n");
+		sb.append("  public ").append(options.serviceClassName())
+				.append("(io.finmsg.dmn.runtime.ExternalJavaPolicy policy) { this.engine = new ")
+				.append(compiledEngineFqcn).append("(policy); }\n");
 		sb.append(
-				"  public void evaluate(DmnEvaluationRequest request, StreamObserver<DmnEvaluationResponse> responseObserver) {\n");
-		sb.append("    try {\n");
-		sb.append("      Object[] slots = new Object[").append(slotCount).append("];\n");
-		sb.append("      Map<String, Value> reqInputs = request.getInputsMap();\n");
-
-		// Input slot binding
-		for (Map.Entry<String, Integer> entry : inputSlots.entrySet()) {
-			sb.append("      if (reqInputs.containsKey(\"").append(entry.getKey()).append("\")) {\n");
-			sb.append("        slots[").append(entry.getValue())
-					.append("] = DmnGrpcValueConverter.toJavaObject(reqInputs.get(\"").append(entry.getKey())
-					.append("\"));\n");
-			sb.append("      }\n");
+				"  @Override public void evaluate(DmnEvaluationRequest request, StreamObserver<DmnEvaluationResponse> observer) {\n");
+		sb.append("    try {\n      Object[] slots = new Object[")
+				.append(compilation.optimizedRuntimeModel().orElseThrow().model().valueSlotCount()).append("];\n");
+		sb.append("      Map<String, Value> inputs = request.getInputsMap();\n");
+		for (var input : model.inputSlots().entrySet()) {
+			sb.append("      if (inputs.containsKey(").append(quote(input.getKey())).append(")) slots[")
+					.append(input.getValue()).append("] = DmnGrpcValueConverter.toJavaObject(inputs.get(")
+					.append(quote(input.getKey())).append("));\n");
 		}
-
-		sb.append("      Object[] results = engine.evaluate(slots);\n\n");
-		sb.append("      DmnEvaluationResponse.Builder responseBuilder = DmnEvaluationResponse.newBuilder()\n");
-		sb.append("          .setModelNamespace(request.getModelNamespace())\n");
-		sb.append("          .setModelName(request.getModelName());\n\n");
-
-		// Output slot binding
-		int index = 0;
-		for (Map.Entry<String, Integer> entry : decisionSlots.entrySet()) {
-			sb.append("      Object dVal_").append(index).append(" = results[").append(entry.getValue()).append("];\n");
-			sb.append("      if (dVal_").append(index).append(" != null) {\n");
-			sb.append("        responseBuilder.putOutputs(\"").append(entry.getKey())
-					.append("\", DmnGrpcValueConverter.toProtoValue(dVal_").append(index).append("));\n");
-			sb.append("      }\n");
-			index++;
+		sb.append("      DmnEvaluationResponse.Builder response = DmnEvaluationResponse.newBuilder()")
+				.append(".setModelNamespace(request.getModelNamespace()).setModelName(request.getModelName());\n");
+		sb.append("      if (!request.getInvocableName().isEmpty()) {\n");
+		for (var invocation : invocables(compilation).entrySet()) {
+			emitInvocation(sb, invocation.getKey(), invocation.getValue());
 		}
-
-		sb.append("\n      responseObserver.onNext(responseBuilder.build());\n");
-		sb.append("      responseObserver.onCompleted();\n");
-		sb.append("    } catch (Exception exception) {\n");
 		sb.append(
-				"      responseObserver.onError(io.grpc.Status.INTERNAL.withDescription(exception.getMessage()).withCause(exception).asRuntimeException());\n");
-		sb.append("    }\n");
-		sb.append("  }\n");
-		sb.append("}\n");
+				"        observer.onError(io.grpc.Status.NOT_FOUND.withDescription(\"Unknown invocable: \" + request.getInvocableName()).asRuntimeException()); return;\n      }\n");
+		sb.append("      Object[] results = engine.evaluate(slots);\n");
+		for (var output : model.decisionSlots().entrySet()) {
+			sb.append("      response.putOutputs(").append(quote(output.getKey()))
+					.append(", DmnGrpcValueConverter.toProtoValue(results[").append(output.getValue()).append("]));\n");
+		}
+		sb.append("      observer.onNext(response.build()); observer.onCompleted();\n")
+				.append("    } catch (Exception failure) {\n")
+				.append("      observer.onError(io.grpc.Status.INTERNAL.withDescription(failure.getMessage()).withCause(failure).asRuntimeException());\n")
+				.append("    }\n  }\n}\n");
+		return new DmnGrpcGeneratorResult(fqcn, Map.of(fqcn, sb.toString()));
+	}
 
-		Map<String, String> sources = new LinkedHashMap<>();
-		sources.put(fqcn, sb.toString());
-		return new DmnGrpcGeneratorResult(fqcn, sources);
+	private record Invocable(RuntimeBkm bkm, List<String> outputs) {
+	}
+
+	private static Map<String, Invocable> invocables(DmnCompilationResult compilation) {
+		Map<Integer, RuntimeBkm> bySlot = new HashMap<>();
+		compilation.optimizedRuntimeModel().orElseThrow().model().businessKnowledgeModels()
+				.forEach(bkm -> bySlot.put(bkm.resultSlot(), bkm));
+		var result = new LinkedHashMap<String, Invocable>();
+		int slot = 0;
+		for (var semantic : compilation.semanticResult().models()) {
+			for (var element : semantic.model().getDrgElementsList()) {
+				if (element.hasInputData() || element.hasDecision()) {
+					slot++;
+				} else if (element.hasBusinessKnowledgeModel() || element.hasDecisionService()) {
+					RuntimeBkm bkm = bySlot.get(slot++);
+					if (bkm == null || bkm.functionKind() != RuntimeFunctionKind.FEEL)
+						continue;
+					String name = element.hasDecisionService()
+							? element.getDecisionService().getNode().getName()
+							: element.getBusinessKnowledgeModel().getNode().getName();
+					var outputs = new ArrayList<String>();
+					if (element.hasDecisionService()) {
+						for (var reference : element.getDecisionService().getOutputDecisionsList()) {
+							String id = reference.getHref().substring(reference.getHref().lastIndexOf('#') + 1);
+							String output = semantic.model().getDrgElementsList().stream()
+									.filter(node -> node.hasDecision()
+											&& node.getDecision().getNode().getId().equals(id))
+									.map(node -> node.getDecision().getNode().getName()).findFirst()
+									.orElseThrow(() -> new IllegalArgumentException("Unknown service output " + id));
+							outputs.add(output);
+						}
+					} else {
+						outputs.add(name);
+					}
+					if (result.putIfAbsent(name, new Invocable(bkm, List.copyOf(outputs))) != null)
+						throw new IllegalArgumentException("Ambiguous invocable name " + name);
+				}
+			}
+		}
+		return result;
+	}
+
+	private static void emitInvocation(StringBuilder sb, String name, Invocable invocation) {
+		var parameters = invocation.bkm().function().orElseThrow().parameters();
+		sb.append("        if (request.getInvocableName().equals(").append(quote(name)).append(")) {\n")
+				.append("          Object result = null;\n")
+				.append("          if (request.getArgumentsMap().keySet().equals(java.util.Set.of(");
+		for (int i = 0; i < parameters.size(); i++) {
+			if (i > 0)
+				sb.append(", ");
+			sb.append(quote(parameters.get(i).name()));
+		}
+		sb.append("))) {\n            Object[] args = new Object[").append(parameters.size()).append("];\n");
+		for (int i = 0; i < parameters.size(); i++) {
+			sb.append("            args[").append(i)
+					.append("] = DmnGrpcValueConverter.toJavaObject(request.getArgumentsOrThrow(")
+					.append(quote(parameters.get(i).name())).append("));\n");
+		}
+		sb.append("            slots = engine.evaluate(slots);\n").append("            result = engine.evaluateBkm(")
+				.append(invocation.bkm().resultSlot()).append(", args, slots);\n          }\n")
+				.append("          response.setInvocationResult(DmnGrpcValueConverter.toProtoValue(result));\n");
+		for (String output : invocation.outputs()) {
+			if (invocation.outputs().size() > 1) {
+				sb.append(
+						"          if (result != null && (!(result instanceof Map<?,?>) || !((Map<?,?>)result).containsKey(")
+						.append(quote(output))
+						.append("))) throw new IllegalStateException(\"Invocation omitted declared output\");\n");
+			}
+			sb.append("          response.putOutputs(").append(quote(output))
+					.append(", DmnGrpcValueConverter.toProtoValue(");
+			sb.append(invocation.outputs().size() > 1
+					? "result == null ? null : ((Map<?,?>)result).get(" + quote(output) + ")"
+					: "result");
+			sb.append("));\n");
+		}
+		sb.append("          observer.onNext(response.build()); observer.onCompleted(); return;\n        }\n");
+	}
+
+	private static String quote(String value) {
+		return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\r", "\\r").replace("\n", "\\n")
+				.replace("\t", "\\t") + "\"";
 	}
 }

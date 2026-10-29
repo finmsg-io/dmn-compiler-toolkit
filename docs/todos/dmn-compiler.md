@@ -7,7 +7,7 @@
 - [Next planned work](#contents-section-2)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-09-06
+Last reviewed: 2026-10-24
 
 The `dmn-compiler` module owns public compilation orchestration and resolver-independent model-source contracts.
 It provides `DmnCompiler` (one-call compiler facade), `DmnModelResolver` / `FilesystemDmnModelResolver` / `InMemoryDmnModelResolver` (transitive multi-model loader), `DmnCompilerDiagnostic` (phase-aware aggregated diagnostics), and `DmnCompilationResult` (immutable model-set compilation result).
@@ -32,3 +32,10 @@ It provides `DmnCompiler` (one-call compiler facade), `DmnModelResolver` / `File
 | Priority | Work item | Status | Target / Evidence |
 | --- | --- | --- | --- |
 | P20 | Cross-language decision generators (Rust, Golang, C++) | `proposed` | Define native code generator SPI and lower Runtime IR to native targets |
+
+
+P20 is the single cross-language generation proposal. Its scope includes the
+backend SPI, candidate Rust/Go/C++ lowering, runtime/ABI contracts and validation.
+Java-generator and Runtime-IR entries are dependencies of this proposal, not
+separately approved projects. Existing Runtime IR persistence is distinct from a
+future native execution format. No zero-GC guarantee is established by this proposal.

@@ -31,6 +31,119 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class DmnGrpcServiceTest {
+	@Test
+	void genericEvaluateReturnsNullOutputsAndSupportsNamedInvocation() throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:grpc-test">
+				<inputData id="amount" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<decision id="echo" name="Echo"><variable name="Echo" typeRef="number"/>
+				<informationRequirement><requiredInput href="#amount"/></informationRequirement>
+				<informationRequirement><requiredDecision href="#last"/></informationRequirement>
+				<literalExpression><text>Amount + Last</text></literalExpression></decision>
+				<decisionService id="service" name="EchoService"><variable name="EchoService"/>
+				<outputDecision href="#echo"/><encapsulatedDecision href="#last"/><inputData href="#amount"/></decisionService>
+				<decision id="missing" name="Missing"><variable name="Missing"/>
+				<literalExpression><text>null</text></literalExpression></decision>
+				<decision id="last" name="Last"><variable name="Last"/>
+				<literalExpression><text>2</text></literalExpression></decision>
+				<businessKnowledgeModel id="increment" name="Increment"><variable name="Increment"/>
+				<encapsulatedLogic kind="FEEL"><formalParameter name="x" typeRef="number"/>
+				<literalExpression><text>x + 1</text></literalExpression></encapsulatedLogic></businessKnowledgeModel>
+				</definitions>
+				""";
+		var compilation = new DmnCompiler().compile(new DmnSource(DmnSourceId.of("memory:grpc-invocation"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compilation.isSuccess()).as(compilation.diagnostics().toString()).isTrue();
+		String pkg = "io.finmsg.dmn.grpc.gen";
+		var engine = new DmnJavaGenerator().generate(compilation.optimizedRuntimeModel().orElseThrow(),
+				DmnJavaGeneratorOptions.of(pkg, "InvocationEngine"));
+		var handler = new DmnGrpcGenerator().generate(compilation, pkg + ".InvocationEngine",
+				DmnGrpcGeneratorOptions.of(pkg, "InvocationService"));
+		var type = compileInMemory(Map.of(pkg + ".InvocationEngine", engine.mainSource(), pkg + ".InvocationService",
+				handler.mainSource()), pkg + ".InvocationService");
+		var service = (DmnEvaluationServiceGrpc.DmnEvaluationServiceImplBase) type.getDeclaredConstructor()
+				.newInstance();
+		String name = InProcessServerBuilder.generateName();
+		var server = InProcessServerBuilder.forName(name).directExecutor().addService(service).build().start();
+		var channel = InProcessChannelBuilder.forName(name).directExecutor().build();
+		try {
+			var stub = DmnEvaluationServiceGrpc.newBlockingStub(channel);
+			var number = DmnGrpcValueConverter.toProtoValue(BigDecimal.valueOf(42));
+			var response = stub.evaluate(DmnEvaluationRequest.newBuilder().putInputs("Amount", number).build());
+			assertThat(response.getOutputsMap()).containsKeys("Echo", "Missing", "Last");
+			assertThat(response.getOutputsOrThrow("Missing").getValueKindCase())
+					.isEqualTo(Value.ValueKindCase.NULL_VALUE);
+			assertThat(DmnGrpcValueConverter.toJavaObject(response.getOutputsOrThrow("Last")))
+					.isEqualTo(BigDecimal.valueOf(2));
+			response = stub.evaluate(DmnEvaluationRequest.newBuilder().setInvocableName("EchoService")
+					.putArguments("Amount", number).build());
+			assertThat(response.hasInvocationResult()).isTrue();
+			assertThat(DmnGrpcValueConverter.toJavaObject(response.getInvocationResult()))
+					.isEqualTo(BigDecimal.valueOf(44));
+			assertThat(response.getOutputsMap()).containsOnlyKeys("Echo");
+			response = stub.evaluate(DmnEvaluationRequest.newBuilder().setInvocableName("EchoService").build());
+			assertThat(response.hasInvocationResult()).isTrue();
+			assertThat(response.getOutputsOrThrow("Echo").getValueKindCase()).isEqualTo(Value.ValueKindCase.NULL_VALUE);
+			response = stub.evaluate(
+					DmnEvaluationRequest.newBuilder().setInvocableName("Increment").putArguments("x", number).build());
+			assertThat(DmnGrpcValueConverter.toJavaObject(response.getInvocationResult()))
+					.isEqualTo(BigDecimal.valueOf(43));
+			org.assertj.core.api.Assertions
+					.assertThatThrownBy(
+							() -> stub.evaluate(DmnEvaluationRequest.newBuilder().setInvocableName("Unknown").build()))
+					.isInstanceOf(io.grpc.StatusRuntimeException.class).hasMessageStartingWith("NOT_FOUND:");
+		} finally {
+			channel.shutdownNow();
+			server.shutdownNow();
+		}
+	}
+
+	@Test
+	void externalJavaPolicyIsOwnedByHostAndDenialReachesGrpcClient() throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:test">
+				<decision id="result" name="result"><variable name="result"/>
+				<literalExpression><text>(function(x) external {java:{class:"java.lang.Math",method signature:"abs(int)"}})(-7)</text></literalExpression>
+				</decision></definitions>
+				""";
+		var compilation = new DmnCompiler().compile(new DmnSource(DmnSourceId.of("memory:grpc-policy"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compilation.isSuccess()).isTrue();
+		String pkg = "io.finmsg.dmn.grpc.gen";
+		var engine = new DmnJavaGenerator().generate(compilation.optimizedRuntimeModel().orElseThrow(),
+				DmnJavaGeneratorOptions.of(pkg, "PolicyEngine"));
+		var handler = new DmnGrpcGenerator().generate(compilation, pkg + ".PolicyEngine",
+				DmnGrpcGeneratorOptions.of(pkg, "PolicyService"));
+		var serviceClass = compileInMemory(
+				Map.of(pkg + ".PolicyEngine", engine.mainSource(), pkg + ".PolicyService", handler.mainSource()),
+				pkg + ".PolicyService");
+		var allowed = io.finmsg.dmn.runtime.ExternalJavaPolicy.allowOnly(
+				java.util.Set.of(new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math", "abs(int)")));
+		for (boolean approve : List.of(false, true)) {
+			var service = (DmnEvaluationServiceGrpc.DmnEvaluationServiceImplBase) (approve
+					? serviceClass.getDeclaredConstructor(io.finmsg.dmn.runtime.ExternalJavaPolicy.class)
+							.newInstance(allowed)
+					: serviceClass.getDeclaredConstructor().newInstance());
+			String name = InProcessServerBuilder.generateName();
+			var server = InProcessServerBuilder.forName(name).directExecutor().addService(service).build().start();
+			var channel = InProcessChannelBuilder.forName(name).directExecutor().build();
+			try {
+				var stub = DmnEvaluationServiceGrpc.newBlockingStub(channel);
+				var request = DmnEvaluationRequest.getDefaultInstance();
+				if (approve) {
+					assertThat(DmnGrpcValueConverter.toJavaObject(stub.evaluate(request).getOutputsOrThrow("result")))
+							.isEqualTo(BigDecimal.valueOf(7));
+				} else {
+					org.assertj.core.api.Assertions.assertThatThrownBy(() -> stub.evaluate(request))
+							.isInstanceOf(io.grpc.StatusRuntimeException.class)
+							.hasMessageContaining("INTERNAL: EXTERNAL_JAVA_DENIED:");
+				}
+			} finally {
+				channel.shutdownNow();
+				server.shutdownNow();
+			}
+		}
+	}
 
 	@Test
 	@DisplayName("DmnGrpcValueConverter: Bidirectional scalar, list, and context conversion")

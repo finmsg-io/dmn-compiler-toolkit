@@ -31,6 +31,7 @@ flowchart TD
     Root --> Runtime["dmn-runtime"]
     Root --> Comp["dmn-compiler"]
     Root --> JavaGen["dmn-generator-java"]
+    Root --> SparkGen["dmn-generator-sparksql"]
     Root --> TCK["dmn-tck-runner"]
 ```
 

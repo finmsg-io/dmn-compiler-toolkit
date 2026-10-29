@@ -8,7 +8,7 @@
     <parent>
         <groupId>io.finmsg.dmn</groupId>
         <artifactId>dmn-compiler-toolkit</artifactId>
-        <version>1.0.0</version>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>dmn-feel-parser</artifactId>
@@ -137,6 +137,27 @@
     </profiles>
     <build>
         <plugins>
+            <!-- Report only handwritten parser code. Do not use FeelParser*
+                 because that would also hide the handwritten FeelParserFacade. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>report</id>
+                        <configuration>
+                            <excludes>
+                                <exclude>io/finmsg/dmn/feel/parser/FeelLexer.class</exclude>
+                                <exclude>io/finmsg/dmn/feel/parser/FeelLexer$*.class</exclude>
+                                <exclude>io/finmsg/dmn/feel/parser/FeelParser.class</exclude>
+                                <exclude>io/finmsg/dmn/feel/parser/FeelParser$*.class</exclude>
+                                <exclude>io/finmsg/dmn/feel/parser/FeelParserVisitor.class</exclude>
+                                <exclude>io/finmsg/dmn/feel/parser/FeelParserBaseVisitor.class</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- Adds src/gen/java to the Java compiler source roots. -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

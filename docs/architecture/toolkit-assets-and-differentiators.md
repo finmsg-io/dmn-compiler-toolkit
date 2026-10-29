@@ -1,62 +1,64 @@
-# DMN Compiler Toolkit — Assets & Competitive Differentiators
+# Toolkit Assets and Evidence
 
-This document details the complete asset catalog of the DMN Compiler Toolkit and explains the architectural innovations that make `dmn-generator-java` and the overall toolkit significantly faster, cleaner, and more modern than legacy DMN engines (e.g., Drools/Kie, Camunda, Trisotech, Red Hat Decision Manager).
+Reviewed: 2026-10-26 against implementation checkpoint `f2af395`.
 
----
+The toolkit compiles DMN models through parsing, semantic analysis and Runtime IR,
+then supports interpretation, generated Java and generated Spark SQL. This page
+summarizes concrete assets and links their evidence; it does not claim measured
+superiority over other DMN products.
 
-## 1. Summary of Toolkit Assets
+## Modules and build
 
-The toolkit is organized into 10 decoupled, single-responsibility Maven modules:
+The default reactor contains **12 modules** and requires **JDK 25 and Maven 3.9+**.
+The [module catalog](../modules.md) lists the authoritative reactor membership and
+responsibilities. TCK and benchmark support are enabled through their opt-in
+profiles; the parent POM is build configuration, not a separate runtime module.
 
-| Module | Category | Primary Function & Asset |
+| Asset | Purpose | Evidence / boundary |
 | --- | --- | --- |
-| **`dmn-protobuf`** | Core Data Model | Canonical Protobuf schemas for DMN 1.5 definitions, FEEL AST, types, diagnostics, and semantic model sets. Provides immutable serialized artifacts across compiler stages. |
-| **`dmn-frontend-xml`** | Frontend Reader/Writer | Namespace-aware, fast XML parser and writer. Supports DMN 1.2, 1.3, 1.4, and 1.5 XML vocabularies with QName preservation and source-location tracking. |
-| **`dmn-feel-parser`** | Expression Parser | ANTLR4-based parser converting raw FEEL text into immutable Protobuf FEEL AST nodes with rich multi-error diagnostics. |
-| **`dmn-semantic-analysis`** | Semantic Compiler | Symbol table management, type inference, constraint checking, reference resolution, and deterministic DRG dependency ordering (cycle detection, execution topological sorting). |
-| **`dmn-runtime-ir`** | Intermediate Representation | Low-level, execution-focused Runtime IR with typed constant canonicalization, lexically scoped frame indexing, and IR optimization passes. |
-| **`dmn-runtime`** | Interpreter | Deterministic, zero-reflection interpreter for Runtime IR with 100% self-verified CL2/CL3 TCK conformance. |
-| **`dmn-compiler`** | Orchestration Facade | Public facade (`DmnCompiler`) and loader (`DmnModelLoader`) supporting resolver-independent multi-file DMN compilation (`DmnModelResolver`). |
-| **`dmn-generator-java`** | Ahead-Of-Time (AOT) Code Generator | Generates readable, pure Java source code (`DmnJavaGenerator`) directly from Runtime IR for ultra-low-latency execution. |
-| **`dmn-tck-runner`** | Conformance evidence | Strict runner for official CL2/CL3 cases; verified 100% pass rate (3,391/3,391 cases, 6,782/6,782 backend outcomes). |
-| **`dmn-toolkit-parent`** | Build Infrastructure | Maven parent POM managing Java 21+ toolchain, dependencies, compiler options, and multi-module build lifecycle. |
+| XML frontend and FEEL parser | Read supported DMN XML into the semantic model and parse expressions. | Supported-subset contracts and tests; see [modules](../modules.md). |
+| Semantic analysis and Runtime IR | Resolve dependencies, infer types, lower expressions and represent executable decisions. | Shared model/IR contracts; compilation diagnostics remain distinct from execution results. |
+| Interpreter | Evaluate Runtime IR on the JVM, including contexts, lexical bindings and decision tables. | [Conformance record](../tck-conformance.md) and runtime tests. |
+| Java generator | Generate Java source for model execution. | Generated-source compilation and runtime parity tests; [backend matrix](backend-parity-matrix.md). |
+| Spark SQL generator | Generate native SQL with capability checks and optional decision-level fallback. | All 3,391 pinned official cases passed natively; broader support remains bounded. |
+| Optimizer | Apply static transformations before execution or generation. | Transformation/parity tests; optimization is not a separate execution backend. |
+| gRPC and consumer smoke tests | Generate integration artifacts and verify supported consumer paths. | Default-reactor membership alone is not a production-readiness claim. |
+| TCK and benchmark tooling | Record conformance outcomes and run performance experiments. | Correctness and performance require separate measurements. |
 
----
+## Execution boundaries
 
-## 2. Why `dmn-generator-java` is Faster, Modern, and Superior
+Generated Java separates compilation from model evaluation and uses generated
+control flow and indexed bindings. This does not mean all evaluation is allocation
+free: decimals, lists, contexts, closures and helper calls can allocate objects.
+Generated code uses toolkit runtime helpers where required; it is not guaranteed
+to depend exclusively on the JDK.
 
-Legacy DMN engines were designed 10–15 years ago around generic rule engines (e.g., RETE algorithm/Phreak) or dynamic XML/FEEL reflection interpreters. `dmn-generator-java` represents a modern compiler approach: **Ahead-of-Time (AOT) compilation to direct Java control flow**.
+Comparator dispatch uses generated typed calls. Model-defined external Java calls
+retain an explicit, default-deny runtime policy and can use reflection when the
+host permits the exact target. Spark temporal SQL uses generator-selected JDK
+factories through Spark built-ins. See [hardening evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md)
+and the [backend matrix](backend-parity-matrix.md). There is no blanket
+reflection-free-runtime claim.
 
-Below are the 5 core technical differentiators:
+GraalVM/native-image deployment, Databricks/Photon execution and streaming
+performance need their own compatibility tests and measurements. Java source
+generation alone does not establish those deployment properties.
 
-### 1. Zero-Walk AOT Execution (No AST Walking or Reflection at Runtime)
-* **Legacy Engines**: Parse XML/FEEL at startup or per request, holding complex object graphs in memory and walking AST trees or executing rules via dynamic reflection on every execution.
-* **`dmn-generator-java`**: Compiles DMN logic into pure, static Java methods. Execution consists solely of native `if/else` statements, direct arithmetic, and array index lookups. There is **zero XML parsing, zero FEEL parsing, zero AST walking, and zero reflection** during model evaluation.
+## Verified conformance
 
-### 2. Zero-Allocation Lexical Frame Indexing
-* **Legacy Engines**: Instantiate new `HashMap` or `Context` objects at every nested expression, decision table rule, or function call, creating heavy Garbage Collection (GC) pressure in multi-threaded microservices.
-* **`dmn-generator-java`**: Maps all input variables, decision outputs, local context entries, and function arguments to **dense integer slots** (`Object[]` or direct method arguments). Local variables reuse pre-calculated array offsets, keeping memory allocations near zero during evaluation.
+Optimized generated Spark SQL executed **3,391/3,391 pinned official TCK cases
+natively (100%)** and matched expected results. Fallback passes, failed cases,
+compilation blocks, unexpected errors and unknown routes were all **zero**.
 
-### 3. Native JIT Compiler Friendly (HotSpot / GraalVM Optimization)
-* **Legacy Engines**: Dynamic dispatch and deep reflection hinder JVM Just-In-Time (JIT) compilers (C2/Graal) from inlining calls or devirtualizing methods.
-* **`dmn-generator-java`**: Emits plain, idiomatically clean Java code. HotSpot/GraalVM JIT engines can trivially inline generated decision logic, perform loop unrolling, and inline numerical calculations directly into native assembly CPU instructions.
+The [public conformance record](../tck-conformance.md) gives the pinned suite,
+configuration, retained per-case ledger and reproduction command. Interpreter and
+generated-Java checkpoints are separately dated; these results are not presented
+as one combined three-backend run.
 
-### 4. Standalone & Lightweight (No Heavy Drools/Kie Dependency Bloat)
-* **Legacy Engines**: Require importing hundreds of megabytes of legacy dependencies (`kie-api`, `drools-core`, `mvel`, `ecj` compiler, OSGi bundles), leading to slow application cold-starts and complex dependency conflicts.
-* **`dmn-generator-java`**: Zero provider dependencies. Generated Java code depends only on standard Java standard library types (`java.math.BigDecimal`, `java.util.List`, `java.util.Map`). It can be embedded directly into microservices, AWS Lambda/Knative serverless functions, or compiled into native binaries via GraalVM `native-image`.
+## Performance claims
 
-### 5. 100% Dual-Backend Conformance Evidence
-* **`dmn-generator-java`**: Both `DmnInterpreter` and `dmn-generator-java` achieve **100% self-verified conformance** across all 3,391 official OMG DMN 1.5 CL2/CL3 test cases (6,782/6,782 passing backend outcomes) with strict accounting and zero silent exclusions.
-
----
-
-## 3. Summary Comparison
-
-| Metric / Differentiator | Legacy DMN Engines (Drools/Kie, Camunda) | DMN Compiler Toolkit (`dmn-generator-java`) |
-| --- | --- | --- |
-| **Execution Model** | Runtime AST interpretation or RETE rule engine | Ahead-of-Time (AOT) Java source generation |
-| **Evaluation Overhead** | AST tree walking, dynamic reflection, string maps | Native Java control flow & indexed slot arrays |
-| **Memory / GC Footprint** | High (creates temporary HashMaps per rule/node) | Extremely Low (zero-allocation array indexing) |
-| **Dependencies** | Heavy (100MB+ Kie/Drools/MVEL/ECJ jars) | Lightweight (zero runtime framework dependencies) |
-| **GraalVM Native Compatibility** | Difficult (requires extensive reflection configs) | Flawless (100% static Java code, zero reflection) |
-| **OMG DMN conformance** | Product-specific | 100% self-verified CL2/CL3 conformance (3,391/3,391 cases, 6,782/6,782 outcomes); not externally certified |
+AOT source generation, indexed bindings and SQL lowering are implementation
+choices that can be measured. They do not establish latency, throughput, memory,
+GC or dependency-size advantages over another engine without a controlled,
+reproducible comparison. See the [benchmark backlog](../todos/dmn-benchmarks.md)
+for the boundary between existing benchmark infrastructure and pending validation.

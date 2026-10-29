@@ -80,7 +80,7 @@ public record DmnCompilationResult(DmnSourceId rootId, DmnModelLoadResult loaded
 						if (dec != null)
 							decisionTypes.put(name, dec.type());
 					}
-					case BUSINESS_KNOWLEDGE_MODEL -> {
+					case BUSINESS_KNOWLEDGE_MODEL, DECISION_SERVICE -> {
 						runtimeId[0]++;
 					}
 					default -> {

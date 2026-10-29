@@ -9,6 +9,44 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- Generated model-specific typed gRPC Java engines/handlers and a separately
+  accounted official TCK backend (`tck.backend=typed-grpc`), using actual
+  HTTP/2/protobuf requests, including direct BKM/decision-service invocation.
+- **100% generic gRPC TCK conformance**: all 3,391 pinned official cases executed
+  through generated production handlers over real HTTP/2 and binary protobuf,
+  with 3,391 completed responses matching expected results and zero failures,
+  errors, compilation blocks or exclusions. Generated Java executes the models;
+  model-specific typed services remain outside this checkpoint. See the
+  [retained evidence](docs/tck-conformance.md#generic-grpc-checkpoint-2026-10-27).
+- Compatible generic gRPC fields for named BKM/decision-service invocation:
+  request `invocable_name` and `arguments`, response `invocation_result`.
+
+### Fixed
+
+- TCK reporting uses Surefire 3.5.5 without duplicating successful-test stdout
+  and stderr in XML. Console logs, XML case results and failed-test diagnostics
+  remain available. This removes report-file replay that delayed the fork exit
+  acknowledgement. Full interpreter, Spark and typed gRPC TCK runs each passed
+  all 3,391 cases and exited without the shutdown warning. The default fork
+  channel and original shutdown timeout are retained.
+- Preserve explicit null decision outputs, nested null list/context members,
+  offset/zoned temporal values and dependent decision evaluation across gRPC.
+- Preserve compiler decision slot metadata when decision services occur between
+  decisions in a model.
+
+### Changed
+
+- **Breaking typed protobuf replacement:** regenerate typed clients and servers.
+  Model-specific nullable wrappers replace primitive defaults, exact decimal
+  strings replace `double`, and list containers preserve nested/empty lists and
+  null members. Explicit validation inputs retain FEEL invalid-type behavior.
+  The generic Evaluate protobuf contract is unchanged. All 3,391 official typed
+  TCK cases now pass over 3,494 completed RPCs, with zero failures, execution
+  errors, unsupported cases or compilation errors; the old baseline is retained
+  separately. See the [typed checkpoint](docs/tck-conformance.md#typed-grpc-checkpoint-2026-10-29).
+
 ---
 
 ## [1.0.0] — 2026-09-22

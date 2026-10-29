@@ -7,7 +7,7 @@
 - [Next planned work](#contents-section-2)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-09-06
+Last reviewed: 2026-10-24
 
 Runtime IR is immutable, protobuf-free, and namespace-free at execution time (`RuntimeModel`). It covers all modeled FEEL expressions, boxed decision logic, decision tables, and BKM functions. Model-set lowering (`RuntimeIrLowerer`), lexical frames, dependency topological schedules, indexed contexts, constant pooling, and stable built-in operation IDs (`RuntimeIrOptimizer`) are fully implemented.
 
@@ -27,4 +27,4 @@ Runtime IR is immutable, protobuf-free, and namespace-free at execution time (`R
 
 | Priority | Work item | Status | Target / Evidence |
 | --- | --- | --- | --- |
-| P20 | Native IR serialization / bytecode emission for zero-GC runtimes | `proposed` | Native execution engine lowering |
+| P20 | Runtime-IR dependency of cross-language execution lowering | `proposed` | Single proposal owner: [compiler P20](dmn-compiler.md); distinct from existing IR persistence; no verified zero-GC guarantee |

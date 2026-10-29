@@ -7,7 +7,7 @@
 - [Next planned work](#contents-section-2)
 <!-- generated-toc:end -->
 
-Last reviewed: 2026-09-06
+Last reviewed: 2026-10-24
 
 The `dmn-smoke-test` module validates external consumer usage, verifying clean compilation, dependency resolution, interpreter execution, and Java code generation outside the parent reactor lifecycle (Gate 6).
 
@@ -25,4 +25,4 @@ The `dmn-smoke-test` module validates external consumer usage, verifying clean c
 
 | Priority | Work item | Status | Target / Evidence |
 | --- | --- | --- | --- |
-| P17.4 | Post-release package smoke verification | `ready` | Automated CI test pulling published artifacts from GitHub Packages |
+| P17.4 | Post-release package smoke verification | `planned` | Local consumer verification exists; demonstrate CI pulling the intended published registry/version and evaluating it |

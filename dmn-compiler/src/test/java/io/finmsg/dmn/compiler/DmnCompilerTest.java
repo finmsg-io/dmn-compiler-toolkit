@@ -14,6 +14,21 @@ class DmnCompilerTest {
 	private final DmnCompiler compiler = new DmnCompiler();
 
 	@Test
+	void compiledMetadataPreservesSlotsAcrossDecisionServices() {
+		var result = compiler.compile(source("service-slots.dmn", model("urn:slots", "Slots", """
+				<decision id="first" name="First"><variable name="First" typeRef="number"/>
+				<literalExpression><text>1</text></literalExpression></decision>
+				<decisionService id="service" name="Service"><variable name="Service"/>
+				<outputDecision href="#first"/></decisionService>
+				<decision id="second" name="Second"><variable name="Second" typeRef="number"/>
+				<literalExpression><text>2</text></literalExpression></decision>
+				""")));
+		assertThat(result.isSuccess()).as(result.diagnostics().toString()).isTrue();
+		var compiled = result.compiledModel().orElseThrow();
+		assertThat(compiled.decisionSlots()).containsEntry("First", 0).containsEntry("Second", 2);
+	}
+
+	@Test
 	void compilesOneSourceThroughOptimizedRuntimeIrWithEquivalentOverloads() {
 		DmnSource root = source("root.dmn", model("urn:root", "Root", """
 				<decision id="decision" name="Decision">

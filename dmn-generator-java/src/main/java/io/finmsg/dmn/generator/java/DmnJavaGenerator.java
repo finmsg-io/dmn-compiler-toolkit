@@ -34,6 +34,11 @@ public final class DmnJavaGenerator {
 		sb.append("public final class ").append(options.className())
 				.append(" implements io.finmsg.dmn.generator.java.GeneratedDecisionEngine {\n\n");
 
+		sb.append("  private final io.finmsg.dmn.runtime.ExternalJavaPolicy externalJavaPolicy;\n");
+		sb.append("  public ").append(options.className())
+				.append("() { this(io.finmsg.dmn.runtime.ExternalJavaPolicy.denyAll()); }\n");
+		sb.append("  public ").append(options.className()).append(
+				"(io.finmsg.dmn.runtime.ExternalJavaPolicy policy) { this.externalJavaPolicy = Objects.requireNonNull(policy); }\n");
 		sb.append("  public static final int SLOT_COUNT = ").append(model.valueSlotCount()).append(";\n\n");
 
 		// Build BKM slot map so emitter can resolve BKM invocations to direct method
@@ -159,7 +164,7 @@ public final class DmnJavaGenerator {
 		if (fn.body().isEmpty()) {
 			return;
 		}
-		sb.append("  private static Object bkm_").append(bkm.resultSlot()).append("(Object[] slots");
+		sb.append("  private Object bkm_").append(bkm.resultSlot()).append("(Object[] slots");
 		for (RuntimeFunctionParameter param : fn.parameters()) {
 			sb.append(", Object ").append(JavaExpressionEmitter.localSlotName(param.localSlot())).append("_raw");
 		}
@@ -790,10 +795,16 @@ public final class DmnJavaGenerator {
 						    }
 						    return List.copyOf(matches);
 						  }
-						  private static boolean quantify(boolean isEvery, Object listObj, java.util.function.Function<Object, Object> predicate) {
-						    if (!(listObj instanceof List<?> list)) return isEvery;
+						  private static Boolean quantifiedPredicate(Object value) {
+						    return value == null ? false : value instanceof Boolean bool ? bool : null;
+						  }
+						  private static Boolean quantify(boolean isEvery, Object listObj, java.util.function.Function<Object, Object> predicate) {
+						                    if (listObj == null) return null;
+						    List<?> list = listObj instanceof List<?> values ? values : java.util.Collections.singletonList(listObj);
 						    for (Object item : list) {
-						      Boolean match = Boolean.TRUE.equals(predicate.apply(item));
+						      Object result = predicate.apply(item);
+						      if (!(result instanceof Boolean)) return null;
+						      boolean match = Boolean.TRUE.equals(result);
 						      if (!isEvery && match) return true;
 						      if (isEvery && !match) return false;
 						    }
@@ -812,6 +823,7 @@ public final class DmnJavaGenerator {
 						        int idx = pos > 0 ? pos - 1 : list.size() + pos;
 						        return (idx >= 0 && idx < list.size()) ? list.get(idx) : null;
 						      }
+						      if (res != null && !(res instanceof Boolean)) return null;
 						      if (Boolean.TRUE.equals(res)) result.add(item);
 						    }
 						    return result;
@@ -882,7 +894,7 @@ public final class DmnJavaGenerator {
 						    return result;
 						  }
 						  @SuppressWarnings("unchecked")
-						  private static Object invokeCallable(Object target, List<Object> args, Map<String, Object> named) {
+						  private Object invokeCallable(Object target, List<Object> args, Map<String, Object> named) {
 						    if (target == null) return null;
 						    Object res = null;
 						    if (target instanceof FeelCallable fc) {
@@ -892,14 +904,14 @@ public final class DmnJavaGenerator {
 						    } else if (target instanceof java.util.function.Function<?, ?> fn && args != null && !args.isEmpty()) {
 						      res = ((java.util.function.Function<Object, Object>) fn).apply(args.get(0));
 						    } else if (io.finmsg.dmn.runtime.DmnRuntime.isExternalJavaDescriptor(target)) {
-						      return io.finmsg.dmn.runtime.DmnRuntime.invokeExternalJava(target, args != null ? args : Collections.emptyList());
+						      return io.finmsg.dmn.runtime.DmnRuntime.invokeExternalJava(target, args != null ? args : Collections.emptyList(), externalJavaPolicy);
 						    }
 						    if (io.finmsg.dmn.runtime.DmnRuntime.isExternalJavaDescriptor(res)) {
-						      return io.finmsg.dmn.runtime.DmnRuntime.invokeExternalJava(res, args != null ? args : Collections.emptyList());
+						      return io.finmsg.dmn.runtime.DmnRuntime.invokeExternalJava(res, args != null ? args : Collections.emptyList(), externalJavaPolicy);
 						    }
 						    return res;
 						  }
-						  private static Object invokeCallable(Object target, List<Object> args) {
+						  private Object invokeCallable(Object target, List<Object> args) {
 						    return invokeCallable(target, args, Collections.emptyMap());
 						  }
 						  @FunctionalInterface
@@ -1065,18 +1077,8 @@ public final class DmnJavaGenerator {
 						          Object res = null;
 						          if (fnObj instanceof java.util.function.BiFunction<?, ?, ?> fn) {
 						            res = ((java.util.function.BiFunction<Object, Object, Object>) fn).apply(a, b);
-						          } else {
-						            try {
-						              java.lang.reflect.Method m = fnObj.getClass().getMethod("call", List.class, Map.class);
-						              m.setAccessible(true);
-						              res = m.invoke(fnObj, List.of(a, b), Map.of());
-						            } catch (Exception e) {
-						              try {
-						                java.lang.reflect.Method m = fnObj.getClass().getMethod("apply", Object.class, Object.class);
-						                m.setAccessible(true);
-						                res = m.invoke(fnObj, a, b);
-						              } catch (Exception ignored) {}
-						            }
+						          } else if (fnObj instanceof FeelCallable fn) {
+						            res = fn.call(List.of(a, b), Map.of());
 						          }
 						          return Boolean.TRUE.equals(res) ? -1 : (Boolean.FALSE.equals(res) ? 1 : 0);
 						        });

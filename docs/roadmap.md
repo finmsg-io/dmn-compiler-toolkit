@@ -5,8 +5,10 @@
 
 - [Completed foundation](#contents-section-1)
 - [XML frontend completion gate](#contents-section-2)
-- [Next: MVP completion, gRPC, Spark SQL, and load validation](#contents-section-3)
-- [Later stages](#contents-section-4)
+- [v1.0.0 MVP: TCK 100%, Core Optimizers, and Benchmarks](#contents-section-3)
+- [v1.1.0: Incubating Module Graduation & Cloud Data Engine Ecosystem](#contents-section-4)
+- [Decision Authoring DSL and Canonical Model (IDEA-004)](#contents-section-5)
+- [DMN XML Synthesis & Export from Optimized IR (DMN 1.5/1.6)](#contents-section-6)
 <!-- generated-toc:end -->
 
 
@@ -68,19 +70,41 @@
 - [x] Publish the supported-subset contract and explicit model-extension boundary
 
 <a id="contents-section-3"></a>
-## Next: MVP completion, gRPC, Spark SQL, and load validation
+## v1.0.0 MVP: TCK 100%, Core Optimizers, and Benchmarks
 
-- [x] Full OMG DMN TCK CL2/CL3 conformance for `DmnInterpreter` and `dmn-generator-java` (3,391/3,391 cases, 6,782/6,782 backend outcomes)
-- [x] JMH performance benchmark suite (`dmn-benchmarks`) with DataFaker payloads & reference model registry
-- [x] Generic gRPC service adapter generator in Java (`dmn-grpc`) backed by compiled Java decisions
-- [x] Pure Spark / Databricks SQL expression generator (`dmn-generator-sparksql`, zero UDFs, CTE queries, delegating query tuning to engine)
-- [x] Production Data Quality DMN decision check corpus (field hygiene, cross-field validation, scoring)
-- [x] Constant folding and expression simplification pass (`dmn-optimizer`)
+- [x] Full OMG DMN 1.5 TCK CL2/CL3 conformance for `DmnInterpreter` and `dmn-generator-java` (3,391/3,391 cases, 6,782/6,782 backend outcomes)
+- [x] Generated comparator dispatch uses typed calls and propagates host failures; [HARD-03 evidence](dev/slices/security-correctness-hardening-task-2026-10-24.md#3-generated-comparator-reflection-and-failure-propagation). Explicit external Java invocation remains policy-controlled in the runtime.
+- [x] Static optimization pipeline (`dmn-optimizer`): constant folding, algebraic simplification, range/between evaluation optimization
+- [x] Differential parity test harness verifying execution equivalence between optimized IR and baseline runtime
+- [x] JMH performance benchmark suite (`dmn-benchmarks`) with multi-threaded throughput/latency metrics
 - [x] Multi-file DMN sample model suites & Java streaming ingestion/resolution API (`dmn-models`, `DmnStreamBundle`)
+- [x] General Availability (GA) publication on Maven Central under `io.finmsg.dmn`
 
 <a id="contents-section-4"></a>
-## Later stages
+## v1.1.0: Incubating Module Graduation & Cloud Data Engine Ecosystem
 
-- [x] Strongly typed Protobuf and gRPC contract generation from DMN `ItemDefinition` schemas (`DmnTypedGrpcGenerator`)
-- [ ] Native multi-language code generation (Rust zero-allocation binaries, Go handlers, C++ engines)
-- [ ] Standalone compiler CLI binary and Language Server Protocol (LSP) integration
+- [x] Include Spark SQL and gRPC in the default reactor (implemented; does not alone prove production readiness).
+- [x] Native Spark SQL execution and expected results for all 3,391 official optimized TCK cases (100%), zero fallback, failed cases, compilation blocks or errors. See the [conformance record](tck-conformance.md).
+- [ ] Broaden native Spark SQL support beyond bounded proven forms when required; unsupported models can still use fallback. See [active backlog](todos/index.md).
+- [x] Generate model-specific typed Protobuf contracts and executable Java handlers; all 3,391 official cases pass through typed RPCs. The replacement requires regenerated clients; [separate evidence](tck-conformance.md#typed-grpc-checkpoint-2026-10-29) records scope and compatibility boundaries.
+- [ ] Add Spark SQL batch and streaming integration test harness against complex multi-table DMN models
+- [ ] Benchmark Spark SQL generated CTE queries against equivalent native PySpark / Scala Spark implementations
+
+<a id="contents-section-5"></a>
+## Decision Authoring DSL and Canonical Model (IDEA-004)
+
+- [ ] Design and implement concise textual `.decision` DSL grammar for authoring decision models without DMN XML boilerplate
+- [ ] Establish authoring-preserving Canonical Decision Model intermediate representation
+- [ ] Bi-directional lossless compilation: `.decision` DSL $\rightarrow$ Canonical Model $\rightarrow$ Standards-Compliant DMN XML
+- [ ] Direct compilation: `.decision` DSL $\rightarrow$ Runtime IR $\rightarrow$ Interpreters & Code Generators
+- [ ] Embedded policy tests & invariant examples within DSL specifications
+- [ ] Standalone Language Server Protocol (LSP) engine for IDE syntax highlighting, diagnostics, and auto-completion
+- [ ] Standalone compiler CLI binary (`dmnc`)
+
+<a id="contents-section-6"></a>
+## DMN XML Synthesis & Export from Optimized IR (DMN 1.5/1.6)
+
+- [ ] Reverse lowering and decompiler pass: Runtime IR / Optimized Model $\rightarrow$ Standards-Compliant DMN 1.5 / 1.6 XML
+- [ ] Synthesize normalized decision tables, boxed expressions, and FEEL logic from folded / simplified IR trees
+- [ ] Retain and reconstruct semantic metadata (item definitions, input data, decision topology) into standard DMN XML
+- [ ] Deterministic round-trip interchange with third-party visual DMN modelers and BPMN/DMN workflow engines

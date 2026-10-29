@@ -25,6 +25,32 @@ class FeelTypeAnalyzerTest {
 	private final FeelTypeAnalyzer analyzer = new FeelTypeAnalyzer();
 
 	@Test
+	void heterogeneousConditionalHasAnyType() {
+		var result = analyzer.analyze(parse("if true then true else \"not boolean\""), FeelTypeEnvironment.empty());
+		assertThat(result.diagnostics()).isEmpty();
+		assertThat(result.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_ANY));
+	}
+
+	@Test
+	void preservesInlineNestedItemFieldsAndCollectionLayers() {
+		for (boolean collection : List.of(false, true)) {
+			var monthly = ItemComponent.newBuilder().setNode(Node.newBuilder().setName("Monthly"))
+					.addComponents(component("Income", builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+					.addComponents(component("Expenses", builtin(BuiltinType.BUILTIN_TYPE_NUMBER)))
+					.setIsCollection(collection).build();
+			var environment = new FeelTypeEnvironment(Map.of("Applicant", named("ApplicantType")),
+					Map.of("ApplicantType", itemDefinition("ApplicantType", monthly)));
+			var result = analyzer.analyze(parse("Applicant.Monthly.Income"), environment);
+			assertThat(result.diagnostics()).isEmpty();
+			assertThat(result.expression().getInferredType()).isEqualTo(
+					collection ? listOf(BuiltinType.BUILTIN_TYPE_NUMBER) : builtin(BuiltinType.BUILTIN_TYPE_NUMBER));
+			var invalid = analyzer.analyze(parse("Applicant.Monthly.Unknown"), environment);
+			assertThat(invalid.diagnostics()).isEmpty();
+			assertThat(invalid.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_ANY));
+		}
+	}
+
+	@Test
 	void infersLiteralTypes() {
 		assertLiteralType("10", BuiltinType.BUILTIN_TYPE_NUMBER);
 		assertLiteralType("\"text\"", BuiltinType.BUILTIN_TYPE_STRING);
@@ -93,11 +119,9 @@ class FeelTypeAnalyzerTest {
 		FeelTypeAnalysisResult result = analyzer.analyze(parse("\"abc\" - 10"), FeelTypeEnvironment.empty(),
 				"decision[Test]/logic", nullLocation());
 
-		assertThat(result.isSuccess()).isFalse();
-		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
-				.containsExactly("INVALID_OPERAND_TYPES");
-		assertThat(result.diagnostics().getFirst().path()).isEqualTo("decision[Test]/logic");
-		assertThat(result.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_ANY));
+		assertThat(result.isSuccess()).isTrue();
+		assertThat(result.diagnostics()).isEmpty();
+		assertThat(result.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NULL));
 	}
 
 	@Test
@@ -175,13 +199,12 @@ class FeelTypeAnalyzerTest {
 	}
 
 	@Test
-	void reportsNonBooleanIfConditionAndIncompatibleBranches() {
+	void reportsNonBooleanIfConditionButAllowsHeterogeneousBranches() {
 		FeelTypeAnalysisResult result = analyzer.analyze(parse("if 1 then \"yes\" else 0"),
 				FeelTypeEnvironment.empty());
 
-		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code).containsExactly("INVALID_OPERAND_TYPE",
-				"INCOMPATIBLE_BRANCH_TYPES");
-		assertThat(result.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_ANY));
+		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code).isEmpty();
+		assertThat(result.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NULL));
 	}
 
 	@Test
@@ -204,7 +227,8 @@ class FeelTypeAnalyzerTest {
 
 	@Test
 	void reportsFunctionCallErrors() {
-		assertFunctionError(functionCall("unknownFn", parse("1")), "UNKNOWN_FUNCTION");
+		assertThat(analyzer.analyze(functionCall("unknownFn", parse("1")), FeelTypeEnvironment.empty()).diagnostics())
+				.isEmpty();
 	}
 
 	@Test
@@ -321,8 +345,8 @@ class FeelTypeAnalyzerTest {
 
 		assertThat(range.diagnostics()).extracting(DmnSemanticDiagnostic::code)
 				.containsExactly("INVALID_RANGE_ENDPOINT");
-		assertThat(between.diagnostics()).extracting(DmnSemanticDiagnostic::code)
-				.containsExactly("INVALID_BETWEEN_OPERAND");
+		assertThat(between.diagnostics()).isEmpty();
+		assertThat(between.expression().getInferredType()).isEqualTo(builtin(BuiltinType.BUILTIN_TYPE_NULL));
 	}
 
 	@Test

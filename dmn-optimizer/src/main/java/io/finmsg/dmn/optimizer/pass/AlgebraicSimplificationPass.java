@@ -79,7 +79,9 @@ public class AlgebraicSimplificationPass implements OptimizerPass {
 		// Double negation: not(not(x)) -> x
 		if (op == RuntimeUnaryOperator.NOT && sub instanceof RuntimeUnaryExpression inner) {
 			if (inner.operator() == RuntimeUnaryOperator.NOT) {
-				return inner.operand();
+				if (inner.operand().type() != null && inner.operand().type().kind() == RuntimeTypeKind.BOOLEAN) {
+					return inner.operand();
+				}
 			}
 		}
 

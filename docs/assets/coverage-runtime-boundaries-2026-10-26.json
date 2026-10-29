@@ -1,0 +1,57 @@
+{
+  "measuredDate": "2026-10-26",
+  "scope": "Separate focused runtime verification after five boundary tests; not a second full-reactor run",
+  "command": "mvn -Pformat -pl dmn-runtime spotless:apply verify",
+  "before": {
+    "module": "dmn-runtime",
+    "status": "measured",
+    "line": {
+      "covered": 369,
+      "missed": 2284,
+      "total": 2653,
+      "percent": 13.91
+    },
+    "branch": {
+      "covered": 205,
+      "missed": 2815,
+      "total": 3020,
+      "percent": 6.79
+    },
+    "testOutcomes": {
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "after": {
+    "module": "dmn-runtime",
+    "status": "measured",
+    "line": {
+      "covered": 407,
+      "missed": 2246,
+      "total": 2653,
+      "percent": 15.34
+    },
+    "branch": {
+      "covered": 247,
+      "missed": 2773,
+      "total": 3020,
+      "percent": 8.18
+    },
+    "testOutcomes": {
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "sqlActions": {
+    "native": 0,
+    "fallback": 0,
+    "denominator": 0,
+    "rates": "N/A",
+    "unknown": 0,
+    "failed": 0
+  }
+}

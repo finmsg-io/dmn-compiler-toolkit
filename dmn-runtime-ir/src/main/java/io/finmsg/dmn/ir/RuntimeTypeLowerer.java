@@ -148,10 +148,7 @@ final class RuntimeTypeLowerer {
 			List<RuntimeField> fields = new ArrayList<>();
 			for (int index = 0; index < item.getComponentsCount(); index++) {
 				ItemComponent component = item.getComponents(index);
-				RuntimeType field = lower(component.getType(), items, new HashSet<>(resolving));
-				if (component.getIsCollection()) {
-					field = RuntimeType.element(RuntimeTypeKind.LIST, field);
-				}
+				RuntimeType field = lowerComponent(component, items, new HashSet<>(resolving));
 				fields.add(new RuntimeField(index, component.getNode().getName(), field));
 			}
 			result = RuntimeType.contextFields(fields);
@@ -159,6 +156,26 @@ final class RuntimeTypeLowerer {
 			result = lower(item.getType(), items, resolving);
 		}
 		return item.getIsCollection() ? RuntimeType.element(RuntimeTypeKind.LIST, result) : result;
+	}
+
+	private static RuntimeType lowerComponent(ItemComponent component, Map<String, ItemDefinition> items,
+			Set<String> resolving) {
+		RuntimeType field;
+		if (component.getComponentsCount() > 0) {
+			List<RuntimeField> fields = new ArrayList<>();
+			for (int index = 0; index < component.getComponentsCount(); index++) {
+				ItemComponent child = component.getComponents(index);
+				RuntimeType childField = lowerComponent(child, items, new HashSet<>(resolving));
+				fields.add(new RuntimeField(index, child.getNode().getName(), childField));
+			}
+			field = RuntimeType.contextFields(fields);
+		} else {
+			field = lower(component.getType(), items, new HashSet<>(resolving));
+		}
+		if (component.getIsCollection()) {
+			field = RuntimeType.element(RuntimeTypeKind.LIST, field);
+		}
+		return field;
 	}
 
 	private static RuntimeTypeKind builtinKind(BuiltinType type) {

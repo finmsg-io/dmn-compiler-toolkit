@@ -11,6 +11,73 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class DmnRuntimeTest {
+	@Test
+	void scalarAndSingletonCoercionRejectsEmptyMultipleAndNestedLists() {
+		var number = RuntimeType.scalar(RuntimeTypeKind.NUMBER);
+		var numbers = RuntimeType.element(RuntimeTypeKind.LIST, number);
+		assertThat(DmnRuntime.coerce(BigDecimal.ONE, numbers)).isEqualTo(List.of(BigDecimal.ONE));
+		assertThat(DmnRuntime.coerce(List.of(BigDecimal.ONE), number)).isEqualTo(BigDecimal.ONE);
+		assertThat(DmnRuntime.coerce(List.of(), number)).isNull();
+		assertThat(DmnRuntime.coerce(List.of(BigDecimal.ONE, BigDecimal.TEN), number)).isNull();
+		assertThat(DmnRuntime.coerce(List.of(List.of(BigDecimal.ONE)), number)).isNull();
+		assertThat(DmnRuntime.coerce("1", number)).isNull();
+	}
+
+	@Test
+	void typedListsPreserveNullMembersAndRejectNonconformingValues() {
+		var numbers = RuntimeType.element(RuntimeTypeKind.LIST, RuntimeType.scalar(RuntimeTypeKind.NUMBER));
+		var nullable = java.util.Arrays.asList(BigDecimal.ONE, null, BigDecimal.TEN);
+		assertThat(DmnRuntime.coerce(nullable, numbers)).isEqualTo(nullable);
+		assertThat(DmnRuntime.coerce(List.of(), numbers)).isEqualTo(List.of());
+		assertThat(DmnRuntime.coerce(List.of(BigDecimal.ONE, "wrong"), numbers)).isNull();
+		assertThat(DmnRuntime.coerce("wrong", numbers)).isNull();
+	}
+
+	@Test
+	void declaredContextsRejectWrongShapeMissingFieldsAndInvalidFieldValues() {
+		var context = RuntimeType
+				.contextFields(List.of(new RuntimeField(0, "amount", RuntimeType.scalar(RuntimeTypeKind.NUMBER))));
+		var valid = Map.of("amount", BigDecimal.ONE, "extra", "preserved");
+		assertThat(DmnRuntime.coerce(valid, context)).isEqualTo(valid);
+		var nullable = java.util.Collections.singletonMap("amount", null);
+		assertThat(DmnRuntime.coerce(nullable, context)).isEqualTo(nullable);
+		assertThat(DmnRuntime.coerce("wrong shape", context)).isNull();
+		assertThat(DmnRuntime.coerce(Map.of("other", BigDecimal.ONE), context)).isNull();
+		assertThat(DmnRuntime.coerce(Map.of("amount", "wrong type"), context)).isNull();
+	}
+
+	@Test
+	void durationSubtypeCoercionPreservesIdentityAndRejectsWrongKinds() {
+		var days = RuntimeType.scalar(RuntimeTypeKind.DAYS_TIME_DURATION);
+		var months = RuntimeType.scalar(RuntimeTypeKind.YEARS_MONTHS_DURATION);
+		var duration = java.time.Duration.ofSeconds(1, 1);
+		var period = java.time.Period.of(1, 2, 0);
+		assertThat(DmnRuntime.coerce(duration, days)).isSameAs(duration);
+		assertThat(DmnRuntime.coerce(period, months)).isSameAs(period);
+		assertThat(DmnRuntime.coerce(List.of(duration), days)).isSameAs(duration);
+		assertThat(DmnRuntime.coerce(List.of(period), months)).isSameAs(period);
+		for (var type : List.of(days, months)) {
+			assertThat(DmnRuntime.coerce(null, type)).isNull();
+			assertThat(DmnRuntime.coerce("P1D", type)).isNull();
+			assertThat(DmnRuntime.coerce(BigDecimal.ONE, type)).isNull();
+			assertThat(DmnRuntime.coerce(Map.of("value", duration), type)).isNull();
+		}
+		assertThat(DmnRuntime.coerce(period, days)).isNull();
+		assertThat(DmnRuntime.coerce(duration, months)).isNull();
+		var context = RuntimeType.contextFields(List.of(new RuntimeField(0, "duration", days)));
+		assertThat(DmnRuntime.coerce(Map.of("duration", period), context)).isNull();
+		assertThat(DmnRuntime.coerce(Map.of("duration", duration), context)).isEqualTo(Map.of("duration", duration));
+	}
+
+	@Test
+	void identityDistinguishesNanosecondsForLocalTemporalValues() {
+		var time = java.time.LocalTime.of(12, 0, 0, 1);
+		var dateTime = java.time.LocalDate.of(2021, 1, 1).atTime(time);
+		assertThat(DmnRuntime.isValues(time, time.plusNanos(1))).isFalse();
+		assertThat(DmnRuntime.isValues(time, time)).isTrue();
+		assertThat(DmnRuntime.isValues(dateTime, dateTime.plusNanos(1))).isFalse();
+		assertThat(DmnRuntime.isValues(dateTime, dateTime)).isTrue();
+	}
 	private static final RuntimeType NUMBER = RuntimeType.scalar(RuntimeTypeKind.NUMBER);
 	private static final RuntimeType BOOLEAN = RuntimeType.scalar(RuntimeTypeKind.BOOLEAN);
 

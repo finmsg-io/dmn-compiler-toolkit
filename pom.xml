@@ -8,7 +8,7 @@
 
     <groupId>io.finmsg.dmn</groupId>
     <artifactId>dmn-compiler-toolkit</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0-SNAPSHOT</version>
 
     <packaging>pom</packaging>
 
@@ -56,6 +56,8 @@
         <module>dmn-optimizer</module>
         <module>dmn-compiler</module>
         <module>dmn-generator-java</module>
+        <module>dmn-generator-sparksql</module>
+        <module>dmn-grpc</module>
         <module>dmn-smoke-test</module>
     </modules>
 
@@ -87,6 +89,8 @@
         <central.publishing.plugin.version>0.7.0</central.publishing.plugin.version>
         <gpg.skip>true</gpg.skip>
         <maven.deploy.skip>true</maven.deploy.skip>
+        <argLine></argLine>
+        <surefire.jvm.args>-Xmx4g -XX:+UseG1GC --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.cs=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED</surefire.jvm.args>
     </properties>
 
     <dependencyManagement>
@@ -166,6 +170,7 @@
                     <version>${maven.surefire.plugin.version}</version>
                     <configuration>
                         <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                        <argLine>@{argLine} ${surefire.jvm.args}</argLine>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -303,6 +308,8 @@
                 <tck.skip>false</tck.skip>
                 <tck.modelVariant>optimized</tck.modelVariant>
                 <tck.requireFull>true</tck.requireFull>
+                <tck.backend>all</tck.backend>
+                <tck.spark.hybrid>true</tck.spark.hybrid>
             </properties>
             <modules>
                 <module>dmn-tck-runner</module>
@@ -334,14 +341,6 @@
             </modules>
         </profile>
 
-        <!-- Incubating backends are intentionally excluded from the fast default reactor. -->
-        <profile>
-            <id>incubator</id>
-            <modules>
-                <module>dmn-grpc</module>
-                <module>dmn-generator-sparksql</module>
-            </modules>
-        </profile>
 
         <!-- Security scan profile: run manually or in dedicated CI step.
              Usage: mvn -Psecurity-scan verify -->

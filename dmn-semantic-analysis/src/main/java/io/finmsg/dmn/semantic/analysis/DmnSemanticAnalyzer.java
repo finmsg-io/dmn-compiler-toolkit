@@ -680,15 +680,7 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 					error("DUPLICATE_INVOCATION_BINDING", bindingPath,
 							"Invocation parameter '" + parameter + "' is bound more than once.", location);
 				}
-				if (!expected.contains(parameter)) {
-					error("UNKNOWN_INVOCATION_PARAMETER", bindingPath,
-							"BKM '" + targetName + "' has no parameter '" + parameter + "'.", location);
-				}
-			}
-			expected.removeAll(seen);
-			for (String missing : expected) {
-				error("MISSING_INVOCATION_BINDING", path,
-						"Invocation of BKM '" + targetName + "' is missing parameter '" + missing + "'.", location);
+
 			}
 		}
 
@@ -876,13 +868,15 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 		private TypeReference analyzeFeelContext(ContextExpression context, Scope parent, String path,
 				SourceLocation location) {
 			Scope scope = new Scope(parent);
+			Set<String> contextNames = new HashSet<>();
 			io.finmsg.dmn.model.ContextTypeReference.Builder ctxBuilder = io.finmsg.dmn.model.ContextTypeReference
 					.newBuilder();
 			for (int i = 0; i < context.getEntriesCount(); i++) {
 				io.finmsg.dmn.model.ContextEntry entry = context.getEntries(i);
 				TypeReference type = analyzeExpression(entry.getExpression(), scope, path + "/entry[" + i + "]",
 						location);
-				define(scope, entry.getName(), type, SymbolKind.LOCAL, path + "/entry[" + i + "]", location);
+				if (contextNames.add(entry.getName()))
+					define(scope, entry.getName(), type, SymbolKind.LOCAL, path + "/entry[" + i + "]", location);
 				ctxBuilder.addEntries(io.finmsg.dmn.model.ContextEntryTypeReference.newBuilder()
 						.setName(entry.getName()).setType(type));
 			}
@@ -983,7 +977,9 @@ public final class DmnSemanticAnalyzer implements DmnSemanticPass<DmnSemanticAna
 
 		private TypeReference analyzeAstInvocation(InvocationExpression value, Scope scope, String path,
 				SourceLocation location) {
-			if (!(value.getTarget().hasName() && BUILTIN_NAMES.contains(value.getTarget().getName().getName()))) {
+			if (!(value.getTarget().hasName() && (BUILTIN_NAMES.contains(value.getTarget().getName().getName())
+					|| (scope.resolve(value.getTarget().getName().getName()) == null
+							|| scope.resolve(value.getTarget().getName().getName()).isEmpty())))) {
 				analyzeExpression(value.getTarget(), scope, path + "/target", location);
 			}
 			for (int i = 0; i < value.getArgumentsCount(); i++) {

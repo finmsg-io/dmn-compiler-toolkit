@@ -17,10 +17,190 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class DmnJavaGeneratorTest {
+	@Test
+	void invalidRuntimePredicatesAndUnconstrainedDurationsPreserveParity(@TempDir Path tempDir) throws Exception {
+		List<String> expressions = List.of("duration(null)", "duration(\"\")", "duration(2017)", "duration(\"P\")",
+				"duration([])", "[1,2,3,4][if item <= 3 then true else \"bad\"]",
+				"some x in [1,2] satisfies if x = 2 then true else \"bad\"",
+				"every x in [1,2] satisfies if x = 1 then true else \"bad\"",
+				"some x in [1,2] satisfies if x = 1 then true else \"bad\"",
+				"every x in [1,2] satisfies if x = 1 then false else \"bad\"", "duration(\"P1D\")",
+				"if true then 7 else \"text\"", "\"x\" - 2", "2 ** \"2\"", "-\"2\"", "-date(\"2020-01-01\")",
+				"null between 1 and 2", "1 between null and 2", "1 between 0 and null", "{foo:1,foo:2}", "null.b",
+				"non_existing_function()", "some x in 1 satisfies \"bad\"", "every x in 1 satisfies \"bad\"",
+				"[1,2][\"bad\"]", "if 1 then 2 else 3", "-\"x\"", "1+2", "\"a\"+\"b\"", "some x in 1 satisfies true",
+				"every x in 1 satisfies true", "\"text\"");
+		List<Object> expected = Arrays.asList(null, null, null, null, null, null, null, null, true, false,
+				java.time.Duration.ofDays(1), BigDecimal.valueOf(7), null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, BigDecimal.valueOf(3), "ab", true, true, null);
+		StringBuilder decisions = new StringBuilder();
+		for (int i = 0; i < expressions.size(); i++) {
+			decisions.append("<decision id=\"d" + i + "\" name=\"d" + i + "\"><variable name=\"d" + i + "\" typeRef=\""
+					+ (i == expressions.size() - 1 ? "number" : "Loose") + "\"/>" + "<literalExpression><text>"
+					+ expressions.get(i).replace("&", "&amp;").replace("<", "&lt;")
+					+ "</text></literalExpression></decision>");
+		}
+		String xml = "<definitions xmlns=\"https://www.omg.org/spec/DMN/20230324/MODEL/\" id=\"d\" name=\"d\" namespace=\"urn:test\">"
+				+ "<itemDefinition id=\"Loose\" name=\"Loose\"/>" + decisions + "</definitions>";
+		var compilation = compiler.compile(new DmnSource(DmnSourceId.of("memory:runtime-errors"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compilation.isSuccess()).isTrue();
+		var optimized = compilation.optimizedRuntimeModel().orElseThrow();
+		var generated = generator.generate(optimized);
+		var type = compileJavaSource(tempDir, generated.mainClassName(), generated.mainSource());
+		var engine = (GeneratedDecisionEngine) type.getDeclaredConstructor().newInstance();
+		var values = engine.evaluate(new Object[optimized.model().valueSlotCount()]);
+		var interpreted = runtime.evaluate(optimized.model(), Map.of());
+		for (int i = 0; i < optimized.model().decisions().size(); i++) {
+			var decision = optimized.model().decisions().get(i);
+			assertThat(interpreted.value(decision.resultSlot())).as(expressions.get(i)).isEqualTo(expected.get(i));
+			assertThat(values[decision.resultSlot()]).as(expressions.get(i)).isEqualTo(expected.get(i));
+		}
+	}
+
+	@Test
+	void externalCallsRequireInstancePolicyAndDoNotAuthorizeOtherInstances(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:test">
+				<decision id="result" name="result"><variable name="result"/>
+				<literalExpression><text>(function(x) external {java:{class:"java.lang.Math",method signature:"abs(int)"}})(-7)</text></literalExpression>
+				</decision></definitions>
+				""";
+		var compilation = compiler.compile(new DmnSource(DmnSourceId.of("memory:external-policy"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compilation.isSuccess()).isTrue();
+		var optimized = compilation.optimizedRuntimeModel().orElseThrow();
+		var policy = io.finmsg.dmn.runtime.ExternalJavaPolicy
+				.allowOnly(Set.of(new io.finmsg.dmn.runtime.ExternalJavaPolicy.Method("java.lang.Math", "abs(int)")));
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> runtime.evaluate(optimized.model(), Map.of()))
+				.hasMessageStartingWith("EXTERNAL_JAVA_DENIED:");
+		assertThat(new DmnRuntime(policy).evaluate(optimized.model(), Map.of())
+				.decisionValue(optimized.model().decisions().getFirst().id())).isEqualTo(BigDecimal.valueOf(7));
+		var generated = generator.generate(optimized);
+		var type = compileJavaSource(tempDir, generated.mainClassName(), generated.mainSource());
+		var denied = (GeneratedDecisionEngine) type.getDeclaredConstructor().newInstance();
+		var approved = (GeneratedDecisionEngine) type
+				.getDeclaredConstructor(io.finmsg.dmn.runtime.ExternalJavaPolicy.class).newInstance(policy);
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> denied.evaluate(new Object[0]))
+				.hasMessageStartingWith("EXTERNAL_JAVA_DENIED:");
+		int slot = optimized.model().decisions().getFirst().resultSlot();
+		assertThat(approved.evaluate(new Object[0])[slot]).isEqualTo(BigDecimal.valueOf(7));
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> denied.evaluate(new Object[0]))
+				.hasMessageStartingWith("EXTERNAL_JAVA_DENIED:");
+	}
 
 	private final DmnCompiler compiler = new DmnCompiler();
 	private final DmnRuntime runtime = new DmnRuntime();
 	private final DmnJavaGenerator generator = new DmnJavaGenerator();
+
+	@Test
+	void comparatorCannotSwallowExternalPolicyDenial(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:test">
+				<decision id="result" name="result"><variable name="result"/>
+				<literalExpression><text>sort([2,1], function(a,b) (function(x) external {java:{class:"java.lang.Math",method signature:"abs(int)"}})(a) > 0)</text></literalExpression>
+				</decision></definitions>
+				""";
+		var compilation = compiler.compile(new DmnSource(DmnSourceId.of("memory:comparator-policy"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compilation.isSuccess()).isTrue();
+		var optimized = compilation.optimizedRuntimeModel().orElseThrow();
+		var generated = generator.generate(optimized);
+		var type = compileJavaSource(tempDir, generated.mainClassName(), generated.mainSource());
+		var engine = (GeneratedDecisionEngine) type.getDeclaredConstructor().newInstance();
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> engine.evaluate(new Object[0]))
+				.isInstanceOf(io.finmsg.dmn.runtime.ExternalJavaDeniedException.class);
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> runtime.evaluate(optimized.model(), Map.of()))
+				.isInstanceOf(io.finmsg.dmn.runtime.ExternalJavaDeniedException.class);
+	}
+
+	@Test
+	void sortComparatorsPreserveRuntimeValuesAndBindings(@TempDir Path tempDir) throws Exception {
+		List<String> expressions = List.of("sort([3,1,2], function(a,b) a < b)", "sort([3,1,2], function(a,b) a > b)",
+				"sort([3,1,2], function(a,b) true)", "sort([3,1,2], function(a,b) false)",
+				"sort([3,1,2], function(a,b) null)", "sort([2,1,2,1], function(a,b) if a = b then null else a < b)",
+				"{direction: -1, cmp: function(a,b) a * direction < b * direction, result: sort([3,1,2], cmp)}.result",
+				"{cmp: function(left,right) left < right, result: sort(list: [3,1,2], precedes: cmp)}.result");
+		for (int i = 0; i < expressions.size(); i++) {
+			String xml = """
+					<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:test">
+					<decision id="result" name="result"><variable name="result"/>
+					<literalExpression><text>%s</text></literalExpression></decision></definitions>
+					"""
+					.formatted(expressions.get(i).replace("&", "&amp;").replace("<", "&lt;"));
+			var compilation = compiler.compile(new DmnSource(DmnSourceId.of("memory:sort-" + i),
+					xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+			assertThat(compilation.isSuccess()).as(expressions.get(i)).isTrue();
+			var optimized = compilation.optimizedRuntimeModel().orElseThrow();
+			var generated = generator.generate(optimized);
+			var type = compileJavaSource(tempDir.resolve("case-" + i), generated.mainClassName(),
+					generated.mainSource());
+			var engine = (GeneratedDecisionEngine) type.getDeclaredConstructor().newInstance();
+			int slot = optimized.model().decisions().getFirst().resultSlot();
+			assertThat(engine.evaluate(new Object[optimized.model().valueSlotCount()])[slot]).as(expressions.get(i))
+					.isEqualTo(runtime.evaluate(optimized.model(), Map.of()).value(slot));
+		}
+	}
+
+	@Test
+	void sortAcceptsBkmComparator(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:test">
+				<businessKnowledgeModel id="cmp" name="cmp"><variable name="cmp"/>
+				<encapsulatedLogic kind="FEEL"><formalParameter name="left" typeRef="number"/>
+				<formalParameter name="right" typeRef="number"/>
+				<literalExpression><text>left &lt; right</text></literalExpression></encapsulatedLogic></businessKnowledgeModel>
+				<decision id="result" name="result"><variable name="result"/>
+				<knowledgeRequirement><requiredKnowledge href="#cmp"/></knowledgeRequirement>
+				<literalExpression><text>sort([3,1,2], cmp)</text></literalExpression></decision></definitions>
+				""";
+		var compilation = compiler.compile(new DmnSource(DmnSourceId.of("memory:sort-bkm"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compilation.isSuccess()).isTrue();
+		var optimized = compilation.optimizedRuntimeModel().orElseThrow();
+		var generated = generator.generate(optimized);
+		var type = compileJavaSource(tempDir, generated.mainClassName(), generated.mainSource());
+		var engine = (GeneratedDecisionEngine) type.getDeclaredConstructor().newInstance();
+		int slot = optimized.model().decisions().getFirst().resultSlot();
+		assertThat(engine.evaluate(new Object[optimized.model().valueSlotCount()])[slot])
+				.isEqualTo(runtime.evaluate(optimized.model(), Map.of()).value(slot))
+				.isEqualTo(List.of(BigDecimal.ONE, BigDecimal.valueOf(2), BigDecimal.valueOf(3)));
+	}
+
+	@Test
+	void sortPropagatesHostComparatorFailure(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="d" name="d" namespace="urn:test">
+				<inputData id="cmp" name="cmp"><variable name="cmp"/></inputData>
+				<decision id="result" name="result"><variable name="result"/>
+				<informationRequirement><requiredInput href="#cmp"/></informationRequirement>
+				<literalExpression><text>sort([2,1], cmp)</text></literalExpression></decision></definitions>
+				""";
+		var compilation = compiler.compile(new DmnSource(DmnSourceId.of("memory:sort-host-failure"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compilation.isSuccess()).isTrue();
+		var optimized = compilation.optimizedRuntimeModel().orElseThrow();
+		var generated = generator.generate(optimized);
+		assertThat(generated.mainSource()).doesNotContain("java.lang.reflect", "setAccessible", "getMethod(");
+		var type = compileJavaSource(tempDir, generated.mainClassName(), generated.mainSource());
+		var engine = (GeneratedDecisionEngine) type.getDeclaredConstructor().newInstance();
+		Object[] inputs = new Object[optimized.model().valueSlotCount()];
+		IllegalStateException failure = new IllegalStateException("comparator failed");
+		inputs[0] = (java.util.function.BiFunction<Object, Object, Object>) (a, b) -> {
+			throw failure;
+		};
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> engine.evaluate(inputs)).isSameAs(failure);
+		// Inject a typed FEEL callable through the host input to exercise failures
+		// independently of the production external-Java helper's null-on-error
+		// contract.
+		Class<?> callable = Class.forName(generated.mainClassName() + "$FeelCallable", true, type.getClassLoader());
+		inputs[0] = java.lang.reflect.Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{callable},
+				(proxy, method, arguments) -> {
+					throw failure;
+				});
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> engine.evaluate(inputs)).isSameAs(failure);
+
+	}
 
 	@Test
 	void generatesJavaSourceAndAssertsParityWithInterpreter(@TempDir Path tempDir) throws Exception {

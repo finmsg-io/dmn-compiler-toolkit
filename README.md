@@ -1,5 +1,10 @@
 # DMN Compiler Toolkit
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.finmsg.dmn/dmn-compiler.svg?color=blue)](https://central.sonatype.com/artifact/io.finmsg.dmn/dmn-compiler)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![TCK Conformance](https://img.shields.io/badge/OMG%20DMN%201.5%20TCK-100%25-brightgreen.svg)](docs/tck-conformance.md)
+
+
 High-performance compiler infrastructure for Decision Model and Notation (DMN).
 
 The project compiles DMN models into an internal semantic representation that can later be validated, optimized, and translated into efficient runtime code.
@@ -29,10 +34,16 @@ The project is a feature-rich DMN 1.5/1.6 compiler platform.
 
 Current status & focus:
 
-- Lean Tier-1 reactor for the optimized interpreter and generated-Java runtime path
-- 3,391/3,391 official OMG DMN TCK cases passing on both optimized backends (6,782 outcomes)
+- Default reactor includes the interpreter, Java and Spark SQL generators, gRPC, and consumer smoke tests
+- Optimized Spark SQL: **3,391/3,391 official TCK cases executed natively (100%), zero fallback, failures or errors**; [pinned suite and evidence](docs/tck-conformance.md)
+- Generic gRPC Evaluate: **3,391/3,391 official TCK cases passed (100%) over real HTTP/2 and binary protobuf**, with 3,391 completed RPC responses and zero failures, errors or compilation blocks. Generated Java executes every case, including direct BKM/service invocation; [retained evidence and scope](docs/tck-conformance.md#generic-grpc-checkpoint-2026-10-27).
+- Model-specific typed gRPC: **3,391/3,391 official TCK cases passed (100%)**, using
+  3,494 completed typed RPCs over HTTP/2/protobuf. Exact decimals, explicit nulls,
+  nested lists and direct invocations are verified; [typed evidence and the
+  required client regeneration](docs/tck-conformance.md#typed-grpc-checkpoint-2026-10-29).
+- Optimized interpreter and generated Java also have recorded 3,391/3,391 passing checkpoints
 - Static optimization passes (`dmn-optimizer`) enabled by default through `DmnCompiler`
-- Spark SQL and gRPC flavors isolated behind the opt-in `incubator` profile
+- Spark SQL conformance is self-verified against the pinned suite; broader native model coverage remains bounded
 - TCK and benchmarks isolated behind opt-in verification profiles to preserve fast builds
 - Near-term focus: production hardening and an early Tier-1 release
 
@@ -66,11 +77,11 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | `dmn-runtime` | Deterministic interpreter for executable Runtime IR |
 | `dmn-compiler` | Compiler orchestration and resolver-independent model-source contracts |
 | `dmn-generator-java` | High-performance Java source code generator directly from Runtime IR |
-| `dmn-tck-runner` | Opt-in OMG DMN TCK runner for strict optimized-interpreter/generated-Java conformance |
+| `dmn-tck-runner` | Opt-in OMG DMN TCK runner for strict interpreter, Java, Spark SQL and generic gRPC conformance |
 | `dmn-benchmarks` | Opt-in JMH microbenchmarks & DataFaker reference model workloads |
 | `dmn-optimizer` | Constant folding, algebraic simplification, and rule pruning passes |
-| `dmn-grpc` | Incubating generic and strongly-typed Protobuf schema & gRPC service adapter generator |
-| `dmn-generator-sparksql` | Incubating Spark / Databricks SQL CTE query generator |
+| `dmn-grpc` | Generic and strongly-typed Protobuf schema & gRPC service adapter generator |
+| `dmn-generator-sparksql` | Spark SQL CTE generator with verified native execution of all 3,391 pinned official TCK cases |
 | `dmn-models` | Opt-in benchmark models and streaming ingestion fixtures |
 
 Planned modules include further optimization and native code generation backends.
@@ -88,13 +99,13 @@ Planned modules include further optimization and native code generation backends
 mvn clean verify
 ```
 
-The command builds the lean Tier-1 reactor and runs its unit/integration tests. Additional gates are
+The command builds the default reactor and runs its unit/integration tests. Additional gates are
 explicit:
 
 ```bash
-mvn -Ptck verify          # complete optimized interpreter + generated-Java TCK
+mvn -Ptck verify          # optimized interpreter, generated Java and Spark SQL TCK
+mvn -Ptck -Dtck.backend=grpc -Dtck.timeoutSeconds=120 verify # generic gRPC TCK
 mvn -Pbenchmarks verify   # benchmark support modules
-mvn -Pincubator verify    # experimental gRPC and Spark SQL flavors
 ```
 
 <a id="contents-section-6"></a>

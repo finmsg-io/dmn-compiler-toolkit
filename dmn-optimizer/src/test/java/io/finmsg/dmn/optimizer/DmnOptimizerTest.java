@@ -9,6 +9,69 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class DmnOptimizerTest {
+	@Test
+	void fractionalTemporalArithmeticRetainsExactOperandsInsteadOfDoubleFolding() {
+		var time = RuntimeType.scalar(RuntimeTypeKind.TIME);
+		var dateTime = RuntimeType.scalar(RuntimeTypeKind.DATE_TIME);
+		var duration = RuntimeType.scalar(RuntimeTypeKind.DURATION);
+		var nano = new RuntimeConstant(RuntimeConstantKind.DURATION, "PT0.000000001S", duration);
+		for (var temporal : java.util.List.of(new RuntimeConstant(RuntimeConstantKind.TIME, "00:00:00+14:00", time),
+				new RuntimeConstant(RuntimeConstantKind.TIME, "23:59:59.123456789-03:30", time),
+				new RuntimeConstant(RuntimeConstantKind.DATE_TIME, "2020-01-01T23:59:59.123456789+14:00", dateTime))) {
+			for (var op : java.util.List.of(RuntimeBinaryOperator.ADD, RuntimeBinaryOperator.SUBTRACT)) {
+				var expression = new RuntimeBinaryExpression(op, temporal, nano, temporal.type());
+				assertThat(new ConstantFoldingPass().transformExpression(expression)).isEqualTo(expression);
+			}
+		}
+		var scale = new RuntimeConstant(RuntimeConstantKind.NUMBER, "0.000000001", NUMBER_TYPE);
+		var expression = new RuntimeBinaryExpression(RuntimeBinaryOperator.MULTIPLY,
+				new RuntimeConstant(RuntimeConstantKind.DURATION, "PT1S", duration), scale, duration);
+		assertThat(new ConstantFoldingPass().transformExpression(expression)).isEqualTo(expression);
+	}
+	@Test
+	void foldedDurationRefinesUnknownDecisionResultWithoutChangingDeclaredTypes() {
+		var duration = RuntimeType.scalar(RuntimeTypeKind.DURATION);
+		var value = new RuntimeConstant(RuntimeConstantKind.DURATION, "P1Y2M", duration);
+		for (RuntimeType declared : java.util.List.of(RuntimeType.scalar(RuntimeTypeKind.ANY), duration, STRING_TYPE)) {
+			var decision = new RuntimeDecision(1, 0, declared, java.util.List.of(), java.util.Optional.of(value));
+			var model = new RuntimeModel(java.util.List.of(), java.util.List.of(decision), java.util.List.of(),
+					java.util.List.of(1), 1);
+			var optimized = new ConstantFoldingPass().transform(model).decisions().getFirst();
+			assertThat(optimized.type()).isEqualTo(declared.kind() == RuntimeTypeKind.ANY ? duration : declared);
+			assertThat(optimized.expression()).contains(value);
+		}
+	}
+
+	@Test
+	void namedDurationKeepsBothEndpoints() {
+		var date = RuntimeType.scalar(RuntimeTypeKind.DATE);
+		var duration = RuntimeType.scalar(RuntimeTypeKind.YEARS_MONTHS_DURATION);
+		var call = new RuntimeInvocationExpression(java.util.Optional.of("years and months duration"),
+				java.util.Optional.empty(),
+				java.util.List.of(
+						new RuntimeNamedArgument("from",
+								new RuntimeConstant(RuntimeConstantKind.DATE, "2020-01-01", date)),
+						new RuntimeNamedArgument("to",
+								new RuntimeConstant(RuntimeConstantKind.DATE, "2021-01-01", date))),
+				java.util.List.of(), duration);
+		RuntimeExpression folded = new ConstantFoldingPass().transformExpression(call);
+		assertThat(folded).isInstanceOf(RuntimeInvocationExpression.class);
+		assertThat(((RuntimeInvocationExpression) folded).positionalArguments()).hasSize(2);
+	}
+
+	@Test
+	void unknownNamedArgumentIsNotSilentlyDiscarded() {
+		var listType = RuntimeType.element(RuntimeTypeKind.LIST, STRING_TYPE);
+		var list = new RuntimeListExpression(
+				java.util.List.of(new RuntimeConstant(RuntimeConstantKind.STRING, "a", STRING_TYPE)), listType);
+		var call = new RuntimeInvocationExpression(java.util.Optional.of("string join"), java.util.Optional.empty(),
+				java.util.List.of(new RuntimeNamedArgument("list", list),
+						new RuntimeNamedArgument("delimitr",
+								new RuntimeConstant(RuntimeConstantKind.STRING, "X", STRING_TYPE))),
+				java.util.List.of(), STRING_TYPE);
+		RuntimeExpression folded = new ConstantFoldingPass().transformExpression(call);
+		assertThat(folded).isEqualTo(call);
+	}
 
 	private static final RuntimeType NUMBER_TYPE = RuntimeType.scalar(RuntimeTypeKind.NUMBER);
 	private static final RuntimeType STRING_TYPE = RuntimeType.scalar(RuntimeTypeKind.STRING);

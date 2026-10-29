@@ -6,19 +6,36 @@
   <parent>
     <groupId>io.finmsg.dmn</groupId>
     <artifactId>dmn-compiler-toolkit</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0-SNAPSHOT</version>
   </parent>
   <artifactId>dmn-tck-runner</artifactId>
   <name>DMN TCK Runner</name>
   <description>Test infrastructure for executing DMN TCK cases through the toolkit</description>
   <properties>
+    <!-- This scoped version supports the passed-test XML-output policy below. -->
+    <maven.surefire.plugin.version>3.5.5</maven.surefire.plugin.version>
     <!-- Default: skip TCK test execution during ordinary local builds unless -Ptck is explicitly specified -->
     <tck.skip>true</tck.skip>
     <tck.modelVariant>all</tck.modelVariant>
     <tck.requireFull>false</tck.requireFull>
+    <tck.backend>all</tck.backend>
+    <tck.spark.hybrid>true</tck.spark.hybrid>
+    <tck.timeoutSeconds>30</tck.timeoutSeconds>
   </properties>
 
   <dependencies>
+    <dependency>
+      <groupId>io.finmsg.dmn</groupId>
+      <artifactId>dmn-grpc</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty-shaded</artifactId>
+      <version>${grpc.version}</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>io.finmsg.dmn</groupId>
       <artifactId>dmn-compiler</artifactId>
@@ -33,6 +50,17 @@
       <groupId>io.finmsg.dmn</groupId>
       <artifactId>dmn-generator-java</artifactId>
       <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.finmsg.dmn</groupId>
+      <artifactId>dmn-generator-sparksql</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_2.13</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -54,13 +82,20 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${maven.surefire.plugin.version}</version>
         <configuration>
+          <!-- Do not replay thousands of passing-case logs into XML before acknowledging fork exit.
+               Console logs, case results and failure output remain available. -->
+          <enableOutErrElements>false</enableOutErrElements>
           <skipTests>${tck.skip}</skipTests>
+          <argLine>@{argLine} ${surefire.jvm.args}</argLine>
           <useFile>false</useFile>
           <redirectTestOutputToFile>false</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
           <systemPropertyVariables>
             <tck.modelVariant>${tck.modelVariant}</tck.modelVariant>
             <tck.requireFull>${tck.requireFull}</tck.requireFull>
+            <tck.backend>${tck.backend}</tck.backend>
+            <tck.spark.hybrid>${tck.spark.hybrid}</tck.spark.hybrid>
+            <tck.timeoutSeconds>${tck.timeoutSeconds}</tck.timeoutSeconds>
           </systemPropertyVariables>
         </configuration>
       </plugin>
@@ -77,6 +112,8 @@
         <tck.skip>false</tck.skip>
         <tck.modelVariant>optimized</tck.modelVariant>
         <tck.requireFull>true</tck.requireFull>
+        <tck.backend>all</tck.backend>
+        <tck.spark.hybrid>true</tck.spark.hybrid>
       </properties>
     </profile>
   </profiles>

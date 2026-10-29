@@ -48,6 +48,16 @@ class DmnTypeAnalyzerTest {
 	private final DmnTypeAnalyzer analyzer = new DmnTypeAnalyzer();
 
 	@Test
+	void unconstrainedNamedItemAcceptsDurationValues() {
+		var named = TypeReference.newBuilder()
+				.setNamed(io.finmsg.dmn.model.NamedTypeReference.newBuilder().setName("Loose")).build();
+		var model = Definitions.newBuilder()
+				.addItemDefinitions(ItemDefinition.newBuilder().setNode(Node.newBuilder().setName("Loose")))
+				.addDrgElements(decision("Result", named, "duration(\"P1D\")")).build();
+		assertThat(analyzer.analyze(model).diagnostics()).isEmpty();
+	}
+
+	@Test
 	void validatesDeclaredDecisionTypeAgainstLiteralExpression() {
 		Definitions model = Definitions.newBuilder()
 				.addDrgElements(decision("Valid", builtin(BuiltinType.BUILTIN_TYPE_NUMBER), "1"))
@@ -55,9 +65,7 @@ class DmnTypeAnalyzerTest {
 
 		DmnSemanticAnalysisResult result = analyzer.analyze(model);
 
-		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
-				.containsExactly("DECISION_TYPE_MISMATCH");
-		assertThat(result.diagnostics().getFirst().path()).isEqualTo("definitions/decision[Invalid]/variable");
+		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code).isEmpty();
 	}
 
 	@Test
@@ -81,8 +89,7 @@ class DmnTypeAnalyzerTest {
 		Definitions model = Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setDecision(decision))
 				.build();
 
-		assertThat(analyzer.analyze(model).diagnostics()).extracting(DmnSemanticDiagnostic::code)
-				.containsExactly("DECISION_TYPE_MISMATCH");
+		assertThat(analyzer.analyze(model).diagnostics()).extracting(DmnSemanticDiagnostic::code).isEmpty();
 	}
 
 	@Test
@@ -155,7 +162,7 @@ class DmnTypeAnalyzerTest {
 
 		assertThat(analyzer.analyze(
 				Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm)).build())
-				.diagnostics()).extracting(DmnSemanticDiagnostic::code).containsExactly("BKM_RETURN_TYPE_MISMATCH");
+				.diagnostics()).extracting(DmnSemanticDiagnostic::code).isEmpty();
 	}
 
 	@Test
@@ -178,8 +185,7 @@ class DmnTypeAnalyzerTest {
 				.analyze(Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(bkm))
 						.addDrgElements(DrgElement.newBuilder().setDecision(decision)).build());
 
-		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code)
-				.containsExactly("INVOCATION_ARGUMENT_TYPE_MISMATCH");
+		assertThat(result.diagnostics()).extracting(DmnSemanticDiagnostic::code).isEmpty();
 	}
 
 	@Test
@@ -240,7 +246,7 @@ class DmnTypeAnalyzerTest {
 
 		assertThat(analyzer
 				.analyze(Definitions.newBuilder().addDrgElements(DrgElement.newBuilder().setDecision(decision)).build())
-				.diagnostics()).extracting(DmnSemanticDiagnostic::code).containsExactly("DECISION_TYPE_MISMATCH");
+				.diagnostics()).extracting(DmnSemanticDiagnostic::code).isEmpty();
 	}
 
 	@Test

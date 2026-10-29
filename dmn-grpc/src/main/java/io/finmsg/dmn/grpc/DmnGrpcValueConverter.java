@@ -6,6 +6,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Period;
+import java.time.OffsetTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -32,22 +35,24 @@ public final class DmnGrpcValueConverter {
 			case NUMBER_VALUE -> new BigDecimal(protoValue.getNumberValue());
 			case STRING_VALUE -> protoValue.getStringValue();
 			case DATE_VALUE -> LocalDate.parse(protoValue.getDateValue());
-			case TIME_VALUE -> LocalTime.parse(protoValue.getTimeValue());
-			case DATE_TIME_VALUE -> LocalDateTime.parse(protoValue.getDateTimeValue());
+			case TIME_VALUE -> requireTemporal(io.finmsg.dmn.runtime.DmnRuntime.parseTime(protoValue.getTimeValue()));
+			case DATE_TIME_VALUE -> protoValue.getDateTimeValue().contains("[")
+					? ZonedDateTime.parse(protoValue.getDateTimeValue())
+					: requireTemporal(io.finmsg.dmn.runtime.DmnRuntime.parseDateTime(protoValue.getDateTimeValue()));
 			case DURATION_VALUE -> parseDuration(protoValue.getDurationValue());
 			case LIST_VALUE -> {
 				List<Object> list = new ArrayList<>();
 				for (Value elem : protoValue.getListValue().getElementsList()) {
 					list.add(toJavaObject(elem));
 				}
-				yield List.copyOf(list);
+				yield java.util.Collections.unmodifiableList(list);
 			}
 			case CONTEXT_VALUE -> {
 				Map<String, Object> map = new LinkedHashMap<>();
 				for (Map.Entry<String, Value> entry : protoValue.getContextValue().getEntriesMap().entrySet()) {
 					map.put(entry.getKey(), toJavaObject(entry.getValue()));
 				}
-				yield Map.copyOf(map);
+				yield java.util.Collections.unmodifiableMap(map);
 			}
 		};
 	}
@@ -70,8 +75,14 @@ public final class DmnGrpcValueConverter {
 			return builder.setDateValue(ld.toString()).build();
 		} else if (javaValue instanceof LocalTime lt) {
 			return builder.setTimeValue(lt.toString()).build();
+		} else if (javaValue instanceof OffsetTime
+				|| javaValue instanceof io.finmsg.dmn.runtime.DmnRuntime.NamedZoneTime) {
+			return builder.setTimeValue(javaValue.toString()).build();
 		} else if (javaValue instanceof LocalDateTime ldt) {
 			return builder.setDateTimeValue(ldt.toString()).build();
+		} else if (javaValue instanceof OffsetDateTime || javaValue instanceof ZonedDateTime
+				|| javaValue instanceof io.finmsg.dmn.runtime.DmnRuntime.NamedZoneDateTime) {
+			return builder.setDateTimeValue(javaValue.toString()).build();
 		} else if (javaValue instanceof TemporalAmount ta) {
 			return builder.setDurationValue(ta.toString()).build();
 		} else if (javaValue instanceof List<?> list) {
@@ -91,6 +102,12 @@ public final class DmnGrpcValueConverter {
 		}
 
 		return builder.setStringValue(javaValue.toString()).build();
+	}
+
+	private static Object requireTemporal(Object value) {
+		if (value == null)
+			throw new IllegalArgumentException("Invalid FEEL temporal wire value");
+		return value;
 	}
 
 	private static TemporalAmount parseDuration(String val) {

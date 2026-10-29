@@ -1,0 +1,255 @@
+{
+  "scope": "default reactor, module-own test JVMs, handwritten Java, clean verify; not downstream-aggregated; excludes opt-in TCK",
+  "command": "mvn --batch-mode --no-transfer-progress clean verify",
+  "modules": [
+    {
+      "module": "dmn-protobuf",
+      "status": "N/A",
+      "reason": "No handwritten Java under src/main/java (generated-only or test-only module)"
+    },
+    {
+      "module": "dmn-frontend-xml",
+      "status": "measured",
+      "line": {
+        "covered": 1334,
+        "missed": 556,
+        "total": 1890,
+        "percent": 70.58
+      },
+      "branch": {
+        "covered": 482,
+        "missed": 564,
+        "total": 1046,
+        "percent": 46.08
+      },
+      "testOutcomes": {
+        "tests": 38,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "module": "dmn-feel-parser",
+      "status": "measured",
+      "line": {
+        "covered": 550,
+        "missed": 235,
+        "total": 785,
+        "percent": 70.06
+      },
+      "branch": {
+        "covered": 249,
+        "missed": 214,
+        "total": 463,
+        "percent": 53.78
+      },
+      "testOutcomes": {
+        "tests": 78,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "module": "dmn-semantic-analysis",
+      "status": "measured",
+      "line": {
+        "covered": 1876,
+        "missed": 716,
+        "total": 2592,
+        "percent": 72.38
+      },
+      "branch": {
+        "covered": 895,
+        "missed": 870,
+        "total": 1765,
+        "percent": 50.71
+      },
+      "testOutcomes": {
+        "tests": 72,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "module": "dmn-runtime-ir",
+      "status": "measured",
+      "line": {
+        "covered": 1233,
+        "missed": 430,
+        "total": 1663,
+        "percent": 74.14
+      },
+      "branch": {
+        "covered": 422,
+        "missed": 336,
+        "total": 758,
+        "percent": 55.67
+      },
+      "testOutcomes": {
+        "tests": 27,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "module": "dmn-runtime",
+      "status": "measured",
+      "line": {
+        "covered": 369,
+        "missed": 2284,
+        "total": 2653,
+        "percent": 13.91
+      },
+      "branch": {
+        "covered": 205,
+        "missed": 2815,
+        "total": 3020,
+        "percent": 6.79
+      },
+      "testOutcomes": {
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "module": "dmn-optimizer",
+      "status": "measured",
+      "line": {
+        "covered": 220,
+        "missed": 1405,
+        "total": 1625,
+        "percent": 13.54
+      },
+      "branch": {
+        "covered": 192,
+        "missed": 1714,
+        "total": 1906,
+        "percent": 10.07
+      },
+      "testOutcomes": {
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "module": "dmn-compiler",
+      "status": "measured",
+      "line": {
+        "covered": 600,
+        "missed": 75,
+        "total": 675,
+        "percent": 88.89
+      },
+      "branch": {
+        "covered": 205,
+        "missed": 98,
+        "total": 303,
+        "percent": 67.66
+      },
+      "testOutcomes": {
+        "tests": 68,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "module": "dmn-generator-java",
+      "status": "measured",
+      "line": {
+        "covered": 415,
+        "missed": 294,
+        "total": 709,
+        "percent": 58.53
+      },
+      "branch": {
+        "covered": 211,
+        "missed": 241,
+        "total": 452,
+        "percent": 46.68
+      },
+      "testOutcomes": {
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "module": "dmn-generator-sparksql",
+      "status": "measured",
+      "line": {
+        "covered": 7141,
+        "missed": 2226,
+        "total": 9367,
+        "percent": 76.24
+      },
+      "branch": {
+        "covered": 6166,
+        "missed": 3926,
+        "total": 10092,
+        "percent": 61.1
+      },
+      "testOutcomes": {
+        "tests": 172,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "module": "dmn-grpc",
+      "status": "measured",
+      "line": {
+        "covered": 187,
+        "missed": 28,
+        "total": 215,
+        "percent": 86.98
+      },
+      "branch": {
+        "covered": 51,
+        "missed": 26,
+        "total": 77,
+        "percent": 66.23
+      },
+      "testOutcomes": {
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "module": "dmn-smoke-test",
+      "status": "N/A",
+      "reason": "No handwritten Java under src/main/java (generated-only or test-only module)"
+    }
+  ],
+  "measuredDate": "2026-10-26",
+  "sourceState": "97b03b2 plus report-only generated-code exclusions; before the five new runtime boundary tests",
+  "jacocoVersion": "0.8.14",
+  "defaultReactorTestOutcomes": {
+    "tests": 503,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "generatedExclusions": "Exact generated ANTLR classes; generated-only protobuf module; generated protobuf/gRPC message and stub classes. Handwritten facades/generators retained.",
+  "reportRefresh": "mvn -pl dmn-grpc jacoco:report@report refreshed the generated-code exclusions using the same successful test data",
+  "sparkRegressionActions": {
+    "native": 3034,
+    "fallback": 119,
+    "denominator": 3153,
+    "unknown": 0,
+    "failedExpected": 60
+  },
+  "enforcement": "No thresholds or gates added; user explicitly requested baseline only"
+}

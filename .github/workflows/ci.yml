@@ -76,6 +76,7 @@ jobs:
 
   optimized-tck:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -90,15 +91,21 @@ jobs:
           java-version: "25"
           cache: maven
 
-      - name: Verify complete optimized interpreter and generated-Java conformance
-        run: mvn --batch-mode -Ptck verify
+      - name: Verify optimized interpreter conformance
+        run: mvn --batch-mode -Ptck -Dtck.backend=interpreter -Dtck.timeoutSeconds=30 verify
+
+      - name: Verify optimized generated-Java conformance
+        run: mvn --batch-mode -Ptck -Dtck.backend=java -Dtck.timeoutSeconds=30 verify
+
+      - name: Verify optimized Spark SQL hybrid conformance
+        run: mvn --batch-mode -Ptck -Dtck.backend=sparksql -Dtck.spark.hybrid=true -Dtck.timeoutSeconds=30 verify
 
       - name: Upload optimized TCK accounting
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: optimized-tck-accounting-${{ github.run_number }}
-          path: dmn-tck-runner/target/tck-accounting-optimized.json
+          path: dmn-tck-runner/target/tck-accounting-optimized*.json
           if-no-files-found: error
 
       - name: Print TCK test summary

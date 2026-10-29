@@ -7,8 +7,21 @@ import java.time.*;
 import java.time.temporal.TemporalAmount;
 import java.util.*;
 
-/** Deterministic, side-effect-free interpreter for {@link RuntimeModel}. */
+/**
+ * Interpreter for {@link RuntimeModel}; model-selected Java calls are denied by
+ * default.
+ */
 public final class DmnRuntime {
+	private final ExternalJavaPolicy externalJavaPolicy;
+
+	public DmnRuntime() {
+		this(ExternalJavaPolicy.denyAll());
+	}
+
+	public DmnRuntime(ExternalJavaPolicy externalJavaPolicy) {
+		this.externalJavaPolicy = Objects.requireNonNull(externalJavaPolicy, "externalJavaPolicy");
+	}
+
 	public record NamedZoneTime(LocalTime value, ZoneId zone) {
 		@Override
 		public String toString() {
@@ -37,7 +50,7 @@ public final class DmnRuntime {
 		model.decisions().forEach(value -> decisions.put(value.id(), value));
 		Map<Integer, RuntimeBkm> bkms = new HashMap<>();
 		model.businessKnowledgeModels().forEach(value -> bkms.put(value.id(), value));
-		State state = new State(slots);
+		State state = new State(slots, externalJavaPolicy);
 		for (int id : model.evaluationOrder()) {
 			RuntimeBkm bkm = bkms.get(id);
 			if (bkm != null) {
@@ -118,6 +131,8 @@ public final class DmnRuntime {
 			case DATE_TIME -> (value instanceof LocalDateTime || value instanceof OffsetDateTime
 					|| value instanceof ZonedDateTime || value instanceof NamedZoneDateTime) ? value : null;
 			case DURATION -> value instanceof TemporalAmount ? value : null;
+			case DAYS_TIME_DURATION -> value instanceof Duration ? value : null;
+			case YEARS_MONTHS_DURATION -> value instanceof Period ? value : null;
 			default -> value;
 		};
 	}
@@ -157,7 +172,9 @@ public final class DmnRuntime {
 
 	private static final class State {
 		private final Object[] slots;
-		State(Object[] slots) {
+		private final ExternalJavaPolicy externalJavaPolicy;
+		State(Object[] slots, ExternalJavaPolicy externalJavaPolicy) {
+			this.externalJavaPolicy = externalJavaPolicy;
 			this.slots = slots;
 		}
 
@@ -504,6 +521,8 @@ public final class DmnRuntime {
 					int index = position > 0 ? position - 1 : list.size() + position;
 					return index >= 0 && index < list.size() ? list.get(index) : null;
 				}
+				if (selector != null && !(selector instanceof Boolean))
+					return null;
 				if (Boolean.TRUE.equals(selector)) {
 					result.add(item);
 				}
@@ -577,13 +596,20 @@ public final class DmnRuntime {
 			}
 		}
 
-		private boolean quantify(RuntimeQuantifiedExpression value, int index, Frame frame) {
-			if (index == value.bindings().size())
-				return truth(expression(value.satisfies(), frame));
+		private Boolean quantify(RuntimeQuantifiedExpression value, int index, Frame frame) {
+			if (index == value.bindings().size()) {
+				Object result = expression(value.satisfies(), frame);
+				return result == null ? false : result instanceof Boolean bool ? bool : null;
+			}
 			RuntimeQuantifiedBinding binding = value.bindings().get(index);
-			for (Object item : list(expression(binding.source(), frame))) {
+			Object source = expression(binding.source(), frame);
+			if (source == null)
+				return null;
+			for (Object item : list(source)) {
 				frame.set(binding.localSlot(), item);
-				boolean match = quantify(value, index + 1, frame);
+				Boolean match = quantify(value, index + 1, frame);
+				if (match == null)
+					return null;
 				if (value.quantifier() == RuntimeQuantifier.SOME && match)
 					return true;
 				if (value.quantifier() == RuntimeQuantifier.EVERY && !match)
@@ -601,7 +627,7 @@ public final class DmnRuntime {
 				return (positional, named) -> {
 					List<Object> args = new ArrayList<>(positional);
 					args.addAll(named.values());
-					return invokeExternalJava(desc, args);
+					return invokeExternalJava(desc, args, externalJavaPolicy);
 				};
 			}
 			if (definition.parameters().isEmpty() && definition.body().isPresent()
@@ -651,7 +677,7 @@ public final class DmnRuntime {
 					if (isExternalJavaDescriptor(bodyVal)) {
 						List<Object> args = new ArrayList<>(positional);
 						args.addAll(named.values());
-						return invokeExternalJava(bodyVal, args);
+						return invokeExternalJava(bodyVal, args, externalJavaPolicy);
 					}
 					RuntimeType returnType = definition.type().kind() == RuntimeTypeKind.FUNCTION
 							? definition.type().returnType()
@@ -693,7 +719,7 @@ public final class DmnRuntime {
 			if (isExternalJavaDescriptor(target)) {
 				List<Object> all = new ArrayList<>(positional);
 				all.addAll(named.values());
-				return invokeExternalJava(target, all);
+				return invokeExternalJava(target, all, externalJavaPolicy);
 			}
 			return null;
 		}
@@ -1907,6 +1933,10 @@ public final class DmnRuntime {
 		if (a instanceof OffsetTime ot1 && b instanceof OffsetTime ot2) {
 			return ot1.getOffset().equals(ot2.getOffset()) && ot1.toLocalTime().equals(ot2.toLocalTime());
 		}
+		if (a instanceof LocalTime t1 && b instanceof LocalTime t2)
+			return t1.equals(t2);
+		if (a instanceof LocalDateTime dt1 && b instanceof LocalDateTime dt2)
+			return dt1.equals(dt2);
 		if (a instanceof Period p1 && b instanceof Period p2) {
 			return p1.toTotalMonths() == p2.toTotalMonths();
 		}
@@ -2602,6 +2632,11 @@ public final class DmnRuntime {
 	}
 
 	public static Object invokeExternalJava(Object desc, List<Object> args) {
+		return invokeExternalJava(desc, args, ExternalJavaPolicy.denyAll());
+	}
+
+	public static Object invokeExternalJava(Object desc, List<Object> args, ExternalJavaPolicy policy) {
+		Objects.requireNonNull(policy, "policy");
 		if (desc == null)
 			return null;
 		Map<?, ?> m;
@@ -2625,6 +2660,7 @@ public final class DmnRuntime {
 			return null;
 		String className = String.valueOf(clsObj).trim();
 		String signature = String.valueOf(sigObj).trim();
+		policy.check(className, signature);
 		try {
 			int pOpen = signature.indexOf('(');
 			int pClose = signature.lastIndexOf(')');
@@ -2649,6 +2685,7 @@ public final class DmnRuntime {
 				if (convertedArgs[i] == null && paramClasses[i].isPrimitive() && arg != null)
 					return null;
 			}
+			policy.check(className, signature);
 			Object result = targetMethod.invoke(null, convertedArgs);
 			return convertFromJavaType(result);
 		} catch (Exception e) {
