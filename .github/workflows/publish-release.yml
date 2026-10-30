@@ -41,6 +41,17 @@ jobs:
           java-version: "25"
           cache: maven
 
+      - name: Set up pinned Maven 3.9.12
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.12/apache-maven-3.9.12-bin.tar.gz --output "$RUNNER_TEMP/maven.tar.gz"
+          echo "0a1be79f02466533fc1a80abbef8796e4f737c46c6574ede5658b110899942a94db634477dfd3745501c80aef9aac0d4f841d38574373f7e2d24cce89d694f70  $RUNNER_TEMP/maven.tar.gz" | sha512sum --check
+          tar -xzf "$RUNNER_TEMP/maven.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-3.9.12/bin" >> "$GITHUB_PATH"
+
+      - name: Report pinned Maven version
+        run: mvn --version
+
       - name: Set up Python for release validation
         uses: actions/setup-python@v5
         with:
@@ -117,6 +128,17 @@ jobs:
           server-username: SONATYPE_USERNAME
           server-password: SONATYPE_PASSWORD
 
+      - name: Set up pinned Maven 3.9.12
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.12/apache-maven-3.9.12-bin.tar.gz --output "$RUNNER_TEMP/maven.tar.gz"
+          echo "0a1be79f02466533fc1a80abbef8796e4f737c46c6574ede5658b110899942a94db634477dfd3745501c80aef9aac0d4f841d38574373f7e2d24cce89d694f70  $RUNNER_TEMP/maven.tar.gz" | sha512sum --check
+          tar -xzf "$RUNNER_TEMP/maven.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-3.9.12/bin" >> "$GITHUB_PATH"
+
+      - name: Report pinned Maven version
+        run: mvn --version
+
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
         with:
@@ -130,4 +152,37 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ needs.verify-release.outputs.commit }}"
 
       - name: Publish immutable Maven artifacts to Central Portal
-        run: mvn --batch-mode -Prelease -Dgpg.skip=false -DskipTests deploy
+        id: upload
+        shell: bash
+        run: |
+          mvn --batch-mode -Prelease -Dgpg.skip=false -DskipTests deploy | tee "$RUNNER_TEMP/central-upload.log"
+          python - <<'PY'
+          import os, re, uuid
+          from pathlib import Path
+          log = (Path(os.environ["RUNNER_TEMP"]) / "central-upload.log").read_text()
+          matches = re.findall(r"deploymentId:\s*([0-9a-fA-F-]{36})", log)
+          if len(matches) != 1:
+              raise SystemExit("Expected exactly one Central deployment ID")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("deployment_id=" + str(uuid.UUID(matches[0])) + "\n")
+          PY
+
+      - name: Require completed Central publication
+        shell: bash
+        env:
+          CENTRAL_DEPLOYMENT_ID: ${{ steps.upload.outputs.deployment_id }}
+          CENTRAL_REQUIRE_PUBLISHED: "true"
+          RELEASE_TOOLING_REVISION: ${{ github.workflow_sha }}
+        run: |
+          git show "$RELEASE_TOOLING_REVISION:tools/central_status.py" > "$RUNNER_TEMP/central_status.py"
+          for attempt in {1..30}; do
+            set +e
+            python "$RUNNER_TEMP/central_status.py"
+            result=$?
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if [ "$result" -ne 3 ]; then exit "$result"; fi
+            sleep 30
+          done
+          echo "Central did not confirm PUBLISHED within the polling window" >&2
+          exit 1
