@@ -42,6 +42,14 @@ class ReleaseControlsTest(unittest.TestCase):
         self.assertEqual("true", deploy_at_end)
         self.assertEqual("false", release_skip)
 
+    def test_release_toolchain_is_pinned_and_upload_is_not_completion(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "publish-release.yml").read_text(encoding="utf-8")
+        self.assertEqual(2, workflow.count("name: Set up pinned Maven 3.9.12"))
+        self.assertEqual(2, workflow.count("sha512sum --check"))
+        self.assertIn('CENTRAL_REQUIRE_PUBLISHED: "true"', workflow)
+        self.assertIn("name: Require completed Central publication", workflow)
+        self.assertIn("github.workflow_sha", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

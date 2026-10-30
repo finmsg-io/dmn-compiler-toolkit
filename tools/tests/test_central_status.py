@@ -76,3 +76,15 @@ class CentralStatusTest(unittest.TestCase):
                 "central_status.urllib.request.build_opener") as opener, contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(2, central_status.main())
         opener.assert_not_called()
+
+    def test_publication_gate_cannot_pass_pending_upload(self):
+        env = self.environment()
+        env["CENTRAL_REQUIRE_PUBLISHED"] = "true"
+        with patch.dict(os.environ, env, clear=True), patch("central_status.urllib.request.urlopen", return_value=io.BytesIO(b'{"deploymentState":"PENDING"}')), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(3, central_status.main())
+
+    def test_publication_gate_passes_only_published(self):
+        env = self.environment()
+        env["CENTRAL_REQUIRE_PUBLISHED"] = "true"
+        with patch.dict(os.environ, env, clear=True), patch("central_status.urllib.request.urlopen", return_value=io.BytesIO(b'{"deploymentState":"PUBLISHED"}')), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(0, central_status.main())

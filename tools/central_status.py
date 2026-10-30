@@ -72,7 +72,11 @@ def main():
     for value in [token, username, password]:
         output = output.replace(value, "<redacted>")
     print(output)
-    return 1 if data.get("deploymentState") == "FAILED" else 0
+    if data.get("deploymentState") == "FAILED":
+        return 1
+    if os.environ.get("CENTRAL_REQUIRE_PUBLISHED") == "true" and data.get("deploymentState") != "PUBLISHED":
+        return 3
+    return 0
 
 
 if __name__ == "__main__":

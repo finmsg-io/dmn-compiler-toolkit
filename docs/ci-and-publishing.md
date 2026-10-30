@@ -70,7 +70,8 @@ reviewed change.
 <a id="contents-section-4"></a>
 ## Protected publication
 
-The tag starts `.github/workflows/publish-release.yml`. Before deployment it:
+The tag starts `.github/workflows/publish-release.yml`. Verification and publication
+use checksum-verified Maven 3.9.12 rather than the hosted runner default. Before deployment it:
 
 1. checks out the exact tag with complete history;
 2. validates strict SemVer, reactor-wide POM agreement, non-snapshot version, and `main` ancestry;
@@ -101,7 +102,8 @@ authoritative publication controls.
 Use the read-only `Inspect Central deployment` workflow on `main` with the
 uploaded deployment UUID to retrieve Sonatype validation status and errors. It
 uses the existing release-environment credentials without exposing their values.
-A successful upload is not a completed release: verify `PUBLISHED` and registry
+The publication job polls the Central API and requires `PUBLISHED`; validation
+failures fail the job. A successful upload is not a completed release: verify `PUBLISHED` and registry
 availability before announcing publication. A `FAILED` status requires inspecting
 the validation errors before any retry.
 
@@ -121,3 +123,10 @@ is not confirmation that all artifacts are available from Central.
 The POM also retains a GitHub Packages distribution-management endpoint:
 `https://maven.pkg.github.com/finmsg-io/dmn-compiler-toolkit`. This is distinct from
 the active Central Portal release path.
+
+The initial 1.1.0 upload was rejected by Central validation. Its workflow matched
+1.0.0, but the hosted runner changed and now uses Maven 3.10.0. Older Central
+publishers have a documented staging-metadata incompatibility with Maven 3.10.
+The compatible Maven pin is a workflow correction: retry the existing verified
+tag only after confirming that no artifacts for that version were published.
+See [Sonatype plugin release notes](https://central.sonatype.org/publish/publish-portal-maven/#0120-13-oct-2026).
