@@ -1,0 +1,32 @@
+name: Inspect Central deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: Existing Central Portal deployment UUID (read-only status)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Read deployment validation status
+        env:
+          CENTRAL_DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+        run: python tools/central_status.py

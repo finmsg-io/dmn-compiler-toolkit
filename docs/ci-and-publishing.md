@@ -98,6 +98,13 @@ authoritative publication controls.
   release attempt clearly and prepare a new patch version.
 - Never move or recreate a published tag. A source correction always requires a new version.
 
+Use the read-only `Inspect Central deployment` workflow on `main` with the
+uploaded deployment UUID to retrieve Sonatype validation status and errors. It
+uses the existing release-environment credentials without exposing their values.
+A successful upload is not a completed release: verify `PUBLISHED` and registry
+availability before announcing publication. A `FAILED` status requires inspecting
+the validation errors before any retry.
+
 The retry input is not arbitrary publication authority: the referenced tag must already exist,
 match the checked-in reactor version, and belong to `main`; the protected environment must approve
 the attempt again.
