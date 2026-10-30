@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Read Central deployment status without publishing or printing credentials."""
 import base64
+import hashlib
+import re
 import json
 import os
 import sys
@@ -34,8 +36,38 @@ def main():
     except (OSError, ValueError):
         print("Central status response could not be read", file=sys.stderr)
         return 1
+    try:
+        paths = json.loads(os.environ.get("CENTRAL_BUNDLE_PATHS", "[]"))
+        if not isinstance(paths, list) or len(paths) > 10 or any(
+                not isinstance(path, str) or not re.fullmatch(r"[A-Za-z0-9_./-]+", path)
+                or ".." in path.split("/") or path.startswith("/") for path in paths):
+            raise ValueError()
+    except ValueError:
+        print("CENTRAL_BUNDLE_PATHS must contain at most 10 relative artifact paths", file=sys.stderr)
+        return 2
+    files = []
+    # Do not forward authorization through a redirect to another service.
+    class NoRedirects(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, request, file, code, message, headers, url):
+            return None
+    opener = urllib.request.build_opener(NoRedirects())
+    for path in paths:
+        probe = urllib.request.Request(
+            "https://central.sonatype.com/api/v1/publisher/deployment/" + deployment_id
+            + "/download/" + urllib.parse.quote(path, safe="/"),
+            headers={"Authorization": "Bearer " + token}, method="GET")
+        entry = {"path": path}
+        try:
+            with opener.open(probe, timeout=30) as response:
+                content = response.read(8 * 1024 * 1024)
+                entry.update(status=response.status, bytes=len(content), sha256=hashlib.sha256(content).hexdigest())
+        except urllib.error.HTTPError as error:
+            entry["status"] = error.code
+        except OSError:
+            entry["status"] = "unavailable"
+        files.append(entry)
     result = {"deploymentId": deployment_id, "deploymentState": data.get("deploymentState"),
-              "errors": data.get("errors", {})}
+              "errors": data.get("errors", {}), "bundleFiles": files}
     output = json.dumps(result, indent=2)
     for value in [token, username, password]:
         output = output.replace(value, "<redacted>")

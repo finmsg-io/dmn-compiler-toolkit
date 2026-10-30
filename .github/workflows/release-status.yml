@@ -8,6 +8,12 @@ on:
         required: true
         type: string
 
+      bundle_paths:
+        description: Optional JSON list of relative artifact paths to inspect (contents are not logged)
+        required: false
+        default: "[]"
+        type: string
+
 permissions:
   contents: read
 
@@ -24,8 +30,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Report runner Maven version
+        run: mvn --version
       - name: Read deployment validation status
         env:
+          CENTRAL_BUNDLE_PATHS: ${{ inputs.bundle_paths }}
           CENTRAL_DEPLOYMENT_ID: ${{ inputs.deployment_id }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
