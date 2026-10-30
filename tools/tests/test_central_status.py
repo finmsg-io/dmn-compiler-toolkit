@@ -51,3 +51,28 @@ class CentralStatusTest(unittest.TestCase):
                 "central_status.urllib.request.urlopen") as request, contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(2, central_status.main())
         request.assert_not_called()
+
+    def test_bundle_probe_reads_only_requested_file_without_logging_content(self):
+        env = self.environment()
+        env["CENTRAL_BUNDLE_PATHS"] = '["io/finmsg/dmn/dmn-compiler-toolkit/maven-metadata-local.xml"]'
+        status = io.BytesIO(b'{"deploymentState":"FAILED"}')
+        content = io.BytesIO(b"synthetic-bookkeeping-content")
+        content.status = 200
+        output = io.StringIO()
+        with patch.dict(os.environ, env, clear=True), patch("central_status.urllib.request.urlopen", return_value=status), patch(
+                "central_status.urllib.request.build_opener") as opener, contextlib.redirect_stdout(output):
+            opener.return_value.open.return_value = content
+            self.assertEqual(1, central_status.main())
+        probe = opener.return_value.open.call_args.args[0]
+        self.assertEqual("GET", probe.method)
+        self.assertTrue(probe.full_url.endswith("/download/io/finmsg/dmn/dmn-compiler-toolkit/maven-metadata-local.xml"))
+        self.assertEqual(200, json.loads(output.getvalue())["bundleFiles"][0]["status"])
+        self.assertNotIn("synthetic-bookkeeping-content", output.getvalue())
+
+    def test_bundle_probe_rejects_parent_path(self):
+        env = self.environment()
+        env["CENTRAL_BUNDLE_PATHS"] = '["../another/file"]'
+        with patch.dict(os.environ, env, clear=True), patch("central_status.urllib.request.urlopen", return_value=io.BytesIO(b'{}')), patch(
+                "central_status.urllib.request.build_opener") as opener, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(2, central_status.main())
+        opener.assert_not_called()
