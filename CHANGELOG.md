@@ -9,7 +9,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [1.1.0] — 2026-10-29
+### Changed
+
+- CI performs one full reactor/TCK build per product change, replacing four
+  reactor builds; all three optimized backends retain the full official inventory.
+  PR and main checks replace duplicate feature-branch push runs. Documentation
+  and repository-tooling changes use lightweight checks; release verification
+  combines packaging and TCK into one clean build.
+- Release workflows use checksum-verified Maven 3.9.12 and require Central API
+  `PUBLISHED` status, addressing the initial 1.1.0 upload rejection and false-green
+  upload result without changing the release tag.
+
+## [1.1.0] — 2026-10-30
 
 ### Added
 

@@ -21,7 +21,7 @@ class ReleaseControlsTest(unittest.TestCase):
         self.assertIn("needs: verify-release", workflow)
         self.assertIn("environment: release", workflow)
         self.assertEqual(1, workflow.count("packages: write"))
-        self.assertIn("mvn --batch-mode -Pformat,release clean verify", workflow)
+        self.assertIn("mvn --batch-mode -Pformat,release,tck -Dtck.backend=all -Dtck.requireFull=true clean verify", workflow)
         self.assertIn("python tools/verify_release.py --tag", workflow)
         self.assertIn("python tools/generate_release_notes.py --tag", workflow)
         self.assertIn("python tools/generate_checksums.py --output", workflow)

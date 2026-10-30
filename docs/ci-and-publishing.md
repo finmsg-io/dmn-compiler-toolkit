@@ -36,15 +36,28 @@ permissions, but repository environment protection is the external approval boun
 <a id="contents-section-2"></a>
 ## Ordinary verification
 
-`.github/workflows/ci.yml` runs for pull requests to `main` and every branch push with only
+`.github/workflows/ci.yml` runs for pull requests to `main` and pushes to `main`, with only
 `contents: read`. It performs:
 
 - canonical facts, retained-evidence, maintained-link and publication/orphan checks, plus repository-tool tests;
 - strict MkDocs construction;
-- fail-fast Spotless validation;
-- default-reactor tests and coverage generation;
-- a separate TCK job running optimized interpreter, generated Java and Spark hybrid conformance with accounting evidence;
+- for product/build changes, one Maven reactor verification combining Spotless,
+  module tests, coverage and complete optimized interpreter, generated-Java and
+  Spark hybrid TCK checks, retaining accounting evidence;
 - a tracked-source drift check after the build.
+
+Documentation, prompts, repository tools and workflow-only changes run the Python
+checks and strict documentation build, with no Maven/TCK build. Unknown paths,
+POMs, product sources, tests and missing diff information require full verification.
+Renames are expanded to deletion/addition so moving a product file into docs cannot
+hide its removal. Feature-branch pushes do not duplicate the PR run; open a PR to
+start verification. Newer commits cancel obsolete runs on the same ref.
+
+A product CI run now builds the reactor once instead of four times. All three
+backends still execute all 3,391 official cases; filters and compilation rejection
+are not accepted as passes. Release verification similarly combines packaging and
+TCK checks into one clean build. Signing/publication remains a separate protected
+job rebuilding the verified tag.
 
 Apply or check formatting locally with `tools/format.ps1` and `tools/check-format.ps1`, or their
 Unix equivalents. CI remains check-only and never rewrites source files.
@@ -57,8 +70,8 @@ generation belong to R1.
 
 1. Create a release-preparation branch from current green `main`.
 2. Set one non-snapshot reactor version with Maven Versions Plugin and commit every changed POM.
-3. Run documentation checks, `mvn --batch-mode -Pformat,release clean verify`, and
-   `mvn --batch-mode -Ptck verify`.
+3. Run documentation checks and one combined
+   `mvn --batch-mode -Pformat,release,tck -Dtck.backend=all -Dtck.requireFull=true clean verify`.
 4. Merge the reviewed, green release-preparation pull request to `main`.
 5. Create one annotated strict SemVer tag matching the POM version on that exact `main` commit.
 6. Push only that tag. Approve the `release` environment after checking the commit and version.
@@ -76,8 +89,9 @@ use checksum-verified Maven 3.9.12 rather than the hosted runner default. Before
 1. checks out the exact tag with complete history;
 2. validates strict SemVer, reactor-wide POM agreement, non-snapshot version, and `main` ancestry;
 3. builds documentation strictly;
-4. runs a clean default-reactor Maven verification with formatting and release profiles;
-5. runs the complete strict TCK against the configured optimized interpreter, generated Java and Spark hybrid backends;
+4. runs one clean Maven verification with formatting, release and TCK profiles,
+   including all configured optimized interpreter, generated-Java and Spark hybrid cases;
+5. retains full expected-result and routing checks in that same reactor execution;
 6. verifies non-empty source and Javadoc JARs for every default-reactor JAR module;
 7. proves the tagged checkout remains clean;
 8. publishes the default-reactor artifacts to Maven Central through the Central Portal plugin.
@@ -130,3 +144,12 @@ publishers have a documented staging-metadata incompatibility with Maven 3.10.
 The compatible Maven pin is a workflow correction: retry the existing verified
 tag only after confirming that no artifacts for that version were published.
 See [Sonatype plugin release notes](https://central.sonatype.org/publish/publish-portal-maven/#0120-13-oct-2026).
+
+Version 1.1.0 was published successfully on 2026-10-30 from the unchanged tag
+`870cab78a5a7607037733290fc12f5e71cefeff8`. The compatible-Maven retry restored the
+staging-metadata cleanup seen in 1.0.0 and Central confirmed `PUBLISHED` for deployment
+`1e2e057a-e989-462b-96ee-3b57c1d1b386`. All 12 release coordinates and 90 artifact/signature
+URLs were available from Central. A standalone consumer restricted to Central,
+using a fresh dependency cache, passed 13 tests. See the
+[successful release workflow](https://github.com/finmsg-io/dmn-compiler-toolkit/actions/runs/41008446190)
+and [public release](https://github.com/finmsg-io/dmn-compiler-toolkit/releases/tag/v1.1.0).
