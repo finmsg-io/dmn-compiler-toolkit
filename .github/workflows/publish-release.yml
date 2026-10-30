@@ -79,11 +79,8 @@ jobs:
       - name: Build documentation strictly
         run: mkdocs build --strict
 
-      - name: Clean release verification
-        run: mvn --batch-mode -Pformat,release clean verify
-
-      - name: Verify complete optimized TCK
-        run: mvn --batch-mode -Ptck verify
+      - name: Clean release and complete optimized TCK verification once
+        run: mvn --batch-mode -Pformat,release,tck -Dtck.backend=all -Dtck.requireFull=true clean verify
 
       - name: Generate release notes and artifact checksums
         run: |
