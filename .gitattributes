@@ -15,3 +15,6 @@
 *.pdf binary
 *.png binary
 *.zip binary
+
+# Preserve official schema bytes and upstream whitespace for recorded SHA-256 provenance.
+dmn-compiler/src/test/resources/dmn16-schema/*.xsd -text -whitespace

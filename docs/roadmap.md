@@ -8,7 +8,8 @@
 - [v1.0.0 MVP: TCK 100%, Core Optimizers, and Benchmarks](#contents-section-3)
 - [v1.1.0: Incubating Module Graduation & Cloud Data Engine Ecosystem](#contents-section-4)
 - [Decision Authoring DSL and Canonical Model (IDEA-004)](#contents-section-5)
-- [DMN XML Synthesis & Export from Optimized IR (DMN 1.5/1.6)](#contents-section-6)
+- [DMN XML Synthesis from Structured DMNIR (Default DMN 1.6)](#contents-section-6)
+- [v1.2.0: Portable Structured DMNIR and Authoring](#contents-section-7)
 <!-- generated-toc:end -->
 
 
@@ -94,17 +95,36 @@
 ## Decision Authoring DSL and Canonical Model (IDEA-004)
 
 - [ ] Design and implement concise textual `.decision` DSL grammar for authoring decision models without DMN XML boilerplate
-- [ ] Establish authoring-preserving Canonical Decision Model intermediate representation
-- [ ] Bi-directional lossless compilation: `.decision` DSL $\rightarrow$ Canonical Model $\rightarrow$ Standards-Compliant DMN XML
+- [ ] Lower the shared source semantic model into authoritative typed, resolved, structured DMNIR with interchange metadata ([ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md))
+- [ ] Generate valid, behaviorally equivalent normalized DMN XML from DMNIR; original source syntax, comments and diagrams are not guaranteed
 - [ ] Direct compilation: `.decision` DSL $\rightarrow$ Runtime IR $\rightarrow$ Interpreters & Code Generators
 - [ ] Embedded policy tests & invariant examples within DSL specifications
 - [ ] Standalone Language Server Protocol (LSP) engine for IDE syntax highlighting, diagnostics, and auto-completion
 - [ ] Standalone compiler CLI binary (`dmnc`)
 
 <a id="contents-section-6"></a>
-## DMN XML Synthesis & Export from Optimized IR (DMN 1.5/1.6)
+## DMN XML Synthesis from Structured DMNIR (Default DMN 1.6)
 
-- [ ] Reverse lowering and decompiler pass: Runtime IR / Optimized Model $\rightarrow$ Standards-Compliant DMN 1.5 / 1.6 XML
-- [ ] Synthesize normalized decision tables, boxed expressions, and FEEL logic from folded / simplified IR trees
-- [ ] Retain and reconstruct semantic metadata (item definitions, input data, decision topology) into standard DMN XML
+- [ ] Synthesize standards-conforming DMN XML from the authoritative structured DMNIR graph; default to 1.6 and explicitly validate selected-version support
+- [ ] Preserve exportable structured decision tables, boxed expressions and resolved FEEL logic; derive aggressive target-specific optimizations locally
+- [ ] Retain stable identities, namespaces, declarations, imports and decision topology needed for source-independent DMN export
 - [ ] Deterministic round-trip interchange with third-party visual DMN modelers and BPMN/DMN workflow engines
+
+<a id="contents-section-7"></a>
+## v1.2.0: Portable Structured DMNIR and Authoring
+
+- [x] Select one authoritative structured Protobuf DMNIR with portable interchange metadata; user approved Option A on 2026-11-03 ([ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md)). This is an architecture decision, not implementation evidence.
+- [x] Implement the experimental scalar schema in `dmn-ir-protobuf` with binary round-trip tests; stable wire compatibility and execution/export adapters remain subsequent work.
+- [x] Implement bounded wire decoding and graph validation for the experimental scalar profile in `dmn-ir-codec`; validation of broader expression forms remains future work.
+- [ ] Specify and implement independently versioned portable schema, semantic values, capability negotiation, canonical identity and bounded validation
+- [ ] Adapt verified DMNIR into Java Runtime IR and prove parity with direct compilation
+- [x] Adapt the experimental scalar profile into Runtime IR, execute it by stable identities and prove interpreter/generated-Java parity for that subset; broader adaptation remains open
+- [x] Implement and verify the experimental scalar DMN producer, including source-independent loading, imported references and generated-Java parity; broader expression production remains open
+- [x] Implement and verify artifact-only scalar DMN 1.6 export, official-schema validation and recompiled execution parity; broader export and independent DMN-engine validation remain open
+- [ ] Generate DMN 1.6 from the artifact alone and validate schema, independent reading and behavioral equivalence
+- [ ] Deliver concise DSL, formatter, diagnostics, inline tests and CLI workflows through shared semantics
+- [ ] Prove independent Rust generation and execution for a published supported profile
+- [ ] Complete compatibility/security/regression checks and release verification before publication
+
+Detailed delivery scope, dependencies and acceptance scenarios are in the repository's
+`prompts/details/release-1.2-dmnir-work-package.md`.

@@ -3,6 +3,9 @@ package io.finmsg.dmn.generator.java;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.finmsg.dmn.compiler.*;
+import io.finmsg.dmn.compiler.dmnir.DmnIrRuntimeAdapter;
+import io.finmsg.dmn.dmnir.codec.DmnIrArtifactReader;
+import io.finmsg.dmn.dmnir.proto.v0.*;
 import io.finmsg.dmn.ir.*;
 import io.finmsg.dmn.runtime.DmnEvaluationResult;
 import io.finmsg.dmn.runtime.DmnRuntime;
@@ -17,6 +20,123 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class DmnJavaGeneratorTest {
+	@Test
+	void producedArtifactGeneratesExecutableJava(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="model" name="Produced" namespace="urn:example:produced">
+				<inputData id="input" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<decision id="copy" name="Copy"><variable name="Copy" typeRef="number"/>
+				<informationRequirement><requiredInput href="#input"/></informationRequirement>
+				<literalExpression><text>Amount</text></literalExpression></decision>
+				<decision id="precise" name="Precise"><variable name="Precise" typeRef="number"/>
+				<literalExpression><text>9007199254740993.0001</text></literalExpression></decision>
+				</definitions>
+				""";
+		var source = new DmnSource(DmnSourceId.of("memory:/produced.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		byte[] bytes = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source).artifact().toByteArray();
+		var adapted = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(bytes));
+		var optimized = new RuntimeIrOptimizer().optimize(adapted.runtimeModel());
+		var generated = generator.generate(optimized);
+		assertThat(generator.generate(optimized).mainSource()).isEqualTo(generated.mainSource());
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var input = adapted.inputs().values().iterator().next();
+		Object[] slots = new Object[adapted.runtimeModel().valueSlotCount()];
+		slots[input.slot()] = new BigDecimal("42.00");
+		var values = engine.evaluate(slots);
+		var expected = adapted.evaluate(Map.of(input.id(), new BigDecimal("42.00")));
+		for (var binding : adapted.decisions().values())
+			assertThat((BigDecimal) values[binding.slot()])
+					.isEqualByComparingTo((BigDecimal) expected.get(binding.id()));
+
+		var bundle = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarDmnExporter().export(adapted.source());
+		var exportedSource = new DmnSource(DmnSourceId.of("memory:/" + bundle.rootDocument()),
+				bundle.documents().get(bundle.rootDocument()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var recompiled = compiler.compile(exportedSource);
+		assertThat(recompiled.isSuccess()).as(recompiled.diagnostics().toString()).isTrue();
+		var exportedIr = recompiled.optimizedRuntimeModel().orElseThrow();
+		var regenerated = generator.generate(exportedIr);
+		var exportedEngine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("exported"),
+				regenerated.mainClassName(), regenerated.mainSource()).getDeclaredConstructor().newInstance();
+		Object[] exportedSlots = new Object[exportedIr.model().valueSlotCount()];
+		int exportedInput = exportedIr.model().inputs().getFirst().valueSlot();
+		exportedSlots[exportedInput] = new BigDecimal("42.00");
+		var exportedValues = exportedEngine.evaluate(exportedSlots);
+		var interpreted = runtime.evaluate(exportedIr.model(), Map.of(exportedInput, new BigDecimal("42.00")));
+		for (var decision : exportedIr.model().decisions())
+			assertThat((BigDecimal) exportedValues[decision.resultSlot()])
+					.isEqualByComparingTo((BigDecimal) interpreted.value(decision.resultSlot()));
+	}
+
+	@Test
+	void verifiedPortableArtifactGeneratesCompilableJavaWithScalarParity(@TempDir Path tempDir) throws Exception {
+		String namespace = "urn:example:portable";
+		var inputRef = DmnIrReference.newBuilder().setModelNamespace(namespace).setElementId("input").build();
+		var root = DmnIrModel.newBuilder()
+				.setIdentity(DmnIrElementIdentity.newBuilder().setId("model").setName("Portable"))
+				.setNamespace(namespace)
+				.addInputs(DmnIrInput.newBuilder()
+						.setIdentity(DmnIrElementIdentity.newBuilder().setId("input").setName("Amount"))
+						.setVariable(DmnIrVariable.newBuilder().setId("input-var").setName("Amount")
+								.setType(DmnIrScalarType.SCALAR_TYPE_NUMBER)))
+				.addDecisions(DmnIrDecision.newBuilder()
+						.setIdentity(DmnIrElementIdentity.newBuilder().setId("alias").setName("Alias"))
+						.setVariable(DmnIrVariable.newBuilder().setId("alias-var").setName("Alias")
+								.setType(DmnIrScalarType.SCALAR_TYPE_NUMBER))
+						.addDependencies(inputRef).setExpression(DmnIrExpression.newBuilder()
+								.setType(DmnIrScalarType.SCALAR_TYPE_NUMBER).setGlobalReference(inputRef)));
+		root.addDecisions(portableLiteral("precise", DmnIrScalarType.SCALAR_TYPE_NUMBER,
+				DmnIrLiteral.newBuilder().setNumberValue(
+						DmnIrDecimal.newBuilder().setUnscaledValue("90071992547409930000000000000000001").setScale(19))
+						.build()));
+		root.addDecisions(portableLiteral("exponent", DmnIrScalarType.SCALAR_TYPE_NUMBER, DmnIrLiteral.newBuilder()
+				.setNumberValue(DmnIrDecimal.newBuilder().setUnscaledValue("1").setScale(-30)).build()));
+		root.addDecisions(portableLiteral("empty", DmnIrScalarType.SCALAR_TYPE_STRING,
+				DmnIrLiteral.newBuilder().setStringValue("").build()));
+		root.addDecisions(portableLiteral("text", DmnIrScalarType.SCALAR_TYPE_STRING,
+				DmnIrLiteral.newBuilder().setStringValue("quote\" newline\nbackslash\\ Unicode é").build()));
+		root.addDecisions(portableLiteral("false", DmnIrScalarType.SCALAR_TYPE_BOOLEAN,
+				DmnIrLiteral.newBuilder().setBooleanValue(false).build()));
+		root.addDecisions(portableLiteral("nullable", DmnIrScalarType.SCALAR_TYPE_NUMBER,
+				DmnIrLiteral.newBuilder().setNullValue(DmnIrNull.NULL_VALUE).build()));
+		var artifact = DmnIrArtifact.newBuilder()
+				.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(0))
+				.setSemanticsVersion(DmnIrArtifactReader.SEMANTICS_VERSION)
+				.addRequiredCapabilities(DmnIrArtifactReader.SCALAR_CAPABILITY).setRootModelNamespace(namespace)
+				.addModels(root);
+		for (String id : List.of("alias", "precise", "exponent", "empty", "text", "false", "nullable")) {
+			artifact.addEvaluationOrder(DmnIrReference.newBuilder().setModelNamespace(namespace).setElementId(id));
+		}
+		var adapted = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.build().toByteArray()));
+		var optimized = new RuntimeIrOptimizer().optimize(adapted.runtimeModel());
+		var options = DmnJavaGeneratorOptions.of("io.finmsg.dmn.generated", "PortableScalarModel");
+		var generated = generator.generate(optimized, options);
+		assertThat(generator.generate(optimized, options).mainSource()).isEqualTo(generated.mainSource());
+		Class<?> compiled = compileJavaSource(tempDir, generated.mainClassName(), generated.mainSource());
+		var engine = (GeneratedDecisionEngine) compiled.getDeclaredConstructor().newInstance();
+		var inputId = new DmnIrRuntimeAdapter.ElementId(namespace, "input");
+		Object[] inputSlots = new Object[adapted.runtimeModel().valueSlotCount()];
+		inputSlots[adapted.inputs().get(inputId).slot()] = new BigDecimal("123.4500");
+		Object[] generatedValues = engine.evaluate(inputSlots);
+		var expected = adapted.evaluate(Map.of(inputId, new BigDecimal("123.4500")));
+		for (var binding : adapted.decisions().values()) {
+			Object referenceValue = expected.get(binding.id());
+			Object generatedValue = generatedValues[binding.slot()];
+			if (referenceValue instanceof BigDecimal left && generatedValue instanceof BigDecimal right) {
+				assertThat(right).isEqualByComparingTo(left);
+			} else {
+				assertThat(generatedValue).isEqualTo(referenceValue);
+			}
+		}
+	}
+
+	private static DmnIrDecision portableLiteral(String id, DmnIrScalarType type, DmnIrLiteral value) {
+		return DmnIrDecision.newBuilder().setIdentity(DmnIrElementIdentity.newBuilder().setId(id).setName(id))
+				.setVariable(DmnIrVariable.newBuilder().setId(id + "-var").setName(id).setType(type))
+				.setExpression(DmnIrExpression.newBuilder().setType(type).setLiteral(value)).build();
+	}
+
 	@Test
 	void invalidRuntimePredicatesAndUnconstrainedDurationsPreserveParity(@TempDir Path tempDir) throws Exception {
 		List<String> expressions = List.of("duration(null)", "duration(\"\")", "duration(2017)", "duration(\"P\")",

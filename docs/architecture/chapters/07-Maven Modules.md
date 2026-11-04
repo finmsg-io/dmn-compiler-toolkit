@@ -5,6 +5,8 @@
 
 - [7.1 Current project structure](#contents-section-1)
 - [7.2 `dmn-protobuf`](#contents-section-2)
+- [7.2a `dmn-ir-protobuf`](#portable-dmnir)
+- [7.2b `dmn-ir-codec`](#portable-dmnir-codec)
 - [7.3 `dmn-frontend-xml`](#contents-section-3)
 - [7.4 `dmn-feel-parser`](#contents-section-4)
 - [7.5 `dmn-semantic-analysis`](#contents-section-5)
@@ -24,6 +26,9 @@
 flowchart TD
     Root["dmn-compiler-toolkit"] --> Pom["pom.xml (Parent POM)"]
     Root --> Proto["dmn-protobuf"]
+    Root --> Portable["dmn-ir-protobuf<br/>Experimental portable wire schema"]
+    Root --> Codec["dmn-ir-codec<br/>Bounded scalar artifact validation"]
+    Codec --> Portable
     Root --> Front["dmn-frontend-xml"]
     Root --> Feel["dmn-feel-parser"]
     Root --> Sem["dmn-semantic-analysis"]
@@ -61,6 +66,24 @@ model.proto
 ```
 
 The text schema does not depend on the parsed schema. `feel.proto` composes both through replaceable wrapper messages.
+
+<a id="portable-dmnir"></a>
+## 7.2a `dmn-ir-protobuf`
+
+Separate experimental Protobuf schema for the authoritative structured portable DMNIR selected
+in [ADR-0026](../adr/adr-0026-structured-portable-dmnir.md). Production depends only on
+`protobuf-java`; tests use JUnit. No existing runtime or frontend depends on this module.
+The initial scalar schema has no semantic-protobuf imports. Generated bindings do not establish
+artifact validity; the separate codec validates the initial scalar profile. The compiler layer
+adapts verified scalars into Runtime IR. DMN export remains a subsequent slice.
+
+<a id="portable-dmnir-codec"></a>
+## 7.2b `dmn-ir-codec`
+
+Owns allocation-bounded wire decoding and scalar graph validation. Production dependencies are
+`dmn-ir-protobuf` and `protobuf-java`; no compiler, semantic model or runtime dependencies are
+introduced. The reader returns a wrapper constructible only after successful validation.
+See the [reader guide](../../dmnir.md) for policy and API details.
 
 <a id="contents-section-3"></a>
 ## 7.3 `dmn-frontend-xml`
@@ -171,6 +194,14 @@ functions require a future host-binding boundary.
 
 <a id="contents-section-8"></a>
 ## 7.8 `dmn-compiler`
+
+The experimental portable scalar adapter in `io.finmsg.dmn.compiler.dmnir` depends on
+`dmn-ir-codec` and `dmn-ir-protobuf`. It derives local slots and Runtime IR, preserves source
+identities in bindings, and delegates evaluation to the existing runtime. Dependency direction
+remains downward: neither the execution runtime nor Runtime IR depends on the portable contracts.
+The same package contains `DmnIrScalarProducer`, which reuses source semantics and unoptimized
+lowering to emit verified scalar artifacts, and `DmnIrScalarDmnExporter`, which synthesizes DMN 1.6
+XML bundles from an admitted scalar artifact subset. See the [DMNIR API guide](../../dmnir.md).
 
 The compiler module owns orchestration and resolver-independent model-source contracts.
 Its source layer includes root-confined filesystem, classpath, and in-memory resolvers. The

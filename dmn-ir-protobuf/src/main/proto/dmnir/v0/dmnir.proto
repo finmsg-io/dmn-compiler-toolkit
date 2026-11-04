@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package io.finmsg.dmn.dmnir.v0;
+
+option java_package = "io.finmsg.dmn.dmnir.proto.v0";
+option java_multiple_files = true;
+option java_outer_classname = "DmnIrProtos";
+
+// Experimental scalar slice of ADR-0026. Not a stable v1 wire contract.
+// No semantic-protobuf imports, FEEL source, original XML or second logic graph.
+// Parsing these messages does NOT validate an executable model. A bounded verifier
+// must check versions, capabilities, declarations, types, references and ordering.
+message DmnIrArtifact {
+  DmnIrSchemaVersion schema_version = 1;
+  string semantics_version = 2;
+  repeated string required_capabilities = 3;
+  string root_model_namespace = 4;
+  repeated DmnIrModel models = 5;
+  // Resolved decision identities, in validated dependency order across models.
+  // This is a derived schedule, not a second representation of decision logic.
+  repeated DmnIrReference evaluation_order = 6;
+}
+
+message DmnIrSchemaVersion {
+  // Explicit presence distinguishes experimental major zero from a missing version.
+  optional uint32 major = 1;
+  optional uint32 minor = 2;
+}
+
+message DmnIrModel {
+  DmnIrElementIdentity identity = 1;
+  // The business model namespace, NOT the DMN standard's XML vocabulary URI.
+  string namespace = 2;
+  repeated DmnIrImport imports = 3;
+  repeated DmnIrInput inputs = 4;
+  repeated DmnIrDecision decisions = 5;
+}
+
+message DmnIrElementIdentity {
+  string id = 1;
+  string name = 2;
+}
+
+message DmnIrImport {
+  // References a bundled model; no external source retrieval is required.
+  string model_namespace = 1;
+  // Local import alias, distinct from the imported model's display name.
+  string name = 2;
+  // Optional interchange hint; never an executable loading instruction.
+  optional string location_uri = 3;
+}
+
+message DmnIrVariable {
+  // DMN information-item identity may differ from its owning DRG element.
+  optional string id = 1;
+  string name = 2;
+  DmnIrScalarType type = 3;
+}
+
+message DmnIrInput {
+  DmnIrElementIdentity identity = 1;
+  DmnIrVariable variable = 2;
+}
+
+message DmnIrDecision {
+  DmnIrElementIdentity identity = 1;
+  DmnIrVariable variable = 2;
+  repeated DmnIrReference dependencies = 3;
+  DmnIrExpression expression = 4;
+}
+
+message DmnIrReference {
+  // Fully resolved identity, independent of source aliases and execution slots.
+  string model_namespace = 1;
+  string element_id = 2;
+}
+
+enum DmnIrScalarType {
+  SCALAR_TYPE_UNSPECIFIED = 0;
+  SCALAR_TYPE_NULL = 1;
+  SCALAR_TYPE_BOOLEAN = 2;
+  SCALAR_TYPE_NUMBER = 3;
+  SCALAR_TYPE_STRING = 4;
+}
+
+message DmnIrExpression {
+  DmnIrScalarType type = 1;
+  // Other structured operations arrive in later slices. An unset/unknown node
+  // must be rejected by the verifier, never treated as an implicit null literal.
+  oneof node {
+    DmnIrLiteral literal = 2;
+    DmnIrReference global_reference = 3;
+  }
+}
+
+message DmnIrLiteral {
+  // Oneof presence preserves explicit null, false, empty string and numeric zero.
+  oneof value {
+    DmnIrNull null_value = 1;
+    bool boolean_value = 2;
+    string string_value = 3;
+    DmnIrDecimal number_value = 4;
+  }
+}
+
+enum DmnIrNull {
+  NULL_VALUE = 0;
+}
+
+message DmnIrDecimal {
+  // Exact value = unscaled_value * 10^(-scale), without binary floating point.
+  // Integer grammar: 0|-?[1-9][0-9]* (ASCII); no plus, leading zeros or negative zero.
+  // Preserve trailing coefficient zeros and signed scale: numeric equality does
+  // not imply byte identity. Canonical content hashing is a separate contract.
+  string unscaled_value = 1;
+  // Presence is mandatory even for zero. Resource limits are verifier policy;
+  // consumers must bound coefficient length and scale before numeric expansion.
+  optional sint32 scale = 2;
+}

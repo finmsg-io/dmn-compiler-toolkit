@@ -1,13 +1,102 @@
-please consider
-- ./generall-prompt.md
-- ./details/guardrails.md
+# Actual task — Release 1.2.0: DMNIR, DMN export and authoring DSL
 
-Status: 1.1.0 RELEASED; requested CI build reduction implemented, 2026-10-30.
+Created: 2026-11-03. Status: active — bounded scalar slices through R12-05a complete and verified; broader release work remains.
+Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
-- Version 1.1.0 is published on Maven Central and GitHub: https://github.com/finmsg-io/dmn-compiler-toolkit/releases/tag/v1.1.0. Immutable tag remains 870cab78a5a7607037733290fc12f5e71cefeff8. No new product version was required.
-- Successful retry workflow 41008446190 used checksum-verified Maven 3.9.12; Central deployment 1e2e057a-e989-462b-96ee-3b57c1d1b386 reached PUBLISHED. All 12 coordinates and 90 artifact/signature URLs verified; fresh-cache Central-only standalone consumer passed 13 tests. Release-profile source/Javadoc/checksum/clean-checkout checks passed.
-- Fresh exact-tag TCK: 3,391/3,391 each for interpreter, generated Java and Spark. Spark native 3,391 (100%), fallback 0 (0%), zero failures/errors/blocks/unknown. Both prior verification builds repeated native 3,034 (96.23%), fallback 119 (3.77%), unknown 0, denominator 3,153, with 60 expected failed regression actions; these are not official case counts. Typed gRPC has its separately dated 3,391-case/3,494-RPC evidence and clean shutdown.
-- Initial upload 492200a5-b675-4b7a-b1df-42ce8bf1485f failed validation. 1.0/1.1 workflows were identical; hosted image changed to Maven 3.10.0. Compatible-Maven retry restored metadata cleanup and validation passed. Workflow now requires PUBLISHED rather than stopping at upload. Infrastructure PRs #4/#5/#6 merged; main 81dd519 before CI reduction.
-- User requested reducing build counts. Branch codex/ci-build-reduction consolidates ordinary CI from four full reactor builds to one (all backends/full inventory), release verification from two to one, and feature-branch push/PR duplication. Docs/prompts/tools/workflow-only changes run lightweight checks. Unknown/product/POM/test paths and diff failures conservatively require heavy verification; rename detection disabled to preserve product deletions. All 73 tooling tests and strict documentation checks passed locally. The PR verifies the lightweight path; do not queue another full reactor/TCK build for unchanged product code.
-- Evidence under dmn-tck-runner/target: release-1.1.0-retry-tag-verification.log and release-1.1.0-central-consumer.log. GitHub connector reads work but write permission is absent. CLI api.github.com route 20.250.119.72 timed out; regional API 140.82.121.5 worked with normal TLS hostname/certificate validation and existing gh token held only in memory. Do not print credentials. Git fetch/push github.com works.
-- Portable Protobuf .dmnir remains future work (ADR-0025). Coverage enforcement and legacy-parser timeout work remain deferred.
+## Requested outcome
+
+Create **DMNIR**, a distilled, portable intermediate format containing all information needed
+by an independent generator to generate code executing a DMN model. Prove consumption with
+Rust. The DMNIR artifact must also generate standards-conforming DMN XML, defaulting to
+**DMN 1.6**, with explicit supported-version selection. Provide a pleasant, concise DSL for
+authoring the same decision semantics.
+
+The user requested starting this task on 2026-11-03 and approved **Option A**: one authoritative,
+typed, resolved, structured Protobuf DMNIR with declaration/interchange metadata. The decision
+is recorded in [ADR-0026](../docs/architecture/adr/adr-0026-structured-portable-dmnir.md).
+Current branch: `feature/release-1.2-dmnir`. Field layout and remaining contract decisions still
+require the work-package gates. Version changes and publication remain separate actions.
+
+## Required context
+
+Read [general instructions](generall-prompt.md), [guardrails](details/guardrails.md), the
+[evidence-backed development method](../docs/dev/evidence-backed-spec-driven-development.md),
+and the [release 1.2 work package](details/release-1.2-dmnir-work-package.md).
+The work package defines scope, architecture gates, dependencies and acceptance evidence.
+
+Local paths:
+
+- Toolkit: `C:\00-finmsg.io\dmn-compiler-toolkit`
+- Ideation: `C:\00-finmsg.io\dmn-compiler-toolkit-ideation`
+- Maven: `C:\10-tools\apache-maven-3.9.12\bin\mvn.cmd`
+- Prompts: `prompts/generall-prompt.md` and `prompts/details/guardrails.md`
+
+Review IDEA-003, IDEA-004, IDEA-010, SPEC-001, SPEC-002, `proto/dmn_ir_v1.proto` and
+`examples/credit_risk.decision` in ideation. They are proposal inputs, not accepted production
+contracts. The user's DMN 1.6 default supersedes SPEC-002's DMN 1.5 default.
+
+## Architecture constraints
+
+Follow the normative architecture principles and accepted ADRs, particularly ADR-0025/0026.
+ADR-0020–0024 are reserved future topics in the ADR index; preserve those IDs and inspect
+both accepted decisions and reservations before allocating any new ADR number.
+Keep the source semantic model, authoritative portable DMNIR and process-local Runtime IR
+contracts distinct. The artifact stores decision logic once; code generators and DMN export
+consume that same resolved structured graph. Retain stable identities and declarations needed
+for self-contained export. Derive optimized execution graphs locally. Do not introduce separate
+stored export/execution policies or rely on original source files for DMN regeneration.
+
+Reuse FEEL parsing, semantic analysis and lowering. Rust consumes a verified artifact without
+DMN XML, FEEL parsing or JVM compiler services. Preserve exact numeric/temporal semantics,
+stable external identities, deterministic output, bounded validation and explicit compatibility.
+
+## Work sequence
+
+1. R12-00: inventory and agree feature, semantics, version and consumer profiles.
+2. R12-01: review architecture, export-retention strategy and module boundaries.
+3. R12-02–04: wire contract, bounded verifier and Java artifact round-trip/parity.
+4. R12-05: artifact-only DMN export, default 1.6, with validation and behavioral parity.
+5. R12-06–08: DSL readability, parser/formatter, CLI workflows and inline tests.
+6. R12-09: independent Rust generation, compilation and execution proof.
+7. R12-10–11: compatibility/security hardening and release readiness.
+
+R12-02a/R12-03a/R12-04a are complete. R12-04a adds a compiler-layer adapter from verified
+scalar DMNIR to process-local Runtime IR and evaluation by namespace-qualified element ID.
+The initial eight adapter tests and final nine adapter/generated-Java parity tests passed with
+zero failures/errors/skips. Focused tests do not measure native/fallback routing. Full reactor
+verification passed: 542 tests, zero failures/errors/skips. Current-run Spark routing across four
+instrumented suites: native 3,034/3,153 (96.23%), fallback 119/3,153 (3.77%), unknown zero;
+60 failed SQL actions are counted separately, not JUnit failures or official TCK results.
+See work-package section 14 and `docs/dmnir.md` for contracts, scope and per-run evidence.
+R12-04b now implements scalar DMN-to-artifact emission; its 11 final focused producer/generated-Java
+tests passed, including a separate-JVM artifact consumer. Full-reactor verification passed:
+553 tests, zero failures/errors/skips (`target/release-1.2-r12-04b-reactor.log`). Current-run Spark
+SQL-action totals: native 3,034/3,153 (96.23%), fallback 119/3,153 (3.77%), unknown zero;
+60 failed SQL actions are separate from that completed-action denominator and JUnit failures.
+This is regression evidence, not official TCK coverage. Its initial
+table-rejection test failure was fixed before the final focused pass. Tooling tests (73), strict
+docs and documentation validation passed. See work-package section 15 for the approved API and
+per-run evidence. Broader expression production remains pending.
+R12-05a now implements artifact-only DMN 1.6 synthesis for an explicitly admitted scalar subset.
+Ten final focused exporter/generated-Java tests passed, including offline official-XSD validation
+and recompiled execution parity. Full reactor passed: 562 tests, zero failures/errors/skips;
+73 tooling tests, strict docs and documentation validation passed. See work-package section 16 and
+`target/release-1.2-r12-05a-reactor.log`. Current-run Spark regression actions: native 3,034/3,153
+(96.23%), fallback 119/3,153 (3.77%), unknown zero; 60 failed SQL actions counted separately.
+This does not replace the official TCK checkpoint. Broader DMN export, independent DMN
+engine validation, richer wire expressions, DSL and Rust remain pending.
+The established official Spark TCK checkpoint remains **3,391/3,391 native passes (100%),
+zero fallback (0%)**, as recorded in `docs/tck-conformance.md`. The mixed regression-action
+fallback percentage above includes fallback-path tests and must not be described as a TCK
+regression or evidence that the pinned-suite zero-fallback goal is incomplete. No new full TCK
+run was performed for R12-04b; the default reactor does not replace that checkpoint.
+Remaining R12-00 profile review and the broader R12-02/R12-03 contracts are not complete.
+The architecture choice is accepted; do not ask for Option A approval again.
+Do not mark dependent slices ready
+while architecture or public-contract decisions remain open. Record measured evidence per
+slice. Documentation preparation is not implementation or conformance evidence.
+
+Release readiness requires all mandatory work-package gates, including artifact-only Rust
+execution, artifact-only DMN 1.6 export, DSL parity and existing-backend regressions.
+Full Rust DMN conformance, LSP/visual tooling and further native backends are separate scope
+decisions. Publishing requires explicit external-side-effect authorization.

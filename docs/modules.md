@@ -4,6 +4,8 @@
 ## Table of contents
 
 - [dmn-protobuf](#contents-section-1)
+- [dmn-ir-protobuf](#portable-dmnir)
+- [dmn-ir-codec](#portable-dmnir-codec)
 - [dmn-frontend-xml](#contents-section-2)
 - [dmn-feel-parser](#contents-section-3)
 - [dmn-semantic-analysis](#contents-section-4)
@@ -43,6 +45,36 @@ model.proto
 
 `feel.proto` defines replaceable nodes whose `oneof` representation is either textual or parsed. This includes `Feel`, `ExpressionNode`, and `BoxedExpression`. Decision-table `UnaryTest` and model `TypeConstraint` use the same text/parsed pattern.
 
+
+<a id="portable-dmnir"></a>
+## `dmn-ir-protobuf`
+
+Owns the experimental portable DMNIR schema `dmnir/v0/dmnir.proto` and generated Java bindings
+in `io.finmsg.dmn.dmnir.proto.v0`. Its only production dependency is `protobuf-java`; it does
+not depend on semantic protobuf, XML, FEEL parsing, semantic analysis or Runtime IR.
+
+The first slice represents scalar models, declarations and variables, bundled import aliases,
+namespace-qualified references, evaluation order, exact decimals and explicit null/boolean/string
+literals. Binary round-trip tests cover identity preservation, decimals beyond binary64 precision,
+signed scale, default-valued literal presence and version/capability metadata.
+
+This is a schema and binding module. The separate codec validates the initial scalar profile;
+the compiler layer adapts verified scalars to Runtime IR. DMN synthesis and Rust generation remain
+subsequent slices. The `v0` namespace
+is experimental and does not establish stable `v1` compatibility or canonical content hashing.
+See [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md) for the accepted architecture.
+
+<a id="portable-dmnir-codec"></a>
+## `dmn-ir-codec`
+
+Bounded reader and verifier for the experimental scalar schema 0.0. Its production dependencies
+are `dmn-ir-protobuf` and `protobuf-java`; existing execution modules do not depend on it.
+The reader performs an allocation-bounded wire scan, generated decoding and semantic graph
+checks before returning an immutable verified-artifact wrapper. Imports are resolved only
+against bundled models; location hints are never fetched.
+
+See the [experimental DMNIR reader guide](dmnir.md) for the public API, exact default budgets,
+strict compatibility policy, scalar typing rules, diagnostics and limitations.
 
 <a id="contents-section-2"></a>
 ## `dmn-frontend-xml`
@@ -128,6 +160,16 @@ Provides constant folding (`ConstantFoldingPass`), algebraic identity simplifica
 
 <a id="contents-section-8"></a>
 ## `dmn-compiler`
+
+The experimental `DmnIrRuntimeAdapter` also accepts verified scalar portable DMNIR, derives local
+Runtime IR and preserves namespace-qualified identity bindings. Its evaluation entry point uses
+the existing runtime and returns decisions by stable element ID. This path does not parse DMN or
+FEEL. The compiler depends on the dedicated codec and wire schema; the execution runtime does not.
+`DmnIrScalarProducer` uses the source compiler pipeline to emit verified scalar artifacts with
+stable identities and bundled imports. Unsupported features are rejected explicitly.
+`DmnIrScalarDmnExporter` synthesizes an immutable DMN 1.6 XML bundle from an admitted scalar
+artifact subset without original sources or external writes.
+See the [DMNIR guide](dmnir.md) for producer and adapter scope and API.
 
 Owns public compiler orchestration and resolver-independent source-loading contracts.
 The current source layer defines stable source identities, immutable source bytes, import

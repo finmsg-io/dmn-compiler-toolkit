@@ -9,6 +9,17 @@ Related normative material:
 - [Glossary](../glossary.md) — shared terminology and acronyms.
 - [ADR guide and index](adr/generall-adr.md) — accepted decisions and their rationale.
 
+Release 1.2 representation decision: [ADR-0026](adr/adr-0026-structured-portable-dmnir.md)
+accepts one authoritative typed, resolved, structured Protobuf DMNIR with interchange metadata.
+Code generation and DMN export consume that same graph; execution adapters derive process-local
+Runtime IR. The architecture is accepted and the initial experimental scalar schema is implemented
+in `dmn-ir-protobuf`. `dmn-ir-codec` provides bounded validation for that scalar profile;
+the compiler's `DmnIrRuntimeAdapter` derives and executes scalar Runtime IR from verified artifacts.
+Scalar DMN-to-artifact compilation and artifact-only scalar DMN 1.6 synthesis are implemented
+experimentally. Broader expression production, broader DMN synthesis and
+cross-language conformance remain pending. The
+semantic protobuf and process-local Runtime IR are separate contracts.
+
 ## Document status
 
 This version reflects the implementation available in August 2026.
@@ -47,6 +58,8 @@ Current modules:
 %%{init: {'theme':'neutral'}}%%
 flowchart TD
     Root["dmn-compiler-toolkit"] --> Proto["dmn-protobuf"]
+    Root --> Portable["dmn-ir-protobuf<br/>Experimental portable schema"]
+    Root --> Codec["dmn-ir-codec<br/>Bounded scalar verification"]
     Root --> Front["dmn-frontend-xml"]
     Root --> Feel["dmn-feel-parser"]
     Root --> Sem["dmn-semantic-analysis"]

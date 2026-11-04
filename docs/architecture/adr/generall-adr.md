@@ -58,6 +58,7 @@ ADRs provide historical context, improve maintainability, and help future contri
 | [ADR-0018](adr-0018-protobuf-schema-evolution-and-compatibility-contract.md) | Protobuf schema evolution and compatibility contract |
 | [ADR-0019](adr-0019-generic-grpc-dynamic-value-schema.md) | Generic gRPC dynamic-value schema |
 | [ADR-0025](adr-0025-runtime-ir-persistence-and-compatibility-boundary.md) | Runtime IR persistence and compatibility boundary |
+| [ADR-0026](adr-0026-structured-portable-dmnir.md) | One authoritative structured portable DMNIR |
 
 ---
 
@@ -97,19 +98,23 @@ References
 <a id="contents-section-5"></a>
 ## Future ADRs
 
-The following topics are expected to require additional Architecture Decision Records as the project evolves:
+The following IDs are reserved for future decisions. They must not be reused, even though
+standalone ADR documents have not yet been added to this checkout.
 
-| ADR      | Topic                                      |
-| -------- | ------------------------------------------ |
-| ADR-0016 | Incremental compilation strategy           |
-| ADR-0017 | Runtime caching model                      |
-| ADR-0018 | Bytecode generation vs. source generation  |
-| ADR-0019 | GraalVM native image support               |
-| ADR-0020 | Distributed execution model (Spark/Flink)  |
-| ADR-0021 | WebAssembly backend                        |
-| ADR-0022 | Plugin and extension loading mechanism     |
-| ADR-0023 | Compiler observability and metrics         |
-| ADR-0024 | Language Server Protocol (LSP) integration |
+| Reserved ADR | Topic | Status |
+| --- | --- | --- |
+| ADR-0020 | Distributed execution model (Spark/Flink) | Future topic; not accepted |
+| ADR-0021 | WebAssembly backend | Future topic; not accepted |
+| ADR-0022 | Plugin and extension loading mechanism | Future topic; not accepted |
+| ADR-0023 | Compiler observability and metrics | Future topic; not accepted |
+| ADR-0024 | Language Server Protocol (LSP) integration | Future topic; not accepted |
+
+Other future topics remain unnumbered: incremental compilation strategy, runtime caching,
+bytecode versus source generation, and GraalVM native image support. The old placeholder
+IDs 0016–0019 for these topics conflict with the accepted decisions above and are not reservations.
+
+ADR-0025 and ADR-0026 are accepted decisions listed above. Allocate subsequent IDs after both
+the accepted records and all reservations; do not infer availability from filenames alone.
 
 ---
 

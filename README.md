@@ -70,6 +70,8 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | Module | Description |
 |---|---|
 | `dmn-protobuf` | Protobuf definitions and generated Java classes for the semantic model |
+| `dmn-ir-protobuf` | Experimental structured portable DMNIR scalar schema and generated bindings; executable loading and generators remain future slices |
+| `dmn-ir-codec` | Bounded decoding and graph validation for the experimental scalar DMNIR profile |
 | `dmn-frontend-xml` | Namespace-aware DMN XML reader and semantic round-trip writer based on VTD-XML |
 | `dmn-feel-parser` | ANTLR4 parser for DMN FEEL expressions |
 | `dmn-semantic-analysis` | Reference resolution, type analysis, DMN validation, and dependency ordering |
