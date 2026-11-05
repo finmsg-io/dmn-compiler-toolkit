@@ -10,10 +10,10 @@ import ci_impact
 
 class CiImpactTest(unittest.TestCase):
     def test_lightweight_changes(self):
-        self.assertFalse(ci_impact.needs_heavy(["README.md", "docs/guide.md", "prompts/actual-task.md", "tools/central_status.py", ".github/workflows/ci.yml", "requirements-docs.txt", "mkdocs.yml"]))
+        self.assertFalse(ci_impact.needs_heavy(["README.md", "docs/guide.md", "prompts/actual-task.md", "tools/central_status.py", ".github/workflows/deploy-docs.yml", "requirements-docs.txt", "mkdocs.yml"]))
 
     def test_product_and_build_changes_require_full_verification(self):
-        for path in ["pom.xml", "dmn-runtime/pom.xml", "dmn-runtime/src/main/java/Eval.java", "dmn-runtime/src/test/java/EvalTest.java", "dmn-protobuf/src/main/proto/model.proto", ".mvn/maven.config", "unknown/new-file"]:
+        for path in [".github/workflows/ci.yml", "tools/ci_impact.py", "pom.xml", "dmn-runtime/pom.xml", "dmn-runtime/src/main/java/Eval.java", "dmn-runtime/src/test/java/EvalTest.java", "dmn-protobuf/src/main/proto/model.proto", ".mvn/maven.config", "unknown/new-file"]:
             with self.subTest(path=path): self.assertTrue(ci_impact.needs_heavy([path]))
 
     def test_mixed_changes_are_heavy(self):
@@ -28,7 +28,7 @@ class CiImpactTest(unittest.TestCase):
             self.assertTrue(ci_impact.inspect("a" * 40))
 
     def test_null_delimited_paths_with_spaces(self):
-        with patch("ci_impact.subprocess.check_output", return_value=b"docs/guide with spaces.md\0tools/ci_impact.py\0"):
+        with patch("ci_impact.subprocess.check_output", return_value=b"docs/guide with spaces.md\0tools/central_status.py\0"):
             self.assertFalse(ci_impact.inspect("a" * 40))
 
     def test_workflow_builds_once_and_keeps_all_backends(self):
@@ -37,7 +37,7 @@ class CiImpactTest(unittest.TestCase):
         self.assertEqual(1, workflow.count("run: mvn "))
         self.assertIn("-Dtck.backend=all", workflow)
         self.assertIn("-Dtck.requireFull=true", workflow)
-        self.assertNotIn('      - "**"', workflow)
+        self.assertIn('      - "**"', workflow)
         self.assertIn("cancel-in-progress: true", workflow)
         self.assertIn("Upload optimized TCK accounting", workflow)
         release = (root / ".github/workflows/publish-release.yml").read_text()
