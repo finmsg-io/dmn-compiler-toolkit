@@ -31,10 +31,13 @@ class CiImpactTest(unittest.TestCase):
         with patch("ci_impact.subprocess.check_output", return_value=b"docs/guide with spaces.md\0tools/central_status.py\0"):
             self.assertFalse(ci_impact.inspect("a" * 40))
 
-    def test_workflow_builds_once_and_keeps_all_backends(self):
+    def test_workflow_separates_feature_reactor_from_main_and_pr_tck(self):
         root = Path(__file__).resolve().parents[2]
         workflow = (root / ".github/workflows/ci.yml").read_text()
-        self.assertEqual(1, workflow.count("run: mvn "))
+        self.assertEqual(2, workflow.count("run: mvn "))
+        self.assertIn("run: mvn --batch-mode -Pformat verify", workflow)
+        self.assertIn("github.event_name == 'push' && github.ref != 'refs/heads/main'", workflow)
+        self.assertEqual(2, workflow.count("(github.event_name == 'pull_request' || github.ref == 'refs/heads/main')"))
         self.assertIn("-Dtck.backend=all", workflow)
         self.assertIn("-Dtck.requireFull=true", workflow)
         self.assertIn('      - "**"', workflow)
