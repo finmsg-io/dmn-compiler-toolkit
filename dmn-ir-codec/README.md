@@ -1,7 +1,11 @@
 # `dmn-ir-codec`
 
 Bounded binary reader and structural/semantic verifier for the experimental portable scalar DMNIR
-profile. It accepts **schema 0.0**, semantics `finmsg-dmnir-scalar/0` and capability `dmnir.scalar`.
+profiles. It accepts **schema 0.0**, semantics `finmsg-dmnir-scalar/0` and capability `dmnir.scalar`,
+or **schema 0.1**, semantics `finmsg-dmnir-scalar-expressions/0` and ordered capabilities
+`dmnir.scalar`, `dmnir.scalar-expressions`. Header combinations are exact.
+Schema **0.2** uses semantics `finmsg-dmnir-records/0` and ordered capabilities `dmnir.scalar`,
+`dmnir.scalar-expressions`, `dmnir.records`. It adds named-record type/field validation.
 
 ## Purpose and boundaries
 
@@ -53,6 +57,12 @@ every future backend supports it; consumers must enforce their own supported pro
 - Require an evaluation schedule containing each decision exactly once, after its decision
   dependencies. Reject cycles, missing references and invalid ordering without recursive graph traversal.
 - Preserve explicit null and exact numeric values. There is no implicit fallback for unknown nodes.
+- Profile 0.1 validates unary/binary/conditional children, operator signatures and every nested
+  reference, including unselected branches. These nodes are rejected under a 0.0 header.
+- Profile 0.2 validates non-empty acyclic named records, scalar/record type exclusivity, imported
+  type visibility, field membership/result types and same-record conditional assignments.
+  Record definitions and fields count toward declaration budgets. Potential expanded type size
+  is bounded by the message budget and record depth by the depth budget before consumer layout derivation.
 
 Failures carry a stable category code and indexed artifact path. Diagnostic reasons do not echo
 payload values. Null Java arguments and invalid limit configuration are ordinary caller errors.
@@ -70,7 +80,7 @@ The reader is binary-only; it does not accept Protobuf Text Format or implement 
 | Field occurrences | 200,000 |
 | UTF-8 bytes per string | 16,384 |
 | Models | 128 |
-| Input/decision declarations | 10,000 |
+| Declarations (including 0.2 record definitions and fields) | 10,000 |
 | Reference occurrences | 50,000 |
 | Decimal coefficient digits | 4,096 |
 | Absolute decimal scale | 4,096 |

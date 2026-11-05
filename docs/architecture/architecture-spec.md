@@ -13,9 +13,14 @@ Release 1.2 representation decision: [ADR-0026](adr/adr-0026-structured-portable
 accepts one authoritative typed, resolved, structured Protobuf DMNIR with interchange metadata.
 Code generation and DMN export consume that same graph; execution adapters derive process-local
 Runtime IR. The architecture is accepted and the initial experimental scalar schema is implemented
-in `dmn-ir-protobuf`. `dmn-ir-codec` provides bounded validation for that scalar profile;
-the compiler's `DmnIrRuntimeAdapter` derives and executes scalar Runtime IR from verified artifacts.
-Scalar DMN-to-artifact compilation and artifact-only scalar DMN 1.6 synthesis are implemented
+in `dmn-ir-protobuf`. `dmn-ir-codec` provides bounded validation for the supported profiles;
+the compiler's `DmnIrRuntimeAdapter` derives and executes Runtime IR from verified artifacts.
+Experimental schema 0.1 extends the scalar contract with typed unary/binary/conditional trees;
+the reader and consumers pin the exact supported 0.0/0.1/0.2 profiles independently.
+Schema 0.2 adds named records and field access with bounded type-graph validation. Named identities
+are retained from source analysis before Runtime IR expands types structurally; execution field
+indexes are consumer-local and absent from the wire contract.
+Scalar/record DMN-to-artifact compilation and artifact-only DMN 1.6 synthesis are implemented
 experimentally. Broader expression production, broader DMN synthesis and
 cross-language conformance remain pending. The
 semantic protobuf and process-local Runtime IR are separate contracts.

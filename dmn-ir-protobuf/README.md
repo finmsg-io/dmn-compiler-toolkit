@@ -1,8 +1,14 @@
 # `dmn-ir-protobuf`
 
 Portable, structured DMNIR wire schema and generated Java bindings for the DMN Compiler Toolkit.
-This is the experimental scalar **schema 0.0**, with semantics `finmsg-dmnir-scalar/0` and required
-capability `dmnir.scalar`. It is not a stable v1 compatibility contract.
+Experimental **schema 0.0** represents scalar literals/references (`finmsg-dmnir-scalar/0`,
+capability `dmnir.scalar`). **Schema 0.1** adds scalar unary/binary/conditional expressions
+(`finmsg-dmnir-scalar-expressions/0`, ordered capabilities `dmnir.scalar`, `dmnir.scalar-expressions`).
+These are not stable v1 compatibility contracts; existing field/enum identities remain unchanged.
+Schema **0.2** adds named records and field access (`finmsg-dmnir-records/0`, ordered capabilities
+`dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`). Scalar/record type selections are
+exclusive and validated by the codec. Type identity is namespace plus record ID; field names and
+declaration order are retained while execution indexes are derived locally.
 
 ## Purpose and boundaries
 
@@ -74,8 +80,10 @@ not be edited manually. The module JAR includes the namespaced `.proto` resource
 
 ## Limitations and related documentation
 
-The current profile does not represent arithmetic, field access, record/list types, decision
-tables, functions, lexical scopes or temporal values. The complete Traffic Violation model
+Profile 0.1 adds numeric arithmetic, scalar comparisons, boolean operations and conditionals.
+Profile 0.2 adds acyclic named records and resolved fields; record construction and equality remain
+unsupported. The current profiles do not represent lists, decision tables, general functions,
+lexical scopes, temporal fields or constraints. The complete Traffic Violation model
 therefore cannot yet be represented. The compiler layer implements artifact-only DMN 1.6 export
 for an explicitly admitted scalar subset. Broader export, the DSL and Rust proof remain release
 work; no full DMN conformance claim follows from this schema.

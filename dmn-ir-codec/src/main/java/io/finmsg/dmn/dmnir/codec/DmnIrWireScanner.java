@@ -11,6 +11,8 @@ import io.finmsg.dmn.dmnir.proto.v0.DmnIrModel;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrInput;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrDecision;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrReference;
+import io.finmsg.dmn.dmnir.proto.v0.DmnIrRecordDefinition;
+import io.finmsg.dmn.dmnir.proto.v0.DmnIrRecordField;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,7 +46,9 @@ final class DmnIrWireScanner {
 				"Wire depth or message budget exceeded.");
 		if (descriptor == DmnIrModel.getDescriptor()) {
 			check(++models <= limits.maxModels(), LIMIT_EXCEEDED, path, "Model budget exceeded.");
-		} else if (descriptor == DmnIrInput.getDescriptor() || descriptor == DmnIrDecision.getDescriptor()) {
+		} else if (descriptor == DmnIrInput.getDescriptor() || descriptor == DmnIrDecision.getDescriptor()
+				|| descriptor == DmnIrRecordDefinition.getDescriptor()
+				|| descriptor == DmnIrRecordField.getDescriptor()) {
 			check(++elements <= limits.maxElements(), LIMIT_EXCEEDED, path, "Declaration budget exceeded.");
 		} else if (descriptor == DmnIrReference.getDescriptor()) {
 			check(++references <= limits.maxReferences(), LIMIT_EXCEEDED, path, "Reference budget exceeded.");

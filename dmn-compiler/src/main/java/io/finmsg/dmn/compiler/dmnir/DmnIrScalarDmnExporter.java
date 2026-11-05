@@ -51,10 +51,19 @@ public final class DmnIrScalarDmnExporter {
 		if (version != DmnVersion.DMN_1_6)
 			throw new DmnIrExportException(DmnIrExportException.Category.UNSUPPORTED_VERSION, null);
 		var artifact = verified.artifact();
-		if (artifact.getSchemaVersion().getMajor() != 0 || artifact.getSchemaVersion().getMinor() != 0
-				|| !artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar/0")
-				|| !artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar")))
+		boolean scalarProfile = artifact.getSchemaVersion().getMinor() == 0
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar"));
+		boolean expressionProfile = artifact.getSchemaVersion().getMinor() == 1
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar-expressions/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions"));
+		boolean recordProfile = artifact.getSchemaVersion().getMinor() == 2
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-records/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records"));
+		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile))
 			throw invalid(null);
+		var types = new DmnIrRecordTypes(artifact);
 		var models = artifact.getModelsList().stream().sorted(Comparator.comparing(DmnIrModel::getNamespace)).toList();
 		Map<String, String> filenames = new LinkedHashMap<>();
 		Map<DmnIrReference, Declaration> declarations = new HashMap<>();
@@ -70,6 +79,16 @@ public final class DmnIrScalarDmnExporter {
 			filenames.put(model.getNamespace(), String.format(Locale.ROOT, "model-%04d.dmn", filenames.size()));
 			Set<String> ids = new HashSet<>();
 			checkIdentity(model.getIdentity(), ids, null);
+			for (var record : model.getRecordDefinitionsList()) {
+				checkIdentity(record.getIdentity(), ids, null);
+				if (!ID.matcher(record.getIdentity().getName()).matches())
+					throw invalid(null);
+				for (var field : record.getFieldsList()) {
+					name(field.getName(), null);
+					if (field.hasId())
+						id(field.getId(), ids, null);
+				}
+			}
 			Set<String> names = new HashSet<>();
 			for (var input : model.getInputsList())
 				admit(model, input.getIdentity(), input.getVariable(), true, ids, names, declarations);
@@ -85,6 +104,24 @@ public final class DmnIrScalarDmnExporter {
 		for (var model : models) {
 			var definitions = Definitions.newBuilder().setNode(node(model.getIdentity()))
 					.setNamespace(model.getNamespace()).setModelNamespaceUri(DmnNamespaces.DMN_1_6);
+			if (recordProfile) {
+				int prefix = 0;
+				for (var namespace : models.stream().map(DmnIrModel::getNamespace).toList())
+					definitions.addNamespaces(Namespace.newBuilder().setPrefix("t" + prefix++).setUri(namespace));
+				for (var record : model.getRecordDefinitionsList().stream()
+						.sorted(Comparator.comparing(r -> r.getIdentity().getId())).toList()) {
+					var item = ItemDefinition.newBuilder().setNode(node(record.getIdentity()));
+					for (var field : record.getFieldsList()) {
+						var fieldNode = Node.newBuilder().setName(field.getName());
+						if (field.hasId())
+							fieldNode.setId(field.getId());
+						item.addComponents(ItemComponent.newBuilder().setNode(fieldNode)
+								.setType(dmnType(field.getType().getScalarType(), field.getType().hasRecordType(),
+										field.getType().getRecordType(), types)));
+					}
+					definitions.addItemDefinitions(item);
+				}
+			}
 			model.getImportsList().stream()
 					.sorted(Comparator.comparing(DmnIrImport::getModelNamespace).thenComparing(DmnIrImport::getName))
 					.forEach(i -> definitions.addImports(io.finmsg.dmn.model.Import.newBuilder().setName(i.getName())
@@ -92,12 +129,12 @@ public final class DmnIrScalarDmnExporter {
 							.setImportType(DmnNamespaces.DMN_1_6)));
 			model.getInputsList().stream().sorted(Comparator.comparing(i -> i.getIdentity().getId()))
 					.forEach(i -> definitions.addDrgElements(DrgElement.newBuilder().setInputData(InputData.newBuilder()
-							.setNode(node(i.getIdentity())).setVariable(variable(i.getVariable())))));
+							.setNode(node(i.getIdentity())).setVariable(variable(i.getVariable(), types)))));
 			for (var decision : model.getDecisionsList().stream()
 					.sorted(Comparator.comparing(d -> d.getIdentity().getId())).toList()) {
 				var address = ref(model.getNamespace(), decision.getIdentity().getId());
 				var output = Decision.newBuilder().setNode(node(decision.getIdentity()))
-						.setVariable(variable(decision.getVariable()));
+						.setVariable(variable(decision.getVariable(), types));
 				// The source analyzer also exposes imported names unqualified: reject
 				// collisions among required names.
 				Set<String> requiredNames = new HashSet<>();
@@ -165,22 +202,37 @@ public final class DmnIrScalarDmnExporter {
 	private static Node node(DmnIrElementIdentity value) {
 		return Node.newBuilder().setId(value.getId()).setName(value.getName()).build();
 	}
-	private static InformationItem variable(DmnIrVariable value) {
+	private static InformationItem variable(DmnIrVariable value, DmnIrRecordTypes types) {
 		var node = Node.newBuilder().setName(value.getName());
 		if (value.hasId())
 			node.setId(value.getId());
-		var builtin = switch (value.getType()) {
+		return InformationItem.newBuilder().setNode(node)
+				.setType(dmnType(value.getType(), value.hasRecordType(), value.getRecordType(), types)).build();
+	}
+	private static TypeReference dmnType(DmnIrScalarType scalar, boolean record, DmnIrReference reference,
+			DmnIrRecordTypes types) {
+		if (record)
+			return TypeReference.newBuilder()
+					.setNamed(NamedTypeReference.newBuilder().setNamespace(reference.getModelNamespace())
+							.setName(types.definition(reference).getIdentity().getName()))
+					.build();
+		var builtin = switch (scalar) {
 			case SCALAR_TYPE_NULL -> BuiltinType.BUILTIN_TYPE_NULL;
 			case SCALAR_TYPE_BOOLEAN -> BuiltinType.BUILTIN_TYPE_BOOLEAN;
 			case SCALAR_TYPE_NUMBER -> BuiltinType.BUILTIN_TYPE_NUMBER;
 			case SCALAR_TYPE_STRING -> BuiltinType.BUILTIN_TYPE_STRING;
 			default -> throw invalid(null);
 		};
-		return InformationItem.newBuilder().setNode(node).setType(TypeReference.newBuilder().setBuiltin(builtin))
-				.build();
+		return TypeReference.newBuilder().setBuiltin(builtin).build();
 	}
+
 	private static String expression(DmnIrExpression expression, DmnIrModel model,
 			Map<DmnIrReference, Declaration> declarations, DmnIrReference address) {
+		if (expression.hasFieldAccess()) {
+			name(expression.getFieldAccess().getFieldName(), address);
+			return "(" + expression(expression.getFieldAccess().getSource(), model, declarations, address) + ")."
+					+ expression.getFieldAccess().getFieldName();
+		}
 		if (expression.hasGlobalReference()) {
 			var reference = expression.getGlobalReference();
 			String variable = declarations.get(reference).name();
@@ -191,6 +243,44 @@ public final class DmnIrScalarDmnExporter {
 			if (imports.size() != 1)
 				throw invalid(address);
 			return imports.getFirst().getName() + "." + variable;
+		}
+		if (expression.hasUnary()) {
+			if (expression.getUnary().getOperator() == DmnIrUnaryOperator.UNARY_OPERATOR_POSITIVE)
+				return "(" + expression(expression.getUnary().getOperand(), model, declarations, address) + ")";
+			String token = switch (expression.getUnary().getOperator()) {
+				case UNARY_OPERATOR_POSITIVE -> "+";
+				case UNARY_OPERATOR_NEGATE -> "-";
+				case UNARY_OPERATOR_NOT -> "not ";
+				default -> throw invalid(address);
+			};
+			return "(" + token + "(" + expression(expression.getUnary().getOperand(), model, declarations, address)
+					+ "))";
+		}
+		if (expression.hasBinary()) {
+			String token = switch (expression.getBinary().getOperator()) {
+				case BINARY_OPERATOR_ADD -> "+";
+				case BINARY_OPERATOR_SUBTRACT -> "-";
+				case BINARY_OPERATOR_MULTIPLY -> "*";
+				case BINARY_OPERATOR_DIVIDE -> "/";
+				case BINARY_OPERATOR_POWER -> "**";
+				case BINARY_OPERATOR_EQUAL -> "=";
+				case BINARY_OPERATOR_NOT_EQUAL -> "!=";
+				case BINARY_OPERATOR_LESS -> "<";
+				case BINARY_OPERATOR_LESS_EQUAL -> "<=";
+				case BINARY_OPERATOR_GREATER -> ">";
+				case BINARY_OPERATOR_GREATER_EQUAL -> ">=";
+				case BINARY_OPERATOR_AND -> "and";
+				case BINARY_OPERATOR_OR -> "or";
+				default -> throw invalid(address);
+			};
+			return "((" + expression(expression.getBinary().getLeft(), model, declarations, address) + ") " + token
+					+ " (" + expression(expression.getBinary().getRight(), model, declarations, address) + "))";
+		}
+		if (expression.hasConditional()) {
+			var conditional = expression.getConditional();
+			return "(if (" + expression(conditional.getCondition(), model, declarations, address) + ") then ("
+					+ expression(conditional.getThenExpression(), model, declarations, address) + ") else ("
+					+ expression(conditional.getElseExpression(), model, declarations, address) + "))";
 		}
 		var value = expression.getLiteral();
 		return switch (value.getValueCase()) {

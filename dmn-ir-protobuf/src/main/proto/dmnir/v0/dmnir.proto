@@ -6,7 +6,7 @@ option java_package = "io.finmsg.dmn.dmnir.proto.v0";
 option java_multiple_files = true;
 option java_outer_classname = "DmnIrProtos";
 
-// Experimental scalar slice of ADR-0026. Not a stable v1 wire contract.
+// Experimental scalar/record profiles 0.0/0.1/0.2 of ADR-0026. Not a stable v1 wire contract.
 // No semantic-protobuf imports, FEEL source, original XML or second logic graph.
 // Parsing these messages does NOT validate an executable model. A bounded verifier
 // must check versions, capabilities, declarations, types, references and ordering.
@@ -34,6 +34,7 @@ message DmnIrModel {
   repeated DmnIrImport imports = 3;
   repeated DmnIrInput inputs = 4;
   repeated DmnIrDecision decisions = 5;
+  repeated DmnIrRecordDefinition record_definitions = 6;
 }
 
 message DmnIrElementIdentity {
@@ -55,6 +56,8 @@ message DmnIrVariable {
   optional string id = 1;
   string name = 2;
   DmnIrScalarType type = 3;
+  // Schema 0.2: exactly one of a supported scalar type or record_type.
+  DmnIrReference record_type = 4;
 }
 
 message DmnIrInput {
@@ -85,12 +88,84 @@ enum DmnIrScalarType {
 
 message DmnIrExpression {
   DmnIrScalarType type = 1;
+  // Schema 0.2: mutually exclusive with a supported scalar type.
+  DmnIrReference record_type = 7;
   // Other structured operations arrive in later slices. An unset/unknown node
   // must be rejected by the verifier, never treated as an implicit null literal.
   oneof node {
     DmnIrLiteral literal = 2;
     DmnIrReference global_reference = 3;
+    // These nodes require schema 0.1 and dmnir.scalar-expressions.
+    DmnIrUnaryExpression unary = 4;
+    DmnIrBinaryExpression binary = 5;
+    DmnIrConditionalExpression conditional = 6;
+    DmnIrFieldAccess field_access = 8;
   }
+}
+
+message DmnIrTypeReference {
+  oneof kind {
+    DmnIrScalarType scalar_type = 1;
+    DmnIrReference record_type = 2;
+  }
+}
+
+message DmnIrRecordDefinition {
+  DmnIrElementIdentity identity = 1;
+  repeated DmnIrRecordField fields = 2;
+}
+
+message DmnIrRecordField {
+  optional string id = 1;
+  string name = 2;
+  DmnIrTypeReference type = 3;
+}
+
+message DmnIrFieldAccess {
+  DmnIrExpression source = 1;
+  string field_name = 2;
+}
+
+message DmnIrUnaryExpression {
+  DmnIrUnaryOperator operator = 1;
+  DmnIrExpression operand = 2;
+}
+
+message DmnIrBinaryExpression {
+  DmnIrBinaryOperator operator = 1;
+  DmnIrExpression left = 2;
+  DmnIrExpression right = 3;
+}
+
+message DmnIrConditionalExpression {
+  DmnIrExpression condition = 1;
+  DmnIrExpression then_expression = 2;
+  DmnIrExpression else_expression = 3;
+}
+
+// Numeric identities are portable contracts, never Java enum ordinals.
+enum DmnIrUnaryOperator {
+  UNARY_OPERATOR_UNSPECIFIED = 0;
+  UNARY_OPERATOR_POSITIVE = 1;
+  UNARY_OPERATOR_NEGATE = 2;
+  UNARY_OPERATOR_NOT = 3;
+}
+
+enum DmnIrBinaryOperator {
+  BINARY_OPERATOR_UNSPECIFIED = 0;
+  BINARY_OPERATOR_ADD = 1;
+  BINARY_OPERATOR_SUBTRACT = 2;
+  BINARY_OPERATOR_MULTIPLY = 3;
+  BINARY_OPERATOR_DIVIDE = 4;
+  BINARY_OPERATOR_POWER = 5;
+  BINARY_OPERATOR_EQUAL = 6;
+  BINARY_OPERATOR_NOT_EQUAL = 7;
+  BINARY_OPERATOR_LESS = 8;
+  BINARY_OPERATOR_LESS_EQUAL = 9;
+  BINARY_OPERATOR_GREATER = 10;
+  BINARY_OPERATOR_GREATER_EQUAL = 11;
+  BINARY_OPERATOR_AND = 12;
+  BINARY_OPERATOR_OR = 13;
 }
 
 message DmnIrLiteral {

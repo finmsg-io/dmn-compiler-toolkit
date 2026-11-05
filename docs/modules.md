@@ -57,17 +57,21 @@ The first slice represents scalar models, declarations and variables, bundled im
 namespace-qualified references, evaluation order, exact decimals and explicit null/boolean/string
 literals. Binary round-trip tests cover identity preservation, decimals beyond binary64 precision,
 signed scale, default-valued literal presence and version/capability metadata.
+Schema 0.1 adds typed unary/binary/conditional trees with explicit operator numbers and an exact
+version/capability profile; schema 0.0 remains supported.
+Schema 0.2 adds named acyclic records and resolved field access while preserving source type
+identity, optional field IDs and declaration order. Runtime field indexes remain derived locally.
 
-This is a schema and binding module. The separate codec validates the initial scalar profile;
-the compiler layer adapts verified scalars to Runtime IR. DMN synthesis and Rust generation remain
-subsequent slices. The `v0` namespace
+This is a schema and binding module. The separate codec validates profiles 0.0/0.1/0.2;
+the compiler layer adapts verified scalars to Runtime IR and synthesizes DMN 1.6 for its admitted
+subset. Broader DMN synthesis and Rust generation remain subsequent slices. The `v0` namespace
 is experimental and does not establish stable `v1` compatibility or canonical content hashing.
 See [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md) for the accepted architecture.
 
 <a id="portable-dmnir-codec"></a>
 ## `dmn-ir-codec`
 
-Bounded reader and verifier for the experimental scalar schema 0.0. Its production dependencies
+Bounded reader and verifier for the experimental schemas 0.0/0.1/0.2. Its production dependencies
 are `dmn-ir-protobuf` and `protobuf-java`; existing execution modules do not depend on it.
 The reader performs an allocation-bounded wire scan, generated decoding and semantic graph
 checks before returning an immutable verified-artifact wrapper. Imports are resolved only
@@ -169,6 +173,8 @@ FEEL. The compiler depends on the dedicated codec and wire schema; the execution
 stable identities and bundled imports. Unsupported features are rejected explicitly.
 `DmnIrScalarDmnExporter` synthesizes an immutable DMN 1.6 XML bundle from an admitted scalar
 artifact subset without original sources or external writes.
+Profile 0.2 additionally retains named record identity before structural lowering, derives verified
+field layouts and exports named record declarations with namespace-correct type references.
 See the [DMNIR guide](dmnir.md) for producer and adapter scope and API.
 
 Owns public compiler orchestration and resolver-independent source-loading contracts.

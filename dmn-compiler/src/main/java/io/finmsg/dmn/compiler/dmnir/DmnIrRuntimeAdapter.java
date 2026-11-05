@@ -45,11 +45,19 @@ public final class DmnIrRuntimeAdapter {
 		Objects.requireNonNull(verified, "verified");
 		DmnIrArtifact artifact = verified.artifact();
 		// Pin this consumer's profile independently of future reader extensions.
-		if (artifact.getSchemaVersion().getMajor() != 0 || artifact.getSchemaVersion().getMinor() != 0
-				|| !artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar/0")
-				|| !artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar"))) {
-			throw new IllegalArgumentException("Runtime adapter supports only the experimental scalar 0.0 profile.");
-		}
+		boolean scalarProfile = artifact.getSchemaVersion().getMinor() == 0
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar"));
+		boolean expressionProfile = artifact.getSchemaVersion().getMinor() == 1
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar-expressions/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions"));
+		boolean recordProfile = artifact.getSchemaVersion().getMinor() == 2
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-records/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records"));
+		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile))
+			throw new IllegalArgumentException("Unsupported runtime adapter profile.");
+		var types = new DmnIrRecordTypes(artifact);
 		List<Declaration> declarations = new ArrayList<>();
 		for (DmnIrModel model : artifact.getModelsList()) {
 			for (DmnIrInput input : model.getInputsList()) {
@@ -73,7 +81,8 @@ public final class DmnIrRuntimeAdapter {
 		Map<ElementId, Binding> decisions = new LinkedHashMap<>();
 		for (Declaration declaration : declarations) {
 			int slot = slots.get(declaration.id());
-			RuntimeType type = type(declaration.variable().getType());
+			RuntimeType type = types.type(declaration.variable().getType(), declaration.variable().hasRecordType(),
+					declaration.variable().getRecordType());
 			Binding binding = new Binding(declaration.id(), declaration.identity().getName(),
 					declaration.variable().hasId() ? Optional.of(declaration.variable().getId()) : Optional.empty(),
 					declaration.variable().getName(), type, slot);
@@ -86,7 +95,7 @@ public final class DmnIrRuntimeAdapter {
 				List<Integer> dependencies = decision.getDependenciesList().stream()
 						.map(reference -> slots.get(id(reference))).toList();
 				runtimeDecisions.add(new RuntimeDecision(slot, slot, type, dependencies,
-						Optional.of(expression(decision.getExpression(), slots))));
+						Optional.of(expression(decision.getExpression(), slots, types))));
 			}
 		}
 		List<Integer> order = artifact.getEvaluationOrderList().stream().map(value -> slots.get(id(value))).toList();
@@ -94,10 +103,49 @@ public final class DmnIrRuntimeAdapter {
 		return new AdaptedModel(verified, model, inputs, decisions);
 	}
 
-	private static RuntimeExpression expression(DmnIrExpression expression, Map<ElementId, Integer> slots) {
-		RuntimeType type = type(expression.getType());
+	private static RuntimeExpression expression(DmnIrExpression expression, Map<ElementId, Integer> slots,
+			DmnIrRecordTypes types) {
+		RuntimeType type = types.type(expression.getType(), expression.hasRecordType(), expression.getRecordType());
 		return switch (expression.getNodeCase()) {
+			case FIELD_ACCESS -> {
+				// Match source lowering's type-proven null plan, including native invalid
+				// input.
+				if (type.kind() == RuntimeTypeKind.NULL)
+					yield new RuntimeConstant(RuntimeConstantKind.NULL, "null", type);
+				var access = expression.getFieldAccess();
+				var source = expression(access.getSource(), slots, types);
+				int index = source.type().fieldLayout().stream().filter(f -> f.name().equals(access.getFieldName()))
+						.findFirst().orElseThrow().index();
+				yield new RuntimePathExpression(source, access.getFieldName(), index, type);
+			}
 			case GLOBAL_REFERENCE -> new RuntimeValueReference(slots.get(id(expression.getGlobalReference())), type);
+			case UNARY -> new RuntimeUnaryExpression(switch (expression.getUnary().getOperator()) {
+				case UNARY_OPERATOR_POSITIVE -> RuntimeUnaryOperator.POSITIVE;
+				case UNARY_OPERATOR_NEGATE -> RuntimeUnaryOperator.NEGATE;
+				case UNARY_OPERATOR_NOT -> RuntimeUnaryOperator.NOT;
+				default -> throw new IllegalArgumentException("Unsupported unary operator.");
+			}, expression(expression.getUnary().getOperand(), slots, types), type);
+			case BINARY -> new RuntimeBinaryExpression(switch (expression.getBinary().getOperator()) {
+				case BINARY_OPERATOR_ADD -> RuntimeBinaryOperator.ADD;
+				case BINARY_OPERATOR_SUBTRACT -> RuntimeBinaryOperator.SUBTRACT;
+				case BINARY_OPERATOR_MULTIPLY -> RuntimeBinaryOperator.MULTIPLY;
+				case BINARY_OPERATOR_DIVIDE -> RuntimeBinaryOperator.DIVIDE;
+				case BINARY_OPERATOR_POWER -> RuntimeBinaryOperator.POWER;
+				case BINARY_OPERATOR_EQUAL -> RuntimeBinaryOperator.EQUAL;
+				case BINARY_OPERATOR_NOT_EQUAL -> RuntimeBinaryOperator.NOT_EQUAL;
+				case BINARY_OPERATOR_LESS -> RuntimeBinaryOperator.LESS;
+				case BINARY_OPERATOR_LESS_EQUAL -> RuntimeBinaryOperator.LESS_EQUAL;
+				case BINARY_OPERATOR_GREATER -> RuntimeBinaryOperator.GREATER;
+				case BINARY_OPERATOR_GREATER_EQUAL -> RuntimeBinaryOperator.GREATER_EQUAL;
+				case BINARY_OPERATOR_AND -> RuntimeBinaryOperator.AND;
+				case BINARY_OPERATOR_OR -> RuntimeBinaryOperator.OR;
+				default -> throw new IllegalArgumentException("Unsupported binary operator.");
+			}, expression(expression.getBinary().getLeft(), slots, types),
+					expression(expression.getBinary().getRight(), slots, types), type);
+			case CONDITIONAL ->
+				new RuntimeConditionalExpression(expression(expression.getConditional().getCondition(), slots, types),
+						expression(expression.getConditional().getThenExpression(), slots, types),
+						expression(expression.getConditional().getElseExpression(), slots, types), type);
 			case LITERAL -> {
 				DmnIrLiteral literal = expression.getLiteral();
 				yield switch (literal.getValueCase()) {
@@ -118,16 +166,6 @@ public final class DmnIrRuntimeAdapter {
 			}
 			default -> throw new IllegalArgumentException("Unsupported expression in runtime adapter.");
 		};
-	}
-
-	private static RuntimeType type(DmnIrScalarType type) {
-		return RuntimeType.scalar(switch (type) {
-			case SCALAR_TYPE_NULL -> RuntimeTypeKind.NULL;
-			case SCALAR_TYPE_BOOLEAN -> RuntimeTypeKind.BOOLEAN;
-			case SCALAR_TYPE_NUMBER -> RuntimeTypeKind.NUMBER;
-			case SCALAR_TYPE_STRING -> RuntimeTypeKind.STRING;
-			default -> throw new IllegalArgumentException("Unsupported type in runtime adapter.");
-		});
 	}
 
 	private static ElementId id(DmnIrReference value) {

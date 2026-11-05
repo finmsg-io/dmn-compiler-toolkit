@@ -121,6 +121,8 @@
 - [x] Adapt the experimental scalar profile into Runtime IR, execute it by stable identities and prove interpreter/generated-Java parity for that subset; broader adaptation remains open
 - [x] Implement and verify the experimental scalar DMN producer, including source-independent loading, imported references and generated-Java parity; broader expression production remains open
 - [x] Implement and verify artifact-only scalar DMN 1.6 export, official-schema validation and recompiled execution parity; broader export and independent DMN-engine validation remain open
+- [x] Implement and verify schema 0.1 unary/binary/conditional expressions across production, bounded validation, execution, generated Java and DMN 1.6 export; retain 0.0 compatibility
+- [x] Verify schema 0.2 named records/field access through bounded validation, execution and DMN 1.6 export; 590 reactor tests passed. Temporal fields, constraints, tables and lexical contexts remain open
 - [ ] Generate DMN 1.6 from the artifact alone and validate schema, independent reading and behavioral equivalence
 - [ ] Deliver concise DSL, formatter, diagnostics, inline tests and CLI workflows through shared semantics
 - [ ] Prove independent Rust generation and execution for a published supported profile

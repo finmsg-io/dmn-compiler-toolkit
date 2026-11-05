@@ -26,6 +26,8 @@ public final class DmnIrScalarProducer {
 		if (semantic.hasErrors()) {
 			throw new DmnIrProductionException(SOURCE_INVALID, null, semantic.diagnostics(), null);
 		}
+		if (semantic.models().stream().anyMatch(m -> m.model().getItemDefinitionsCount() != 0))
+			return new DmnIrRecordProducer(semantic).produce();
 		var models = semantic.models().stream().sorted(Comparator.comparing(m -> m.identity().namespace())).toList();
 		// Match the lowerer's ordered model/declaration index before emitting stable
 		// identities.
@@ -42,6 +44,13 @@ public final class DmnIrScalarProducer {
 				};
 				if (element.hasDecision() && element.getDecision().getLogic().hasDecisionTable())
 					throw unsupported(reference(model.identity().namespace(), node.getId()));
+				if (element.hasDecision()) {
+					var logic = element.getDecision().getLogic();
+					var address = reference(model.identity().namespace(), node.getId());
+					if (!logic.hasLiteralExpression() || !logic.getLiteralExpression().hasParsed())
+						throw unsupported(address);
+					sourceAdmission(logic.getLiteralExpression().getParsed().getAst(), address, 1);
+				}
 				addresses.put(slot++, reference(model.identity().namespace(), node.getId()));
 			}
 		}
@@ -90,7 +99,7 @@ public final class DmnIrScalarProducer {
 						throw unsupported(address);
 					var wire = DmnIrDecision.newBuilder().setIdentity(identity(sourceDecision.getNode()))
 							.setVariable(variable(sourceDecision.getVariable(), decision.type(), address))
-							.setExpression(expression(decision.expression().orElseThrow(), addresses, address));
+							.setExpression(expression(decision.expression().orElseThrow(), addresses, address, 1));
 					decision.dependencies().stream().map(addresses::get).sorted(REFERENCE_ORDER)
 							.forEach(wire::addDependencies);
 					wireDecisions.add(wire.build());
@@ -120,10 +129,19 @@ public final class DmnIrScalarProducer {
 			completed.add(next.getKey());
 			remaining.remove(next.getKey());
 		}
+		boolean extended = artifact.getModelsList().stream().flatMap(m -> m.getDecisionsList().stream())
+				.anyMatch(d -> d.getExpression().hasUnary() || d.getExpression().hasBinary()
+						|| d.getExpression().hasConditional());
+		if (extended)
+			artifact.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(1))
+					.setSemanticsVersion("finmsg-dmnir-scalar-expressions/0")
+					.addRequiredCapabilities("dmnir.scalar-expressions");
 		try {
 			return new DmnIrArtifactReader().read(artifact.build().toByteArray());
 		} catch (DmnIrValidationException e) {
-			throw new DmnIrProductionException(ARTIFACT_INVALID, null, List.of(), e);
+			throw new DmnIrProductionException(
+					e.code() == DmnIrValidationException.Code.INVALID_TYPE ? UNSUPPORTED_PROFILE : ARTIFACT_INVALID,
+					null, List.of(), e);
 		}
 	}
 
@@ -156,10 +174,59 @@ public final class DmnIrScalarProducer {
 	}
 
 	private static DmnIrExpression expression(RuntimeExpression expression, Map<Integer, DmnIrReference> addresses,
-			DmnIrReference address) {
+			DmnIrReference address, int depth) {
+		if (depth > 32)
+			throw unsupported(address);
 		var output = DmnIrExpression.newBuilder().setType(type(expression.type(), address));
+		if (expression instanceof RuntimeInvocationExpression call && call.function().orElse("").equals("not")
+				&& call.target().isEmpty() && call.namedArguments().isEmpty()
+				&& call.positionalArguments().size() == 1) {
+			return output.setUnary(DmnIrUnaryExpression.newBuilder().setOperator(DmnIrUnaryOperator.UNARY_OPERATOR_NOT)
+					.setOperand(expression(call.positionalArguments().getFirst(), addresses, address, depth + 1)))
+					.build();
+		}
+		if (expression instanceof RuntimeFunctionCall call && call.function().equals("not")
+				&& call.arguments().size() == 1) {
+			return output
+					.setUnary(DmnIrUnaryExpression.newBuilder().setOperator(DmnIrUnaryOperator.UNARY_OPERATOR_NOT)
+							.setOperand(expression(call.arguments().getFirst(), addresses, address, depth + 1)))
+					.build();
+		}
 		if (expression instanceof RuntimeValueReference ref)
 			return output.setGlobalReference(addresses.get(ref.sourceSlot())).build();
+		if (expression instanceof RuntimeUnaryExpression unary) {
+			return output.setUnary(DmnIrUnaryExpression.newBuilder().setOperator(switch (unary.operator()) {
+				case POSITIVE -> DmnIrUnaryOperator.UNARY_OPERATOR_POSITIVE;
+				case NEGATE -> DmnIrUnaryOperator.UNARY_OPERATOR_NEGATE;
+				case NOT -> DmnIrUnaryOperator.UNARY_OPERATOR_NOT;
+			}).setOperand(expression(unary.operand(), addresses, address, depth + 1))).build();
+		}
+		if (expression instanceof RuntimeBinaryExpression binary) {
+			return output.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(switch (binary.operator()) {
+				case ADD -> DmnIrBinaryOperator.BINARY_OPERATOR_ADD;
+				case SUBTRACT -> DmnIrBinaryOperator.BINARY_OPERATOR_SUBTRACT;
+				case MULTIPLY -> DmnIrBinaryOperator.BINARY_OPERATOR_MULTIPLY;
+				case DIVIDE -> DmnIrBinaryOperator.BINARY_OPERATOR_DIVIDE;
+				case POWER -> DmnIrBinaryOperator.BINARY_OPERATOR_POWER;
+				case EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL;
+				case NOT_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_NOT_EQUAL;
+				case LESS -> DmnIrBinaryOperator.BINARY_OPERATOR_LESS;
+				case LESS_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_LESS_EQUAL;
+				case GREATER -> DmnIrBinaryOperator.BINARY_OPERATOR_GREATER;
+				case GREATER_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_GREATER_EQUAL;
+				case AND -> DmnIrBinaryOperator.BINARY_OPERATOR_AND;
+				case OR -> DmnIrBinaryOperator.BINARY_OPERATOR_OR;
+			}).setLeft(expression(binary.left(), addresses, address, depth + 1))
+					.setRight(expression(binary.right(), addresses, address, depth + 1))).build();
+		}
+		if (expression instanceof RuntimeConditionalExpression conditional) {
+			return output
+					.setConditional(DmnIrConditionalExpression.newBuilder()
+							.setCondition(expression(conditional.condition(), addresses, address, depth + 1))
+							.setThenExpression(expression(conditional.thenExpression(), addresses, address, depth + 1))
+							.setElseExpression(expression(conditional.elseExpression(), addresses, address, depth + 1)))
+					.build();
+		}
 		if (!(expression instanceof RuntimeConstant constant))
 			throw unsupported(address);
 		var literal = DmnIrLiteral.newBuilder();
@@ -175,6 +242,35 @@ public final class DmnIrScalarProducer {
 			default -> throw unsupported(address);
 		}
 		return output.setLiteral(literal).build();
+	}
+
+	private static void sourceAdmission(com.google.protobuf.Message message, DmnIrReference address, int depth) {
+		if (depth > 64)
+			throw unsupported(address);
+		if (message instanceof Expression expression) {
+			if (!expression.hasLiteral() && !expression.hasName() && expression.getInferredType().hasBuiltin()
+					&& expression.getInferredType().getBuiltin() == BuiltinType.BUILTIN_TYPE_NULL)
+				throw unsupported(address);
+			boolean admitted = switch (expression.getNodeCase()) {
+				case LITERAL, NAME, PATH, UNARY, BINARY, IF_EXPRESSION -> true;
+				case INVOCATION -> expression.getInvocation().getTarget().hasName()
+						&& expression.getInvocation().getTarget().getName().getName().equals("not")
+						&& expression.getInvocation().getPositionalArgumentsCount() == 1
+						&& expression.getInvocation().getArgumentsCount() == 0;
+				default -> false;
+			};
+			if (!admitted)
+				throw unsupported(address);
+		}
+		for (var entry : message.getAllFields().entrySet()) {
+			if (entry.getKey().getJavaType() != com.google.protobuf.Descriptors.FieldDescriptor.JavaType.MESSAGE)
+				continue;
+			if (entry.getKey().isRepeated()) {
+				for (var child : (List<?>) entry.getValue())
+					sourceAdmission((com.google.protobuf.Message) child, address, depth + 1);
+			} else
+				sourceAdmission((com.google.protobuf.Message) entry.getValue(), address, depth + 1);
+		}
 	}
 
 	private static DmnIrProductionException unsupported(DmnIrReference ref) {

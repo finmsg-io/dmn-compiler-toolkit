@@ -1,8 +1,13 @@
 # Experimental portable scalar DMNIR
 
 The `dmn-ir-protobuf` module defines the experimental structured scalar wire contract.
-`dmn-ir-codec` adds bounded decoding and validation for **schema 0.0**, semantic profile
-`finmsg-dmnir-scalar/0`, and required capability `dmnir.scalar`.
+`dmn-ir-codec` adds bounded decoding and validation for three exact experimental profiles:
+
+| Schema | Semantics | Required capabilities, in order |
+| --- | --- | --- |
+| 0.0 | `finmsg-dmnir-scalar/0` | `dmnir.scalar` |
+| 0.1 | `finmsg-dmnir-scalar-expressions/0` | `dmnir.scalar`, `dmnir.scalar-expressions` |
+| 0.2 | `finmsg-dmnir-records/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records` |
 
 This implements the first scalar slice of [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md).
 The reader validates without executing. `DmnIrRuntimeAdapter` in `dmn-compiler` now derives and
@@ -23,7 +28,8 @@ byte[] artifactBytes = verified.artifact().toByteArray();
 ```
 
 The compiler-layer producer reuses the existing model loader, FEEL parsing, semantic analysis
-and unoptimized lowering. It supports scalar literals and global references, including bundled
+and unoptimized lowering. It supports scalar literals, global references and admitted structured
+operations, including bundled
 imports. It retains model/element/variable IDs and names, import aliases and location hints,
 and converts resolved execution addresses to portable identities. Models, declarations and
 dependencies are sorted; the topological schedule has stable identity-based tie-breaking.
@@ -33,14 +39,80 @@ canonical hashing contract.
 `DmnIrProductionException` distinguishes `SOURCE_INVALID` (with compiler diagnostics),
 `UNSUPPORTED_PROFILE` (with an optional element identity), and `ARTIFACT_INVALID` (with the
 reader exception as cause). No partial output is returned. The producer rejects unsupported
-types, named type declarations, tables, BKMs and decision services. Arithmetic is rejected even
-when constant-foldable: optimization cannot silently widen the profile. Emitted artifacts must
+types/declarations (including scalar aliases, collections and constraints), tables, BKMs and decision
+services. Supported named records select profile 0.2. Unsupported source expressions
+are rejected before lowering: normalization cannot silently widen the profile. Emitted artifacts must
 pass the existing reader and its default resource limits. Source parsing uses existing compiler
 limits; this producer does not promise bounded allocation before source compilation.
 
 XML vocabulary, source formatting, documentation, labels, diagrams and source locations are not
 retained by this experimental profile. It is a semantic scalar subset, not a lossless XML archive.
 Original XML and FEEL source text are not embedded in the artifact.
+
+## Structured scalar expressions (schema 0.1)
+
+Schema 0.1 adds recursive unary, binary and conditional nodes, using explicit portable operator
+numbers. Arithmetic admits numeric operands; ordered comparisons admit numeric pairs or string
+pairs; equality admits scalar pairs. Logical operators accept boolean/null operands. Conditional
+branches must match the declared result type or be null. String concatenation, temporal arithmetic,
+collections and dynamic types remain outside this profile. Runtime null values of a declared
+numeric/boolean/string input remain supported.
+
+The producer emits 0.0 for literal/reference-only graphs and 0.1 for admitted structured graphs.
+Header/capability combinations are exact; neither version is inferred from parser success. Old
+0.0 readers reject 0.1 artifacts. A 0.0 header cannot authorize new nodes. The reader validates all
+children and all nested references, including unselected branches, under the same wire budgets.
+Unknown operators, absent children and incompatible signatures fail before execution/codegen.
+
+Source admission precedes lowering so unsupported operations cannot disappear through the
+lowerer's type-proven-null normalization. For example, statically typed `null + 1` remains
+unsupported, while a nullable numeric input in `Amount + 1` is admitted. The existing parser uses
+`not(...)`; its built-in invocation is mapped explicitly to the portable unary NOT operation.
+Source unary `+` is not supported by that parser; the wire operation remains supported and exports
+as its parenthesized numeric operand, which preserves its identity semantics. Other admitted
+operations export as parenthesized FEEL. Execution delegates to existing runtime semantics.
+
+This covers isolated Traffic Violation arithmetic/condition expressions. Complete model support
+still needs records/field access, lexical contexts and decision tables.
+
+## Named records and field access (schema 0.2)
+
+Profile 0.2 adds named record definitions, scalar/record type references and resolved field-access
+nodes. It admits non-empty acyclic records whose fields use the existing four scalar types or
+other bundled named records. Record inputs, global record references, nested fields and
+same-record/null conditional results are supported. Record construction, equality, anonymous/open
+contexts, collections, temporal fields and constraints remain outside this profile.
+
+Types retain namespace-qualified record IDs; same-shape definitions remain distinct. Fields retain
+names, optional source IDs and declaration order. Field access is addressed by its source's named
+record type and field name. Consumers derive local field indexes; indexes are not wire identities.
+Producer type identity comes from analyzed declarations and bindings before Runtime IR expands
+named types structurally. Existing literal/reference and scalar-expression models retain 0.0/0.1.
+
+The verifier rejects cycles, unresolved/import-invisible types, duplicate IDs/names, missing or
+simultaneous scalar/record selections, unknown fields and incompatible field/result types. It
+validates unused definitions too. The declaration budget includes record definitions and fields.
+The message budget also bounds potential expanded record size across definitions and record-typed
+variable/expression uses; record nesting is bounded by the configured depth. This prevents a small
+shared type DAG from causing unbounded downstream expansion. Runtime layouts are memoized locally.
+
+Record input coercion delegates to the existing runtime. All declared fields must be present;
+explicit null field values are accepted. Missing fields or rejected coercions make the record value
+null; extra entries are accepted and retained. Host maps are not deep-copied. These are native
+runtime observations for the tested profile, not an independent input-conversion implementation.
+
+The exporter synthesizes named `itemDefinition`/`itemComponent` declarations, optional field IDs,
+namespace-correct type QNames and field-access FEEL. XML type prefixes are generated independently
+of FEEL import aliases. Exported fixtures pass official DMN 1.6 XSD validation and runtime parity
+after recompilation. Generated Java and separate-JVM artifact execution are also tested.
+
+An existing `DmnCompiledModel` facade conversion uses `Map.copyOf` for context values and throws
+when a context field is null. Record null-field parity is therefore checked through the existing
+Runtime IR interpreter and generated Java, bypassing that Protobuf/native conversion. The portable
+adapter preserves these values; the facade issue is not fixed by this slice.
+
+This supports unconstrained records such as `tDriver` and `tFine`. Complete Traffic Violation
+still needs date/constraint retention, decision tables and local context bindings.
 
 ## Read an artifact
 
@@ -90,7 +162,7 @@ All budgets must be positive, except absolute scale may be zero. Maximum depth i
 | Field occurrences | 200,000 | Before generated decoding |
 | UTF-8 bytes per string | 16,384 | Before string materialization |
 | Models | 128 | Before generated decoding |
-| Input and decision declarations combined | 10,000 | Before generated decoding |
+| Declarations, including 0.2 record definitions/fields | 10,000 | Before generated decoding |
 | Reference occurrences | 50,000 | Before generated decoding and during graph validation |
 | Decimal coefficient digits | 4,096 | Before numeric conversion; no numeric expansion occurs in the reader |
 | Absolute decimal scale | 4,096 | Before numeric conversion, including overflow-safe rejection of minimum signed scale |
@@ -107,7 +179,8 @@ The reader preserves scale and trailing coefficient zeros, including negative sc
   have their own uniqueness check.
 - Bundled imports with non-empty unique aliases. Cross-model dependencies/references require
   a direct import. Imported location hints do not affect resolution.
-- Explicit null, boolean, number and string types; literal or resolved global-reference expressions.
+- Explicit null, boolean, number and string types; literals/resolved references in both profiles
+  and admitted unary/binary/conditional expressions in 0.1/0.2, plus named records/fields in 0.2.
   All scalar types permit null. Other values must have matching scalar types; no implicit
   number/string coercion is introduced.
 - Expression references must appear among the decision's declared dependencies. Unused declared
@@ -152,9 +225,9 @@ var result = values.get(new ElementId("urn:example:root", "result"));
 ```
 
 The sample IDs must match the artifact's declarations. The adapter accepts a `VerifiedArtifact`,
-not an unchecked generated message. It independently pins the scalar 0.0 profile. It derives
+not an unchecked generated message. It independently pins the exact supported 0.0/0.1/0.2 profiles. It derives
 local slots deterministically by namespace and element ID, preserves the verified schedule, and
-lowers literals/references into the existing Runtime IR records. No XML or FEEL parsing occurs
+lowers the supported expression graph into the existing Runtime IR records. No XML or FEEL parsing occurs
 on this path. The original verified artifact remains available through `source()`; the derived
 Runtime IR is not another stored authoritative policy.
 
@@ -213,7 +286,7 @@ The default is **DMN 1.6**. The overload accepting `DmnVersion` currently suppor
 This does not change `DmnWriter`'s existing 1.5 fallback default for other callers.
 
 The exporter consumes only the verified artifact and derives source declarations and FEEL
-literal/reference text from the portable graph. It reuses the existing XML writer with an explicit
+literal/reference/operation text from the portable graph. It reuses the existing XML writer with an explicit
 1.6 namespace. No original XML or FEEL source is required. Models are sorted by business namespace
 and assigned deterministic filenames such as `model-0000.dmn`; imports point to these files.
 Retained import locations are hints and are not fetched or copied into output locations.

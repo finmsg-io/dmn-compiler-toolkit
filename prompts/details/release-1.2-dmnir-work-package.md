@@ -1,6 +1,6 @@
 # Release 1.2.0 work package — DMNIR and decision authoring
 
-Date: 2026-11-03. Status: active — bounded scalar slices through R12-05a complete and verified; broader release work remains.
+Date: 2026-11-03; updated 2026-11-04. Status: active — bounded scalar and schema 0.1 expression slices complete and verified; broader release work remains.
 Delivery owner: unassigned. Protobuf and **Option A** were approved on 2026-11-03.
 Accepted representation architecture: [ADR-0026](../../docs/architecture/adr/adr-0026-structured-portable-dmnir.md).
 Current branch: `feature/release-1.2-dmnir`. Wire fields and other detailed contracts remain in design.
@@ -1230,3 +1230,452 @@ All **73 tooling tests** passed (`target/release-1.2-r12-05a-tools.log`); strict
 passed (`target/release-1.2-r12-05a-docs.log`). Documentation validation passed for 14 modules and
 70 maintained pages; whitespace checks passed. Broader R12-05 remains open: this subset does not
 cover richer expressions, additional DMN versions or independent DMN-engine validation.
+
+## 17. Structured scalar expressions — R12-02b/03b/04c/05b
+
+Date: 2026-11-04. Status: complete for this bounded expression profile. Contract approved by the
+user's subsequent “please continue”; focused, downstream and full-reactor verification passed.
+Base: pushed commit `92d975c` on
+`feature/release-1.2-dmnir`.
+
+### Outcome and compatibility boundary
+
+Extend the authoritative portable graph with recursive unary, binary and conditional expressions.
+Prove source DMN → artifact → independent reload → existing interpreter/generated Java and
+artifact → DMN 1.6 → recompiled execution for this profile. This is the next bounded step toward
+Traffic Violation's arithmetic and suspension condition; records, field access, lexical bindings
+and tables still require later slices. Do not claim the complete Traffic Violation model works.
+
+Keep the existing `dmnir/v0/dmnir.proto` package and every existing field/enum number. Add only
+the message/oneof fields below. Existing schema 0.0 artifacts retain their exact header and scalar
+behavior. New expressions require **schema 0.1**, semantics `finmsg-dmnir-scalar-expressions/0`,
+and exactly ordered capabilities `[dmnir.scalar, dmnir.scalar-expressions]`. A reader/consumer
+must pin one of these two complete profiles; version/capability combinations are not inferred.
+The current 0.0 reader must reject 0.1 artifacts. A new reader accepts both profiles but rejects
+new expression nodes under a 0.0 header and unknown operations under either header.
+
+The producer continues emitting 0.0 for literal/reference-only graphs, preserving existing
+behavior. It emits 0.1 only when an admitted structured operation occurs. Consumers independently
+check the selected profile before adaptation/export; parser acceptance alone never widens a
+consumer. No new Maven module/dependency, runtime operator change or second stored policy is needed.
+
+### Protobuf additions
+
+Add these alternatives to the existing `DmnIrExpression.node` oneof:
+
+```proto
+DmnIrUnaryExpression unary = 4;
+DmnIrBinaryExpression binary = 5;
+DmnIrConditionalExpression conditional = 6;
+```
+
+Add messages and explicit wire operator registries:
+
+```proto
+message DmnIrUnaryExpression {
+  DmnIrUnaryOperator operator = 1;
+  DmnIrExpression operand = 2;
+}
+message DmnIrBinaryExpression {
+  DmnIrBinaryOperator operator = 1;
+  DmnIrExpression left = 2;
+  DmnIrExpression right = 3;
+}
+message DmnIrConditionalExpression {
+  DmnIrExpression condition = 1;
+  DmnIrExpression then_expression = 2;
+  DmnIrExpression else_expression = 3;
+}
+enum DmnIrUnaryOperator {
+  UNARY_OPERATOR_UNSPECIFIED = 0;
+  UNARY_OPERATOR_POSITIVE = 1;
+  UNARY_OPERATOR_NEGATE = 2;
+  UNARY_OPERATOR_NOT = 3;
+}
+enum DmnIrBinaryOperator {
+  BINARY_OPERATOR_UNSPECIFIED = 0;
+  BINARY_OPERATOR_ADD = 1;
+  BINARY_OPERATOR_SUBTRACT = 2;
+  BINARY_OPERATOR_MULTIPLY = 3;
+  BINARY_OPERATOR_DIVIDE = 4;
+  BINARY_OPERATOR_POWER = 5;
+  BINARY_OPERATOR_EQUAL = 6;
+  BINARY_OPERATOR_NOT_EQUAL = 7;
+  BINARY_OPERATOR_LESS = 8;
+  BINARY_OPERATOR_LESS_EQUAL = 9;
+  BINARY_OPERATOR_GREATER = 10;
+  BINARY_OPERATOR_GREATER_EQUAL = 11;
+  BINARY_OPERATOR_AND = 12;
+  BINARY_OPERATOR_OR = 13;
+}
+```
+
+All child messages must be present; zero/unknown enum values are errors. Map operators explicitly
+by name using exhaustive switches; never use Java enum ordinals. Types remain the existing scalar
+enum and are required on every expression. Tree structure stores semantics once; no FEEL text or
+optimizer output is embedded.
+
+### Initial admission matrix
+
+This profile deliberately admits fewer operator/type combinations than the complete Java runtime.
+Static `NULL` type is distinct from a runtime null value held by a number/boolean/string declaration.
+
+| Operation | Admitted operand types | Required result type |
+| --- | --- | --- |
+| Unary positive/negate | NUMBER | NUMBER |
+| Unary not | BOOLEAN or NULL | BOOLEAN |
+| Add/subtract/multiply/divide/power | NUMBER, NUMBER | NUMBER |
+| Ordered comparisons | NUMBER/NUMBER or STRING/STRING | BOOLEAN |
+| Equal/not equal | Any pair of the four existing scalar types | BOOLEAN |
+| And/or | Each operand BOOLEAN or NULL | BOOLEAN |
+| Conditional | Condition BOOLEAN or NULL; each branch matches declared result or is NULL | Declared scalar type |
+
+Reject string concatenation, temporal arithmetic, collections, dynamic ANY and other signatures
+until their contracts are reviewed. For example, a statically typed `null + 1` expression remains
+outside this initial numeric signature, even though a nullable numeric input can propagate null.
+Reuse existing runtime semantics for admitted operations: exact decimal behavior, division by
+zero, power/domain errors, comparison/null behavior, boolean short-circuiting and conditional
+branch selection must be demonstrated by parity tests, not reimplemented in the codec.
+
+### Validation, execution and export
+
+Wire preflight continues enforcing byte/message/field/depth/reference budgets before generated
+message allocation. The verifier walks all child expressions with explicit depth accounting,
+checks operator signatures/result types, and collects every global reference for dependency
+validation. Conditions and both branches are validated even if one branch is unreachable at
+runtime. Adversarial nesting, unknown operators and omitted children must fail predictably.
+
+The producer traverses unoptimized Runtime IR, maps only admitted nodes and selects the required
+profile from actual graph contents. The runtime adapter derives existing unary/binary/conditional
+Runtime IR records. The exporter renders fully parenthesized FEEL using explicit operator tokens
+and existing escaping; it neither folds nor reorders operations. Keep the current name/XML/version
+admission restrictions and artifact-only bundle contract.
+
+```mermaid
+flowchart LR
+    Source["Typed source semantics"] --> Producer["Unoptimized structured producer"]
+    Producer --> Profile["0.0 scalars or 0.1 scalar expressions"]
+    Profile --> Verify["Bounded recursive verification"]
+    Verify --> Runtime["Existing Runtime IR and execution semantics"]
+    Runtime --> Java["Compiled generated Java"]
+    Verify --> Export["Parenthesized FEEL + DMN 1.6 writer"]
+    Export --> Recompile["XSD validation and recompiled parity"]
+```
+
+### Acceptance and implementation sequence
+
+1. Extend schema and add binary golden vectors, pin operator numbers, preserve 0.0 fixtures and
+   prove old-consumer rejection of new operations. No stable-v1 compatibility claim.
+2. Extend the reader with the exact profile matrix, child/type/reference validation and budget
+   boundary tests; reject unknown enum values, missing children and invalid 0.0/0.1 combinations.
+3. Extend producer/runtime adaptation and execute a produced artifact in a separate JVM. Cover
+   nested numeric expressions, decimal precision, nullable input propagation, equality, comparison,
+   short-circuiting, lazy conditionals, shared dependencies and deterministic bytes.
+4. Extend export; validate 1.6 XSD and compare lowered/optimized recompilation and generated-Java
+   execution. Include `(ActualSpeed - SpeedLimit)` and `if DriverPoints + FinePoints >= 20 then
+   "Yes" else "No"` using scalar inputs. These are isolated expression fixtures, not a flattened
+   replacement for Traffic Violation's authoritative record/table graph.
+5. Run focused JUnit/Surefire tests before the required shared-contract full reactor, tooling and
+   docs checks. Record every measured run. Focused tests do not measure Spark routing; reactor
+   regression action counters remain separate from official TCK conformance.
+
+Implementation and completion evidence are recorded below.
+Remaining Traffic Violation contracts: named/structural records and constraints, field identity,
+context/local binding scope, table unary tests/ranges and UNIQUE policy, then full artifact-only
+execution/export parity before using that complete model as evidence.
+
+### Implemented contract and source normalization
+
+The schema, bounded reader, producer, runtime adapter and DMN 1.6 exporter now implement the
+reviewed 0.1 profile. Existing field/enum identities are preserved. Each consumer independently
+pins exact 0.0/0.1 headers and capability lists. The producer selects 0.1 only for structured
+graphs; literal/reference-only output remains 0.0. Runtime semantics and backend production code
+are unchanged; no dependency or Maven module was added.
+
+Source admission now precedes lowering, because the existing lowerer replaces type-proven null
+operations with null constants. Unsupported source forms cannot use that normalization to enter
+the profile. Literal nulls and ordinary null-typed name references remain admitted. The existing
+source parser does not admit unary `+`; wire unary positive remains supported and exports as its
+parenthesized operand (the runtime's identity semantics). The parser represents `not(...)` as a
+named built-in invocation; the producer explicitly maps that one reviewed operation to unary NOT.
+This does not admit general calls/functions or change the parser grammar.
+
+### Per-run focused evidence
+
+All counts below are individual runs, not cumulative coverage. Native/fallback counts and rates
+are not measured/applicable to these focused schema/compiler/Java tests.
+
+| Log suffix under `target/release-1.2-expressions-` | Tests | Failures | Errors | Outcome |
+| --- | ---: | ---: | ---: | --- |
+| `codec.log` | 25 | 1 | 0 | Boundary fixture used depth 8, which still admitted its nested message; corrected to 7 |
+| `focused.log` | 39 | 1 | 1 | Exposed source unary-plus syntax and type-proven-null normalization assumptions |
+| `parity.log` | 40 | 1 | 0 | Exposed actual named-invocation representation of `not(...)` |
+| `parity-refined.log` | 21 | 0 | 0 | Corrected source admission/mapping and downstream parity passed |
+| `parity-final.log` | 42 | 0 | 0 | Existing wire/reader tests, expanded profile tests, production, separate JVM, export and generated Java passed |
+| `imported.log` | 1 | 0 | 0 | Nested imported reference with repeated element IDs and exported-bundle parity passed |
+| `null-reference.log` | 1 | 0 | 0 | Preserved legacy null-typed input name reference and 0.0 emission |
+
+No tests were skipped. Machine-readable focused evidence is in
+`target/release-1.2-expressions-focused-summary.json` (the final null-reference run is also retained
+in its separate log). Tests pin a golden serialized unary expression and all 16 explicit operator numbers;
+reject unknown/zero operators, absent children, incompatible types and invalid profile/header
+combinations; inspect unselected branches; and exercise depth/reference budget boundaries.
+Execution/export tests cover all admitted operator kinds, exact decimals, runtime-null inputs,
+wire-authored null operands/conditions, imported references, unary positive, conditional branches,
+determinism and artifact-only execution in a separate JVM. Exported fixtures pass official DMN 1.6
+XSD checks and lowered/optimized recompilation parity. Generated Java is compiled and executed
+for numeric, logical, comparison and conditional examples, including wire unary positive.
+
+### Previous consumer proof and generated example
+
+The actual saved schema 0.0 reader/schema JARs were run in a separate JVM with only their own
+bindings and Protobuf dependency. They accepted a 0.0 artifact and rejected the new 0.1 expression
+artifact with `UNKNOWN_FIELD`, before code generation/execution. This is a measured local binary
+compatibility probe, not a claim that all historic consumers were tested.
+
+- Baseline codec SHA-256: `45193b232cdf5cc54ace5cb373f9b15222837b32e2a5ad465a641cf1e3a12fb5`.
+- Baseline schema SHA-256: `d8eadcf07c0ae729ee1275519459c2f7d07b7b1eb602d20914c4bdf378b68144`.
+- Saved files: `target/dmnir-0.0-baseline/codec.jar` and `schema.jar`.
+- Probe: `target/ReadBaselineDmnIr.java`; its classpath excludes the new classes.
+
+`target/GenerateStructuredDmnIrExample.java` produced an actual 0.1 binary and readable dump:
+`target/traffic-expression-checks-0.1.dmnir` and `.textproto`. The artifact executes isolated
+`ActualSpeed - SpeedLimit` and suspension-condition expressions; sample values produce Excess=30
+and Suspend="Yes". Artifact-only DMN export is in `target/traffic-expression-checks-dmn/model-0000.dmn`.
+These isolated fixtures are not the complete Traffic Violation model or a flattened replacement
+for its named records/table/context. Unlike the earlier source-writer preview, this example really
+passes through the portable artifact, reader, adapter and exporter.
+
+### Full verification and remaining scope
+
+All 73 tooling tests and the strict docs build passed (`target/release-1.2-expressions-tools.log`
+and `target/release-1.2-expressions-docs.log`). An initial full-reactor tool dispatch produced no
+reactor log. The subsequent run in `target/release-1.2-expressions-reactor.log` was intentionally
+interrupted before completion to preserve the legacy null-typed reference case found during
+review; no final routing totals or full-pass claim are inferred from that partial run.
+
+The final source passed `mvn -o -B -ntp -Pformat verify`: **576 tests**, zero failures/errors/skips;
+all 15 reactor projects succeeded. Maven exited 0. Log:
+`target/release-1.2-expressions-reactor-final.log`. Machine-readable evidence:
+`target/release-1.2-expressions-verification-summary.json`.
+
+Current-run Spark regression SQL-action accounting includes all four instrumented suites:
+
+| Suite | Native | Fallback | Unknown | Completed denominator | Failed SQL actions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| DmnIntegration | 13 | 0 | 0 | 13 | 0 |
+| HybridIntegration | 2,952 | 119 | 0 | 3,071 | 60 |
+| LiteralEscapingIntegration | 50 | 0 | 0 | 50 | 0 |
+| TemporalChainIntegration | 19 | 0 | 0 | 19 | 0 |
+| Total | 3,034 | 119 | 0 | 3,153 | 60 |
+
+Native rate **96.23%**; fallback rate **3.77%** of completed SQL actions. Failed SQL actions
+are counted separately from that denominator and the zero JUnit failures. These mixed regression
+tests include deliberate fallback-path coverage; the rates are not DMNIR coverage or official
+TCK case rates. The official TCK checkpoint remains a separate dated 3,391/3,391 native result
+with zero fallback; no new full TCK run is claimed for this expression slice.
+
+Broader R12-02/03/04/05 and release readiness remain open. Records/field access, local bindings,
+decision tables, additional DMN export versions, independent DMN-engine validation, the DSL and
+Rust proof remain future work. This change does not establish stable v1 wire compatibility or
+complete Traffic Violation support. No version bump or new commit/push was performed for 0.1.
+
+## 18. Named records and resolved field access — next release 1.2 contract
+
+Date: 2026-11-04; implementation continued 2026-11-05. Status: contract approved by the user's
+subsequent “please continue”; implementation, focused and full-reactor verification passed.
+This continues the actual release task's R12-02/03/04/05 work. It is not a
+separate example task. Prerequisite: completed schema 0.1 vertical slice in section 17.
+
+### Proposed profile and scope
+
+Introduce schema **0.2**, semantics `finmsg-dmnir-records/0`, with exact ordered capabilities
+`[dmnir.scalar, dmnir.scalar-expressions, dmnir.records]`. Retain exact 0.0/0.1 acceptance and
+emission for graphs that use no record declarations/types/field access. A record graph selects
+0.2; older consumers reject it. Keep the current proto package and all existing tags/numbers.
+No new dependency or Maven module is proposed.
+
+Support named, non-empty, acyclic records with fields typed as one of the four current scalars
+or another bundled named record. Preserve record identity/name, field names, optional source
+field IDs and declaration field order. Address types by `(model namespace, record ID)` and fields
+by `(source expression's resolved record type, field name)`. Dense field indexes are derived
+locally and never serialized. Do not infer named type identity by structural equality: two named
+records may have identical shapes while remaining different interchange declarations.
+
+The first record slice admits record inputs, record global references, nested field access and
+same-record-type/null conditional results. Record construction, record equality, anonymous/open
+contexts, lists, recursive types, temporal fields, scalar aliases, collection flags and type/field
+constraints remain unsupported and must be rejected rather than omitted. This covers unconstrained
+types such as the existing `tDriver` and `tFine`; the complete `tViolation` still requires its date
+field and allowed-value constraint. Full Traffic Violation remains gated on those contracts plus
+decision tables and local bindings.
+
+### Concrete additive wire layout
+
+Add `repeated DmnIrRecordDefinition record_definitions = 6` to `DmnIrModel`.
+Add `DmnIrReference record_type = 4` to `DmnIrVariable` without changing scalar field `type = 3`.
+Add `DmnIrReference record_type = 7` to `DmnIrExpression`, outside its node oneof, and
+`DmnIrFieldAccess field_access = 8` inside that oneof. For variables/expressions, exactly one of
+supported scalar `type` or present `record_type` is valid. Scalar `UNSPECIFIED` is not a type.
+The existing fields stay outside a new oneof to preserve the current generated Java API; the
+verifier enforces exclusivity. Record fields use a new explicit type-reference oneof:
+
+```proto
+message DmnIrTypeReference {
+  oneof kind {
+    DmnIrScalarType scalar_type = 1;
+    DmnIrReference record_type = 2;
+  }
+}
+message DmnIrRecordDefinition {
+  DmnIrElementIdentity identity = 1;
+  repeated DmnIrRecordField fields = 2;
+}
+message DmnIrRecordField {
+  optional string id = 1;
+  string name = 2;
+  DmnIrTypeReference type = 3;
+}
+message DmnIrFieldAccess {
+  DmnIrExpression source = 1;
+  string field_name = 2;
+}
+```
+
+`DmnIrReference` has the same namespace/ID encoding, but record-type references resolve in the
+type-definition index, not the executable declaration index. Validate identity uniqueness across
+model/DRG/variable/type/optional-field IDs within each model. Type names and executable declaration
+names occupy their respective semantic namespaces. Field names must be non-empty and unique
+inside their record. Preserve field order as declaration metadata; this proposal does not promise
+identical bytes for reordered record fields or introduce canonical content hashing.
+
+### Validation and semantic boundaries
+
+- Validate all record definitions, including unused definitions; reject empty or cyclic records,
+  unknown scalar kinds, unresolved type IDs, illegal cross-model type references and simultaneous
+  scalar/record type selections. Cross-model type references require a direct bundled import.
+- Apply existing byte/depth/message/field budgets before allocation. Include type/field definitions
+  in declaration budgets and every type reference in reference budgets. Bound acyclic record
+  expansion using the existing depth/message limits so a small shared type DAG cannot expand into
+  an unbounded RuntimeType tree. Detect cycles iteratively before expansion.
+- A field-access source must have a resolved record type; its field must exist and the node's
+  declared result must match the field type. Nested accesses remain typed at every node. Scalar,
+  unknown, open-context and list-projection sources are rejected. Null record values propagate
+  through existing runtime behavior; the field must still be statically valid.
+- Record global references must match their declared named type identity. Conditional record
+  branches use the same named type or null. Numeric/logical/ordered-comparison signatures remain
+  the reviewed scalar signatures; do not admit general record operations implicitly.
+- Distinguish structural wire validity from execution input policy. Derive existing RuntimeType
+  field layouts and delegate native map coercion/validation to the current runtime. Test missing,
+  explicit-null, extra and incompatible fields against direct compilation; document observed
+  behavior before claiming parity. Do not invent a separate input coercion engine.
+
+### Producer, execution and DMN export
+
+Retain named type identity from analyzed source declarations and typed expression annotations.
+The current Runtime IR expands named types structurally; it is insufficient to recover named
+identity by itself. Reuse the existing semantic bindings for global references and field/type
+resolution. Derive the portable graph before name-erasing execution optimizations, while keeping
+the existing compiler facade and runtime unchanged. Reject unsupported item definitions and
+constraints explicitly, even if unused by decision logic.
+
+The adapter derives field indexes from the verified declaration order and emits existing
+`RuntimePathExpression` nodes and context RuntimeTypes. Artifact consumers need no original XML,
+FEEL parser or semantic analyzer. The exporter reconstructs `itemDefinition`/`itemComponent`
+declarations and namespace-correct type QNames, preserving optional field IDs. Generated XML
+prefixes are deterministic and separate from FEEL import aliases. The source model's business
+namespace and the DMN 1.6 vocabulary namespace remain distinct. Keep existing export admission
+restrictions for names/IDs and fail explicitly where names cannot be represented safely.
+
+```mermaid
+flowchart LR
+    Source["Analyzed named types and resolved field bindings"] --> IR["One typed portable graph; schema 0.2"]
+    IR --> Verify["Bounded type DAG and field validation"]
+    Verify --> Runtime["Derived RuntimeTypes and field indexes"]
+    Runtime --> Execute["Existing interpreter / generated Java"]
+    Verify --> Export["Named declarations + field FEEL + DMN 1.6 XML"]
+    Export --> Parity["Official XSD and recompiled behavior"]
+```
+
+### Acceptance and work breakdown
+
+1. Add additive wire fields/profile fixtures and old-reader rejection evidence; preserve 0.0/0.1
+   golden vectors and exact header rules.
+2. Add bounded type/field validation, cyclic/unresolved/ambiguous type rejection, expansion budgets,
+   field/result typing and scalar/record exclusivity tests.
+3. Extend source production and runtime adaptation. Prove distinct identities for same-shape named
+   records, nested records, imported types with repeated IDs, runtime null behavior and deterministic
+   output. Run an artifact-only consumer in a separate JVM.
+4. Export named record declarations and field accesses to DMN 1.6; validate official XSD and compare
+   direct compilation, artifact execution, generated Java and lowered/optimized recompilation.
+   Cover `Driver.Points + Fine.Points` with record inputs, without pretending that supplied Fine
+   input replaces the original model's decision table.
+5. Use existing JUnit 5/Surefire; focused owning-module tests first, then shared-contract full
+   reactor, tooling and strict documentation checks. Spark regression counters remain distinct
+   from official TCK results; no new TCK result is implied by schema/adapter tests.
+
+### Implementation and focused evidence (2026-11-05)
+
+The approved 0.2 contract is implemented in the schema, bounded codec, source producer,
+Runtime IR adapter and artifact-only DMN 1.6 exporter. Named identities are retained from
+analyzed source declarations before Runtime IR expands them structurally. The consumer derives
+memoized layouts; type-DAG expansion is bounded before adaptation. Validation diagnostics retain
+model/type/field locations. A statically NULL field read derives the same constant-null execution
+plan as the existing source lowerer, including native input containing a non-null field value.
+
+Final focused JUnit/Surefire verification passed **74 tests, zero failures/errors/skips**:
+4 wire-contract, 27 codec, 42 compiler and 1 generated-Java test
+(`target/release-1.2-records-parity-final.log`). This includes record identity, nested/imported
+records, conditional record/null results, required/extra/explicit-null input fields, nonzero field
+indexes, deterministic production, separate-JVM artifact consumption, generated Java, official
+DMN 1.6 XSD validation and recompiled lowered/optimized runtime parity. Native/fallback routing
+is N/A for these focused tests.
+
+Retained intermediate evidence: `release-1.2-records-compile.log` records the corrected adapter
+compile error; `release-1.2-records-focused.log` records 70 tests with one existing facade error;
+`release-1.2-records-runtime-parity.log` records four passing runtime parity tests;
+`release-1.2-records-parity.log` records 73 passing tests. The Java extra-field/layout and NULL-field
+regression probes each passed in `release-1.2-records-java-final.log`,
+`release-1.2-records-java-layout.log` and `release-1.2-records-null-field.log`. Logs are under target/.
+
+Advisory existing gap: DmnCompiledModel context-to-native conversion uses Map.copyOf and throws
+for null-valued fields. No adjacent facade change is included. Core runtime and generated-Java
+parity use Runtime IR directly and preserve null fields; this does not establish nullable context
+support through that existing facade.
+
+Generated synthetic artifacts: `target/record-expression-checks-0.2.dmnir`, its `.textproto`, and
+`target/record-expression-checks-dmn/model-0000.dmn`. Execution with Driver.Points 15 and
+Fine.Points 7 produced Total 22, Suspend Yes and the copied Driver record. The generated DMN was
+pretty-printed with unchanged semantic XML fingerprint and passed the official 1.6 XSD. It is a
+bounded record/field example, not the complete Traffic Violation model.
+
+A separate JVM using retained actual 0.1 jars accepted the 0.1 expression artifact and rejected
+0.2 with UNKNOWN_FIELD. Baseline codec SHA-256:
+`2E9A55E48F78CAE8265EF3A7FA492E1744577676539537B8A1E40C3D20C0CAE7`;
+schema SHA-256: `FD9946439A78CF2333A5D29EEA12A68D8D5BA5F659BD6F080197D7114DC0D9EA`.
+Probe helpers and jars remain ignored target artifacts, not production dependencies.
+
+Final full reactor passed **590 tests, zero failures/errors/skips**
+(`target/release-1.2-records-reactor.log`; measured summary in
+`target/release-1.2-records-verification-summary.json`). All **73 tooling tests**, strict MkDocs
+and documentation facts/link checks passed (`target/release-1.2-records-tools.log`,
+`target/release-1.2-records-docs-final.log`, `target/release-1.2-records-documentation-final.log`).
+
+Current-run mixed Spark regression SQL-action accounting:
+
+| Suite | Native | Fallback | Unknown | Completed denominator | Failed SQL actions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| DmnIntegration | 13 | 0 | 0 | 13 | 0 |
+| HybridIntegration | 2,952 | 119 | 0 | 3,071 | 60 |
+| LiteralEscapingIntegration | 50 | 0 | 0 | 50 | 0 |
+| TemporalChainIntegration | 19 | 0 | 0 | 19 | 0 |
+| Total | 3,034 | 119 | 0 | 3,153 | 60 |
+
+Native rate **96.23%**, fallback rate **3.77%** of completed regression SQL actions. Failed SQL
+actions are separate from that denominator and the zero JUnit failures. These suites include
+deliberate fallback coverage; this is not a TCK result or a regression in the recorded official
+**3,391/3,391 native passes, zero fallback** checkpoint. No new full TCK run is claimed.
+
+Release 1.2 remains
+open: temporal fields/constraints, tables and lexical contexts, broader DMN export/version support,
+DSL/CLI, Rust consumption and release readiness are not completed by this bounded slice.

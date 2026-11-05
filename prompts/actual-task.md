@@ -1,6 +1,10 @@
 # Actual task — Release 1.2.0: DMNIR, DMN export and authoring DSL
 
-Created: 2026-11-03. Status: active — bounded scalar slices through R12-05a complete and verified; broader release work remains.
+Created: 2026-11-03. Status: active — bounded scalar slices through R12-05a committed/pushed as
+`92d975c`; structured scalar-expression profile 0.1 implemented and fully verified
+(work-package section 17). The next release 1.2 implementation step is named records and resolved
+field access; schema 0.2 is implemented and verified: 74 focused tests, 590 full-reactor tests,
+73 tooling tests, strict documentation and link checks passed (work-package section 18).
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome
@@ -90,6 +94,24 @@ zero fallback (0%)**, as recorded in `docs/tck-conformance.md`. The mixed regres
 fallback percentage above includes fallback-path tests and must not be described as a TCK
 regression or evidence that the pinned-suite zero-fallback goal is incomplete. No new full TCK
 run was performed for R12-04b; the default reactor does not replace that checkpoint.
+R12-02b/03b/04c/05b now adds schema 0.1 unary/binary/conditional expressions while retaining
+0.0 artifacts. Wire/operator validation, source admission, runtime adaptation, generated Java and
+artifact-only DMN 1.6 export are implemented for the reviewed scalar signatures. Final reactor:
+576 tests, zero failures/errors/skips; 73 tooling tests and strict docs passed. Current-run mixed
+Spark regression actions: native 3,034/3,153 (96.23%), fallback 119/3,153 (3.77%), unknown zero,
+60 failed SQL actions separate. This is not a TCK result. Actual saved 0.0 binaries accepted 0.0
+and rejected a new 0.1 artifact. See work-package section 17 for per-run evidence and the isolated
+Traffic Violation expression example. Complete Traffic Violation still requires records, fields,
+local contexts and tables. At the 0.1 checkpoint these changes were uncommitted; the preceding pushed baseline was `92d975c`.
+Schema 0.2 now retains named record identity, supports nested/imported records and resolved field
+access, and proves runtime/generated-Java/DMN 1.6 round-trip parity. Full reactor passed 590 tests
+with zero failures/errors/skips (`target/release-1.2-records-reactor.log`). Current-run mixed Spark
+actions: native 3,034/3,153 (96.23%), fallback 119/3,153 (3.77%), unknown zero; 60 failed SQL
+actions counted separately. These include deliberate fallback tests and are not official TCK
+results. The established 3,391/3,391 native, zero-fallback TCK checkpoint is unchanged.
+Temporal fields/constraints, tables and local contexts remain required for complete Traffic
+Violation. The existing facade's null-valued context conversion issue is documented separately;
+the portable runtime and generated-Java parity checks preserve null fields.
 Remaining R12-00 profile review and the broader R12-02/R12-03 contracts are not complete.
 The architecture choice is accepted; do not ask for Option A approval again.
 Do not mark dependent slices ready

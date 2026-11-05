@@ -57,11 +57,11 @@ class DmnIrScalarProducerTest {
 	}
 
 	@Test
-	void rejectsConstantFoldableArithmeticInsteadOfOptimizingIntoProfile() {
-		var error = assertThrows(DmnIrProductionException.class,
-				() -> new DmnIrScalarProducer().produce(source(decision("sum", "Sum", "number", "1 + 2"))));
-		assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE, error.category());
-		assertEquals(Optional.of(key("sum")), error.element());
+	void preservesConstantArithmeticAsStructuredExpressionInNewProfile() {
+		var verified = new DmnIrScalarProducer().produce(source(decision("sum", "Sum", "number", "1 + 2")));
+		assertEquals(1, verified.artifact().getSchemaVersion().getMinor());
+		assertTrue(verified.artifact().getModels(0).getDecisions(0).getExpression().hasBinary());
+		assertEquals(new BigDecimal("3"), new DmnIrRuntimeAdapter().adapt(verified).evaluate(Map.of()).get(key("sum")));
 	}
 
 	@Test
