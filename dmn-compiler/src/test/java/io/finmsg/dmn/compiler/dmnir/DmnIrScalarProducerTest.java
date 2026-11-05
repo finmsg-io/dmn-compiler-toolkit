@@ -121,8 +121,11 @@ class DmnIrScalarProducerTest {
 		java.nio.file.Files.write(file, new DmnIrScalarProducer()
 				.produce(source(decision("answer", "Answer", "number", "42"))).artifact().toByteArray());
 		var output = dir.resolve("consumer.log");
+		String executable = System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("win")
+				? "java.exe"
+				: "java";
 		var process = new ProcessBuilder(
-				java.nio.file.Path.of(System.getProperty("java.home"), "bin", "java.exe").toString(), "-cp",
+				java.nio.file.Path.of(System.getProperty("java.home"), "bin", executable).toString(), "-cp",
 				System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")),
 				ArtifactConsumer.class.getName(), file.toString()).redirectErrorStream(true)
 				.redirectOutput(output.toFile()).start();
