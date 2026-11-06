@@ -9,6 +9,10 @@ Schema **0.2** adds named records and field access (`finmsg-dmnir-records/0`, or
 `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`). Scalar/record type selections are
 exclusive and validated by the codec. Type identity is namespace plus record ID; field names and
 declaration order are retained while execution indexes are derived locally.
+Schema **0.3** adds boxed contexts and resolved local bindings (`finmsg-dmnir-local-bindings/0`),
+with the ordered 0.2 capabilities followed by `dmnir.local-bindings`. Binding IDs are decision-local
+identities; frame depth and slots are derived by consumers. Values execute sequentially and each
+context has a required final result. Existing profiles and tags remain unchanged.
 
 ## Purpose and boundaries
 

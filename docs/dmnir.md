@@ -1,19 +1,20 @@
-# Experimental portable scalar DMNIR
+# Experimental portable DMNIR
 
 The `dmn-ir-protobuf` module defines the experimental structured scalar wire contract.
-`dmn-ir-codec` adds bounded decoding and validation for three exact experimental profiles:
+`dmn-ir-codec` adds bounded decoding and validation for four exact experimental profiles:
 
 | Schema | Semantics | Required capabilities, in order |
 | --- | --- | --- |
 | 0.0 | `finmsg-dmnir-scalar/0` | `dmnir.scalar` |
 | 0.1 | `finmsg-dmnir-scalar-expressions/0` | `dmnir.scalar`, `dmnir.scalar-expressions` |
 | 0.2 | `finmsg-dmnir-records/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records` |
+| 0.3 | `finmsg-dmnir-local-bindings/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`, `dmnir.local-bindings` |
 
 This implements the first scalar slice of [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md).
 The reader validates without executing. `DmnIrRuntimeAdapter` in `dmn-compiler` now derives and
 executes scalar process-local Runtime IR from a verified artifact. `DmnIrScalarProducer` produces
 this profile from supported DMN source models. `DmnIrScalarDmnExporter` synthesizes DMN 1.6 for
-an explicitly admitted scalar subset. DSL authoring, Rust generation, broader DMN export,
+the explicitly admitted profiles. DSL authoring, Rust generation, broader DMN export,
 canonical hashing and stable wire compatibility
 remain later delivery work.
 
@@ -114,6 +115,26 @@ adapter preserves these values; the facade issue is not fixed by this slice.
 This supports unconstrained records such as `tDriver` and `tFine`. Complete Traffic Violation
 still needs date/constraint retention, decision tables and local context bindings.
 
+## Boxed contexts and local bindings (schema 0.3)
+
+The 0.3 profile adds sequential boxed contexts with named intermediate bindings and a required
+final unnamed result. Local references resolve by decision-local binding identity. Consumers
+derive frame depth and slots; these execution addresses are not serialized. Existing scalar and
+record profiles remain unchanged for models without boxed contexts.
+
+Each value sees ancestors and earlier bindings; self/forward references and scope escapes fail
+validation. Binding IDs are unique within a decision; variable names are unique within a context.
+Optional source variable IDs retain model-wide uniqueness. Nested contexts can shadow names with
+distinct IDs. Scalar/record types, declaration/reference budgets and expansion limits also apply
+to local nodes. Global references inside any value or result remain decision dependencies.
+
+The producer uses analyzed boxed expressions and resolved lexical declaration paths. The adapter
+derives existing context/local-reference Runtime IR; the exporter reconstructs boxed XML contexts
+with retained variable names/IDs. Export rejects names that would capture another identity and
+boxed contexts embedded in FEEL-only operand positions. Anonymous context values, closures,
+loops, tables, dates and constraints are not added by this profile. Full Traffic Violation and
+the DSL/Rust proof remain separate work.
+
 ## Read an artifact
 
 ```java
@@ -162,7 +183,7 @@ All budgets must be positive, except absolute scale may be zero. Maximum depth i
 | Field occurrences | 200,000 | Before generated decoding |
 | UTF-8 bytes per string | 16,384 | Before string materialization |
 | Models | 128 | Before generated decoding |
-| Declarations, including 0.2 record definitions/fields | 10,000 | Before generated decoding |
+| Declarations, including record definitions/fields and local bindings | 10,000 | Before generated decoding |
 | Reference occurrences | 50,000 | Before generated decoding and during graph validation |
 | Decimal coefficient digits | 4,096 | Before numeric conversion; no numeric expansion occurs in the reader |
 | Absolute decimal scale | 4,096 | Before numeric conversion, including overflow-safe rejection of minimum signed scale |
@@ -225,7 +246,7 @@ var result = values.get(new ElementId("urn:example:root", "result"));
 ```
 
 The sample IDs must match the artifact's declarations. The adapter accepts a `VerifiedArtifact`,
-not an unchecked generated message. It independently pins the exact supported 0.0/0.1/0.2 profiles. It derives
+not an unchecked generated message. It independently pins the exact supported 0.0/0.1/0.2/0.3 profiles. It derives
 local slots deterministically by namespace and element ID, preserves the verified schedule, and
 lowers the supported expression graph into the existing Runtime IR records. No XML or FEEL parsing occurs
 on this path. The original verified artifact remains available through `source()`; the derived

@@ -1679,3 +1679,186 @@ deliberate fallback coverage; this is not a TCK result or a regression in the re
 Release 1.2 remains
 open: temporal fields/constraints, tables and lexical contexts, broader DMN export/version support,
 DSL/CLI, Rust consumption and release readiness are not completed by this bounded slice.
+
+## 19. Boxed contexts and resolved local bindings — approved schema 0.3 slice
+
+Date: 2026-11-06. Status: **implemented and verified**.
+The user explicitly selected “Proceed with section 19” before implementation.
+Continues R12-02/03/04/05 after the completed 0.2 record slice. The pushed checkpoint is
+`aceec3c`, including the Linux artifact-consumer test launcher fix. GitHub feature CI
+[run 42107758059](https://github.com/finmsg-io/dmn-compiler-toolkit/actions/runs/42107758059)
+completed successfully. Feature pushes run reactor/formatting/tooling/docs without the full TCK;
+main and pull requests retain the existing TCK gate. CI success is not a new full TCK result.
+
+### Outcome and alternatives
+
+Support sequential boxed DMN contexts with named intermediate bindings and one required final,
+unnamed result expression. This admits Traffic Violation's `TotalPoints` calculation followed
+by its suspension condition once the other model features are supported. It does not substitute
+supplied Fine input for the original Fine decision table or establish full model support.
+
+Recommended: store a binding identity and resolved local references in the authoritative graph;
+derive lexical depths and slots in each consumer. Alternatives reviewed: serialized local slots
+couple the portable format to frame allocation; name-only references require consumers to repeat
+semantic resolution; inlining bindings loses declaration identity and sequential evaluation.
+The recommendation extends the accepted identity-based representation rather than the ideation
+SPEC-001 proposal's serialized depth/slot addresses.
+
+### Additive schema 0.3 proposal
+
+Exact header: schema 0.3, semantics `finmsg-dmnir-local-bindings/0`, ordered capabilities
+`[dmnir.scalar, dmnir.scalar-expressions, dmnir.records, dmnir.local-bindings]`.
+Existing 0.0/0.1/0.2 headers and tags remain accepted unchanged. Any local/context node requires
+0.3; producers retain earlier profiles for graphs without these nodes. Old readers reject 0.3.
+
+Add to the existing DmnIrExpression node oneof: `local_reference = 9`, `context = 10`.
+
+```proto
+message DmnIrLocalReference {
+  string binding_id = 1;
+}
+message DmnIrLocalBinding {
+  string binding_id = 1;
+  DmnIrVariable variable = 2;
+  DmnIrExpression value = 3;
+}
+message DmnIrContextExpression {
+  repeated DmnIrLocalBinding bindings = 1;
+  DmnIrExpression result = 2;
+}
+```
+
+Binding IDs are nonempty opaque identities unique within an owning decision expression tree,
+not model-global DRG IDs or runtime slots. Source variable IDs remain separate optional
+interchange metadata; producers derive deterministic binding IDs from structural source paths.
+Authoring tools supply binding IDs directly. Variable names are unique in each context;
+the optional variable ID, when present, participates in existing model-wide source-ID uniqueness.
+Binding order is semantic and must be retained. No type aliases, closures, mutation, loops,
+anonymous record construction or context-without-result behavior is added.
+
+### Scope, validation and execution
+
+Each binding value sees ancestors and earlier bindings in its context. Its own binding becomes
+visible only after its value is verified/evaluated. Reject self/forward references, sibling or
+descendant scope escape, duplicate binding IDs/names, missing values/results and type mismatches.
+Nested contexts may shadow outer names using distinct IDs; identity references remain resolved.
+Local-reference result types exactly match their declaration. Binding values and the context
+result use existing scalar/record assignability, including null. The context expression's
+declared type matches its result under that same rule. Record identity remains nominal.
+
+Global dependencies include references nested anywhere in binding values and final results;
+local references never become DRG dependencies. Count bindings in declaration limits and local
+references in reference limits, including wire preflight. Apply existing depth/message/string
+and record-expansion budgets to every new node before consumer execution. Reject unbounded
+recursion; use existing profile limits instead of introducing another independent limits API.
+
+Source production reuses analyzed boxed expressions and resolved lexical binding paths; it does
+not infer scope from names or reconstruct it from optimized Runtime IR. Adapt verified nodes to
+existing RuntimeContextExpression/RuntimeContextEntry/RuntimeLocalReference, deriving frames,
+depths and slots locally. Evaluate bindings once in declaration order in a fresh lexical frame.
+No existing runtime production change is proposed; generated Java uses that same derived graph.
+
+```mermaid
+flowchart LR
+    Source["Analyzed boxed context and lexical bindings"] --> Graph["Portable binding IDs + ordered values + result"]
+    Graph --> Scope["Bounded scope/type/dependency verification"]
+    Scope --> Frames["Consumer-local frames, depths and slots"]
+    Frames --> Execution["Interpreter and generated Java"]
+    Scope --> DMN["Boxed context + variables + final unnamed result; DMN 1.6"]
+    DMN --> Parity["Official XSD + recompiled behavior"]
+```
+
+### Export boundary and acceptance work breakdown
+
+Export boxed context declarations and final result from the artifact alone, retaining optional
+variable IDs and declaration names. Do not encode local bindings as another stored export graph.
+Reuse current export-safe identifier/name admission. If lexical shadowing makes a resolved
+reference impossible to render faithfully by its retained name, reject export explicitly rather
+than silently capturing a different variable. Nested expressions must retain context semantics;
+round-trip tests determine the supported FEEL/boxed placement, with explicit rejection of
+placements not representable by the existing writer. No original FEEL/XML is required.
+
+1. Pin additive tags and exact headers; preserve existing golden vectors and probe actual saved
+   0.2 consumers for rejection of the new artifact.
+2. Test positive sequential/nested/outer references and record-valued locals; reject forward,
+   self, escaped, duplicate, missing and incorrectly typed bindings plus budget boundaries.
+3. Prove deterministic production and namespace-qualified global dependency collection, including
+   the bounded `TotalPoints`/suspension boxed context with synthetic Driver/Fine record inputs.
+4. Prove direct source, artifact interpreter, generated Java and exported/recompiled parity;
+   cover null values, shadowing, repeat evaluation isolation and artifact-only separate-JVM use.
+5. Validate exported XML against official DMN 1.6 XSD. Run existing JUnit 5/Surefire focused checks,
+   then the shared-contract full reactor, 73 tooling tests, strict docs and link checks. Report
+   mixed Spark action counters separately from official TCK evidence. Do not claim DSL/Rust or
+   complete Traffic Violation coverage from this slice.
+
+Affected modules: dmn-ir-protobuf, dmn-ir-codec, compiler portable package, generated-Java parity
+tests and canonical DMNIR documentation. No dependency, release version, runtime facade fix,
+new standalone planning file or publication is proposed. The reviewed gate is the new portable
+wire/scope contract; accepted Option A/ADR-0026 remains unchanged.
+
+### Implementation and evidence (2026-11-06)
+
+Schema, bounded codec, source producer, Runtime IR adapter and DMN 1.6 exporter now implement
+the approved 0.3 slice. Scope visibility is enforced on binding IDs. Source production uses
+resolved declaration paths, preserves optional variable IDs and collects global dependencies
+inside binding values/results. Export reconstructs boxed context XML and rejects hidden-name
+capture or boxed nodes placed in FEEL-only operands.
+
+Implementation refinement: existing RuntimeContextExpression scopes share one fresh decision
+frame rather than allocating nested physical frames. The adapter mirrors source lowering:
+distinct local IDs get distinct slots, all context-local references have derived depth zero,
+and the decision records its derived local-slot count. Lexical visibility is still verified
+before adaptation. No runtime production change or serialized frame address was introduced.
+
+The final focused local-only run passed **11 tests, zero failures/errors/skips**: five codec,
+five compiler parity and one generated-Java test (`target/release-1.2-locals-runtime-parity.log`).
+Coverage includes sequential/nested/outer references, named-record locals/field access, duplicate
+IDs/names, source-ID collisions, forward/self/escaped references, missing values/results,
+type/header rejection, declaration/reference limits, deterministic production, null values,
+repeat evaluation, artifact-only separate-JVM execution, exact-number generated Java, official
+XSD validation and exported/recompiled lowered/optimized behavior. Native/fallback routing is
+not measured by these focused tests and is N/A.
+
+Retained earlier runs: `release-1.2-locals-compile.log` compiled the implementation;
+`release-1.2-locals-focused.log` caught the fixture's unsupported repeated-string builder method;
+`release-1.2-locals-parity.log` caught unnamed result handling (47 compiler tests, four errors);
+`release-1.2-locals-parity-retry.log` caught the derived runtime frame/slot-count mismatch
+(five compiler tests, one failure and three errors). These failed runs are not passing evidence.
+Native/fallback routing is N/A for each of these focused/compile runs. Logs are under target/.
+
+Actual emitted example: `target/local-expression-checks-0.3.dmnir` and `.textproto`, with
+`target/local-expression-checks-dmn/model-0000.dmn`. Synthetic Driver.Points 15 plus nested local
+Bonus 7 yields Suspend Yes. The DMN was pretty-printed with unchanged semantic XML fingerprint
+and official 1.6 XSD success (`target/release-1.2-locals-pretty-print.log`). This is a local-context
+example, not complete Traffic Violation or a decision-table implementation.
+
+An isolated JVM using preserved 0.2 compiled classes packaged before schema regeneration accepted
+the actual 0.2 artifact and rejected the actual 0.3 artifact with UNKNOWN_FIELD
+(`target/release-1.2-locals-old-reader.log`). Saved codec SHA-256:
+`926AD936C0A023648700C58B12CE09F47CAE9C9C2EB6886B0E35C6B37A1963ED`;
+schema SHA-256: `CECF35FA6F4DB4E57055CF865546FC1208A346F3E23771EDEC0032628E859463`.
+Probe helpers, generated artifacts and baseline jars remain ignored target files.
+
+Full reactor passed **601 tests, zero failures/errors/skips**
+(`target/release-1.2-locals-reactor.log`, measured summary
+`target/release-1.2-locals-verification-summary.json`). All **73 tooling tests**, strict MkDocs
+and documentation facts/link checks passed (`target/release-1.2-locals-tools.log`,
+`target/release-1.2-locals-docs.log`, `target/release-1.2-locals-documentation.log`).
+
+Current-run mixed Spark regression SQL-action accounting:
+
+| Suite | Native | Fallback | Unknown | Completed denominator | Failed SQL actions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| DmnIntegration | 13 | 0 | 0 | 13 | 0 |
+| HybridIntegration | 2,952 | 119 | 0 | 3,071 | 60 |
+| LiteralEscapingIntegration | 50 | 0 | 0 | 50 | 0 |
+| TemporalChainIntegration | 19 | 0 | 0 | 19 | 0 |
+| Total | 3,034 | 119 | 0 | 3,153 | 60 |
+
+Native rate **96.23%**, fallback rate **3.77%** of completed mixed regression actions. The 60
+failed SQL actions are separate from that denominator and the zero JUnit failures. These suites
+include deliberate fallback coverage; they do not replace or contradict the recorded official
+**3,391/3,391 native passes, zero fallback** checkpoint. No new full TCK run is claimed.
+
+Broader temporal/constraint semantics, tables, DSL/CLI, Rust and release readiness remain open.
+The existing nullable-context compiler facade advisory remains unchanged.

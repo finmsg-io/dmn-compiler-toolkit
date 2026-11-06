@@ -15,7 +15,9 @@ import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Set;
 
-/** Strict, bounded reader for experimental scalar profiles 0.0 and 0.1. */
+/**
+ * Strict, bounded reader for experimental portable profiles 0.0 through 0.3.
+ */
 public final class DmnIrArtifactReader {
 	public static final String SEMANTICS_VERSION = "finmsg-dmnir-scalar/0";
 	public static final String EXPRESSION_SEMANTICS_VERSION = "finmsg-dmnir-scalar-expressions/0";
@@ -23,6 +25,8 @@ public final class DmnIrArtifactReader {
 	public static final String RECORD_SEMANTICS_VERSION = "finmsg-dmnir-records/0";
 	public static final String RECORD_CAPABILITY = "dmnir.records";
 	public static final String SCALAR_CAPABILITY = "dmnir.scalar";
+	public static final String LOCAL_SEMANTICS_VERSION = "finmsg-dmnir-local-bindings/0";
+	public static final String LOCAL_CAPABILITY = "dmnir.local-bindings";
 	private final DmnIrLimits limits;
 
 	public DmnIrArtifactReader() {
@@ -92,6 +96,10 @@ public final class DmnIrArtifactReader {
 		private int references;
 		private boolean expressions;
 		private boolean recordsProfile;
+		private boolean localsProfile;
+		private final Map<String, Set<String>> modelIds = new HashMap<>();
+		private final Set<String> bindingIds = new HashSet<>();
+		private Map<String, DmnIrTypeReference> visibleLocals = new HashMap<>();
 		private int declarations;
 		private long expandedTypes;
 		private final Map<Address, DmnIrRecordDefinition> records = new LinkedHashMap<>();
@@ -106,29 +114,38 @@ public final class DmnIrArtifactReader {
 			check(artifact.hasSchemaVersion() && artifact.getSchemaVersion().hasMajor()
 					&& artifact.getSchemaVersion().hasMinor(), INVALID_HEADER, "artifact.schema_version",
 					"Explicit major and minor versions are required.");
-			recordsProfile = artifact.getSchemaVersion().getMinor() == 2;
+			localsProfile = artifact.getSchemaVersion().getMinor() == 3;
+			recordsProfile = artifact.getSchemaVersion().getMinor() == 2 || localsProfile;
 			expressions = artifact.getSchemaVersion().getMinor() == 1 || recordsProfile;
 			check(artifact.getSchemaVersion().getMajor() == 0
 					&& (artifact.getSchemaVersion().getMinor() == 0 || expressions)
 					&& artifact.getSemanticsVersion()
-							.equals(recordsProfile
-									? RECORD_SEMANTICS_VERSION
-									: expressions ? EXPRESSION_SEMANTICS_VERSION : SEMANTICS_VERSION),
+							.equals(localsProfile
+									? LOCAL_SEMANTICS_VERSION
+									: recordsProfile
+											? RECORD_SEMANTICS_VERSION
+											: expressions ? EXPRESSION_SEMANTICS_VERSION : SEMANTICS_VERSION),
 					UNSUPPORTED_VERSION, "artifact.schema_version", "Unsupported wire or semantic version.");
 			Set<String> capabilities = new HashSet<>();
 			for (int i = 0; i < artifact.getRequiredCapabilitiesCount(); i++) {
 				String capability = artifact.getRequiredCapabilities(i);
 				String path = "artifact.required_capabilities[" + i + "]";
 				check(capability.equals(SCALAR_CAPABILITY) || expressions && capability.equals(EXPRESSION_CAPABILITY)
-						|| recordsProfile && capability.equals(RECORD_CAPABILITY), UNSUPPORTED_CAPABILITY, path,
+						|| recordsProfile && capability.equals(RECORD_CAPABILITY)
+						|| localsProfile && capability.equals(LOCAL_CAPABILITY), UNSUPPORTED_CAPABILITY, path,
 						"Required capability is not supported.");
 				check(capabilities.add(capability), INVALID_HEADER, path, "Duplicate required capability.");
 			}
 			check(capabilities.contains(SCALAR_CAPABILITY), INVALID_HEADER, "artifact.required_capabilities",
 					"The scalar capability must be declared.");
-			check(artifact.getRequiredCapabilitiesList().equals(recordsProfile
-					? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY)
-					: expressions ? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY) : List.of(SCALAR_CAPABILITY)),
+			check(artifact.getRequiredCapabilitiesList()
+					.equals(localsProfile
+							? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY, LOCAL_CAPABILITY)
+							: recordsProfile
+									? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY)
+									: expressions
+											? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY)
+											: List.of(SCALAR_CAPABILITY)),
 					INVALID_HEADER, "artifact.required_capabilities",
 					"Exact ordered profile capabilities are required.");
 			check(artifact.getModelsCount() > 0, INVALID_HEADER, "artifact.models", "A model is required.");
@@ -142,6 +159,7 @@ public final class DmnIrArtifactReader {
 				check(models.putIfAbsent(model.getNamespace(), model) == null, INVALID_IDENTITY, path + ".namespace",
 						"Duplicate model namespace.");
 				Set<String> ids = new HashSet<>();
+				modelIds.put(model.getNamespace(), ids);
 				Set<String> names = new HashSet<>();
 				Set<String> variableNames = new HashSet<>();
 				identity(model.getIdentity(), ids, null, path + ".identity");
@@ -251,6 +269,8 @@ public final class DmnIrArtifactReader {
 		}
 
 		private void expression(Element owner) {
+			bindingIds.clear();
+			visibleLocals = new HashMap<>();
 			DmnIrDecision decision = owner.decision();
 			String path = owner.path();
 			Set<Address> dependencies = new HashSet<>();
@@ -277,6 +297,53 @@ public final class DmnIrArtifactReader {
 					nodeTypePath);
 			validateType(nodeType, owner.namespace(), nodeTypePath);
 			switch (expression.getNodeCase()) {
+				case LOCAL_REFERENCE -> {
+					check(localsProfile, UNSUPPORTED_CAPABILITY, path, "Local references require profile 0.3.");
+					check(++references <= limits.maxReferences(), LIMIT_EXCEEDED, path, "Reference budget exceeded.");
+					var target = visibleLocals.get(expression.getLocalReference().getBindingId());
+					check(target != null, INVALID_REFERENCE, path, "Local binding is not visible here.");
+					check(target.equals(nodeType), INVALID_TYPE, path,
+							"Local reference type must match its declaration.");
+				}
+				case CONTEXT -> {
+					check(localsProfile, UNSUPPORTED_CAPABILITY, path, "Contexts require profile 0.3.");
+					var context = expression.getContext();
+					check(context.hasResult(), INVALID_EXPRESSION, path, "A final context result is required.");
+					var outer = visibleLocals;
+					visibleLocals = new HashMap<>(outer);
+					Set<String> names = new HashSet<>();
+					try {
+						for (int i = 0; i < context.getBindingsCount(); i++) {
+							var binding = context.getBindings(i);
+							String bp = path + ".context.bindings[" + i + "]";
+							budget(bp);
+							check(!binding.getBindingId().isBlank() && bindingIds.add(binding.getBindingId()),
+									INVALID_IDENTITY, bp, "Unique decision-local binding IDs are required.");
+							var variable = binding.getVariable();
+							check(!variable.getName().isBlank() && names.add(variable.getName()), INVALID_IDENTITY, bp,
+									"Unique non-empty context variable names are required.");
+							if (variable.hasId())
+								check(!variable.getId().isBlank()
+										&& modelIds.get(owner.namespace()).add(variable.getId()), INVALID_IDENTITY,
+										bp + ".variable.id", "Source variable ID must be unique.");
+							var bt = typeOf(variable.getType(), variable.hasRecordType(), variable.getRecordType(),
+									bp + ".variable.type");
+							validateType(bt, owner.namespace(), bp + ".variable.type");
+							check(binding.hasValue(), INVALID_EXPRESSION, bp, "Binding value is required.");
+							node(binding.getValue(), owner, dependencies, bp + ".value", depth + 1);
+							var value = binding.getValue();
+							check(assignable(typeOf(value.getType(), value.hasRecordType(), value.getRecordType(), bp),
+									bt), INVALID_TYPE, bp, "Binding value type is incompatible.");
+							visibleLocals.put(binding.getBindingId(), bt);
+						}
+						node(context.getResult(), owner, dependencies, path + ".context.result", depth + 1);
+						var result = context.getResult();
+						check(assignable(typeOf(result.getType(), result.hasRecordType(), result.getRecordType(), path),
+								nodeType), INVALID_TYPE, path, "Context result type is incompatible.");
+					} finally {
+						visibleLocals = outer;
+					}
+				}
 				case LITERAL -> literal(expression.getLiteral(), expression.getType(), path + ".literal");
 				case GLOBAL_REFERENCE -> {
 					DmnIrReference value = expression.getGlobalReference();

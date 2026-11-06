@@ -1,10 +1,13 @@
 # Actual task — Release 1.2.0: DMNIR, DMN export and authoring DSL
 
-Created: 2026-11-03. Status: active — bounded scalar slices through R12-05a committed/pushed as
-`92d975c`; structured scalar-expression profile 0.1 implemented and fully verified
-(work-package section 17). The next release 1.2 implementation step is named records and resolved
-field access; schema 0.2 is implemented and verified: 74 focused tests, 590 full-reactor tests,
-73 tooling tests, strict documentation and link checks passed (work-package section 18).
+Created: 2026-11-03. Status: active — structured expressions and named records/field access
+committed/pushed in `bcbbc00`; schema 0.2 is implemented and verified: 74 focused tests,
+590 full-reactor tests, 73 tooling tests, strict documentation and link checks passed
+(work-package sections 17–18). Feature CI configuration and Linux test-launcher fixes were
+pushed through `aceec3c`; its GitHub build passed. The current slice is boxed contexts
+and resolved local bindings; schema 0.3 is implemented and verified: 11 focused tests,
+601 full-reactor tests and 73 tooling tests passed. Strict documentation and link checks passed
+(section 19). Temporal/constraint semantics, decision tables, DSL/CLI and Rust remain open.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome

@@ -6,7 +6,7 @@ option java_package = "io.finmsg.dmn.dmnir.proto.v0";
 option java_multiple_files = true;
 option java_outer_classname = "DmnIrProtos";
 
-// Experimental scalar/record profiles 0.0/0.1/0.2 of ADR-0026. Not a stable v1 wire contract.
+// Experimental profiles 0.0 through 0.3 of ADR-0026. Not a stable v1 wire contract.
 // No semantic-protobuf imports, FEEL source, original XML or second logic graph.
 // Parsing these messages does NOT validate an executable model. A bounded verifier
 // must check versions, capabilities, declarations, types, references and ordering.
@@ -100,6 +100,8 @@ message DmnIrExpression {
     DmnIrBinaryExpression binary = 5;
     DmnIrConditionalExpression conditional = 6;
     DmnIrFieldAccess field_access = 8;
+    DmnIrLocalReference local_reference = 9;
+    DmnIrContextExpression context = 10;
   }
 }
 
@@ -124,6 +126,20 @@ message DmnIrRecordField {
 message DmnIrFieldAccess {
   DmnIrExpression source = 1;
   string field_name = 2;
+}
+
+// Binding IDs are decision-local identities, never runtime frame/slot addresses.
+message DmnIrLocalReference {
+  string binding_id = 1;
+}
+message DmnIrLocalBinding {
+  string binding_id = 1;
+  DmnIrVariable variable = 2;
+  DmnIrExpression value = 3;
+}
+message DmnIrContextExpression {
+  repeated DmnIrLocalBinding bindings = 1;
+  DmnIrExpression result = 2;
 }
 
 message DmnIrUnaryExpression {

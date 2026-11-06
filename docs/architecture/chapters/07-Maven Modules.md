@@ -73,15 +73,15 @@ The text schema does not depend on the parsed schema. `feel.proto` composes both
 Separate experimental Protobuf schema for the authoritative structured portable DMNIR selected
 in [ADR-0026](../adr/adr-0026-structured-portable-dmnir.md). Production depends only on
 `protobuf-java`; tests use JUnit. No existing runtime or frontend depends on this module.
-The experimental 0.0/0.1/0.2 profiles cover scalars, structured scalar expressions and named
-records/field access without semantic-protobuf imports. Generated bindings do not establish
+The experimental 0.0/0.1/0.2/0.3 profiles cover scalars, structured scalar expressions, named
+records/field access and boxed contexts/local bindings without semantic-protobuf imports. Generated bindings do not establish
 artifact validity; the separate codec validates each exact profile. The compiler layer adapts
 verified artifacts into Runtime IR and exports the admitted graph to DMN 1.6.
 
 <a id="portable-dmnir-codec"></a>
 ## 7.2b `dmn-ir-codec`
 
-Owns allocation-bounded wire decoding and scalar/record graph validation. Production dependencies are
+Owns allocation-bounded wire decoding, scalar/record graph validation and lexical-scope validation. Production dependencies are
 `dmn-ir-protobuf` and `protobuf-java`; no compiler, semantic model or runtime dependencies are
 introduced. The reader returns a wrapper constructible only after successful validation.
 See the [reader guide](../../dmnir.md) for policy and API details.

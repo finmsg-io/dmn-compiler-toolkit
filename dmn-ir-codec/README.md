@@ -6,6 +6,10 @@ or **schema 0.1**, semantics `finmsg-dmnir-scalar-expressions/0` and ordered cap
 `dmnir.scalar`, `dmnir.scalar-expressions`. Header combinations are exact.
 Schema **0.2** uses semantics `finmsg-dmnir-records/0` and ordered capabilities `dmnir.scalar`,
 `dmnir.scalar-expressions`, `dmnir.records`. It adds named-record type/field validation.
+Schema **0.3** uses `finmsg-dmnir-local-bindings/0` and the ordered 0.2 capabilities followed by
+`dmnir.local-bindings`. It validates sequential lexical scope, binding identity, local result types,
+source variable IDs and bounded declarations/references. Forward/self references and scope escape
+are rejected before consumers derive local frames or slots.
 
 ## Purpose and boundaries
 
@@ -80,7 +84,7 @@ The reader is binary-only; it does not accept Protobuf Text Format or implement 
 | Field occurrences | 200,000 |
 | UTF-8 bytes per string | 16,384 |
 | Models | 128 |
-| Declarations (including 0.2 record definitions and fields) | 10,000 |
+| Declarations (including record definitions/fields and local bindings) | 10,000 |
 | Reference occurrences | 50,000 |
 | Decimal coefficient digits | 4,096 |
 | Absolute decimal scale | 4,096 |

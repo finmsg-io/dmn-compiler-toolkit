@@ -61,7 +61,12 @@ public final class DmnIrScalarDmnExporter {
 				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-records/0")
 				&& artifact.getRequiredCapabilitiesList()
 						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records"));
-		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile))
+		boolean localProfile = artifact.getSchemaVersion().getMinor() == 3
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-local-bindings/0")
+				&& artifact.getRequiredCapabilitiesList().equals(
+						List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records", "dmnir.local-bindings"));
+		if (artifact.getSchemaVersion().getMajor() != 0
+				|| !(scalarProfile || expressionProfile || recordProfile || localProfile))
 			throw invalid(null);
 		var types = new DmnIrRecordTypes(artifact);
 		var models = artifact.getModelsList().stream().sorted(Comparator.comparing(DmnIrModel::getNamespace)).toList();
@@ -104,7 +109,7 @@ public final class DmnIrScalarDmnExporter {
 		for (var model : models) {
 			var definitions = Definitions.newBuilder().setNode(node(model.getIdentity()))
 					.setNamespace(model.getNamespace()).setModelNamespaceUri(DmnNamespaces.DMN_1_6);
-			if (recordProfile) {
+			if (recordProfile || localProfile) {
 				int prefix = 0;
 				for (var namespace : models.stream().map(DmnIrModel::getNamespace).toList())
 					definitions.addNamespaces(Namespace.newBuilder().setPrefix("t" + prefix++).setUri(namespace));
@@ -155,9 +160,14 @@ public final class DmnIrScalarDmnExporter {
 						requirement.setDecision(reference);
 					output.addInformationRequirements(requirement);
 				}
-				String text = expression(decision.getExpression(), model, declarations, address);
-				output.setLogic(DecisionLogic.newBuilder()
-						.setLiteralExpression(Feel.newBuilder().setText(FeelText.newBuilder().setText(text))));
+				var exported = expressionText(decision.getExpression(), model, declarations, address, types,
+						new LinkedHashMap<>());
+				var logic = DecisionLogic.newBuilder();
+				if (exported.hasBoxed())
+					logic.setBoxedExpression(BoxedExpression.newBuilder().setText(exported.getBoxed()));
+				else
+					logic.setLiteralExpression(Feel.newBuilder().setText(exported.getFeel()));
+				output.setLogic(logic);
 				definitions.addDrgElements(DrgElement.newBuilder().setDecision(output));
 			}
 			documents.put(filenames.get(model.getNamespace()),
@@ -226,35 +236,76 @@ public final class DmnIrScalarDmnExporter {
 		return TypeReference.newBuilder().setBuiltin(builtin).build();
 	}
 
+	private static ExpressionText expressionText(DmnIrExpression expression, DmnIrModel model,
+			Map<DmnIrReference, Declaration> declarations, DmnIrReference address, DmnIrRecordTypes types,
+			Map<String, String> locals) {
+		if (!expression.hasContext())
+			return ExpressionText.newBuilder()
+					.setFeel(
+							FeelText.newBuilder().setText(expression(expression, model, declarations, address, locals)))
+					.build();
+		var child = new LinkedHashMap<>(locals);
+		var context = ContextText.newBuilder();
+		for (var binding : expression.getContext().getBindingsList()) {
+			var variable = binding.getVariable();
+			name(variable.getName(), address);
+			if (variable.hasId() && !ID.matcher(variable.getId()).matches())
+				throw invalid(address);
+			var value = expressionText(binding.getValue(), model, declarations, address, types, child);
+			context.addEntries(
+					ContextEntryText.newBuilder().setVariable(variable(variable, types)).setExpression(value));
+			child.put(binding.getBindingId(), variable.getName());
+		}
+		context.addEntries(ContextEntryText.newBuilder().setExpression(
+				expressionText(expression.getContext().getResult(), model, declarations, address, types, child)));
+		return ExpressionText.newBuilder().setBoxed(BoxedExpressionText.newBuilder().setContext(context)).build();
+	}
 	private static String expression(DmnIrExpression expression, DmnIrModel model,
-			Map<DmnIrReference, Declaration> declarations, DmnIrReference address) {
+			Map<DmnIrReference, Declaration> declarations, DmnIrReference address, Map<String, String> locals) {
+		if (expression.hasContext())
+			throw invalid(address); // Boxed contexts require an XML expression position.
+		if (expression.hasLocalReference()) {
+			String id = expression.getLocalReference().getBindingId();
+			String localName = locals.get(id);
+			String visible = null;
+			for (var entry : locals.entrySet())
+				if (entry.getValue().equals(localName))
+					visible = entry.getKey();
+			if (localName == null || !id.equals(visible))
+				throw invalid(address);
+			return localName;
+		}
 		if (expression.hasFieldAccess()) {
 			name(expression.getFieldAccess().getFieldName(), address);
-			return "(" + expression(expression.getFieldAccess().getSource(), model, declarations, address) + ")."
-					+ expression.getFieldAccess().getFieldName();
+			return "(" + expression(expression.getFieldAccess().getSource(), model, declarations, address, locals)
+					+ ")." + expression.getFieldAccess().getFieldName();
 		}
 		if (expression.hasGlobalReference()) {
 			var reference = expression.getGlobalReference();
 			String variable = declarations.get(reference).name();
+			if (reference.getModelNamespace().equals(model.getNamespace()) && locals.containsValue(variable))
+				throw invalid(address);
 			if (reference.getModelNamespace().equals(model.getNamespace()))
 				return variable;
 			var imports = model.getImportsList().stream()
 					.filter(i -> i.getModelNamespace().equals(reference.getModelNamespace())).toList();
 			if (imports.size() != 1)
 				throw invalid(address);
+			if (locals.containsValue(imports.getFirst().getName()))
+				throw invalid(address);
 			return imports.getFirst().getName() + "." + variable;
 		}
 		if (expression.hasUnary()) {
 			if (expression.getUnary().getOperator() == DmnIrUnaryOperator.UNARY_OPERATOR_POSITIVE)
-				return "(" + expression(expression.getUnary().getOperand(), model, declarations, address) + ")";
+				return "(" + expression(expression.getUnary().getOperand(), model, declarations, address, locals) + ")";
 			String token = switch (expression.getUnary().getOperator()) {
 				case UNARY_OPERATOR_POSITIVE -> "+";
 				case UNARY_OPERATOR_NEGATE -> "-";
 				case UNARY_OPERATOR_NOT -> "not ";
 				default -> throw invalid(address);
 			};
-			return "(" + token + "(" + expression(expression.getUnary().getOperand(), model, declarations, address)
-					+ "))";
+			return "(" + token + "("
+					+ expression(expression.getUnary().getOperand(), model, declarations, address, locals) + "))";
 		}
 		if (expression.hasBinary()) {
 			String token = switch (expression.getBinary().getOperator()) {
@@ -273,14 +324,15 @@ public final class DmnIrScalarDmnExporter {
 				case BINARY_OPERATOR_OR -> "or";
 				default -> throw invalid(address);
 			};
-			return "((" + expression(expression.getBinary().getLeft(), model, declarations, address) + ") " + token
-					+ " (" + expression(expression.getBinary().getRight(), model, declarations, address) + "))";
+			return "((" + expression(expression.getBinary().getLeft(), model, declarations, address, locals) + ") "
+					+ token + " (" + expression(expression.getBinary().getRight(), model, declarations, address, locals)
+					+ "))";
 		}
 		if (expression.hasConditional()) {
 			var conditional = expression.getConditional();
-			return "(if (" + expression(conditional.getCondition(), model, declarations, address) + ") then ("
-					+ expression(conditional.getThenExpression(), model, declarations, address) + ") else ("
-					+ expression(conditional.getElseExpression(), model, declarations, address) + "))";
+			return "(if (" + expression(conditional.getCondition(), model, declarations, address, locals) + ") then ("
+					+ expression(conditional.getThenExpression(), model, declarations, address, locals) + ") else ("
+					+ expression(conditional.getElseExpression(), model, declarations, address, locals) + "))";
 		}
 		var value = expression.getLiteral();
 		return switch (value.getValueCase()) {

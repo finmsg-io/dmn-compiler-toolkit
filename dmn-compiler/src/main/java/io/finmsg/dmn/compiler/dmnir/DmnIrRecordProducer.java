@@ -11,6 +11,8 @@ import java.util.*;
 /** Retains source named identity before structural Runtime IR erases it. */
 final class DmnIrRecordProducer {
 	private final DmnModelSetSemanticResult semantic;
+	private final Map<String, DmnIrLocalBinding> localBindings = new HashMap<>();
+	private boolean localProfile;
 	private final Map<String, DmnSemanticModel> models = new LinkedHashMap<>();
 	private record TypeName(String namespace, String name) {
 	}
@@ -27,6 +29,8 @@ final class DmnIrRecordProducer {
 	}
 
 	DmnIrArtifactReader.VerifiedArtifact produce() {
+		localProfile = models.values().stream().anyMatch(m -> m.model().getDrgElementsList().stream()
+				.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasBoxedExpression()));
 		for (var model : models.values())
 			for (var item : model.model().getItemDefinitionsList()) {
 				if (item.getNode().getId().isBlank() || item.getComponentsCount() == 0 || item.getIsCollection()
@@ -61,11 +65,15 @@ final class DmnIrRecordProducer {
 					throw unsupported();
 			}
 		var artifact = DmnIrArtifact.newBuilder()
-				.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(2))
-				.setSemanticsVersion(DmnIrArtifactReader.RECORD_SEMANTICS_VERSION)
+				.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(localProfile ? 3 : 2))
+				.setSemanticsVersion(localProfile
+						? DmnIrArtifactReader.LOCAL_SEMANTICS_VERSION
+						: DmnIrArtifactReader.RECORD_SEMANTICS_VERSION)
 				.addRequiredCapabilities("dmnir.scalar").addRequiredCapabilities("dmnir.scalar-expressions")
 				.addRequiredCapabilities("dmnir.records")
 				.setRootModelNamespace(semantic.model(semantic.rootId()).orElseThrow().identity().namespace());
+		if (localProfile)
+			artifact.addRequiredCapabilities(DmnIrArtifactReader.LOCAL_CAPABILITY);
 		for (var model : models.values()) {
 			var output = DmnIrModel.newBuilder().setIdentity(identity(model.model().getNode()))
 					.setNamespace(model.identity().namespace());
@@ -91,8 +99,10 @@ final class DmnIrRecordProducer {
 							.setVariable(variable(input.getVariable(), model)).build());
 				} else {
 					var decision = element.getDecision();
-					if (!decision.getLogic().hasLiteralExpression()
-							|| !decision.getLogic().getLiteralExpression().hasParsed()
+					if (!(decision.getLogic().hasLiteralExpression()
+							&& decision.getLogic().getLiteralExpression().hasParsed()
+							|| decision.getLogic().hasBoxedExpression()
+									&& decision.getLogic().getBoxedExpression().hasParsed())
 							|| decision.getKnowledgeRequirementsCount() != 0
 							|| decision.getAuthorityRequirementsCount() != 0)
 						throw unsupported();
@@ -100,9 +110,14 @@ final class DmnIrRecordProducer {
 					for (var requirement : decision.getInformationRequirementsList())
 						dependencies.add(requirement(
 								requirement.hasInput() ? requirement.getInput() : requirement.getDecision(), model));
-					String path = "definitions/decision[" + decision.getNode().getName() + "]/logic/literalExpression";
-					var expression = expression(decision.getLogic().getLiteralExpression().getParsed().getAst(), model,
-							path, dependencies, 1);
+					localBindings.clear();
+					String path = "definitions/decision[" + decision.getNode().getName() + "]/logic";
+					var expression = decision.getLogic().hasLiteralExpression()
+							? expression(decision.getLogic().getLiteralExpression().getParsed().getAst(), model,
+									path + "/literalExpression", dependencies, 1)
+							: boxed(decision.getLogic().getBoxedExpression().getParsed(), model,
+									path + "/boxedExpression", dependencies, 1,
+									type(decision.getVariable().getType(), model));
 					decisions.add(DmnIrDecision.newBuilder().setIdentity(identity(decision.getNode()))
 							.setVariable(variable(decision.getVariable(), model)).addAllDependencies(dependencies)
 							.setExpression(expression).build());
@@ -188,6 +203,17 @@ final class DmnIrRecordProducer {
 		var binding = model.bindings().stream().filter(b -> b.referencePath().equals(path)).findFirst();
 		if ((source.hasName() || source.hasPath()) && binding.isPresent()) {
 			DmnSymbolBinding symbol = binding.get();
+			if (symbol.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE) {
+				var local = localBindings.get(symbol.declarationPath());
+				if (local == null)
+					throw unsupported();
+				var variable = local.getVariable();
+				var localType = variable.hasRecordType()
+						? DmnIrTypeReference.newBuilder().setRecordType(variable.getRecordType()).build()
+						: DmnIrTypeReference.newBuilder().setScalarType(variable.getType()).build();
+				return typed(localType)
+						.setLocalReference(DmnIrLocalReference.newBuilder().setBindingId(local.getBindingId())).build();
+			}
 			var address = ref(
 					symbol.targetNamespace().isBlank() ? model.identity().namespace() : symbol.targetNamespace(),
 					symbol.symbolId());
@@ -277,6 +303,52 @@ final class DmnIrRecordProducer {
 						.build();
 			}
 			default -> throw unsupported();
+		}
+	}
+	private DmnIrExpression parsed(ExpressionParsed source, DmnSemanticModel model, String path,
+			Set<DmnIrReference> dependencies, int depth, DmnIrTypeReference expected) {
+		if (source.hasFeel())
+			return expression(source.getFeel().getAst(), model, path, dependencies, depth);
+		if (source.hasBoxed())
+			return boxed(source.getBoxed(), model, path, dependencies, depth, expected);
+		throw unsupported();
+	}
+	private DmnIrExpression boxed(BoxedExpressionParsed source, DmnSemanticModel model, String path,
+			Set<DmnIrReference> dependencies, int depth, DmnIrTypeReference expected) {
+		if (depth > 32 || !source.hasContext())
+			throw unsupported();
+		var context = source.getContext();
+		if (context.getEntriesCount() == 0)
+			throw unsupported();
+		var output = DmnIrContextExpression.newBuilder();
+		var outer = new HashMap<>(localBindings);
+		try {
+			for (int i = 0; i < context.getEntriesCount(); i++) {
+				var entry = context.getEntries(i);
+				String ep = path + "/context/entry[" + i + "]";
+				if (!entry.hasExpression())
+					throw unsupported();
+				if (i == context.getEntriesCount() - 1) {
+					if (entry.hasVariable() && !entry.getVariable().getNode().getName().isBlank())
+						throw unsupported();
+					output.setResult(parsed(entry.getExpression(), model, ep + "/expression", dependencies, depth + 1,
+							expected));
+				} else {
+					if (!entry.hasVariable() || entry.getVariable().getNode().getName().isBlank())
+						throw unsupported();
+					var variable = variable(entry.getVariable(), model);
+					var value = parsed(entry.getExpression(), model, ep + "/expression", dependencies, depth + 1,
+							type(entry.getVariable().getType(), model));
+					var binding = DmnIrLocalBinding.newBuilder().setBindingId(ep).setVariable(variable).setValue(value)
+							.build();
+					output.addBindings(binding);
+					localBindings.put(ep, binding);
+				}
+			}
+			return typed(expected == null ? expressionType(output.getResult()) : expected).setContext(output).build();
+		} finally {
+			localBindings.clear();
+			localBindings.putAll(outer);
 		}
 	}
 	private static DmnIrBinaryOperator binary(BinaryOperator op) {

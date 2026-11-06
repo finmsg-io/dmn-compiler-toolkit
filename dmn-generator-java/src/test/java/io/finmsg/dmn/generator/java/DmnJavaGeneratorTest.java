@@ -21,6 +21,52 @@ import org.junit.jupiter.api.io.TempDir;
 
 class DmnJavaGeneratorTest {
 	@Test
+	void portableLocalBindingsGenerateExecutableJava(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="model" name="Locals" namespace="urn:generated:locals">
+				<inputData id="input" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<decision id="answer" name="Answer"><variable name="Answer" typeRef="number"/><informationRequirement><requiredInput href="#input"/></informationRequirement>
+				<context><contextEntry><variable name="Base" typeRef="number"/><literalExpression><text>Amount + 1</text></literalExpression></contextEntry>
+				<contextEntry><variable name="Total" typeRef="number"/><context><contextEntry><variable name="Bonus" typeRef="number"/><literalExpression><text>2</text></literalExpression></contextEntry>
+				<contextEntry><literalExpression><text>Base + Bonus</text></literalExpression></contextEntry></context></contextEntry>
+				<contextEntry><literalExpression><text>Total</text></literalExpression></contextEntry></context></decision></definitions>
+				""";
+		var verified = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(new DmnSource(
+				DmnSourceId.of("memory:/locals.dmn"), xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		var adapted = new DmnIrRuntimeAdapter().adapt(verified);
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(adapted.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("artifact"), generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var bundle = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarDmnExporter().export(verified);
+		var compiled = compiler.compile(new DmnSource(DmnSourceId.of("memory:/exported.dmn"),
+				bundle.documents().get(bundle.rootDocument()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compiled.isSuccess()).as(compiled.diagnostics().toString()).isTrue();
+		var roundtrip = compiled.optimizedRuntimeModel().orElseThrow();
+		var regenerated = generator.generate(roundtrip);
+		var exportedEngine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("exported"),
+				regenerated.mainClassName(), regenerated.mainSource()).getDeclaredConstructor().newInstance();
+		for (Object amount : Arrays.asList(BigDecimal.ZERO, new BigDecimal("9007199254740993.0001"), null,
+				BigDecimal.TEN)) {
+			Map<DmnIrRuntimeAdapter.ElementId, Object> inputs = new HashMap<>();
+			inputs.put(adapted.inputs().keySet().iterator().next(), amount);
+			var expected = adapted.evaluate(inputs).values().iterator().next();
+			Object[] slots = new Object[adapted.runtimeModel().valueSlotCount()];
+			slots[adapted.inputs().values().iterator().next().slot()] = amount;
+			Object actual = engine.evaluate(slots)[adapted.decisions().values().iterator().next().slot()];
+			Object[] exportedSlots = new Object[roundtrip.model().valueSlotCount()];
+			exportedSlots[roundtrip.model().inputs().getFirst().valueSlot()] = amount;
+			Object exported = exportedEngine.evaluate(exportedSlots)[roundtrip.model().decisions().getFirst()
+					.resultSlot()];
+			if (expected instanceof BigDecimal n) {
+				assertThat((BigDecimal) actual).isEqualByComparingTo(n);
+				assertThat((BigDecimal) exported).isEqualByComparingTo(n);
+			} else {
+				assertThat(actual).isEqualTo(expected);
+				assertThat(exported).isEqualTo(expected);
+			}
+		}
+	}
+	@Test
 	void portableRecordsGenerateExecutableJavaAndExportedDmn(@TempDir Path tempDir) throws Exception {
 		String xml = """
 				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="model" name="Records" namespace="urn:example:generated-records">

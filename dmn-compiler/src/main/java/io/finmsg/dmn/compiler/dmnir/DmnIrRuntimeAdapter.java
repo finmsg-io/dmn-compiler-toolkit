@@ -55,7 +55,12 @@ public final class DmnIrRuntimeAdapter {
 				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-records/0")
 				&& artifact.getRequiredCapabilitiesList()
 						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records"));
-		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile))
+		boolean localProfile = artifact.getSchemaVersion().getMinor() == 3
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-local-bindings/0")
+				&& artifact.getRequiredCapabilitiesList().equals(
+						List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records", "dmnir.local-bindings"));
+		if (artifact.getSchemaVersion().getMajor() != 0
+				|| !(scalarProfile || expressionProfile || recordProfile || localProfile))
 			throw new IllegalArgumentException("Unsupported runtime adapter profile.");
 		var types = new DmnIrRecordTypes(artifact);
 		List<Declaration> declarations = new ArrayList<>();
@@ -94,8 +99,10 @@ public final class DmnIrRuntimeAdapter {
 				DmnIrDecision decision = declaration.decision();
 				List<Integer> dependencies = decision.getDependenciesList().stream()
 						.map(reference -> slots.get(id(reference))).toList();
-				runtimeDecisions.add(new RuntimeDecision(slot, slot, type, dependencies,
-						Optional.of(expression(decision.getExpression(), slots, types))));
+				int[] nextLocalSlot = {0};
+				var body = expression(decision.getExpression(), slots, types, new HashMap<>(), nextLocalSlot);
+				runtimeDecisions.add(new RuntimeDecision(slot, slot, type, dependencies, Optional.of(body),
+						Optional.empty(), nextLocalSlot[0]));
 			}
 		}
 		List<Integer> order = artifact.getEvaluationOrderList().stream().map(value -> slots.get(id(value))).toList();
@@ -103,17 +110,40 @@ public final class DmnIrRuntimeAdapter {
 		return new AdaptedModel(verified, model, inputs, decisions);
 	}
 
+	private record Local(int depth, int slot) {
+	}
+
 	private static RuntimeExpression expression(DmnIrExpression expression, Map<ElementId, Integer> slots,
-			DmnIrRecordTypes types) {
+			DmnIrRecordTypes types, Map<String, Local> locals, int[] nextSlot) {
 		RuntimeType type = types.type(expression.getType(), expression.hasRecordType(), expression.getRecordType());
 		return switch (expression.getNodeCase()) {
+			case LOCAL_REFERENCE -> {
+				var local = locals.get(expression.getLocalReference().getBindingId());
+				yield new RuntimeLocalReference(local.depth(), local.slot(), type);
+			}
+			case CONTEXT -> {
+				Map<String, Local> child = new HashMap<>();
+				// Context scopes share the decision frame, matching source lowering.
+				// Distinct binding IDs get distinct slots; scopes control visibility.
+				child.putAll(locals);
+				List<RuntimeContextEntry> entries = new ArrayList<>();
+				for (var binding : expression.getContext().getBindingsList()) {
+					var value = expression(binding.getValue(), slots, types, child, nextSlot);
+					int slot = nextSlot[0]++;
+					entries.add(new RuntimeContextEntry(binding.getVariable().getName(), slot, value));
+					child.put(binding.getBindingId(), new Local(0, slot));
+				}
+				entries.add(new RuntimeContextEntry("", -1,
+						expression(expression.getContext().getResult(), slots, types, child, nextSlot)));
+				yield new RuntimeContextExpression(entries, type);
+			}
 			case FIELD_ACCESS -> {
 				// Match source lowering's type-proven null plan, including native invalid
 				// input.
 				if (type.kind() == RuntimeTypeKind.NULL)
 					yield new RuntimeConstant(RuntimeConstantKind.NULL, "null", type);
 				var access = expression.getFieldAccess();
-				var source = expression(access.getSource(), slots, types);
+				var source = expression(access.getSource(), slots, types, locals, nextSlot);
 				int index = source.type().fieldLayout().stream().filter(f -> f.name().equals(access.getFieldName()))
 						.findFirst().orElseThrow().index();
 				yield new RuntimePathExpression(source, access.getFieldName(), index, type);
@@ -124,7 +154,7 @@ public final class DmnIrRuntimeAdapter {
 				case UNARY_OPERATOR_NEGATE -> RuntimeUnaryOperator.NEGATE;
 				case UNARY_OPERATOR_NOT -> RuntimeUnaryOperator.NOT;
 				default -> throw new IllegalArgumentException("Unsupported unary operator.");
-			}, expression(expression.getUnary().getOperand(), slots, types), type);
+			}, expression(expression.getUnary().getOperand(), slots, types, locals, nextSlot), type);
 			case BINARY -> new RuntimeBinaryExpression(switch (expression.getBinary().getOperator()) {
 				case BINARY_OPERATOR_ADD -> RuntimeBinaryOperator.ADD;
 				case BINARY_OPERATOR_SUBTRACT -> RuntimeBinaryOperator.SUBTRACT;
@@ -140,12 +170,12 @@ public final class DmnIrRuntimeAdapter {
 				case BINARY_OPERATOR_AND -> RuntimeBinaryOperator.AND;
 				case BINARY_OPERATOR_OR -> RuntimeBinaryOperator.OR;
 				default -> throw new IllegalArgumentException("Unsupported binary operator.");
-			}, expression(expression.getBinary().getLeft(), slots, types),
-					expression(expression.getBinary().getRight(), slots, types), type);
-			case CONDITIONAL ->
-				new RuntimeConditionalExpression(expression(expression.getConditional().getCondition(), slots, types),
-						expression(expression.getConditional().getThenExpression(), slots, types),
-						expression(expression.getConditional().getElseExpression(), slots, types), type);
+			}, expression(expression.getBinary().getLeft(), slots, types, locals, nextSlot),
+					expression(expression.getBinary().getRight(), slots, types, locals, nextSlot), type);
+			case CONDITIONAL -> new RuntimeConditionalExpression(
+					expression(expression.getConditional().getCondition(), slots, types, locals, nextSlot),
+					expression(expression.getConditional().getThenExpression(), slots, types, locals, nextSlot),
+					expression(expression.getConditional().getElseExpression(), slots, types, locals, nextSlot), type);
 			case LITERAL -> {
 				DmnIrLiteral literal = expression.getLiteral();
 				yield switch (literal.getValueCase()) {
