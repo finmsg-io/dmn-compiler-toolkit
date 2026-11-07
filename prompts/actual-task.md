@@ -21,8 +21,10 @@ The 2026-11-07 usage checkpoint passed the full Spark TCK with 3,391/3,391 nativ
 (100%), zero fallback and zero failures, errors or compilation blocks. Schema 0.6 is implemented
 and verified locally in section 22. Scalar record field constraints survive portable execution,
 generated Java and DMN 1.6 export on the full Traffic Violation model and a separate composed
-policy. The full reactor passed 630 tests. Collections/functions, the DSL/CLI and independent
-Rust execution remain open.
+policy. The full reactor passed 630 tests. Schema 0.6 was pushed as `abedbb7`. The official
+Spark TCK rerun at a 120-second limit passed 3,391/3,391 cases natively with zero fallback.
+Section 23 proposes named scalar collections and typed list values for schema 0.7.
+Broader collections/functions, the DSL/CLI and independent Rust execution remain open.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome

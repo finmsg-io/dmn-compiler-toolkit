@@ -285,6 +285,14 @@ skips. All case identities, statuses and routes matched the retained Spark ledge
 Local evidence is in `target/release-1.2-usage-checkpoint-full-sparksql.log` and
 `target/release-1.2-usage-checkpoint-full-sparksql-accounting.json`.
 
+The DMNIR 0.6 revalidation tested `abedbb7` against the same pinned TCK revision.
+At a 30-second limit, 3,390 of 3,391 cases passed natively (99.97%), with zero fallback
+and one failure when `0035#001` exceeded the case limit. Maven exited 1. A complete
+rerun at 120 seconds passed all 3,391 cases natively (100.00%) with zero fallback (0.00%),
+unknown routes, failures, execution or compilation errors, compilation blocks, rejections or
+skips. Maven exited 0, and every outcome matched the retained ledger. Both logs and accounting
+files are under `target/` with the `release-1.2-field-constraints-full-sparksql` prefix.
+
 ### Historical interpreter/Java baseline - 2026-09-04 (`OfficialTckSuiteTest`)
 
 <a id="contents-section-3-1"></a>

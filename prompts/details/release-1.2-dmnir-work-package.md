@@ -2238,6 +2238,7 @@ of 3,153 completed SQL actions across four Spark suites, with zero unknown and 6
 counted separately. These are regression-suite actions. No new official TCK was run for this slice.
 
 All 73 tooling tests, strict MkDocs and documentation facts and maintained-link checks passed.
+
 The full Traffic Violation model still requires item constraints. Collections, functions,
 authoring DSL and independent Rust execution remain open.
 
@@ -2345,5 +2346,80 @@ measure Spark routing. The full reactor passed 630 tests with no failures, error
 (`target/release-1.2-field-constraints-reactor.log`). Across four Spark regression suites,
 3,034 of 3,153 completed SQL actions were native (96.23%), 119 fell back (3.77%), and none
 had unknown routing. The suites counted 60 failed SQL actions separately. This was a
-regression-suite run. The official TCK checkpoint above applies to schema 0.5 source.
+regression-suite run. The official schema 0.6 checkpoint is recorded below.
 All 73 tooling tests, strict MkDocs and documentation facts and maintained-link checks passed.
+
+The 0.6 source was pushed as `abedbb7`. Its first full Spark TCK run at the 30-second limit
+passed 3,390/3,391 cases natively (99.97%), with zero fallback and a timeout in `0035#001`.
+The complete rerun at 120 seconds passed all 3,391 cases natively (100.00%) with zero
+fallback (0.00%), unknown routes, failures, execution or compilation errors, rejections or
+skips. Its case ledger matches the retained baseline.
+[Spark conformance record](../../docs/tck-conformance.md#native-spark-sql-checkpoint-2026-10-26)
+
+## 23. Named scalar collections and typed list values
+
+Date 2026-11-07. Status **proposed for review**. The next slice retains named collection
+declarations and ordered list constructors. The direct runtime already supports typed list
+construction and conversion. The portable graph needs stable declaration identities so that
+artifact-only DMN export can emit named collection declarations and qualified type references.
+SPEC-001 provides prior art for an ordered list expression. This proposal adds the declaration
+identity needed by the accepted interchange architecture.
+
+### Additive schema 0.7
+
+Use `finmsg-dmnir-scalar-collections/0` and append `dmnir.scalar-collections` to the exact
+ordered 0.6 capabilities. Keep all prior fields and use these additions.
+
+| Owner | Field | Tag |
+| --- | --- | ---: |
+| `DmnIrModel` | `repeated DmnIrCollectionDefinition collection_definitions` | 7 |
+| `DmnIrCollectionDefinition` | `DmnIrElementIdentity identity` | 1 |
+| `DmnIrCollectionDefinition` | `DmnIrScalarType element_type` | 2 |
+| `DmnIrVariable` | `DmnIrReference collection_type` | 5 |
+| `DmnIrExpression` | `DmnIrReference collection_type` | 11 |
+| `DmnIrExpression.node` | `DmnIrListExpression list` | 12 |
+| `DmnIrTypeReference.kind` | `DmnIrReference collection_type` | 3 |
+| `DmnIrListExpression` | `repeated DmnIrExpression elements` | 1 |
+
+Exactly one scalar, record or collection type may be selected. Resolve collection references
+by namespace and element ID under the existing direct-import rules. Use the model-local ID
+and type-name uniqueness rules across records and collections. Admit boolean, number, string
+and civil-date elements, each nullable. A list expression uses a declared collection type
+and has only scalar elements compatible with that declaration. An empty list still carries
+its collection type. List values can appear in inputs, results, named record fields and boxed
+local bindings. A global or local reference retains its declared type. A conditional admits
+the same named collection on both branches or a collection and explicit null.
+
+### Execution and export
+
+Use existing list evaluation and conversion in the portable adapter and generated Java.
+Retain element order, duplicate elements and null elements. Keep null, an empty list and a
+list with a null element distinct. Reuse native boundary singleton promotion for a valid
+scalar input to a collection. Portable expression typing requires an explicit list constructor
+or a compatible collection value. Source literals get their named type from the expected
+declaration, including empty constructors and conditional branches.
+
+Export the named item definition with `isCollection="true"`, a child `typeRef`, and the
+original declaration ID. Emit a FEEL list constructor with escaped scalar elements. The
+existing writer currently emits a top-level item-definition type as an attribute. The DMN 1.6
+path needs the child element for a schema-valid collection definition.
+
+Reject nested collections, lists of records, constrained collections, anonymous collection
+declarations, filters/indexing, collection-valued table cells and list functions in this
+profile. Apply existing wire/message/declaration budgets to collection definitions, type
+references and list elements.
+
+### Acceptance
+
+1. Pin the additive tags and exact header. Verify old-reader rejection and old-artifact
+   acceptance. Reject malformed types, missing imports, mixed element kinds and oversized lists.
+2. Extend the composed policy with an imported named collection type, a list in a nested
+   record, a table-derived scalar and a boxed list result. Verify duplicates, empty and null
+   lists, null members, singleton inputs and exact number/date values.
+3. Compare direct compilation, artifact-only execution in a separate JVM, generated Java
+   and recompiled DMN 1.6. Check the original collection identities, the DMN 1.6 XSD and
+   deterministic output, then run focused tests, full reactor and documentation checks.
+
+Review covers the public wire addition and list typing, coercion and interchange rules.
+The change would touch the schema, bounded codec, compiler adapters, XML writer and tests,
+and reuse existing runtime and Java list operations.
