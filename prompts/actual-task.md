@@ -23,7 +23,9 @@ and verified locally in section 22. Scalar record field constraints survive port
 generated Java and DMN 1.6 export on the full Traffic Violation model and a separate composed
 policy. The full reactor passed 630 tests. Schema 0.6 was pushed as `abedbb7`. The official
 Spark TCK rerun at a 120-second limit passed 3,391/3,391 cases natively with zero fallback.
-Section 23 proposes named scalar collections and typed list values for schema 0.7.
+Schema 0.7 is implemented and verified locally in section 23. Named scalar collections and
+ordered list values survive portable execution, generated Java and DMN 1.6 export. The full
+reactor passed 635 tests.
 Broader collections/functions, the DSL/CLI and independent Rust execution remain open.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 

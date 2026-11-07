@@ -166,6 +166,55 @@ class DmnJavaGeneratorTest {
 	}
 
 	@Test
+	void portableCollectionsGenerateOrderedListValues(@TempDir Path tempDir) throws Exception {
+		String types = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="catalog" name="Catalog" namespace="urn:generated:list-types">
+				<itemDefinition id="fees" name="tFees" isCollection="true"><typeRef>number</typeRef></itemDefinition>
+				</definitions>
+				""";
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" xmlns:catalog="urn:generated:list-types"
+					id="model" name="Policy" namespace="urn:generated:collections">
+				<import name="catalog" namespace="urn:generated:list-types" locationURI="catalog.dmn" importType="DMN"/>
+				<inputData id="amount" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<decision id="fee" name="Fee"><variable name="Fee" typeRef="number"/>
+				<informationRequirement><requiredInput href="#amount"/></informationRequirement>
+				<decisionTable hitPolicy="FIRST"><input><inputExpression typeRef="number"><text>Amount</text></inputExpression></input>
+				<output typeRef="number"><defaultOutputEntry><text>0</text></defaultOutputEntry></output>
+				<rule><inputEntry><text>&gt; 0</text></inputEntry><outputEntry><text>30.125</text></outputEntry></rule>
+				</decisionTable></decision>
+				<decision id="answer" name="Answer"><variable name="Answer" typeRef="catalog:tFees"/>
+				<informationRequirement><requiredDecision href="#fee"/></informationRequirement>
+				<context><contextEntry><variable name="History" typeRef="catalog:tFees"/>
+				<literalExpression><text>[Fee, Fee, null]</text></literalExpression></contextEntry>
+				<contextEntry><literalExpression><text>if Fee &gt; 0 then History else []</text></literalExpression></contextEntry>
+				</context></decision></definitions>
+				""";
+		var imported = new DmnSource(DmnSourceId.of("memory:/catalog.dmn"),
+				types.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var source = new DmnSource(DmnSourceId.of("memory:/policy.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var artifact = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source,
+				new InMemoryDmnModelResolver(List.of(imported)));
+		var model = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.artifact().toByteArray()));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var input = model.inputs().values().iterator().next();
+		var answer = model.decisions().values().stream().filter(binding -> binding.variableName().equals("Answer"))
+				.findFirst().orElseThrow();
+		for (int amount : List.of(0, 1)) {
+			Object[] slots = new Object[model.runtimeModel().valueSlotCount()];
+			slots[input.slot()] = amount;
+			Object expected = amount == 0
+					? List.of()
+					: Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null);
+			assertThat(engine.evaluate(slots)[answer.slot()]).isEqualTo(expected);
+			assertThat(model.evaluate(Map.of(input.id(), amount)).get(answer.id())).isEqualTo(expected);
+		}
+	}
+
+	@Test
 	void portableTrafficViolationGeneratesBothDecisions(@TempDir Path tempDir) throws Exception {
 		DmnSource source;
 		try (var fixture = Objects.requireNonNull(getClass().getResourceAsStream("/TrafficViolation.dmn"))) {

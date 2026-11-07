@@ -23,6 +23,10 @@ Schema **0.6** appends `dmnir.field-constraints` to the ordered 0.5 capabilities
 `finmsg-dmnir-field-constraints/0`. A scalar record field can retain a constant unary-test
 domain. See the [portable contract](../docs/dmnir.md#scalar-field-constraints-schema-06).
 
+Schema **0.7** appends `dmnir.scalar-collections` to the ordered 0.6 capabilities and uses
+`finmsg-dmnir-scalar-collections/0`. Named scalar collections and ordered constructors retain
+their declaration identities. See the [portable contract](../docs/dmnir.md#named-scalar-collections-schema-07).
+
 ## Purpose and boundaries
 
 `DmnIrArtifactReader` converts untrusted binary bytes into a `VerifiedArtifact`. The generated

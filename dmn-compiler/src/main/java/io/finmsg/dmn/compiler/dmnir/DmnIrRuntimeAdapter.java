@@ -73,8 +73,14 @@ public final class DmnIrRuntimeAdapter {
 				&& artifact.getRequiredCapabilitiesList()
 						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
 								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints"));
+		boolean collectionProfile = artifact.getSchemaVersion().getMinor() == 7
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar-collections/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
+								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
+								"dmnir.scalar-collections"));
 		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
-				|| localProfile || dateProfile || tableProfile || constraintProfile))
+				|| localProfile || dateProfile || tableProfile || constraintProfile || collectionProfile))
 			throw new IllegalArgumentException("Unsupported runtime adapter profile.");
 		var types = new DmnIrRecordTypes(artifact);
 		List<Declaration> declarations = new ArrayList<>();
@@ -100,8 +106,10 @@ public final class DmnIrRuntimeAdapter {
 		Map<ElementId, Binding> decisions = new LinkedHashMap<>();
 		for (Declaration declaration : declarations) {
 			int slot = slots.get(declaration.id());
-			RuntimeType type = types.type(declaration.variable().getType(), declaration.variable().hasRecordType(),
-					declaration.variable().getRecordType());
+			var variable = declaration.variable();
+			RuntimeType type = variable.hasCollectionType()
+					? types.collectionType(variable.getCollectionType())
+					: types.type(variable.getType(), variable.hasRecordType(), variable.getRecordType());
 			Binding binding = new Binding(declaration.id(), declaration.identity().getName(),
 					declaration.variable().hasId() ? Optional.of(declaration.variable().getId()) : Optional.empty(),
 					declaration.variable().getName(), type, slot);
@@ -190,7 +198,9 @@ public final class DmnIrRuntimeAdapter {
 
 	private static RuntimeExpression expression(DmnIrExpression expression, Map<ElementId, Integer> slots,
 			DmnIrRecordTypes types, Map<String, Local> locals, int[] nextSlot) {
-		RuntimeType type = types.type(expression.getType(), expression.hasRecordType(), expression.getRecordType());
+		RuntimeType type = expression.hasCollectionType()
+				? types.collectionType(expression.getCollectionType())
+				: types.type(expression.getType(), expression.hasRecordType(), expression.getRecordType());
 		return switch (expression.getNodeCase()) {
 			case LOCAL_REFERENCE -> {
 				var local = locals.get(expression.getLocalReference().getBindingId());
@@ -252,6 +262,8 @@ public final class DmnIrRuntimeAdapter {
 					expression(expression.getConditional().getThenExpression(), slots, types, locals, nextSlot),
 					expression(expression.getConditional().getElseExpression(), slots, types, locals, nextSlot), type);
 			case LITERAL -> literal(expression.getLiteral(), type);
+			case LIST -> new RuntimeListExpression(expression.getList().getElementsList().stream()
+					.map(element -> expression(element, slots, types, locals, nextSlot)).toList(), type);
 			default -> throw new IllegalArgumentException("Unsupported expression in runtime adapter.");
 		};
 	}

@@ -10,12 +10,20 @@ import java.util.*;
  */
 final class DmnIrRecordTypes {
 	private final Map<DmnIrReference, DmnIrRecordDefinition> definitions = new LinkedHashMap<>();
+	private final Map<DmnIrReference, DmnIrCollectionDefinition> collections = new HashMap<>();
 	private final Map<DmnIrReference, RuntimeType> layouts = new HashMap<>();
 
 	DmnIrRecordTypes(DmnIrArtifact artifact) {
-		for (var model : artifact.getModelsList())
+		for (var model : artifact.getModelsList()) {
 			for (var record : model.getRecordDefinitionsList())
 				definitions.put(ref(model.getNamespace(), record.getIdentity().getId()), record);
+			for (var collection : model.getCollectionDefinitionsList()) {
+				var reference = ref(model.getNamespace(), collection.getIdentity().getId());
+				collections.put(reference, collection);
+				layouts.put(reference, RuntimeType.element(RuntimeTypeKind.LIST,
+						type(collection.getElementType(), false, DmnIrReference.getDefaultInstance())));
+			}
+		}
 		Set<DmnIrReference> pending = new LinkedHashSet<>(definitions.keySet());
 		while (!pending.isEmpty()) {
 			boolean progress = false;
@@ -27,8 +35,10 @@ final class DmnIrRecordTypes {
 				List<RuntimeField> fields = new ArrayList<>();
 				for (var field : record.getFieldsList())
 					fields.add(new RuntimeField(fields.size(), field.getName(),
-							type(field.getType().getScalarType(), field.getType().hasRecordType(),
-									field.getType().getRecordType()),
+							field.getType().hasCollectionType()
+									? collectionType(field.getType().getCollectionType())
+									: type(field.getType().getScalarType(), field.getType().hasRecordType(),
+											field.getType().getRecordType()),
 							field.hasConstraint() ? Optional.of(constraint(field.getConstraint())) : Optional.empty()));
 				layouts.put(key, RuntimeType.contextFields(fields));
 				pending.remove(key);
@@ -47,6 +57,12 @@ final class DmnIrRecordTypes {
 				.toList());
 	}
 
+	DmnIrCollectionDefinition collection(DmnIrReference reference) {
+		return Objects.requireNonNull(collections.get(reference));
+	}
+	RuntimeType collectionType(DmnIrReference reference) {
+		return Objects.requireNonNull(layouts.get(reference));
+	}
 	DmnIrRecordDefinition definition(DmnIrReference reference) {
 		return Objects.requireNonNull(definitions.get(reference));
 	}

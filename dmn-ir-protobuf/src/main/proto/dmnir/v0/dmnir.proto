@@ -6,7 +6,7 @@ option java_package = "io.finmsg.dmn.dmnir.proto.v0";
 option java_multiple_files = true;
 option java_outer_classname = "DmnIrProtos";
 
-// Experimental profiles 0.0 through 0.6 of ADR-0026. Not a stable v1 wire contract.
+// Experimental profiles 0.0 through 0.7 of ADR-0026. Not a stable v1 wire contract.
 // No semantic-protobuf imports, FEEL source, original XML or second logic graph.
 // Parsing these messages does NOT validate an executable model. A bounded verifier
 // must check versions, capabilities, declarations, types, references and ordering.
@@ -35,6 +35,7 @@ message DmnIrModel {
   repeated DmnIrInput inputs = 4;
   repeated DmnIrDecision decisions = 5;
   repeated DmnIrRecordDefinition record_definitions = 6;
+  repeated DmnIrCollectionDefinition collection_definitions = 7;
 }
 
 message DmnIrElementIdentity {
@@ -56,8 +57,9 @@ message DmnIrVariable {
   optional string id = 1;
   string name = 2;
   DmnIrScalarType type = 3;
-  // Schema 0.2: exactly one of a supported scalar type or record_type.
+  // Select exactly one scalar, record, or collection type.
   DmnIrReference record_type = 4;
+  DmnIrReference collection_type = 5;
 }
 
 message DmnIrInput {
@@ -152,6 +154,7 @@ message DmnIrExpression {
   DmnIrScalarType type = 1;
   // Schema 0.2: mutually exclusive with a supported scalar type.
   DmnIrReference record_type = 7;
+  DmnIrReference collection_type = 11;
   // Other structured operations arrive in later slices. An unset/unknown node
   // must be rejected by the verifier, never treated as an implicit null literal.
   oneof node {
@@ -164,6 +167,7 @@ message DmnIrExpression {
     DmnIrFieldAccess field_access = 8;
     DmnIrLocalReference local_reference = 9;
     DmnIrContextExpression context = 10;
+    DmnIrListExpression list = 12;
   }
 }
 
@@ -171,7 +175,17 @@ message DmnIrTypeReference {
   oneof kind {
     DmnIrScalarType scalar_type = 1;
     DmnIrReference record_type = 2;
+    DmnIrReference collection_type = 3;
   }
+}
+
+message DmnIrCollectionDefinition {
+  DmnIrElementIdentity identity = 1;
+  DmnIrScalarType element_type = 2;
+}
+
+message DmnIrListExpression {
+  repeated DmnIrExpression elements = 1;
 }
 
 message DmnIrRecordDefinition {

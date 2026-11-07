@@ -16,38 +16,42 @@ public final class ItemDefinitionWriter implements XmlWriter<ItemDefinition> {
 		write(xml, value, false);
 	}
 
-	void write(XmlEmitter xml, ItemDefinition value, boolean typeConstraint) {
+	void write(XmlEmitter xml, ItemDefinition value, boolean dmn16) {
 		xml.startElement("itemDefinition");
 		nodeWriter.writeAttributes(xml, value.getNode());
-		if (value.hasType()) {
+		if (value.hasType() && !dmn16)
 			xml.attribute("typeRef", typeReferenceWriter.write(xml, value.getType()));
-		}
 		if (value.getIsCollection()) {
 			xml.attribute("isCollection", "true");
 		}
 		nodeWriter.writeChildren(xml, value.getNode());
+		if (value.hasType() && dmn16)
+			writeType(xml, value.getType());
 		if (value.hasConstraint()) {
-			typeConstraintWriter.write(xml, value.getConstraint(), typeConstraint);
+			typeConstraintWriter.write(xml, value.getConstraint(), dmn16);
 		}
-		value.getComponentsList().forEach(component -> writeComponent(xml, component, typeConstraint));
+		value.getComponentsList().forEach(component -> writeComponent(xml, component, dmn16));
 		xml.endElement();
 	}
 
-	private void writeComponent(XmlEmitter xml, ItemComponent value, boolean typeConstraint) {
+	private void writeComponent(XmlEmitter xml, ItemComponent value, boolean dmn16) {
 		xml.startElement("itemComponent");
 		nodeWriter.writeAttributes(xml, value.getNode());
 		if (value.getIsCollection()) {
 			xml.attribute("isCollection", "true");
 		}
 		nodeWriter.writeChildren(xml, value.getNode());
-		if (value.hasType()) {
-			xml.startElement("typeRef");
-			xml.text(typeReferenceWriter.write(xml, value.getType()));
-			xml.endElement();
-		}
+		if (value.hasType())
+			writeType(xml, value.getType());
 		if (value.hasConstraint()) {
-			typeConstraintWriter.write(xml, value.getConstraint(), typeConstraint);
+			typeConstraintWriter.write(xml, value.getConstraint(), dmn16);
 		}
 		xml.endElement();
 	}
+	private void writeType(XmlEmitter xml, io.finmsg.dmn.model.TypeReference type) {
+		xml.startElement("typeRef");
+		xml.text(typeReferenceWriter.write(xml, type));
+		xml.endElement();
+	}
+
 }

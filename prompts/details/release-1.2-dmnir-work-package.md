@@ -2358,7 +2358,7 @@ skips. Its case ledger matches the retained baseline.
 
 ## 23. Named scalar collections and typed list values
 
-Date 2026-11-07. Status **proposed for review**. The next slice retains named collection
+Date 2026-11-07. Status **implemented and verified locally**. This slice retains named collection
 declarations and ordered list constructors. The direct runtime already supports typed list
 construction and conversion. The portable graph needs stable declaration identities so that
 artifact-only DMN export can emit named collection declarations and qualified type references.
@@ -2423,3 +2423,23 @@ references and list elements.
 Review covers the public wire addition and list typing, coercion and interchange rules.
 The change would touch the schema, bounded codec, compiler adapters, XML writer and tests,
 and reuse existing runtime and Java list operations.
+
+### Implementation and verification
+
+The two-model policy retained imported date and numeric collection identities, list fields
+inside a nested constrained record, a table-derived fee and a boxed list result. Direct
+compilation, artifact-only runtime, DMN 1.6 export and recompiled execution agreed. A separate
+JVM consumed the artifact from bytes. The generated-Java fixture exercised the imported
+collection, table result and boxed list values. Tests checked duplicates, null members, null
+and empty lists, exact numbers and dates, and scalar-to-singleton input promotion.
+
+The saved 0.6 reader accepted 0.6 and rejected 0.7 with `UNKNOWN_FIELD`. The current reader
+accepted both. Compatibility evidence is in `target/dmnir-0.6-baseline`.
+
+The final focused run passed 140 tests, with no Spark routing measurements. The full reactor
+passed 635 tests with zero failures, errors or skips. It measured 3,034 native actions (96.23%)
+and 119 fallback actions (3.77%) among 3,153 completed Spark regression SQL actions, with zero
+unknown routes and 60 failed actions counted separately. The official TCK checkpoint remains
+the separately measured 0.6 run. All 73 tooling tests, strict MkDocs and documentation facts
+and maintained-link checks passed. Logs are in `target/release-1.2-collections-focused-final.log`
+and `target/release-1.2-collections-reactor.log`.

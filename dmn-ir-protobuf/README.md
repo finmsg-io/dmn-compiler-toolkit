@@ -26,6 +26,10 @@ Schema **0.6** appends `dmnir.field-constraints` to the ordered 0.5 capabilities
 `finmsg-dmnir-field-constraints/0`. A scalar record field can retain a constant unary-test
 domain. See the [portable contract](../docs/dmnir.md#scalar-field-constraints-schema-06).
 
+Schema **0.7** appends `dmnir.scalar-collections` to the ordered 0.6 capabilities and uses
+`finmsg-dmnir-scalar-collections/0`. Named scalar collections and ordered constructors retain
+their declaration identities. See the [portable contract](../docs/dmnir.md#named-scalar-collections-schema-07).
+
 ## Purpose and boundaries
 
 DMNIR stores one authoritative, typed and resolved decision graph, plus the declarations and
@@ -98,7 +102,7 @@ not be edited manually. The module JAR includes the namespaced `.proto` resource
 
 Profile 0.1 adds numeric arithmetic, scalar comparisons, boolean operations and conditionals.
 Profile 0.2 adds acyclic named records and resolved fields; record construction and equality remain
-unsupported. The current profiles cover local scopes, civil dates and the admitted decision tables. Lists,
+unsupported. The current profiles cover local scopes, civil dates and the admitted decision tables and scalar collections. Broader collections,
 general functions, constraints, time, date-time and durations remain release work. The compiler
 layer exports the admitted profiles to DMN 1.6. Broader export, the DSL and the Rust proof remain open.
 

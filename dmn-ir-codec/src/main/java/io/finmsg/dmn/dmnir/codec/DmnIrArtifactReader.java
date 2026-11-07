@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
- * Strict, bounded reader for experimental portable profiles 0.0 through 0.6.
+ * Strict, bounded reader for experimental portable profiles 0.0 through 0.7.
  */
 public final class DmnIrArtifactReader {
 	public static final String SEMANTICS_VERSION = "finmsg-dmnir-scalar/0";
@@ -34,8 +34,11 @@ public final class DmnIrArtifactReader {
 	public static final String TABLE_CAPABILITY = "dmnir.tables";
 	public static final String FIELD_CONSTRAINT_SEMANTICS_VERSION = "finmsg-dmnir-field-constraints/0";
 	public static final String FIELD_CONSTRAINT_CAPABILITY = "dmnir.field-constraints";
+	public static final String COLLECTION_SEMANTICS_VERSION = "finmsg-dmnir-scalar-collections/0";
+	public static final String COLLECTION_CAPABILITY = "dmnir.scalar-collections";
 	private static final List<String> CAPABILITIES = List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY,
-			RECORD_CAPABILITY, LOCAL_CAPABILITY, DATE_CAPABILITY, TABLE_CAPABILITY, FIELD_CONSTRAINT_CAPABILITY);
+			RECORD_CAPABILITY, LOCAL_CAPABILITY, DATE_CAPABILITY, TABLE_CAPABILITY, FIELD_CONSTRAINT_CAPABILITY,
+			COLLECTION_CAPABILITY);
 	private final DmnIrLimits limits;
 
 	public DmnIrArtifactReader() {
@@ -109,12 +112,14 @@ public final class DmnIrArtifactReader {
 		private boolean datesProfile;
 		private boolean tablesProfile;
 		private boolean fieldConstraintsProfile;
+		private boolean collectionsProfile;
 		private boolean tableCell;
 		private final Map<String, Set<String>> modelIds = new HashMap<>();
 		private final Set<String> bindingIds = new HashSet<>();
 		private Map<String, DmnIrTypeReference> visibleLocals = new HashMap<>();
 		private int declarations;
 		private long expandedTypes;
+		private final Map<Address, DmnIrScalarType> collections = new HashMap<>();
 		private final Map<Address, DmnIrRecordDefinition> records = new LinkedHashMap<>();
 		private final Map<Address, Long> costs = new HashMap<>();
 		private final Map<Address, String> recordPaths = new HashMap<>();
@@ -136,11 +141,13 @@ public final class DmnIrArtifactReader {
 				case 4 -> DATE_SEMANTICS_VERSION;
 				case 5 -> TABLE_SEMANTICS_VERSION;
 				case 6 -> FIELD_CONSTRAINT_SEMANTICS_VERSION;
+				case 7 -> COLLECTION_SEMANTICS_VERSION;
 				default -> "";
 			};
 			check(artifact.getSchemaVersion().getMajor() == 0 && !semantics.isEmpty()
 					&& artifact.getSemanticsVersion().equals(semantics), UNSUPPORTED_VERSION, "artifact.schema_version",
 					"Unsupported wire or semantic version.");
+			collectionsProfile = minor >= 7;
 			fieldConstraintsProfile = minor >= 6;
 			tablesProfile = minor >= 5;
 			datesProfile = minor >= 4;
@@ -178,6 +185,19 @@ public final class DmnIrArtifactReader {
 				check(recordsProfile || model.getRecordDefinitionsCount() == 0, UNSUPPORTED_CAPABILITY,
 						path + ".record_definitions", "Records require profile 0.2.");
 				Set<String> typeNames = new HashSet<>();
+				check(collectionsProfile || model.getCollectionDefinitionsCount() == 0, UNSUPPORTED_CAPABILITY,
+						path + ".collection_definitions", "Collections require profile 0.7.");
+				for (int j = 0; j < model.getCollectionDefinitionsCount(); j++) {
+					var collection = model.getCollectionDefinitions(j);
+					String collectionPath = path + ".collection_definitions[" + j + "]";
+					budget(collectionPath);
+					identity(collection.getIdentity(), ids, typeNames, collectionPath + ".identity");
+					var element = collection.getElementType();
+					scalar(element, collectionPath + ".element_type");
+					check(element != DmnIrScalarType.SCALAR_TYPE_NULL, INVALID_TYPE, collectionPath + ".element_type",
+							"A collection needs a non-null scalar element type.");
+					collections.put(new Address(model.getNamespace(), collection.getIdentity().getId()), element);
+				}
 				for (int j = 0; j < model.getRecordDefinitionsCount(); j++) {
 					var record = model.getRecordDefinitions(j);
 					String recordPath = path + ".record_definitions[" + j + "]";
@@ -243,8 +263,7 @@ public final class DmnIrArtifactReader {
 				check(!variable.getId().isBlank() && ids.add(variable.getId()), INVALID_IDENTITY, path + ".variable.id",
 						"A variable ID must be non-empty and unique.");
 			}
-			var type = typeOf(variable.getType(), variable.hasRecordType(), variable.getRecordType(),
-					path + ".variable.type");
+			var type = typeOf(variable, path + ".variable.type");
 			elements.put(new Address(model.getNamespace(), identity.getId()),
 					new Element(type, decision, path, model.getNamespace()));
 		}
@@ -304,8 +323,7 @@ public final class DmnIrArtifactReader {
 				return;
 			}
 			DmnIrExpression expression = decision.getExpression();
-			var resultType = typeOf(expression.getType(), expression.hasRecordType(), expression.getRecordType(),
-					path + ".expression.type");
+			var resultType = typeOf(expression, path + ".expression.type");
 			check(assignable(resultType, owner.type()), INVALID_TYPE, path + ".expression.type",
 					"Expression type is incompatible with its declared result.");
 			node(expression, owner, dependencies, path + ".expression", 1);
@@ -427,7 +445,8 @@ public final class DmnIrArtifactReader {
 		private void cell(DmnIrExpression expression, DmnIrScalarType type, Element owner, Set<Address> dependencies,
 				String path) {
 			scalar(type, path);
-			check(!expression.hasRecordType() && assignable(expression.getType(), type), INVALID_TYPE, path,
+			check(!expression.hasRecordType() && !expression.hasCollectionType()
+					&& assignable(expression.getType(), type), INVALID_TYPE, path,
 					"Cell expression must be compatible with the column's scalar type.");
 			node(expression, owner, dependencies, path, 1);
 		}
@@ -436,11 +455,10 @@ public final class DmnIrArtifactReader {
 				int depth) {
 			check(depth <= limits.maxDepth(), LIMIT_EXCEEDED, path, "Expression depth budget exceeded.");
 			String nodeTypePath = path + (expression.hasRecordType() ? ".record_type" : ".type");
-			var nodeType = typeOf(expression.getType(), expression.hasRecordType(), expression.getRecordType(),
-					nodeTypePath);
+			var nodeType = typeOf(expression, nodeTypePath);
 			validateType(nodeType, owner.namespace(), nodeTypePath);
-			check(!tableCell || !expression.hasContext(), INVALID_EXPRESSION, path,
-					"Boxed expressions are unsupported in table cells.");
+			check(!tableCell || !expression.hasContext() && !expression.hasCollectionType(), INVALID_EXPRESSION, path,
+					"Boxed expressions and collections are unsupported in table cells.");
 			switch (expression.getNodeCase()) {
 				case LOCAL_REFERENCE -> {
 					check(localsProfile, UNSUPPORTED_CAPABILITY, path, "Local references require profile 0.3.");
@@ -471,31 +489,50 @@ public final class DmnIrArtifactReader {
 								check(!variable.getId().isBlank()
 										&& modelIds.get(owner.namespace()).add(variable.getId()), INVALID_IDENTITY,
 										bp + ".variable.id", "Source variable ID must be unique.");
-							var bt = typeOf(variable.getType(), variable.hasRecordType(), variable.getRecordType(),
-									bp + ".variable.type");
+							var bt = typeOf(variable, bp + ".variable.type");
 							validateType(bt, owner.namespace(), bp + ".variable.type");
 							check(binding.hasValue(), INVALID_EXPRESSION, bp, "Binding value is required.");
 							node(binding.getValue(), owner, dependencies, bp + ".value", depth + 1);
 							var value = binding.getValue();
-							check(assignable(typeOf(value.getType(), value.hasRecordType(), value.getRecordType(), bp),
-									bt), INVALID_TYPE, bp, "Binding value type is incompatible.");
+							check(assignable(typeOf(value, bp), bt), INVALID_TYPE, bp,
+									"Binding value type is incompatible.");
 							visibleLocals.put(binding.getBindingId(), bt);
 						}
 						node(context.getResult(), owner, dependencies, path + ".context.result", depth + 1);
 						var result = context.getResult();
-						check(assignable(typeOf(result.getType(), result.hasRecordType(), result.getRecordType(), path),
-								nodeType), INVALID_TYPE, path, "Context result type is incompatible.");
+						check(assignable(typeOf(result, path), nodeType), INVALID_TYPE, path,
+								"Context result type is incompatible.");
 					} finally {
 						visibleLocals = outer;
 					}
 				}
-				case LITERAL -> literal(expression.getLiteral(), expression.getType(), path + ".literal");
+				case LITERAL -> {
+					check(!nodeType.hasCollectionType(), INVALID_TYPE, path + ".type",
+							"Use a list constructor or scalar null for a collection value.");
+					literal(expression.getLiteral(), expression.getType(), path + ".literal");
+				}
+				case LIST -> {
+					check(collectionsProfile, UNSUPPORTED_CAPABILITY, path, "List expressions require profile 0.7.");
+					check(nodeType.hasCollectionType(), INVALID_TYPE, path + ".type",
+							"A list needs a named collection type.");
+					var elementType = collections.get(Address.of(nodeType.getCollectionType()));
+					for (int i = 0; i < expression.getList().getElementsCount(); i++) {
+						var element = expression.getList().getElements(i);
+						String elementPath = path + ".list.elements[" + i + "]";
+						check(!element.hasRecordType() && !element.hasCollectionType()
+								&& assignable(element.getType(), elementType), INVALID_TYPE, elementPath,
+								"List element must be compatible with the collection element type.");
+						node(element, owner, dependencies, elementPath, depth + 1);
+					}
+				}
 				case GLOBAL_REFERENCE -> {
 					DmnIrReference value = expression.getGlobalReference();
 					Element target = reference(value, owner, path + ".global_reference");
 					check(dependencies.contains(Address.of(value)), INVALID_DEPENDENCY, path + ".global_reference",
 							"Expression reference is not a declared dependency.");
-					check(assignable(target.type(), nodeType), INVALID_TYPE, path + ".type",
+					check(nodeType.hasCollectionType()
+							? target.type().equals(nodeType)
+							: assignable(target.type(), nodeType), INVALID_TYPE, path + ".type",
 							"Reference type does not match the expression type.");
 				}
 				case UNARY -> {
@@ -529,7 +566,8 @@ public final class DmnIrArtifactReader {
 								BINARY_OPERATOR_DIVIDE, BINARY_OPERATOR_POWER ->
 							numberPair && expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER;
 						case BINARY_OPERATOR_EQUAL, BINARY_OPERATOR_NOT_EQUAL ->
-							booleanResult && !value.getLeft().hasRecordType() && !value.getRight().hasRecordType();
+							booleanResult && left != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED
+									&& right != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED;
 						case BINARY_OPERATOR_LESS, BINARY_OPERATOR_LESS_EQUAL, BINARY_OPERATOR_GREATER,
 								BINARY_OPERATOR_GREATER_EQUAL ->
 							(numberPair || (left == DmnIrScalarType.SCALAR_TYPE_STRING
@@ -551,13 +589,9 @@ public final class DmnIrArtifactReader {
 					node(value.getElseExpression(), owner, dependencies, path + ".conditional.else_expression",
 							depth + 1);
 					check(bool(value.getCondition().getType())
-							&& assignable(typeOf(value.getThenExpression().getType(),
-									value.getThenExpression().hasRecordType(),
-									value.getThenExpression().getRecordType(), path), nodeType)
-							&& assignable(typeOf(value.getElseExpression().getType(),
-									value.getElseExpression().hasRecordType(),
-									value.getElseExpression().getRecordType(), path), nodeType),
-							INVALID_TYPE, path + ".conditional", "Conditional types are incompatible.");
+							&& assignable(typeOf(value.getThenExpression(), path), nodeType)
+							&& assignable(typeOf(value.getElseExpression(), path), nodeType), INVALID_TYPE,
+							path + ".conditional", "Conditional types are incompatible.");
 				}
 				case FIELD_ACCESS -> {
 					check(recordsProfile, UNSUPPORTED_CAPABILITY, path, "Field access requires profile 0.2.");
@@ -581,9 +615,23 @@ public final class DmnIrArtifactReader {
 		private void budget(String path) {
 			check(++declarations <= limits.maxElements(), LIMIT_EXCEEDED, path, "Declaration budget exceeded.");
 		}
-		private DmnIrTypeReference typeOf(DmnIrScalarType scalar, boolean hasRecord, DmnIrReference record,
+		private DmnIrTypeReference typeOf(DmnIrVariable value, String path) {
+			return typeOf(value.getType(), value.hasRecordType() ? value.getRecordType() : null,
+					value.hasCollectionType() ? value.getCollectionType() : null, path);
+		}
+		private DmnIrTypeReference typeOf(DmnIrExpression value, String path) {
+			return typeOf(value.getType(), value.hasRecordType() ? value.getRecordType() : null,
+					value.hasCollectionType() ? value.getCollectionType() : null, path);
+		}
+		private DmnIrTypeReference typeOf(DmnIrScalarType scalar, DmnIrReference record, DmnIrReference collection,
 				String path) {
-			if (hasRecord) {
+			if (collection != null) {
+				check(collectionsProfile, UNSUPPORTED_CAPABILITY, path, "Collection types require profile 0.7.");
+				check(record == null && scalar == DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED, INVALID_TYPE, path,
+						"Scalar, record and collection types are mutually exclusive.");
+				return DmnIrTypeReference.newBuilder().setCollectionType(collection).build();
+			}
+			if (record != null) {
 				check(recordsProfile, UNSUPPORTED_CAPABILITY, path, "Record types require profile 0.2.");
 				check(scalar == DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED, INVALID_TYPE, path,
 						"Scalar and record types are mutually exclusive.");
@@ -597,12 +645,27 @@ public final class DmnIrArtifactReader {
 				scalar(type.getScalarType(), path);
 				return;
 			}
+			if (type.hasCollectionType()) {
+				collectionTarget(type.getCollectionType(), namespace, path);
+				expandedTypes += 2;
+				check(expandedTypes <= limits.maxMessages(), LIMIT_EXCEEDED, path, "Expanded type budget exceeded.");
+				return;
+			}
 			check(type.hasRecordType() && recordsProfile, INVALID_TYPE, path,
 					"An explicit supported type is required.");
 			typeTarget(type.getRecordType(), namespace, path);
 			expandedTypes += costs.get(Address.of(type.getRecordType()));
 			check(expandedTypes <= limits.maxMessages(), LIMIT_EXCEEDED, path, "Expanded type budget exceeded.");
 		}
+		private void collectionTarget(DmnIrReference reference, String namespace, String path) {
+			check(collectionsProfile, UNSUPPORTED_CAPABILITY, path, "Collection types require profile 0.7.");
+			check(++references <= limits.maxReferences(), LIMIT_EXCEEDED, path, "Reference budget exceeded.");
+			var address = Address.of(reference);
+			check(collections.containsKey(address), INVALID_REFERENCE, path, "Collection type does not resolve.");
+			check(namespace.equals(address.namespace()) || imports.get(namespace).contains(address.namespace()),
+					INVALID_IMPORT, path, "Imported type requires a direct bundled import.");
+		}
+
 		private Address typeTarget(DmnIrReference reference, String namespace, String path) {
 			check(++references <= limits.maxReferences(), LIMIT_EXCEEDED, path, "Reference budget exceeded.");
 			var address = Address.of(reference);
@@ -618,7 +681,7 @@ public final class DmnIrArtifactReader {
 					"A field constraint requires a non-null scalar base type.");
 			tests(field.getConstraint(), type, path, (endpoint, endpointPath) -> {
 				check(endpoint.hasLiteral(), INVALID_EXPRESSION, endpointPath, "A constant endpoint is required.");
-				check(!endpoint.hasRecordType() && assignable(endpoint.getType(), type)
+				check(!endpoint.hasRecordType() && !endpoint.hasCollectionType() && assignable(endpoint.getType(), type)
 						&& (!endpoint.getLiteral().hasNullValue()
 								|| endpoint.getType() == DmnIrScalarType.SCALAR_TYPE_NULL),
 						INVALID_TYPE, endpointPath, "Constraint endpoint must be compatible with the field type.");
@@ -637,6 +700,8 @@ public final class DmnIrArtifactReader {
 					var type = field.getType();
 					if (type.hasScalarType())
 						scalar(type.getScalarType(), fieldPath + ".type");
+					else if (type.hasCollectionType())
+						collectionTarget(type.getCollectionType(), entry.getKey().namespace(), fieldPath + ".type");
 					else {
 						check(type.hasRecordType(), INVALID_TYPE, fieldPath + ".type", "A field type is required.");
 						dependencies
@@ -660,8 +725,8 @@ public final class DmnIrArtifactReader {
 				long cost = 1;
 				int height = 1;
 				for (var field : records.get(address).getFieldsList()) {
-					long childCost = 1;
-					int childHeight = 1;
+					int childHeight = field.getType().hasCollectionType() ? 2 : 1;
+					long childCost = childHeight;
 					if (field.getType().hasRecordType()) {
 						var child = Address.of(field.getType().getRecordType());
 						childCost = costs.get(child);

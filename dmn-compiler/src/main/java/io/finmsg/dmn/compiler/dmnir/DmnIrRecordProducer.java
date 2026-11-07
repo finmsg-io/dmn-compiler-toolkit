@@ -13,14 +13,13 @@ import java.util.function.BiFunction;
 final class DmnIrRecordProducer {
 	private final DmnModelSetSemanticResult semantic;
 	private final Map<String, DmnIrLocalBinding> localBindings = new HashMap<>();
-	private boolean localProfile;
-	private boolean dateProfile;
 	private final Map<String, DmnSemanticModel> models = new LinkedHashMap<>();
 	private record TypeName(String namespace, String name) {
 	}
 	private final Map<TypeName, DmnIrReference> named = new HashMap<>();
 	private final Map<DmnIrReference, DmnIrTypeReference> declarations = new HashMap<>();
 	private final Map<DmnIrReference, DmnIrRecordDefinition> records = new HashMap<>();
+	private final Map<DmnIrReference, DmnIrCollectionDefinition> collections = new HashMap<>();
 	private static final Comparator<DmnIrReference> ORDER = Comparator.comparing(DmnIrReference::getModelNamespace)
 			.thenComparing(DmnIrReference::getElementId);
 
@@ -37,19 +36,32 @@ final class DmnIrRecordProducer {
 		boolean tableProfile = fieldConstraintsProfile
 				|| models.values().stream().flatMap(m -> m.model().getDrgElementsList().stream())
 						.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasDecisionTable());
-		dateProfile = tableProfile || models.values().stream().anyMatch(m -> DmnIrDates.containsDate(m.model()));
-		localProfile = models.values().stream().anyMatch(m -> m.model().getDrgElementsList().stream()
+		boolean dateProfile = tableProfile
+				|| models.values().stream().anyMatch(m -> DmnIrDates.containsDate(m.model()));
+		boolean localProfile = models.values().stream().anyMatch(m -> m.model().getDrgElementsList().stream()
 				.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasBoxedExpression()));
 		for (var model : models.values())
 			for (var item : model.model().getItemDefinitionsList()) {
-				if (item.getNode().getId().isBlank() || item.getComponentsCount() == 0 || item.getIsCollection()
-						|| item.hasType() || item.hasConstraint())
+				if (item.getNode().getId().isBlank() || item.hasConstraint())
 					throw unsupported();
-				named.put(new TypeName(model.identity().namespace(), item.getNode().getName()),
-						ref(model.identity().namespace(), item.getNode().getId()));
+				var reference = ref(model.identity().namespace(), item.getNode().getId());
+				named.put(new TypeName(model.identity().namespace(), item.getNode().getName()), reference);
+				if (item.getIsCollection()) {
+					if (item.getComponentsCount() != 0 || !item.getType().hasBuiltin())
+						throw unsupported();
+					var element = type(item.getType(), model).getScalarType();
+					if (element == DmnIrScalarType.SCALAR_TYPE_NULL)
+						throw unsupported();
+					collections.put(reference, DmnIrCollectionDefinition.newBuilder()
+							.setIdentity(identity(item.getNode())).setElementType(element).build());
+				} else if (item.getComponentsCount() == 0 || item.hasType()) {
+					throw unsupported();
+				}
 			}
 		for (var model : models.values())
 			for (var item : model.model().getItemDefinitionsList()) {
+				if (item.getIsCollection())
+					continue;
 				var record = DmnIrRecordDefinition.newBuilder().setIdentity(identity(item.getNode()));
 				for (var component : item.getComponentsList()) {
 					if (component.getIsCollection() || component.getComponentsCount() != 0)
@@ -82,35 +94,42 @@ final class DmnIrRecordProducer {
 				else
 					throw unsupported();
 			}
+		int minor = !collections.isEmpty()
+				? 7
+				: fieldConstraintsProfile ? 6 : tableProfile ? 5 : dateProfile ? 4 : localProfile ? 3 : 2;
 		var artifact = DmnIrArtifact.newBuilder()
-				.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(
-						fieldConstraintsProfile ? 6 : tableProfile ? 5 : dateProfile ? 4 : localProfile ? 3 : 2))
-				.setSemanticsVersion(fieldConstraintsProfile
-						? DmnIrArtifactReader.FIELD_CONSTRAINT_SEMANTICS_VERSION
-						: tableProfile
-								? DmnIrArtifactReader.TABLE_SEMANTICS_VERSION
-								: dateProfile
-										? DmnIrArtifactReader.DATE_SEMANTICS_VERSION
-										: localProfile
-												? DmnIrArtifactReader.LOCAL_SEMANTICS_VERSION
-												: DmnIrArtifactReader.RECORD_SEMANTICS_VERSION)
-				.addRequiredCapabilities("dmnir.scalar").addRequiredCapabilities("dmnir.scalar-expressions")
+				.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(minor))
+				.setSemanticsVersion(switch (minor) {
+					case 7 -> DmnIrArtifactReader.COLLECTION_SEMANTICS_VERSION;
+					case 6 -> DmnIrArtifactReader.FIELD_CONSTRAINT_SEMANTICS_VERSION;
+					case 5 -> DmnIrArtifactReader.TABLE_SEMANTICS_VERSION;
+					case 4 -> DmnIrArtifactReader.DATE_SEMANTICS_VERSION;
+					case 3 -> DmnIrArtifactReader.LOCAL_SEMANTICS_VERSION;
+					default -> DmnIrArtifactReader.RECORD_SEMANTICS_VERSION;
+				}).addRequiredCapabilities("dmnir.scalar").addRequiredCapabilities("dmnir.scalar-expressions")
 				.addRequiredCapabilities("dmnir.records")
 				.setRootModelNamespace(semantic.model(semantic.rootId()).orElseThrow().identity().namespace());
-		if (localProfile || dateProfile)
+		if (minor >= 3)
 			artifact.addRequiredCapabilities(DmnIrArtifactReader.LOCAL_CAPABILITY);
-		if (dateProfile)
+		if (minor >= 4)
 			artifact.addRequiredCapabilities(DmnIrArtifactReader.DATE_CAPABILITY);
-		if (tableProfile)
+		if (minor >= 5)
 			artifact.addRequiredCapabilities(DmnIrArtifactReader.TABLE_CAPABILITY);
-		if (fieldConstraintsProfile)
+		if (minor >= 6)
 			artifact.addRequiredCapabilities(DmnIrArtifactReader.FIELD_CONSTRAINT_CAPABILITY);
+		if (minor >= 7)
+			artifact.addRequiredCapabilities(DmnIrArtifactReader.COLLECTION_CAPABILITY);
 		for (var model : models.values()) {
 			var output = DmnIrModel.newBuilder().setIdentity(identity(model.model().getNode()))
 					.setNamespace(model.identity().namespace());
 			model.model().getItemDefinitionsList().stream().sorted(Comparator.comparing(i -> i.getNode().getId()))
-					.forEach(i -> output
-							.addRecordDefinitions(records.get(ref(model.identity().namespace(), i.getNode().getId()))));
+					.forEach(item -> {
+						var reference = ref(model.identity().namespace(), item.getNode().getId());
+						if (item.getIsCollection())
+							output.addCollectionDefinitions(collections.get(reference));
+						else
+							output.addRecordDefinitions(records.get(reference));
+					});
 			model.model().getImportsList().stream()
 					.sorted(Comparator.comparing(io.finmsg.dmn.model.Import::getNamespace)
 							.thenComparing(io.finmsg.dmn.model.Import::getName))
@@ -150,8 +169,8 @@ final class DmnIrRecordProducer {
 						wire.setDecisionTable(table(decision.getLogic().getDecisionTable(), result, model,
 								path + "/decisionTable", dependencies));
 					} else if (decision.getLogic().hasLiteralExpression()) {
-						wire.setExpression(feel(decision.getLogic().getLiteralExpression(), model,
-								path + "/literalExpression", dependencies));
+						wire.setExpression(expression(decision.getLogic().getLiteralExpression().getParsed().getAst(),
+								model, path + "/literalExpression", dependencies, 1, result));
 					} else {
 						wire.setExpression(boxed(decision.getLogic().getBoxedExpression().getParsed(), model,
 								path + "/boxedExpression", dependencies, 1, result));
@@ -354,7 +373,10 @@ final class DmnIrRecordProducer {
 			var record = named.get(new TypeName(namespace, name));
 			if (record == null)
 				throw unsupported();
-			return DmnIrTypeReference.newBuilder().setRecordType(record).build();
+			var reference = DmnIrTypeReference.newBuilder();
+			return (collections.containsKey(record)
+					? reference.setCollectionType(record)
+					: reference.setRecordType(record)).build();
 		}
 		if (!type.hasBuiltin())
 			throw unsupported();
@@ -372,7 +394,9 @@ final class DmnIrRecordProducer {
 		if (!item.getNode().getId().isBlank())
 			output.setId(item.getNode().getId());
 		var type = type(item.getType(), model);
-		if (type.hasRecordType())
+		if (type.hasCollectionType())
+			output.setCollectionType(type.getCollectionType());
+		else if (type.hasRecordType())
 			output.setRecordType(type.getRecordType());
 		else
 			output.setType(type.getScalarType());
@@ -380,6 +404,10 @@ final class DmnIrRecordProducer {
 	}
 	private DmnIrExpression expression(Expression source, DmnSemanticModel model, String path,
 			Set<DmnIrReference> dependencies, int depth) {
+		return expression(source, model, path, dependencies, depth, null);
+	}
+	private DmnIrExpression expression(Expression source, DmnSemanticModel model, String path,
+			Set<DmnIrReference> dependencies, int depth, DmnIrTypeReference expected) {
 		if (depth > 32)
 			throw unsupported();
 		var binding = model.bindings().stream().filter(b -> b.referencePath().equals(path)).findFirst();
@@ -390,10 +418,14 @@ final class DmnIrRecordProducer {
 				if (local == null)
 					throw unsupported();
 				var variable = local.getVariable();
-				var localType = variable.hasRecordType()
-						? DmnIrTypeReference.newBuilder().setRecordType(variable.getRecordType()).build()
-						: DmnIrTypeReference.newBuilder().setScalarType(variable.getType()).build();
-				return typed(localType)
+				var localType = DmnIrTypeReference.newBuilder();
+				if (variable.hasCollectionType())
+					localType.setCollectionType(variable.getCollectionType());
+				else if (variable.hasRecordType())
+					localType.setRecordType(variable.getRecordType());
+				else
+					localType.setScalarType(variable.getType());
+				return typed(localType.build())
 						.setLocalReference(DmnIrLocalReference.newBuilder().setBindingId(local.getBindingId())).build();
 			}
 			var address = ref(
@@ -419,20 +451,35 @@ final class DmnIrRecordProducer {
 					.setFieldAccess(DmnIrFieldAccess.newBuilder().setSource(parent).setFieldName(value.getMember()))
 					.build();
 		}
+		if (source.hasList()) {
+			if (expected == null || !expected.hasCollectionType())
+				throw unsupported();
+			var list = DmnIrListExpression.newBuilder();
+			for (int i = 0; i < source.getList().getElementsCount(); i++)
+				list.addElements(expression(source.getList().getElements(i), model, path + "/element[" + i + "]",
+						dependencies, depth + 1));
+			return typed(expected).setList(list).build();
+		}
 		if (source.hasIfExpression()) {
 			var value = source.getIfExpression();
 			var condition = expression(value.getCondition(), model, path + "/condition", dependencies, depth + 1);
-			var yes = expression(value.getThenExpression(), model, path + "/then", dependencies, depth + 1);
-			var no = expression(value.getElseExpression(), model, path + "/else", dependencies, depth + 1);
+			var yes = expression(value.getThenExpression(), model, path + "/then", dependencies, depth + 1, expected);
+			var no = expression(value.getElseExpression(), model, path + "/else", dependencies, depth + 1, expected);
 			DmnIrTypeReference result;
-			if (yes.hasRecordType() || no.hasRecordType()) {
-				result = expressionType(yes.hasRecordType() ? yes : no);
-				var other = expressionType(yes.hasRecordType() ? no : yes);
-				if (!other.equals(result)
-						&& !(other.hasScalarType() && other.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL))
+			var yesType = expressionType(yes);
+			var noType = expressionType(no);
+			if (!yesType.hasScalarType() || !noType.hasScalarType()) {
+				result = yesType.hasScalarType() ? noType : yesType;
+				var other = yesType.hasScalarType() ? yesType : noType;
+				if (!other.equals(result) && other.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL)
 					throw unsupported();
-			} else
+			} else if (expected != null && expected.hasCollectionType()
+					&& yesType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL
+					&& noType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL) {
+				result = expected;
+			} else {
 				result = type(source.getInferredType(), model);
+			}
 			return typed(result).setConditional(DmnIrConditionalExpression.newBuilder().setCondition(condition)
 					.setThenExpression(yes).setElseExpression(no)).build();
 		}
@@ -507,7 +554,7 @@ final class DmnIrRecordProducer {
 	private DmnIrExpression parsed(ExpressionParsed source, DmnSemanticModel model, String path,
 			Set<DmnIrReference> dependencies, int depth, DmnIrTypeReference expected) {
 		if (source.hasFeel())
-			return expression(source.getFeel().getAst(), model, path, dependencies, depth);
+			return expression(source.getFeel().getAst(), model, path, dependencies, depth, expected);
 		if (source.hasBoxed())
 			return boxed(source.getBoxed(), model, path, dependencies, depth, expected);
 		throw unsupported();
@@ -582,12 +629,17 @@ final class DmnIrRecordProducer {
 		return target;
 	}
 	private static DmnIrTypeReference expressionType(DmnIrExpression value) {
-		return value.hasRecordType()
-				? DmnIrTypeReference.newBuilder().setRecordType(value.getRecordType()).build()
-				: DmnIrTypeReference.newBuilder().setScalarType(value.getType()).build();
+		var type = DmnIrTypeReference.newBuilder();
+		if (value.hasCollectionType())
+			return type.setCollectionType(value.getCollectionType()).build();
+		if (value.hasRecordType())
+			return type.setRecordType(value.getRecordType()).build();
+		return type.setScalarType(value.getType()).build();
 	}
 	private static DmnIrExpression.Builder typed(DmnIrTypeReference type) {
 		var b = DmnIrExpression.newBuilder();
+		if (type.hasCollectionType())
+			return b.setCollectionType(type.getCollectionType());
 		return type.hasRecordType() ? b.setRecordType(type.getRecordType()) : b.setType(type.getScalarType());
 	}
 	private static DmnIrElementIdentity identity(Node node) {

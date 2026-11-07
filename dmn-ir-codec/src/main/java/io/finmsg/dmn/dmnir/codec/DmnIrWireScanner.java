@@ -12,6 +12,7 @@ import io.finmsg.dmn.dmnir.proto.v0.DmnIrInput;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrDecision;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrReference;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrRecordDefinition;
+import io.finmsg.dmn.dmnir.proto.v0.DmnIrCollectionDefinition;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrRecordField;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrLocalBinding;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrLocalReference;
@@ -52,6 +53,7 @@ final class DmnIrWireScanner {
 		if (descriptor == DmnIrModel.getDescriptor()) {
 			check(++models <= limits.maxModels(), LIMIT_EXCEEDED, path, "Model budget exceeded.");
 		} else if (descriptor == DmnIrInput.getDescriptor() || descriptor == DmnIrDecision.getDescriptor()
+				|| descriptor == DmnIrCollectionDefinition.getDescriptor()
 				|| descriptor == DmnIrRecordDefinition.getDescriptor() || descriptor == DmnIrRecordField.getDescriptor()
 				|| descriptor == DmnIrLocalBinding.getDescriptor() || descriptor == DmnIrTableInput.getDescriptor()
 				|| descriptor == DmnIrTableOutput.getDescriptor() || descriptor == DmnIrTableRule.getDescriptor()) {

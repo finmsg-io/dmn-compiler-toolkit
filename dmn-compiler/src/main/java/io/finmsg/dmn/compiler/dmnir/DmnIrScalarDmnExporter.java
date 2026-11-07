@@ -80,8 +80,14 @@ public final class DmnIrScalarDmnExporter {
 				&& artifact.getRequiredCapabilitiesList()
 						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
 								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints"));
+		boolean collectionProfile = artifact.getSchemaVersion().getMinor() == 7
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar-collections/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
+								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
+								"dmnir.scalar-collections"));
 		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
-				|| localProfile || dateProfile || tableProfile || constraintProfile))
+				|| localProfile || dateProfile || tableProfile || constraintProfile || collectionProfile))
 			throw invalid(null);
 		var types = new DmnIrRecordTypes(artifact);
 		var models = artifact.getModelsList().stream().sorted(Comparator.comparing(DmnIrModel::getNamespace)).toList();
@@ -99,6 +105,11 @@ public final class DmnIrScalarDmnExporter {
 			filenames.put(model.getNamespace(), String.format(Locale.ROOT, "model-%04d.dmn", filenames.size()));
 			Set<String> ids = new HashSet<>();
 			checkIdentity(model.getIdentity(), ids, null);
+			for (var collection : model.getCollectionDefinitionsList()) {
+				checkIdentity(collection.getIdentity(), ids, null);
+				if (!ID.matcher(collection.getIdentity().getName()).matches())
+					throw invalid(null);
+			}
 			for (var record : model.getRecordDefinitionsList()) {
 				checkIdentity(record.getIdentity(), ids, null);
 				if (!ID.matcher(record.getIdentity().getName()).matches())
@@ -113,8 +124,8 @@ public final class DmnIrScalarDmnExporter {
 			for (var input : model.getInputsList())
 				admit(model, input.getIdentity(), input.getVariable(), true, true, ids, names, declarations);
 			for (var decision : model.getDecisionsList())
-				admit(model, decision.getIdentity(), decision.getVariable(), false, !constraintProfile, ids, names,
-						declarations);
+				admit(model, decision.getIdentity(), decision.getVariable(), false,
+						!constraintProfile && !collectionProfile, ids, names, declarations);
 			for (var imported : model.getImportsList()) {
 				name(imported.getName(), null);
 				if (!names.add(imported.getName()))
@@ -125,10 +136,17 @@ public final class DmnIrScalarDmnExporter {
 		for (var model : models) {
 			var definitions = Definitions.newBuilder().setNode(node(model.getIdentity()))
 					.setNamespace(model.getNamespace()).setModelNamespaceUri(DmnNamespaces.DMN_1_6);
-			if (recordProfile || localProfile || dateProfile || tableProfile || constraintProfile) {
+			if (recordProfile || localProfile || dateProfile || tableProfile || constraintProfile
+					|| collectionProfile) {
 				int prefix = 0;
 				for (var namespace : models.stream().map(DmnIrModel::getNamespace).toList())
 					definitions.addNamespaces(Namespace.newBuilder().setPrefix("t" + prefix++).setUri(namespace));
+				for (var collection : model.getCollectionDefinitionsList().stream()
+						.sorted(Comparator.comparing(c -> c.getIdentity().getId())).toList()) {
+					definitions.addItemDefinitions(ItemDefinition.newBuilder().setNode(node(collection.getIdentity()))
+							.setIsCollection(true).setType(dmnType(collection.getElementType(), false,
+									DmnIrReference.getDefaultInstance(), types)));
+				}
 				for (var record : model.getRecordDefinitionsList().stream()
 						.sorted(Comparator.comparing(r -> r.getIdentity().getId())).toList()) {
 					var item = ItemDefinition.newBuilder().setNode(node(record.getIdentity()));
@@ -136,9 +154,12 @@ public final class DmnIrScalarDmnExporter {
 						var fieldNode = Node.newBuilder().setName(field.getName());
 						if (field.hasId())
 							fieldNode.setId(field.getId());
+						var fieldType = field.getType();
 						var component = ItemComponent.newBuilder().setNode(fieldNode)
-								.setType(dmnType(field.getType().getScalarType(), field.getType().hasRecordType(),
-										field.getType().getRecordType(), types));
+								.setType(fieldType.hasCollectionType()
+										? collectionType(fieldType.getCollectionType(), types)
+										: dmnType(fieldType.getScalarType(), fieldType.hasRecordType(),
+												fieldType.getRecordType(), types));
 						if (field.hasConstraint()) {
 							var address = ref(model.getNamespace(), record.getIdentity().getId());
 							component.setConstraint(TypeConstraint.newBuilder()
@@ -335,7 +356,16 @@ public final class DmnIrScalarDmnExporter {
 		if (value.hasId())
 			node.setId(value.getId());
 		return InformationItem.newBuilder().setNode(node)
-				.setType(dmnType(value.getType(), value.hasRecordType(), value.getRecordType(), types)).build();
+				.setType(value.hasCollectionType()
+						? collectionType(value.getCollectionType(), types)
+						: dmnType(value.getType(), value.hasRecordType(), value.getRecordType(), types))
+				.build();
+	}
+	private static TypeReference collectionType(DmnIrReference reference, DmnIrRecordTypes types) {
+		return TypeReference.newBuilder()
+				.setNamed(NamedTypeReference.newBuilder().setNamespace(reference.getModelNamespace())
+						.setName(types.collection(reference).getIdentity().getName()))
+				.build();
 	}
 	private static TypeReference dmnType(DmnIrScalarType scalar, boolean record, DmnIrReference reference,
 			DmnIrRecordTypes types) {
@@ -399,6 +429,10 @@ public final class DmnIrScalarDmnExporter {
 			return "(" + expression(expression.getFieldAccess().getSource(), model, declarations, address, locals)
 					+ ")." + expression.getFieldAccess().getFieldName();
 		}
+		if (expression.hasList())
+			return expression.getList().getElementsList().stream()
+					.map(element -> expression(element, model, declarations, address, locals))
+					.collect(Collectors.joining(", ", "[", "]"));
 		if (expression.hasGlobalReference()) {
 			var reference = expression.getGlobalReference();
 			String variable = declarations.get(reference).name();
