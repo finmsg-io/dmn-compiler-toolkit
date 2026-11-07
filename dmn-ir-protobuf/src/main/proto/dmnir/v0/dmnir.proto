@@ -6,7 +6,7 @@ option java_package = "io.finmsg.dmn.dmnir.proto.v0";
 option java_multiple_files = true;
 option java_outer_classname = "DmnIrProtos";
 
-// Experimental profiles 0.0 through 0.3 of ADR-0026. Not a stable v1 wire contract.
+// Experimental profiles 0.0 through 0.4 of ADR-0026. Not a stable v1 wire contract.
 // No semantic-protobuf imports, FEEL source, original XML or second logic graph.
 // Parsing these messages does NOT validate an executable model. A bounded verifier
 // must check versions, capabilities, declarations, types, references and ordering.
@@ -84,6 +84,7 @@ enum DmnIrScalarType {
   SCALAR_TYPE_BOOLEAN = 2;
   SCALAR_TYPE_NUMBER = 3;
   SCALAR_TYPE_STRING = 4;
+  SCALAR_TYPE_DATE = 5;
 }
 
 message DmnIrExpression {
@@ -191,11 +192,20 @@ message DmnIrLiteral {
     bool boolean_value = 2;
     string string_value = 3;
     DmnIrDecimal number_value = 4;
+    DmnIrDate date_value = 5;
   }
 }
 
 enum DmnIrNull {
   NULL_VALUE = 0;
+}
+
+// Timezone-free proleptic Gregorian civil date. All components require presence.
+// Semantic year range is -999999999 through 999999999, excluding year zero.
+message DmnIrDate {
+  optional sint32 year = 1;
+  optional uint32 month = 2;
+  optional uint32 day = 3;
 }
 
 message DmnIrDecimal {

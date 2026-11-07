@@ -13,6 +13,7 @@ final class DmnIrRecordProducer {
 	private final DmnModelSetSemanticResult semantic;
 	private final Map<String, DmnIrLocalBinding> localBindings = new HashMap<>();
 	private boolean localProfile;
+	private boolean dateProfile;
 	private final Map<String, DmnSemanticModel> models = new LinkedHashMap<>();
 	private record TypeName(String namespace, String name) {
 	}
@@ -29,6 +30,7 @@ final class DmnIrRecordProducer {
 	}
 
 	DmnIrArtifactReader.VerifiedArtifact produce() {
+		dateProfile = models.values().stream().anyMatch(m -> DmnIrDates.containsDate(m.model()));
 		localProfile = models.values().stream().anyMatch(m -> m.model().getDrgElementsList().stream()
 				.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasBoxedExpression()));
 		for (var model : models.values())
@@ -65,15 +67,20 @@ final class DmnIrRecordProducer {
 					throw unsupported();
 			}
 		var artifact = DmnIrArtifact.newBuilder()
-				.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(localProfile ? 3 : 2))
-				.setSemanticsVersion(localProfile
-						? DmnIrArtifactReader.LOCAL_SEMANTICS_VERSION
-						: DmnIrArtifactReader.RECORD_SEMANTICS_VERSION)
+				.setSchemaVersion(
+						DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(dateProfile ? 4 : localProfile ? 3 : 2))
+				.setSemanticsVersion(dateProfile
+						? DmnIrArtifactReader.DATE_SEMANTICS_VERSION
+						: localProfile
+								? DmnIrArtifactReader.LOCAL_SEMANTICS_VERSION
+								: DmnIrArtifactReader.RECORD_SEMANTICS_VERSION)
 				.addRequiredCapabilities("dmnir.scalar").addRequiredCapabilities("dmnir.scalar-expressions")
 				.addRequiredCapabilities("dmnir.records")
 				.setRootModelNamespace(semantic.model(semantic.rootId()).orElseThrow().identity().namespace());
-		if (localProfile)
+		if (localProfile || dateProfile)
 			artifact.addRequiredCapabilities(DmnIrArtifactReader.LOCAL_CAPABILITY);
+		if (dateProfile)
+			artifact.addRequiredCapabilities(DmnIrArtifactReader.DATE_CAPABILITY);
 		for (var model : models.values()) {
 			var output = DmnIrModel.newBuilder().setIdentity(identity(model.model().getNode()))
 					.setNamespace(model.identity().namespace());
@@ -182,6 +189,7 @@ final class DmnIrRecordProducer {
 			case BUILTIN_TYPE_BOOLEAN -> DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
 			case BUILTIN_TYPE_NUMBER -> DmnIrScalarType.SCALAR_TYPE_NUMBER;
 			case BUILTIN_TYPE_STRING -> DmnIrScalarType.SCALAR_TYPE_STRING;
+			case BUILTIN_TYPE_DATE -> DmnIrScalarType.SCALAR_TYPE_DATE;
 			default -> throw unsupported();
 		}).build();
 	}
@@ -265,6 +273,12 @@ final class DmnIrRecordProducer {
 					case LITERAL_KIND_NULL -> literal.setNullValue(DmnIrNull.NULL_VALUE);
 					case LITERAL_KIND_BOOLEAN -> literal.setBooleanValue(Boolean.parseBoolean(value.getValue()));
 					case LITERAL_KIND_STRING -> literal.setStringValue(value.getValue());
+					case LITERAL_KIND_DATE -> {
+						var date = DmnIrDates.fromFeel(value.getValue());
+						if (date == null)
+							throw unsupported();
+						literal.setDateValue(DmnIrDates.wire(date));
+					}
 					case LITERAL_KIND_NUMBER -> {
 						var number = new BigDecimal(value.getValue());
 						literal.setNumberValue(DmnIrDecimal.newBuilder()
@@ -293,6 +307,17 @@ final class DmnIrRecordProducer {
 			}
 			case INVOCATION -> {
 				var value = source.getInvocation();
+				if (value.getTarget().hasName() && value.getTarget().getName().getName().equals("date")
+						&& source.getInferredType().getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE
+						&& value.getArgumentsCount() == 0 && value.getPositionalArgumentsCount() == 1
+						&& value.getPositionalArguments(0).hasLiteral()
+						&& value.getPositionalArguments(0).getLiteral().getKind() == LiteralKind.LITERAL_KIND_STRING
+						&& model.bindings().stream().noneMatch(b -> b.referencePath().equals(path + "/target"))) {
+					var date = DmnIrDates.fromFeel(value.getPositionalArguments(0).getLiteral().getValue());
+					if (date == null)
+						throw unsupported();
+					return output.setLiteral(DmnIrLiteral.newBuilder().setDateValue(DmnIrDates.wire(date))).build();
+				}
 				if (!value.getTarget().hasName() || !value.getTarget().getName().getName().equals("not")
 						|| value.getArgumentsCount() != 0 || value.getPositionalArgumentsCount() != 1)
 					throw unsupported();

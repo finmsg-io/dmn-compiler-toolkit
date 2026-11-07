@@ -124,6 +124,7 @@
 - [x] Implement and verify schema 0.1 unary/binary/conditional expressions across production, bounded validation, execution, generated Java and DMN 1.6 export; retain 0.0 compatibility
 - [x] Verify schema 0.2 named records/field access through bounded validation, execution and DMN 1.6 export; 590 reactor tests passed. Temporal fields, constraints and tables remain open
 - [x] Verify schema 0.3 boxed contexts and resolved local bindings through codec, source/interpreter/generated-Java and DMN 1.6 parity; 11 focused and 601 full-reactor tests passed
+- [x] Verify schema 0.4 civil dates in a bundled policy with imported types and decisions, nested fields, locals and conditional results. Passed 615 reactor tests and 52 official date cases per backend.
 - [ ] Generate DMN 1.6 from the artifact alone and validate schema, independent reading and behavioral equivalence
 - [ ] Deliver concise DSL, formatter, diagnostics, inline tests and CLI workflows through shared semantics
 - [ ] Prove independent Rust generation and execution for a published supported profile

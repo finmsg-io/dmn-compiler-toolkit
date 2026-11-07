@@ -89,7 +89,7 @@ class DmnIrRecordParityTest {
 	void rejectsUnsupportedConstraintsTemporalFieldsAndRecordConstruction() {
 		var source = source(false);
 		String xml = new String(source.content(), StandardCharsets.UTF_8);
-		for (String changed : List.of(xml.replace("<typeRef>string</typeRef>", "<typeRef>date</typeRef>"),
+		for (String changed : List.of(xml.replace("<typeRef>string</typeRef>", "<typeRef>time</typeRef>"),
 				xml.replace("<typeRef>number</typeRef>",
 						"<typeRef>number</typeRef><allowedValues><text>&gt; 0</text></allowedValues>"),
 				xml.replace("<text>Driver</text>", "<text>{Name: \"Synthetic\", Points: 1}</text>"))) {

@@ -1862,3 +1862,223 @@ include deliberate fallback coverage; they do not replace or contradict the reco
 
 Broader temporal/constraint semantics, tables, DSL/CLI, Rust and release readiness remain open.
 The existing nullable-context compiler facade advisory remains unchanged.
+
+## 20. Civil date values — proposed schema 0.4 contract
+
+Date: 2026-11-06. Status on 2026-11-07: **implemented and verified**.
+The user selected “Proceed with section 20” before implementation. Initial wire/calendar tests
+passed; the broader parity run found an existing optimizer mismatch. Completion is not claimed.
+Prerequisite: completed schema 0.3 (`1b128cf`). Continues R12-02/03/04/05; it does not reopen
+Option A/ADR-0026. The Traffic Violation source declares tViolation.Date even though its current
+decisions do not read that field. Date admission must therefore include retained unused types.
+
+### Outcome and alternatives
+
+Represent a timezone-free civil Gregorian date precisely in inputs, named-record fields,
+literal expressions, local bindings and results. Support date references, field access,
+conditionals, equality and date/date ordering through the existing execution operators.
+No timestamp conversion, timezone inference, date arithmetic, time/date-time/duration values,
+general date functions, constraints or decision tables are included.
+
+Recommended encoding: explicit signed year, month and day. Alternatives reviewed: a canonical
+ISO date string is readable but makes every target interpret a textual value grammar; epoch-day
+encoding is compact but moves the Gregorian/year-range conversion into every exporter and
+consumer. Structured civil fields make the calendar and bounds explicit and avoid accidental
+midnight/UTC conversions. This stores a typed value, not source FEEL or a second logic graph.
+
+### Additive wire and exact profile
+
+Schema **0.4**, semantics `finmsg-dmnir-dates/0`, exact ordered capabilities
+`[dmnir.scalar, dmnir.scalar-expressions, dmnir.records, dmnir.local-bindings, dmnir.date]`.
+Preserve all previous tags, enum numbers and exact profiles. Add SCALAR_TYPE_DATE = 5 to the
+existing scalar enum and `DmnIrDate date_value = 5` to DmnIrLiteral's value oneof:
+
+```proto
+message DmnIrDate {
+  optional sint32 year = 1;
+  optional uint32 month = 2;
+  optional uint32 day = 3;
+}
+```
+
+All three fields require explicit presence. Use the proleptic Gregorian calendar with signed
+years **-999,999,999 through 999,999,999**, excluding year zero under the approved amendment.
+Months are 1–12 and days must exist
+in that month/year, with the divisible-by-4/100/400 leap-year rule applied across signed years.
+Reject malformed dates rather than normalizing them (for example, February 30 cannot roll into
+March). The schema's larger numeric storage domains do not widen these semantic bounds.
+
+This range matches the existing LocalDate-backed execution boundary and retained TCK fixtures
+in `1115-feel-date-function`; the codec remains independent of runtime/compiler modules. Neither
+the wire contract nor its validation may depend on locale, system timezone, clock or host epoch.
+Date values and the DATE scalar kind require profile 0.4 everywhere, including unused declarations.
+Consumers independently pin the exact new profile; older consumers reject it. Producers select
+0.4 only when dates are present and preserve earlier profile selection for existing models.
+
+### Source, execution and export boundaries
+
+Admit existing parsed date literals and the built-in `date` invocation with one valid constant
+string argument. Resolve the built-in using existing source analysis. Convert its value once to
+the structured date; do not store the invocation/string as executable FEEL. Reject dynamic,
+invalid or other date constructor forms explicitly in this slice, including forms that an
+optimizer might otherwise erase. Preserve named record identity and source IDs around date fields.
+
+Native input coercion remains the current runtime policy: date inputs/fields use LocalDate or
+null, and incompatible host values follow existing coercion behavior. Do not add automatic
+string-to-date coercion. Derive RuntimeTypeKind.DATE and RuntimeConstantKind.DATE locally.
+DATE/DATE ordered comparisons and existing scalar equality retain runtime null behavior;
+mixed ordered comparisons, arithmetic and boolean operators on dates fail profile validation.
+Conditional/local/record typing follows existing assignability rules, including explicit null.
+
+Export `typeRef="date"` and synthesized `date("...")` literal FEEL. Keep FEEL date formatting
+separate from the internal Java ISO string used by RuntimeConstantKind.DATE: the existing
+`DmnRuntime.parseFeelDate` accepts positive extended years without a leading plus, while
+LocalDate's ISO string includes that plus for years beyond 9999. Use deterministic digits,
+four-digit minimum year magnitude and two-digit months/days. Preserve signed years.
+For example, civil year 10000 exports as `date("10000-01-01")`; no timezone or time is invented.
+
+```mermaid
+flowchart LR
+    Source["Analyzed date declaration or constant date value"] --> Civil["0.4 signed year + month + day"]
+    Civil --> Verify["Presence, range, Gregorian validity and typed operators"]
+    Verify --> Runtime["Existing DATE type and LocalDate execution"]
+    Verify --> Export["DMN 1.6 date types and synthesized date FEEL"]
+    Export --> Parity["Official XSD and recompiled date parity"]
+```
+
+### Acceptance and work breakdown
+
+1. Pin enum/tag/message golden vectors and exact headers. Probe preserved actual 0.3 compiled
+   consumers for old-artifact acceptance and rejection of a new 0.4 artifact.
+2. Validate DATE admission in every type position, including unused record fields, and date
+   literal/type agreement. Reject missing civil components, zero/invalid month/day, invalid leap
+   days, out-of-range years, unknown enum values and old headers carrying date values/types.
+3. Prove source/adapter/generated-Java parity for literal/reference/field/local/conditional dates
+   and date comparisons. Cover leap/non-leap centuries, year-zero rejection, negative years, years 9999 and
+   10000, both range endpoints, null/missing/incompatible native values and exact round trips.
+   Reuse existing JUnit 5/Surefire; focused owning/downstream checks precede the full reactor.
+4. Export from the artifact alone, validate official DMN 1.6 XSD, recompile and compare both
+   lowered/optimized execution. Run an artifact-only separate-JVM consumer and deterministic
+   byte/export checks. Test date literals independently of the host timezone.
+5. Run shared-contract full reactor, tooling, strict documentation/link checks and record per-run
+   evidence. Keep mixed Spark regression SQL-action rates separate from official TCK results.
+
+Affected modules: schema, bounded codec, compiler portable producer/adapter/exporter, Java
+generator parity tests and canonical docs. Existing byte/message/depth/declaration/reference
+limits apply; no extra date-specific resource-limit API or dependency is proposed. This does
+not establish full temporal conformance or full Traffic Violation support: its allowed-values
+constraint and Fine decision table remain explicit gaps after date admission.
+
+### Approved amendment discovered during implementation
+
+The user selected “Proceed with the amendment.” The amendment governs year-zero admission
+and date normalization for this slice.
+
+The original proposal incorrectly treated Java's full LocalDate domain as directly exportable
+through FEEL date strings. Read-only normative verification found that DMN 1.6 sections
+10.3.2.3.5 and 10.3.4.1 refer to XML Schema Part 2 Second Edition for date strings. That edition
+disallows year-zero spelling and leading plus signs. Sources:
+[DMN 1.6 specification](https://www.omg.org/spec/DMN/1.6/PDF),
+[XML Schema date lexical rules](https://www.w3.org/TR/xmlschema-2/#dateTime-lexical-representation).
+The downloaded normative PDF and text remain ignored target artifacts. The wire contract above
+incorporates the approved correction.
+
+Amendment scope:
+
+1. Exclude year zero from portable date literals and source-date admission. Preserve explicit
+   component presence and the remaining signed range. Reject noncanonical/invalid FEEL date
+   strings. Treat year zero as a negative acceptance case, not a claimed conforming DMN export.
+   Native input coercion remains existing runtime policy; wire/source date admission does not
+   promise to repair every existing host-value validation behavior.
+2. Extend the implementation boundary to RuntimeExpressionLowerer and ConstantFoldingPass only
+   for date-constant normalization. Valid source DATE literals and folded date-string constructors
+   must produce Java ISO date constants consumed by existing interpreter/generated Java, including
+   the positive extended-year plus sign internally. FEEL export still uses no leading plus.
+3. Correct constant-folding validation for valid four-digit negative years such as -0400 and
+   -0001. Preserve rejection of year zero, impossible dates and malformed lexical forms. Do not
+   add runtime/compiler module dependencies or change time/date-time/duration behavior.
+4. Add focused lowering/optimizer regression tests and source/artifact/generated-Java/exported
+   parity over these cases before full-reactor verification. Existing unrelated nullable-context
+   facade behavior remains untouched. Revalidate affected official date TCK cases where feasible;
+   do not replace the recorded whole-suite TCK evidence with a focused result.
+
+Alternatives: keep year zero as an explicitly non-exportable DMNIR extension and document the
+existing optimizer gap, or defer all date delivery. The recommended amendment avoids publishing
+an export promise that cannot be fulfilled and resolves the demonstrated parity blocker.
+
+Evidence so far: `target/release-1.2-dates-compile.log` caught a generated class-name mismatch in
+the new helper; corrected before `target/release-1.2-dates-focused.log` passed five codec tests.
+`target/release-1.2-dates-parity.log` passed those five codec tests and three of four compiler
+tests, including the bundled policy and separate timezone consumers; the remaining compiler test
+failed because the existing optimizer changed date("-0400-02-29") to null. Native/fallback routing
+is N/A for these runs.
+
+### Sophisticated model acceptance — user clarification
+
+Traffic Violation is illustrative and must not define the IR architecture or the release ceiling.
+Acceptance must compose supported features: multiple bundled models, namespace-qualified imports
+and decision dependencies, nested named types, intermediate scopes, conditional results, exact
+numeric/temporal boundaries and independent consumers. The date slice now has a two-model policy
+fixture combining imported record types, nested date fields, an imported cutoff decision, local
+date bindings, equality/ordering and conditional date results, plus separate JVM timezone checks.
+Generated-Java parity also passed on a composed policy bundle.
+
+The broader release still needs explicit profiles and composed-model evidence for constraints,
+decision-table hit policies/output shapes, collections/filters/quantifiers, reusable functions/BKMs
+and richer temporal behavior as established by the work-package feature inventory. Passing one
+sample or isolated operator tests cannot establish support for those model families. DSL and Rust
+must consume the published supported profiles and prove composed-model parity; unsupported
+constructs remain explicit rejection, never erased metadata or a fallback claim.
+
+### Implementation and verification on 2026-11-07
+
+The codec rejects year zero in 0.4 and the producer checks the FEEL date spelling before
+emitting a civil value. The lowerer and optimizer derive internal Java ISO constants for valid
+dates. Constant-folded date-to-string results use the FEEL spelling. The amended focused run
+passed 14 tests with zero failures, errors or skips (`target/release-1.2-dates-amended-parity.log`).
+It covered codec, lowering, optimization, direct and artifact execution, DMN 1.6 round trips,
+separate JVM timezones and generated Java. These tests did not measure Spark routing.
+
+The first official focused date run executed 156 checks across the interpreter, Java and Spark.
+150 passed and six failed. Two `string(date(...))` cases failed on each backend because a leading
+plus leaked into the result after date normalization. Spark recorded 50/52 native passes (96.15%),
+0/52 fallback passes (0%), zero unknown routes and zero compilation blocks. No errors were reported.
+The optimizer now formats the folded string without the internal sign. The initial failure log
+is retained at `target/release-1.2-dates-focused-tck.log`.
+
+The corrected official date run passed 156/156 checks with zero failures, errors or skips.
+Each of the interpreter, generated Java and Spark passed 52 cases. Spark recorded 52/52 native
+passes (100%), 0/52 fallback passes (0%), zero unknown routes and zero compilation blocks.
+Both targeted optimizer tests also passed. The run log and accounting are preserved in
+`target/release-1.2-dates-focused-tck-final.log` and
+`target/release-1.2-dates-focused-tck-accounting.json`. The established whole-suite checkpoint
+remains recorded separately in `docs/tck-conformance.md`.
+
+The emitted example `target/date-policy-0.4.dmnir` and its textproto contain two models with an
+imported date cutoff, nested record fields, date locals, comparison and conditional results.
+The artifact returned the input date in year 10000 for `Effective`. Both exported DMN documents
+under `target/date-policy-dmn` passed official 1.6 XSD checks after pretty-printing. The saved 0.3
+reader accepted its 0.3 artifact and rejected the new 0.4 artifact with UNKNOWN_FIELD. Logs are
+`target/release-1.2-dates-artifact.log`, `target/release-1.2-dates-pretty-print.log` and
+`target/release-1.2-dates-old-reader.log`.
+
+The saved codec jar SHA-256 is `B8BE91F9604D2F7EA7D2C562471F8C70431382C3FC6BA4110309A7376D8F7739`.
+The saved schema jar SHA-256 is `949873FD502D61E2EA519B892DA0478CD33490E2BD7744724F5CA226659CA24B`.
+The full reactor and Spotless passed with **615 tests and zero failures, errors or skips**.
+See `target/release-1.2-dates-reactor.log` and `target/release-1.2-dates-verification-summary.json`.
+The 73 tooling tests, strict MkDocs build and link checks passed. See the `-tools.log`, `-docs.log`
+and `-documentation.log` files with the `release-1.2-dates` prefix under `target`.
+
+Mixed Spark SQL regression actions from the full reactor:
+
+| Suite | Native | Fallback | Unknown | Completed | Failed actions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| DmnIntegration | 13 | 0 | 0 | 13 | 0 |
+| HybridIntegration | 2,952 | 119 | 0 | 3,071 | 60 |
+| LiteralEscapingIntegration | 50 | 0 | 0 | 50 | 0 |
+| TemporalChainIntegration | 19 | 0 | 0 | 19 | 0 |
+| Total | 3,034 | 119 | 0 | 3,153 | 60 |
+
+The completed regression action rates were 96.23% native and 3.77% fallback. The failed actions
+come from intentional failure tests and are counted separately. The official focused date
+results and the established whole-suite TCK checkpoint have separate denominators.

@@ -7,7 +7,13 @@ committed/pushed in `bcbbc00`; schema 0.2 is implemented and verified: 74 focuse
 pushed through `aceec3c`; its GitHub build passed. The current slice is boxed contexts
 and resolved local bindings; schema 0.3 is implemented and verified: 11 focused tests,
 601 full-reactor tests and 73 tooling tests passed. Strict documentation and link checks passed
-(section 19). Temporal/constraint semantics, decision tables, DSL/CLI and Rust remain open.
+(section 19). Schema 0.3 was pushed as `1b128cf` and its feature CI passed.
+Schema 0.4 and its civil-date amendment are implemented and verified in section 20. Fourteen
+focused tests, 615 reactor tests and 73 tooling tests passed. The optimizer formatting fix
+passed the rerun of all 52 official date cases on each backend. Spark recorded 52 native passes
+and zero fallback in that focused run. Strict documentation and link checks passed.
+Sophisticated composed models, rather than Traffic Violation alone, are required acceptance
+coverage. Constraints, decision tables, collections/functions, DSL/CLI and Rust remain open.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome

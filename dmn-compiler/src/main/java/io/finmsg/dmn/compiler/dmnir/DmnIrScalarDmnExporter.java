@@ -65,8 +65,12 @@ public final class DmnIrScalarDmnExporter {
 				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-local-bindings/0")
 				&& artifact.getRequiredCapabilitiesList().equals(
 						List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records", "dmnir.local-bindings"));
+		boolean dateProfile = artifact.getSchemaVersion().getMinor() == 4
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-dates/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions",
+						"dmnir.records", "dmnir.local-bindings", "dmnir.date"));
 		if (artifact.getSchemaVersion().getMajor() != 0
-				|| !(scalarProfile || expressionProfile || recordProfile || localProfile))
+				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile))
 			throw invalid(null);
 		var types = new DmnIrRecordTypes(artifact);
 		var models = artifact.getModelsList().stream().sorted(Comparator.comparing(DmnIrModel::getNamespace)).toList();
@@ -109,7 +113,7 @@ public final class DmnIrScalarDmnExporter {
 		for (var model : models) {
 			var definitions = Definitions.newBuilder().setNode(node(model.getIdentity()))
 					.setNamespace(model.getNamespace()).setModelNamespaceUri(DmnNamespaces.DMN_1_6);
-			if (recordProfile || localProfile) {
+			if (recordProfile || localProfile || dateProfile) {
 				int prefix = 0;
 				for (var namespace : models.stream().map(DmnIrModel::getNamespace).toList())
 					definitions.addNamespaces(Namespace.newBuilder().setPrefix("t" + prefix++).setUri(namespace));
@@ -231,6 +235,7 @@ public final class DmnIrScalarDmnExporter {
 			case SCALAR_TYPE_BOOLEAN -> BuiltinType.BUILTIN_TYPE_BOOLEAN;
 			case SCALAR_TYPE_NUMBER -> BuiltinType.BUILTIN_TYPE_NUMBER;
 			case SCALAR_TYPE_STRING -> BuiltinType.BUILTIN_TYPE_STRING;
+			case SCALAR_TYPE_DATE -> BuiltinType.BUILTIN_TYPE_DATE;
 			default -> throw invalid(null);
 		};
 		return TypeReference.newBuilder().setBuiltin(builtin).build();
@@ -340,6 +345,7 @@ public final class DmnIrScalarDmnExporter {
 			case BOOLEAN_VALUE -> Boolean.toString(value.getBooleanValue());
 			case NUMBER_VALUE -> new BigDecimal(new BigInteger(value.getNumberValue().getUnscaledValue()),
 					value.getNumberValue().getScale()).toPlainString();
+			case DATE_VALUE -> "date(\"" + DmnIrDates.feel(value.getDateValue()) + "\")";
 			case STRING_VALUE -> {
 				xml(value.getStringValue(), address);
 				yield "\"" + value.getStringValue().replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")

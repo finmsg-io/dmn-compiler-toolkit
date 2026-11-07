@@ -59,8 +59,12 @@ public final class DmnIrRuntimeAdapter {
 				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-local-bindings/0")
 				&& artifact.getRequiredCapabilitiesList().equals(
 						List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records", "dmnir.local-bindings"));
+		boolean dateProfile = artifact.getSchemaVersion().getMinor() == 4
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-dates/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions",
+						"dmnir.records", "dmnir.local-bindings", "dmnir.date"));
 		if (artifact.getSchemaVersion().getMajor() != 0
-				|| !(scalarProfile || expressionProfile || recordProfile || localProfile))
+				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile))
 			throw new IllegalArgumentException("Unsupported runtime adapter profile.");
 		var types = new DmnIrRecordTypes(artifact);
 		List<Declaration> declarations = new ArrayList<>();
@@ -182,6 +186,8 @@ public final class DmnIrRuntimeAdapter {
 					case NULL_VALUE -> new RuntimeConstant(RuntimeConstantKind.NULL, "null", type);
 					case BOOLEAN_VALUE -> new RuntimeConstant(RuntimeConstantKind.BOOLEAN,
 							Boolean.toString(literal.getBooleanValue()), type);
+					case DATE_VALUE -> new RuntimeConstant(RuntimeConstantKind.DATE,
+							DmnIrDates.value(literal.getDateValue()).toString(), type);
 					case STRING_VALUE ->
 						new RuntimeConstant(RuntimeConstantKind.STRING, literal.getStringValue(), type);
 					case NUMBER_VALUE -> {

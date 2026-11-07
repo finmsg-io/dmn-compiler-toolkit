@@ -677,7 +677,12 @@ public class ConstantFoldingPass implements OptimizerPass {
 				if (c.kind() == RuntimeConstantKind.NULL || c.value() == null) {
 					return new RuntimeConstant(RuntimeConstantKind.NULL, "null", call.type());
 				}
-				return new RuntimeConstant(RuntimeConstantKind.STRING, c.value(), call.type());
+				String value = c.value();
+				if (c.kind() == RuntimeConstantKind.DATE && value.startsWith("+")) {
+					// Internal ISO constants retain the sign required by LocalDate.parse.
+					value = value.substring(1);
+				}
+				return new RuntimeConstant(RuntimeConstantKind.STRING, value, call.type());
 			}
 		}
 		if (name.equals("date")) {
@@ -686,8 +691,9 @@ public class ConstantFoldingPass implements OptimizerPass {
 					return new RuntimeConstant(RuntimeConstantKind.NULL, "null", call.type());
 				}
 				if (c.kind() == RuntimeConstantKind.STRING) {
-					if (isValidDateLiteral(c.value())) {
-						return new RuntimeConstant(RuntimeConstantKind.DATE, c.value(), call.type());
+					String normalized = normalizeDateLiteral(c.value());
+					if (normalized != null) {
+						return new RuntimeConstant(RuntimeConstantKind.DATE, normalized, call.type());
 					}
 					return new RuntimeConstant(RuntimeConstantKind.NULL, "null", call.type());
 				}
@@ -726,9 +732,7 @@ public class ConstantFoldingPass implements OptimizerPass {
 					if (d > maxDays) {
 						return new RuntimeConstant(RuntimeConstantKind.NULL, "null", call.type());
 					}
-					String formatted = (y < 0 ? "-" : "")
-							+ (Math.abs(y) < 10000 ? String.format("%04d", Math.abs(y)) : String.valueOf(Math.abs(y)))
-							+ "-" + String.format("%02d-%02d", m, d);
+					String formatted = LocalDate.of((int) y, m, d).toString();
 					return new RuntimeConstant(RuntimeConstantKind.DATE, formatted, call.type());
 				} catch (Exception e) {
 					return new RuntimeConstant(RuntimeConstantKind.NULL, "null", call.type());
@@ -1782,6 +1786,20 @@ public class ConstantFoldingPass implements OptimizerPass {
 		}
 	}
 
+	private static String normalizeDateLiteral(String text) {
+		if (text == null || !text.matches("-?(?:[0-9]{4}|[1-9][0-9]{4,8})-[0-9]{2}-[0-9]{2}"))
+			return null;
+		try {
+			int endYear = text.indexOf('-', text.startsWith("-") ? 1 : 0);
+			int year = Integer.parseInt(text.substring(0, endYear));
+			return year == 0
+					? null
+					: LocalDate.of(year, Integer.parseInt(text.substring(endYear + 1, endYear + 3)),
+							Integer.parseInt(text.substring(endYear + 4))).toString();
+		} catch (java.time.DateTimeException | NumberFormatException invalid) {
+			return null;
+		}
+	}
 	private static boolean isValidDateLiteral(String val) {
 		if (val == null)
 			return false;

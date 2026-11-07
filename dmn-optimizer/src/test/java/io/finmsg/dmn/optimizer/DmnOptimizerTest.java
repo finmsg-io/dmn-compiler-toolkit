@@ -10,6 +10,42 @@ import org.junit.jupiter.api.Test;
 
 class DmnOptimizerTest {
 	@Test
+	void foldedDateConstructorsRetainNegativeAndExtendedYearsInInternalIsoForm() {
+		var type = RuntimeType.scalar(RuntimeTypeKind.DATE);
+		for (var value : java.util.Map.of("-0400-02-29", "-0400-02-29", "-0001-01-01", "-0001-01-01", "10000-01-01",
+				"+10000-01-01", "999999999-12-31", "+999999999-12-31").entrySet()) {
+			var call = new RuntimeFunctionCall("date",
+					java.util.List.of(new RuntimeConstant(RuntimeConstantKind.STRING, value.getKey(), STRING_TYPE)),
+					type);
+			assertThat(new ConstantFoldingPass().transformExpression(call))
+					.isEqualTo(new RuntimeConstant(RuntimeConstantKind.DATE, value.getValue(), type));
+			assertThat(new ConstantFoldingPass()
+					.transformExpression(new RuntimeFunctionCall("string", java.util.List.of(call), STRING_TYPE)))
+					.isEqualTo(new RuntimeConstant(RuntimeConstantKind.STRING, value.getKey(), STRING_TYPE));
+		}
+		var numeric = new RuntimeFunctionCall("date",
+				java.util.List.of(new RuntimeConstant(RuntimeConstantKind.NUMBER, "10000", NUMBER_TYPE),
+						new RuntimeConstant(RuntimeConstantKind.NUMBER, "1", NUMBER_TYPE),
+						new RuntimeConstant(RuntimeConstantKind.NUMBER, "1", NUMBER_TYPE)),
+				type);
+		assertThat(new ConstantFoldingPass().transformExpression(numeric))
+				.isEqualTo(new RuntimeConstant(RuntimeConstantKind.DATE, "+10000-01-01", type));
+		assertThat(new ConstantFoldingPass()
+				.transformExpression(new RuntimeFunctionCall("string", java.util.List.of(numeric), STRING_TYPE)))
+				.isEqualTo(new RuntimeConstant(RuntimeConstantKind.STRING, "10000-01-01", STRING_TYPE));
+	}
+	@Test
+	void foldedDateConstructorsKeepRejectingYearZeroAndInvalidLexicalForms() {
+		var type = RuntimeType.scalar(RuntimeTypeKind.DATE);
+		for (String value : java.util.List.of("0000-01-01", "-0000-01-01", "2023-02-29", "+10000-01-01", "010000-01-01",
+				"-00001-01-01")) {
+			var call = new RuntimeFunctionCall("date",
+					java.util.List.of(new RuntimeConstant(RuntimeConstantKind.STRING, value, STRING_TYPE)), type);
+			assertThat(new ConstantFoldingPass().transformExpression(call))
+					.isEqualTo(new RuntimeConstant(RuntimeConstantKind.NULL, "null", type));
+		}
+	}
+	@Test
 	void fractionalTemporalArithmeticRetainsExactOperandsInsteadOfDoubleFolding() {
 		var time = RuntimeType.scalar(RuntimeTypeKind.TIME);
 		var dateTime = RuntimeType.scalar(RuntimeTypeKind.DATE_TIME);

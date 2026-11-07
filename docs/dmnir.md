@@ -1,7 +1,7 @@
 # Experimental portable DMNIR
 
 The `dmn-ir-protobuf` module defines the experimental structured scalar wire contract.
-`dmn-ir-codec` adds bounded decoding and validation for four exact experimental profiles:
+`dmn-ir-codec` adds bounded decoding and validation for five exact experimental profiles:
 
 | Schema | Semantics | Required capabilities, in order |
 | --- | --- | --- |
@@ -9,6 +9,7 @@ The `dmn-ir-protobuf` module defines the experimental structured scalar wire con
 | 0.1 | `finmsg-dmnir-scalar-expressions/0` | `dmnir.scalar`, `dmnir.scalar-expressions` |
 | 0.2 | `finmsg-dmnir-records/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records` |
 | 0.3 | `finmsg-dmnir-local-bindings/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`, `dmnir.local-bindings` |
+| 0.4 | `finmsg-dmnir-dates/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`, `dmnir.local-bindings`, `dmnir.date` |
 
 This implements the first scalar slice of [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md).
 The reader validates without executing. `DmnIrRuntimeAdapter` in `dmn-compiler` now derives and
@@ -135,6 +136,22 @@ boxed contexts embedded in FEEL-only operand positions. Anonymous context values
 loops, tables, dates and constraints are not added by this profile. Full Traffic Violation and
 the DSL/Rust proof remain separate work.
 
+## Civil dates (schema 0.4)
+
+The date profile stores a timezone-free Gregorian year, month and day. Each component requires
+explicit presence. The year range is −999,999,999 through 999,999,999 with year zero excluded.
+The codec rejects impossible calendar days and requires 0.4 for date literals or DATE types,
+including unused record declarations. Date/date ordering and existing scalar equality are
+supported. Native input conversion delegates to the existing runtime.
+
+The producer accepts valid FEEL date literals and `date` calls with one constant date string.
+Consumers can use dates across imported decisions, nested record fields and local bindings.
+DMN 1.6 export emits `typeRef="date"` and date constructors. For positive extended years it uses
+the FEEL spelling without a leading plus, while the Java execution constant uses its ISO spelling.
+The lexical boundary follows the [DMN 1.6 specification](https://www.omg.org/spec/DMN/1.6/PDF)
+and its referenced [XML Schema datatypes](https://www.w3.org/TR/xmlschema-2/#date).
+Dynamic date constructors, date arithmetic, time, date-time and durations remain outside 0.4.
+
 ## Read an artifact
 
 ```java
@@ -200,18 +217,16 @@ The reader preserves scale and trailing coefficient zeros, including negative sc
   have their own uniqueness check.
 - Bundled imports with non-empty unique aliases. Cross-model dependencies/references require
   a direct import. Imported location hints do not affect resolution.
-- Explicit null, boolean, number and string types; literals/resolved references in both profiles
-  and admitted unary/binary/conditional expressions in 0.1/0.2, plus named records/fields in 0.2.
-  All scalar types permit null. Other values must have matching scalar types; no implicit
-  number/string coercion is introduced.
+- Explicit null, boolean, number and string types, with DATE added in 0.4. The profiles build on
+  typed unary/binary/conditional expressions, named records/fields and scoped local bindings.
+  All scalar types permit null. Other literal values must match their declared scalar type.
 - Expression references must appear among the decision's declared dependencies. Unused declared
   requirements are retained. Duplicate and self dependencies are rejected.
 - Each decision appears exactly once in the schedule. Decision dependencies precede their
   consumers, detecting cycles without recursive graph traversal. Inputs are outside the schedule.
 
-These checks establish validity for this experimental scalar profile, not full DMN/FEEL or XML
-schema conformance. Temporal values, collections, tables, functions and lexical frames are not
-represented by this slice's wire schema.
+These checks establish validity for the experimental portable profiles. Collections, decision
+tables, functions, constraints and temporal values beyond civil dates remain outside this schema.
 
 ## Strict compatibility and diagnostics
 
@@ -246,7 +261,7 @@ var result = values.get(new ElementId("urn:example:root", "result"));
 ```
 
 The sample IDs must match the artifact's declarations. The adapter accepts a `VerifiedArtifact`,
-not an unchecked generated message. It independently pins the exact supported 0.0/0.1/0.2/0.3 profiles. It derives
+not an unchecked generated message. It independently pins the exact supported 0.0 through 0.4 profiles. It derives
 local slots deterministically by namespace and element ID, preserves the verified schedule, and
 lowers the supported expression graph into the existing Runtime IR records. No XML or FEEL parsing occurs
 on this path. The original verified artifact remains available through `source()`; the derived

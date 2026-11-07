@@ -16,7 +16,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Strict, bounded reader for experimental portable profiles 0.0 through 0.3.
+ * Strict, bounded reader for experimental portable profiles 0.0 through 0.4.
  */
 public final class DmnIrArtifactReader {
 	public static final String SEMANTICS_VERSION = "finmsg-dmnir-scalar/0";
@@ -27,6 +27,8 @@ public final class DmnIrArtifactReader {
 	public static final String SCALAR_CAPABILITY = "dmnir.scalar";
 	public static final String LOCAL_SEMANTICS_VERSION = "finmsg-dmnir-local-bindings/0";
 	public static final String LOCAL_CAPABILITY = "dmnir.local-bindings";
+	public static final String DATE_SEMANTICS_VERSION = "finmsg-dmnir-dates/0";
+	public static final String DATE_CAPABILITY = "dmnir.date";
 	private final DmnIrLimits limits;
 
 	public DmnIrArtifactReader() {
@@ -97,6 +99,7 @@ public final class DmnIrArtifactReader {
 		private boolean expressions;
 		private boolean recordsProfile;
 		private boolean localsProfile;
+		private boolean datesProfile;
 		private final Map<String, Set<String>> modelIds = new HashMap<>();
 		private final Set<String> bindingIds = new HashSet<>();
 		private Map<String, DmnIrTypeReference> visibleLocals = new HashMap<>();
@@ -114,17 +117,20 @@ public final class DmnIrArtifactReader {
 			check(artifact.hasSchemaVersion() && artifact.getSchemaVersion().hasMajor()
 					&& artifact.getSchemaVersion().hasMinor(), INVALID_HEADER, "artifact.schema_version",
 					"Explicit major and minor versions are required.");
-			localsProfile = artifact.getSchemaVersion().getMinor() == 3;
+			datesProfile = artifact.getSchemaVersion().getMinor() == 4;
+			localsProfile = artifact.getSchemaVersion().getMinor() == 3 || datesProfile;
 			recordsProfile = artifact.getSchemaVersion().getMinor() == 2 || localsProfile;
 			expressions = artifact.getSchemaVersion().getMinor() == 1 || recordsProfile;
 			check(artifact.getSchemaVersion().getMajor() == 0
 					&& (artifact.getSchemaVersion().getMinor() == 0 || expressions)
 					&& artifact.getSemanticsVersion()
-							.equals(localsProfile
-									? LOCAL_SEMANTICS_VERSION
-									: recordsProfile
-											? RECORD_SEMANTICS_VERSION
-											: expressions ? EXPRESSION_SEMANTICS_VERSION : SEMANTICS_VERSION),
+							.equals(datesProfile
+									? DATE_SEMANTICS_VERSION
+									: localsProfile
+											? LOCAL_SEMANTICS_VERSION
+											: recordsProfile
+													? RECORD_SEMANTICS_VERSION
+													: expressions ? EXPRESSION_SEMANTICS_VERSION : SEMANTICS_VERSION),
 					UNSUPPORTED_VERSION, "artifact.schema_version", "Unsupported wire or semantic version.");
 			Set<String> capabilities = new HashSet<>();
 			for (int i = 0; i < artifact.getRequiredCapabilitiesCount(); i++) {
@@ -132,14 +138,17 @@ public final class DmnIrArtifactReader {
 				String path = "artifact.required_capabilities[" + i + "]";
 				check(capability.equals(SCALAR_CAPABILITY) || expressions && capability.equals(EXPRESSION_CAPABILITY)
 						|| recordsProfile && capability.equals(RECORD_CAPABILITY)
-						|| localsProfile && capability.equals(LOCAL_CAPABILITY), UNSUPPORTED_CAPABILITY, path,
+						|| localsProfile && capability.equals(LOCAL_CAPABILITY)
+						|| datesProfile && capability.equals(DATE_CAPABILITY), UNSUPPORTED_CAPABILITY, path,
 						"Required capability is not supported.");
 				check(capabilities.add(capability), INVALID_HEADER, path, "Duplicate required capability.");
 			}
 			check(capabilities.contains(SCALAR_CAPABILITY), INVALID_HEADER, "artifact.required_capabilities",
 					"The scalar capability must be declared.");
-			check(artifact.getRequiredCapabilitiesList()
-					.equals(localsProfile
+			check(artifact.getRequiredCapabilitiesList().equals(datesProfile
+					? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY, LOCAL_CAPABILITY,
+							DATE_CAPABILITY)
+					: localsProfile
 							? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY, LOCAL_CAPABILITY)
 							: recordsProfile
 									? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY)
@@ -387,7 +396,8 @@ public final class DmnIrArtifactReader {
 							booleanResult && !value.getLeft().hasRecordType() && !value.getRight().hasRecordType();
 						case BINARY_OPERATOR_LESS, BINARY_OPERATOR_LESS_EQUAL, BINARY_OPERATOR_GREATER,
 								BINARY_OPERATOR_GREATER_EQUAL ->
-							(numberPair || left == DmnIrScalarType.SCALAR_TYPE_STRING && right == left)
+							(numberPair || (left == DmnIrScalarType.SCALAR_TYPE_STRING
+									|| datesProfile && left == DmnIrScalarType.SCALAR_TYPE_DATE) && right == left)
 									&& booleanResult;
 						case BINARY_OPERATOR_AND, BINARY_OPERATOR_OR -> bool(left) && bool(right) && booleanResult;
 						default -> false;
@@ -540,6 +550,21 @@ public final class DmnIrArtifactReader {
 				}
 				case BOOLEAN_VALUE -> actual = DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
 				case STRING_VALUE -> actual = DmnIrScalarType.SCALAR_TYPE_STRING;
+				case DATE_VALUE -> {
+					check(datesProfile, UNSUPPORTED_CAPABILITY, path, "Date values require profile 0.4.");
+					var date = literal.getDateValue();
+					check(date.hasYear() && date.hasMonth() && date.hasDay(), INVALID_EXPRESSION, path + ".date_value",
+							"Explicit civil components are required.");
+					check(date.getYear() != 0, INVALID_EXPRESSION, path + ".date_value.year",
+							"Year zero is outside the DMN date profile.");
+					try {
+						java.time.LocalDate.of(date.getYear(), date.getMonth(), date.getDay());
+					} catch (java.time.DateTimeException invalid) {
+						throw new DmnIrValidationException(INVALID_EXPRESSION, path + ".date_value",
+								"Invalid proleptic Gregorian date.");
+					}
+					actual = DmnIrScalarType.SCALAR_TYPE_DATE;
+				}
 				case NUMBER_VALUE -> {
 					DmnIrDecimal number = literal.getNumberValue();
 					String coefficient = number.getUnscaledValue();
@@ -561,9 +586,10 @@ public final class DmnIrArtifactReader {
 			return actual == expected || actual == DmnIrScalarType.SCALAR_TYPE_NULL;
 		}
 
-		private static void scalar(DmnIrScalarType type, String path) {
+		private void scalar(DmnIrScalarType type, String path) {
 			boolean supported = switch (type) {
 				case SCALAR_TYPE_NULL, SCALAR_TYPE_BOOLEAN, SCALAR_TYPE_NUMBER, SCALAR_TYPE_STRING -> true;
+				case SCALAR_TYPE_DATE -> datesProfile;
 				default -> false;
 			};
 			check(supported, INVALID_TYPE, path, "An explicitly supported scalar type is required.");

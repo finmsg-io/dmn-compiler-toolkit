@@ -47,6 +47,7 @@ final class DmnIrRecordTypes {
 			case SCALAR_TYPE_BOOLEAN -> RuntimeTypeKind.BOOLEAN;
 			case SCALAR_TYPE_NUMBER -> RuntimeTypeKind.NUMBER;
 			case SCALAR_TYPE_STRING -> RuntimeTypeKind.STRING;
+			case SCALAR_TYPE_DATE -> RuntimeTypeKind.DATE;
 			default -> throw new IllegalArgumentException("Unsupported verified scalar type.");
 		});
 	}

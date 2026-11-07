@@ -151,7 +151,7 @@ class DmnIrScalarProducerTest {
 	void rejectsUnrepresentableTemporalType() {
 		assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE,
 				assertThrows(DmnIrProductionException.class, () -> new DmnIrScalarProducer().produce(source(
-						"<inputData id=\"date\" name=\"Date\"><variable name=\"Date\" typeRef=\"date\"/></inputData>")))
+						"<inputData id=\"time\" name=\"Time\"><variable name=\"Time\" typeRef=\"time\"/></inputData>")))
 						.category());
 	}
 

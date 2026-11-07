@@ -13,6 +13,9 @@ Schema **0.3** adds boxed contexts and resolved local bindings (`finmsg-dmnir-lo
 with the ordered 0.2 capabilities followed by `dmnir.local-bindings`. Binding IDs are decision-local
 identities; frame depth and slots are derived by consumers. Values execute sequentially and each
 context has a required final result. Existing profiles and tags remain unchanged.
+Schema **0.4** adds civil dates (`finmsg-dmnir-dates/0`) with the ordered 0.3 capabilities followed
+by `dmnir.date`. Dates carry a signed year, month and day. The codec requires all three components
+and checks calendar validity, the signed year range and exclusion of year zero.
 
 ## Purpose and boundaries
 
@@ -86,11 +89,9 @@ not be edited manually. The module JAR includes the namespaced `.proto` resource
 
 Profile 0.1 adds numeric arithmetic, scalar comparisons, boolean operations and conditionals.
 Profile 0.2 adds acyclic named records and resolved fields; record construction and equality remain
-unsupported. The current profiles do not represent lists, decision tables, general functions,
-lexical scopes, temporal fields or constraints. The complete Traffic Violation model
-therefore cannot yet be represented. The compiler layer implements artifact-only DMN 1.6 export
-for an explicitly admitted scalar subset. Broader export, the DSL and Rust proof remain release
-work; no full DMN conformance claim follows from this schema.
+unsupported. The current profiles cover local scopes and civil dates. Lists, decision tables,
+general functions, constraints, time, date-time and durations remain release work. The compiler
+layer exports the admitted profiles to DMN 1.6. Broader export, the DSL and the Rust proof remain open.
 
 - [DMNIR guide](../docs/dmnir.md): producer, verification, execution and compatibility boundaries.
 - [ADR-0026](../docs/architecture/adr/adr-0026-structured-portable-dmnir.md): accepted representation decision.

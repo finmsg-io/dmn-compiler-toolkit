@@ -10,6 +10,9 @@ Schema **0.3** uses `finmsg-dmnir-local-bindings/0` and the ordered 0.2 capabili
 `dmnir.local-bindings`. It validates sequential lexical scope, binding identity, local result types,
 source variable IDs and bounded declarations/references. Forward/self references and scope escape
 are rejected before consumers derive local frames or slots.
+Schema **0.4** uses `finmsg-dmnir-dates/0` and appends `dmnir.date` to the ordered 0.3 capabilities.
+It checks civil component presence, Gregorian validity, the nonzero signed year range and date
+type compatibility. DATE types and literals require 0.4, including dates in unused declarations.
 
 ## Purpose and boundaries
 

@@ -21,6 +21,67 @@ import org.junit.jupiter.api.io.TempDir;
 
 class DmnJavaGeneratorTest {
 	@Test
+	void portableDatesGenerateJavaForABundledNestedPolicy(@TempDir Path tempDir) throws Exception {
+		String calendar = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="calendar" name="Calendar" namespace="urn:date:calendar">
+				<itemDefinition id="permit" name="tPermit"><itemComponent name="Expiry"><typeRef>date</typeRef></itemComponent></itemDefinition>
+				<decision id="cutoff" name="Cutoff"><variable name="Cutoff" typeRef="date"/><literalExpression><text>date("0001-01-01")</text></literalExpression></decision></definitions>
+				""";
+		String policy = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" xmlns:cal="urn:date:calendar" id="policy" name="Policy" namespace="urn:date:policy">
+				<import name="cal" namespace="urn:date:calendar" locationURI="calendar.dmn" importType="DMN"/>
+				<itemDefinition id="applicant" name="tApplicant"><itemComponent name="Permit"><typeRef>cal:tPermit</typeRef></itemComponent></itemDefinition>
+				<inputData id="input" name="Applicant"><variable name="Applicant" typeRef="tApplicant"/></inputData>
+				<decision id="answer" name="Answer"><variable name="Answer" typeRef="date"/><informationRequirement><requiredInput href="#input"/></informationRequirement><informationRequirement><requiredDecision href="urn:date:calendar#cutoff"/></informationRequirement>
+				<context><contextEntry><variable name="Expiry" typeRef="date"/><literalExpression><text>Applicant.Permit.Expiry</text></literalExpression></contextEntry>
+				<contextEntry><literalExpression><text>if Expiry &gt;= cal.Cutoff then Expiry else null</text></literalExpression></contextEntry></context></decision></definitions>
+				""";
+		var imported = new DmnSource(DmnSourceId.of("memory:/calendar.dmn"),
+				calendar.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var source = new DmnSource(DmnSourceId.of("memory:/policy.dmn"),
+				policy.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var verified = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source,
+				new InMemoryDmnModelResolver(List.of(imported)));
+		var adapted = new DmnIrRuntimeAdapter().adapt(verified);
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(adapted.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("artifact"), generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var bundle = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarDmnExporter().export(verified);
+		var sources = bundle.documents().entrySet().stream()
+				.map(e -> new DmnSource(DmnSourceId.of("memory:/" + e.getKey()),
+						e.getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+				.toList();
+		var compiled = compiler.compile(
+				new DmnSource(DmnSourceId.of("memory:/" + bundle.rootDocument()),
+						bundle.documents().get(bundle.rootDocument())
+								.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+				new InMemoryDmnModelResolver(sources));
+		assertThat(compiled.isSuccess()).as(compiled.diagnostics().toString()).isTrue();
+		var roundtrip = compiled.optimizedRuntimeModel().orElseThrow();
+		var regenerated = generator.generate(roundtrip);
+		var exportedEngine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("exported"),
+				regenerated.mainClassName(), regenerated.mainSource()).getDeclaredConstructor().newInstance();
+		for (Object date : Arrays.asList(java.time.LocalDate.of(-1, 1, 1), java.time.LocalDate.of(1, 1, 1),
+				java.time.LocalDate.of(10000, 1, 1), java.time.LocalDate.MAX, null, "10000-01-01")) {
+			Map<String, Object> permit = new LinkedHashMap<>();
+			permit.put("Expiry", date);
+			var applicant = Map.of("Permit", permit);
+			var input = adapted.inputs().values().iterator().next();
+			var expected = adapted.evaluate(Map.of(input.id(), applicant));
+			Object[] slots = new Object[adapted.runtimeModel().valueSlotCount()];
+			slots[input.slot()] = applicant;
+			var actual = engine.evaluate(slots);
+			for (var binding : adapted.decisions().values())
+				assertThat(actual[binding.slot()]).isEqualTo(expected.get(binding.id()));
+			Object[] exportedSlots = new Object[roundtrip.model().valueSlotCount()];
+			exportedSlots[compiled.compiledModel().orElseThrow().inputSlots().get("Applicant")] = applicant;
+			Object exported = exportedEngine.evaluate(exportedSlots)[compiled.compiledModel().orElseThrow()
+					.decisionSlots().get("Answer")];
+			assertThat(exported)
+					.isEqualTo(expected.get(new DmnIrRuntimeAdapter.ElementId("urn:date:policy", "answer")));
+		}
+	}
+	@Test
 	void portableLocalBindingsGenerateExecutableJava(@TempDir Path tempDir) throws Exception {
 		String xml = """
 				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="model" name="Locals" namespace="urn:generated:locals">
