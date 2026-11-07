@@ -2243,7 +2243,7 @@ authoring DSL and independent Rust execution remain open.
 
 ## 22. Scalar constraints on record fields
 
-Date 2026-11-07. Status **proposed for review**. The bounded outcome is to preserve an admitted
+Date 2026-11-07. Status **ready to implement after the usage checkpoint**. The bounded outcome is to preserve an admitted
 field domain through DMN import, portable execution, Java generation and artifact-only DMN 1.6
 export. The existing frontend parses both item-constraint spellings, and semantic analysis
 checks unary-test operand types. Runtime type lowering currently drops the domain. The
@@ -2314,3 +2314,13 @@ name, ID and variable name. Verify this rule with both referenced and unreferenc
 Review covers the public wire addition, the portable violation policy and the narrow export
 name rule. Changes would touch the portable schema and codec, frontend and compiler adapters,
 derived Runtime IR and Java execution, with no new dependencies or publication.
+
+### Usage checkpoint and handover
+
+The user asked to continue after the section 22 review request. The five-hour window had 18%
+remaining, so the implementation was deferred and the full official Spark TCK ran against
+the source committed as `1bae5dc`. Maven exited 0. All 3,391 distinct cases passed natively
+(100.00%), with 0 fallback (0.00%), unknown routes, failures, execution errors, compilation
+errors, compilation blocks, expected rejections or skips. The pinned suite revision was
+`20274cd2ba9cad805db6114f331c743f4b2603a1`. See the
+[Spark conformance record](../../docs/tck-conformance.md#native-spark-sql-checkpoint-2026-10-26).

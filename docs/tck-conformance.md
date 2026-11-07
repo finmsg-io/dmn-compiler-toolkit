@@ -276,6 +276,15 @@ checks that the gRPC/compiler changes preserve the native Spark result.
 Maven exited 0; a post-results Surefire fork-shutdown warning was logged in this
 revalidation and remains separate from the zero failed TCK cases.
 
+The 2026-11-07 full revalidation on the DMNIR feature branch tested the source committed as
+`1bae5dc` against pinned TCK revision `20274cd2ba9cad805db6114f331c743f4b2603a1`.
+Maven exited 0 after running the optimized Spark hybrid profile with a 30-second case limit.
+All 3,391 cases passed natively (100.00%), with 0 fallback (0.00%) and 0 unknown routes,
+failures, execution errors, compilation errors, compilation blocks, expected rejections or
+skips. All case identities, statuses and routes matched the retained Spark ledger.
+Local evidence is in `target/release-1.2-usage-checkpoint-full-sparksql.log` and
+`target/release-1.2-usage-checkpoint-full-sparksql-accounting.json`.
+
 ### Historical interpreter/Java baseline - 2026-09-04 (`OfficialTckSuiteTest`)
 
 <a id="contents-section-3-1"></a>

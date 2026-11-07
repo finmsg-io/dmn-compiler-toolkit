@@ -16,8 +16,10 @@ The date profile was pushed as `ac09016` and its feature CI passed. Schema 0.5 i
 and verified in section 21. The composed policy and Fine fixture passed portable execution,
 generated Java and DMN 1.6 round-trip checks. The full reactor passed 623 tests, and 73 tooling
 tests, strict documentation and maintained-link checks passed. Constraints, collections/functions,
-the DSL/CLI and independent Rust execution remain open. Section 22 proposes schema 0.6
-for scalar constraints on record fields and awaits public-contract review.
+the DSL/CLI and independent Rust execution remain open. Schema 0.5 was pushed as `1bae5dc`.
+The 2026-11-07 usage checkpoint passed the full Spark TCK with 3,391/3,391 native passes
+(100%), zero fallback and zero failures, errors or compilation blocks. Section 22 is the
+next implementation slice. It was deferred when the five-hour usage window reached 18% remaining.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome
