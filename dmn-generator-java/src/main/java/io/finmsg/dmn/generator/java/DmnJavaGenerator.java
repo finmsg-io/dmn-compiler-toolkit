@@ -55,8 +55,8 @@ public final class DmnJavaGenerator {
 		sb.append("      System.arraycopy(inputSlots, 0, slots, 0, Math.min(inputSlots.length, SLOT_COUNT));\n");
 		sb.append("    }\n\n");
 		for (RuntimeInput in : model.inputs()) {
-			sb.append("    slots[").append(in.valueSlot()).append("] = coerce(slots[").append(in.valueSlot())
-					.append("], ").append(emitTypeConstant(in.type())).append(");\n");
+			sb.append("    slots[").append(in.valueSlot()).append("] = io.finmsg.dmn.runtime.DmnRuntime.bind(slots[")
+					.append(in.valueSlot()).append("], ").append(emitTypeConstant(in.type())).append(");\n");
 		}
 		sb.append("\n");
 
@@ -143,8 +143,7 @@ public final class DmnJavaGenerator {
 					if (i > 0)
 						sb.append(", ");
 					io.finmsg.dmn.ir.RuntimeField f = type.fieldLayout().get(i);
-					sb.append("new RuntimeField(").append(f.index()).append(", \"").append(f.name()).append("\", ")
-							.append(emitTypeConstant(f.type())).append(")");
+					sb.append(JavaExpressionEmitter.emitField(f, emitTypeConstant(f.type())));
 				}
 				sb.append("))");
 				yield sb.toString();
@@ -199,14 +198,15 @@ public final class DmnJavaGenerator {
 
 		if (decision.decisionTable().isPresent()) {
 			RuntimeDecisionTable table = decision.decisionTable().get();
-			sb.append("    return coerce(evaluate_table_").append(decision.resultSlot()).append("(slots), ")
-					.append(emitTypeConstant(decision.type())).append(");\n");
+			sb.append("    return io.finmsg.dmn.runtime.DmnRuntime.bind(evaluate_table_").append(decision.resultSlot())
+					.append("(slots), ").append(emitTypeConstant(decision.type())).append(");\n");
 			sb.append("  }\n\n");
 			sb.append("  private Object evaluate_table_").append(decision.resultSlot()).append("(Object[] slots) {\n");
 			generateDecisionTableBody(sb, table, bkmBySlot);
 		} else if (decision.expression().isPresent()) {
 			RuntimeExpression expr = decision.expression().get();
-			sb.append("    return coerce(").append(JavaExpressionEmitter.emitWithBkms(expr, bkmBySlot)).append(", ")
+			sb.append("    return io.finmsg.dmn.runtime.DmnRuntime.bind(")
+					.append(JavaExpressionEmitter.emitWithBkms(expr, bkmBySlot)).append(", ")
 					.append(emitTypeConstant(decision.type())).append(");\n");
 		} else {
 			sb.append("    return slots[").append(decision.resultSlot()).append("];\n");

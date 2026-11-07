@@ -91,7 +91,7 @@ class DmnIrRecordParityTest {
 		String xml = new String(source.content(), StandardCharsets.UTF_8);
 		for (String changed : List.of(xml.replace("<typeRef>string</typeRef>", "<typeRef>time</typeRef>"),
 				xml.replace("<typeRef>number</typeRef>",
-						"<typeRef>number</typeRef><allowedValues><text>&gt; 0</text></allowedValues>"),
+						"<typeRef>number</typeRef><allowedValues><text>&gt; 1 + 2</text></allowedValues>"),
 				xml.replace("<text>Driver</text>", "<text>{Name: \"Synthetic\", Points: 1}</text>"))) {
 			var error = assertThrows(DmnIrProductionException.class, () -> new DmnIrScalarProducer()
 					.produce(new DmnSource(source.id(), changed.getBytes(StandardCharsets.UTF_8))));

@@ -2243,7 +2243,7 @@ authoring DSL and independent Rust execution remain open.
 
 ## 22. Scalar constraints on record fields
 
-Date 2026-11-07. Status **ready to implement after the usage checkpoint**. The bounded outcome is to preserve an admitted
+Date 2026-11-07. Status **implemented and verified locally**. The bounded outcome is to preserve an admitted
 field domain through DMN import, portable execution, Java generation and artifact-only DMN 1.6
 export. The existing frontend parses both item-constraint spellings, and semantic analysis
 checks unary-test operand types. Runtime type lowering currently drops the domain. The
@@ -2324,3 +2324,26 @@ the source committed as `1bae5dc`. Maven exited 0. All 3,391 distinct cases pass
 errors, compilation blocks, expected rejections or skips. The pinned suite revision was
 `20274cd2ba9cad805db6114f331c743f4b2603a1`. See the
 [Spark conformance record](../../docs/tck-conformance.md#native-spark-sql-checkpoint-2026-10-26).
+
+### Implementation and verification
+
+Schema 0.6 stores constant unary-test domains on scalar record fields. The runtime and Java
+generator use the same domain matcher after structural conversion at input and decision
+bindings. DMN 1.6 export emits the normalized `typeConstraint` element and preserves the
+original terminal decision name in Traffic Violation. Referenced decision names still undergo
+FEEL name checks. The complete Traffic Violation model and the imported policy passed portable,
+Java and DMN 1.6 round-trip checks. The imported policy also passed artifact-only execution
+in a separate JVM and reproduced invalid input and invalid result diagnostics after re-export.
+
+The saved 0.5 reader accepted a 0.5 artifact and rejected the new wire field as `UNKNOWN_FIELD`.
+The current reader accepted both profiles. The saved binaries, artifacts and compatibility
+harness are in `target/dmnir-0.5-baseline`.
+
+The final focused run passed 135 tests with no failures, errors or skips
+(`target/release-1.2-field-constraints-focused-verified.log`). The focused suites did not
+measure Spark routing. The full reactor passed 630 tests with no failures, errors or skips
+(`target/release-1.2-field-constraints-reactor.log`). Across four Spark regression suites,
+3,034 of 3,153 completed SQL actions were native (96.23%), 119 fell back (3.77%), and none
+had unknown routing. The suites counted 60 failed SQL actions separately. This was a
+regression-suite run. The official TCK checkpoint above applies to schema 0.5 source.
+All 73 tooling tests, strict MkDocs and documentation facts and maintained-link checks passed.

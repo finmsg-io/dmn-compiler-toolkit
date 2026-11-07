@@ -1,6 +1,7 @@
 package io.finmsg.dmn.frontend.xml.dmn.reader;
 
 import io.finmsg.dmn.frontend.xml.XmlCursor;
+import io.finmsg.dmn.frontend.xml.exception.XmlException;
 import io.finmsg.dmn.model.ItemComponent;
 
 public final class ItemComponentReader {
@@ -25,7 +26,11 @@ public final class ItemComponentReader {
 				switch (cursor.documentLocalName()) {
 					case "typeRef" -> builder.setType(typeReferenceReader.read(cursor.text(), cursor));
 
-					case "allowedValues", "typeConstraint" -> builder.setConstraint(typeConstraintReader.read(cursor));
+					case "allowedValues", "typeConstraint" -> {
+						if (builder.hasConstraint())
+							throw new XmlException("An item type can declare only one constraint.");
+						builder.setConstraint(typeConstraintReader.read(cursor));
+					}
 
 					case "itemComponent" -> builder.addComponents(this.read(cursor));
 

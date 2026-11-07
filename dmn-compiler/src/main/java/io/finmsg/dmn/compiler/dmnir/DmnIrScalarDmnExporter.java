@@ -75,8 +75,13 @@ public final class DmnIrScalarDmnExporter {
 				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-tables/0")
 				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions",
 						"dmnir.records", "dmnir.local-bindings", "dmnir.date", "dmnir.tables"));
+		boolean constraintProfile = artifact.getSchemaVersion().getMinor() == 6
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-field-constraints/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
+								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints"));
 		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
-				|| localProfile || dateProfile || tableProfile))
+				|| localProfile || dateProfile || tableProfile || constraintProfile))
 			throw invalid(null);
 		var types = new DmnIrRecordTypes(artifact);
 		var models = artifact.getModelsList().stream().sorted(Comparator.comparing(DmnIrModel::getNamespace)).toList();
@@ -106,9 +111,10 @@ public final class DmnIrScalarDmnExporter {
 			}
 			Set<String> names = new HashSet<>();
 			for (var input : model.getInputsList())
-				admit(model, input.getIdentity(), input.getVariable(), true, ids, names, declarations);
+				admit(model, input.getIdentity(), input.getVariable(), true, true, ids, names, declarations);
 			for (var decision : model.getDecisionsList())
-				admit(model, decision.getIdentity(), decision.getVariable(), false, ids, names, declarations);
+				admit(model, decision.getIdentity(), decision.getVariable(), false, !constraintProfile, ids, names,
+						declarations);
 			for (var imported : model.getImportsList()) {
 				name(imported.getName(), null);
 				if (!names.add(imported.getName()))
@@ -119,7 +125,7 @@ public final class DmnIrScalarDmnExporter {
 		for (var model : models) {
 			var definitions = Definitions.newBuilder().setNode(node(model.getIdentity()))
 					.setNamespace(model.getNamespace()).setModelNamespaceUri(DmnNamespaces.DMN_1_6);
-			if (recordProfile || localProfile || dateProfile || tableProfile) {
+			if (recordProfile || localProfile || dateProfile || tableProfile || constraintProfile) {
 				int prefix = 0;
 				for (var namespace : models.stream().map(DmnIrModel::getNamespace).toList())
 					definitions.addNamespaces(Namespace.newBuilder().setPrefix("t" + prefix++).setUri(namespace));
@@ -130,9 +136,17 @@ public final class DmnIrScalarDmnExporter {
 						var fieldNode = Node.newBuilder().setName(field.getName());
 						if (field.hasId())
 							fieldNode.setId(field.getId());
-						item.addComponents(ItemComponent.newBuilder().setNode(fieldNode)
+						var component = ItemComponent.newBuilder().setNode(fieldNode)
 								.setType(dmnType(field.getType().getScalarType(), field.getType().hasRecordType(),
-										field.getType().getRecordType(), types)));
+										field.getType().getRecordType(), types));
+						if (field.hasConstraint()) {
+							var address = ref(model.getNamespace(), record.getIdentity().getId());
+							component.setConstraint(TypeConstraint.newBuilder()
+									.setText(text(tests(field.getConstraint(),
+											endpoint -> expression(endpoint, model, declarations, address, Map.of()),
+											address))));
+						}
+						item.addComponents(component);
 					}
 					definitions.addItemDefinitions(item);
 				}
@@ -282,10 +296,11 @@ public final class DmnIrScalarDmnExporter {
 	private record Declaration(String name, boolean input) {
 	}
 	private static void admit(DmnIrModel model, DmnIrElementIdentity identity, DmnIrVariable variable, boolean input,
-			Set<String> ids, Set<String> names, Map<DmnIrReference, Declaration> declarations) {
+			boolean feelName, Set<String> ids, Set<String> names, Map<DmnIrReference, Declaration> declarations) {
 		var address = ref(model.getNamespace(), identity.getId());
 		checkIdentity(identity, ids, address);
-		name(variable.getName(), address);
+		if (feelName)
+			name(variable.getName(), address);
 		if (!identity.getName().equals(variable.getName()) || !names.add(variable.getName()))
 			throw invalid(address);
 		if (variable.hasId())
@@ -387,6 +402,7 @@ public final class DmnIrScalarDmnExporter {
 		if (expression.hasGlobalReference()) {
 			var reference = expression.getGlobalReference();
 			String variable = declarations.get(reference).name();
+			name(variable, address);
 			if (reference.getModelNamespace().equals(model.getNamespace()) && locals.containsValue(variable))
 				throw invalid(address);
 			if (reference.getModelNamespace().equals(model.getNamespace()))

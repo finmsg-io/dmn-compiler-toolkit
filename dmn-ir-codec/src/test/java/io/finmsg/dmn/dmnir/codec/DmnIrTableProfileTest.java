@@ -84,7 +84,7 @@ class DmnIrTableProfileTest {
 				() -> new DmnIrArtifactReader().read(artifact.toByteArray())).code());
 	}
 
-	private static DmnIrArtifact.Builder artifact() {
+	static DmnIrArtifact.Builder artifact() {
 		return DmnIrArtifact.newBuilder().setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(5))
 				.setSemanticsVersion("finmsg-dmnir-tables/0").addAllRequiredCapabilities(DATE_CAPABILITIES)
 				.addRequiredCapabilities("dmnir.tables").setRootModelNamespace("urn:tables")

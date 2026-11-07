@@ -18,8 +18,11 @@ generated Java and DMN 1.6 round-trip checks. The full reactor passed 623 tests,
 tests, strict documentation and maintained-link checks passed. Constraints, collections/functions,
 the DSL/CLI and independent Rust execution remain open. Schema 0.5 was pushed as `1bae5dc`.
 The 2026-11-07 usage checkpoint passed the full Spark TCK with 3,391/3,391 native passes
-(100%), zero fallback and zero failures, errors or compilation blocks. Section 22 is the
-next implementation slice. It was deferred when the five-hour usage window reached 18% remaining.
+(100%), zero fallback and zero failures, errors or compilation blocks. Schema 0.6 is implemented
+and verified locally in section 22. Scalar record field constraints survive portable execution,
+generated Java and DMN 1.6 export on the full Traffic Violation model and a separate composed
+policy. The full reactor passed 630 tests. Collections/functions, the DSL/CLI and independent
+Rust execution remain open.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome

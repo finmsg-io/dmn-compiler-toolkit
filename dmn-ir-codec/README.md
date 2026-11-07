@@ -19,6 +19,10 @@ capabilities. A decision has exactly one body. Tables retain ordered columns and
 typed unary tests, default outputs and model-local identities. The admitted hit policies
 are `UNIQUE`, `FIRST` and `ANY`. See the [portable contract](../docs/dmnir.md#decision-tables-schema-05).
 
+Schema **0.6** appends `dmnir.field-constraints` to the ordered 0.5 capabilities and uses
+`finmsg-dmnir-field-constraints/0`. A scalar record field can retain a constant unary-test
+domain. See the [portable contract](../docs/dmnir.md#scalar-field-constraints-schema-06).
+
 ## Purpose and boundaries
 
 `DmnIrArtifactReader` converts untrusted binary bytes into a `VerifiedArtifact`. The generated

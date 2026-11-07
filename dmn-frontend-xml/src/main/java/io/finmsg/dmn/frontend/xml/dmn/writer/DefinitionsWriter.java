@@ -47,7 +47,8 @@ public final class DefinitionsWriter implements XmlWriter<Definitions> {
 		nodeWriter.writeChildren(xml, value.getNode());
 
 		value.getImportsList().forEach(item -> importWriter.write(xml, item));
-		value.getItemDefinitionsList().forEach(item -> itemDefinitionWriter.write(xml, item));
+		value.getItemDefinitionsList()
+				.forEach(item -> itemDefinitionWriter.write(xml, item, modelNamespace.equals(DmnNamespaces.DMN_1_6)));
 		value.getDrgElementsList().forEach(item -> drgElementWriter.write(xml, item));
 
 		xml.endElement();

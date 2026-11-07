@@ -6,7 +6,7 @@ option java_package = "io.finmsg.dmn.dmnir.proto.v0";
 option java_multiple_files = true;
 option java_outer_classname = "DmnIrProtos";
 
-// Experimental profiles 0.0 through 0.5 of ADR-0026. Not a stable v1 wire contract.
+// Experimental profiles 0.0 through 0.6 of ADR-0026. Not a stable v1 wire contract.
 // No semantic-protobuf imports, FEEL source, original XML or second logic graph.
 // Parsing these messages does NOT validate an executable model. A bounded verifier
 // must check versions, capabilities, declarations, types, references and ordering.
@@ -183,6 +183,7 @@ message DmnIrRecordField {
   optional string id = 1;
   string name = 2;
   DmnIrTypeReference type = 3;
+  DmnIrUnaryTests constraint = 4;
 }
 
 message DmnIrFieldAccess {

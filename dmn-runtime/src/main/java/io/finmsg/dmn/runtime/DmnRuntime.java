@@ -6,6 +6,7 @@ import java.math.MathContext;
 import java.time.*;
 import java.time.temporal.TemporalAmount;
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * Interpreter for {@link RuntimeModel}; model-selected Java calls are denied by
@@ -44,7 +45,7 @@ public final class DmnRuntime {
 			if (!inputs.containsKey(input.valueSlot())) {
 				throw new DmnEvaluationException("Missing input value for slot " + input.valueSlot());
 			}
-			slots[input.valueSlot()] = coerce(inputs.get(input.valueSlot()), input.type());
+			slots[input.valueSlot()] = bind(inputs.get(input.valueSlot()), input.type());
 		}
 		Map<Integer, RuntimeDecision> decisions = new HashMap<>();
 		model.decisions().forEach(value -> decisions.put(value.id(), value));
@@ -66,9 +67,43 @@ public final class DmnRuntime {
 			Frame frame = new Frame(Frame.EMPTY, decision.localSlotCount());
 			Object value = decision.expression().map(it -> state.expression(it, frame)).orElseGet(() -> decision
 					.decisionTable().map(it -> state.table(it, frame)).orElse(slots[decision.resultSlot()]));
-			slots[decision.resultSlot()] = coerce(value, decision.type());
+			slots[decision.resultSlot()] = bind(value, decision.type());
 		}
 		return new DmnEvaluationResult(model, Arrays.asList(slots.clone()));
+	}
+
+	/**
+	 * Converts a slot value and checks domains on structurally accepted records.
+	 */
+	public static Object bind(Object value, RuntimeType type) {
+		Object bound = coerce(value, type);
+		checkFieldConstraints(bound, type, "");
+		return bound;
+	}
+
+	private static void checkFieldConstraints(Object value, RuntimeType type, String path) {
+		if (!(value instanceof Map<?, ?> fields) || type == null || type.kind() != RuntimeTypeKind.CONTEXT)
+			return;
+		for (RuntimeField field : type.fieldLayout()) {
+			boolean nested = field.type().kind() == RuntimeTypeKind.CONTEXT;
+			if (!nested && field.constraint().isEmpty())
+				continue;
+			Object candidate = coerce(fields.get(field.name()), field.type());
+			String fieldPath = path + "/" + field.name().replace("~", "~0").replace("/", "~1");
+			if (field.constraint().isPresent()
+					&& !matchTests(candidate, field.constraint().orElseThrow(), DmnRuntime::constraintValue))
+				throw new DmnEvaluationException("Field constraint violated at " + fieldPath);
+			if (nested)
+				checkFieldConstraints(candidate, field.type(), fieldPath);
+		}
+	}
+
+	private static Object constraintValue(RuntimeExpression expression) {
+		return switch (expression) {
+			case RuntimeConstant value -> State.constant(value);
+			case RuntimeRangeExpression value -> range(value, DmnRuntime::constraintValue);
+			default -> throw new IllegalArgumentException("Field constraint endpoints must be constant.");
+		};
 	}
 
 	public static Object coerce(Object value, RuntimeType targetType) {
@@ -196,29 +231,7 @@ public final class DmnRuntime {
 				case RuntimePathExpression it -> property(expression(it.source(), frame), it.member(), it.fieldIndex());
 				case RuntimeDescendantExpression it ->
 					descendants(expression(it.source(), frame), it.member(), it.fieldIndex());
-				case RuntimeRangeExpression it -> {
-					Object low = null;
-					boolean lowerAbsent = it.lower().isEmpty();
-					if (!lowerAbsent) {
-						low = expression(it.lower().get(), frame);
-						if (low == null)
-							yield null;
-					}
-					Object up = null;
-					boolean upperAbsent = it.upper().isEmpty();
-					if (!upperAbsent) {
-						up = expression(it.upper().get(), frame);
-						if (up == null)
-							yield null;
-					}
-					if (low != null && up != null) {
-						Integer c = compare(low, up);
-						if (c == null || c > 0)
-							yield null;
-					}
-					yield new RuntimeRangeValue(low, up, it.lowerBoundary(), it.upperBoundary(), lowerAbsent,
-							upperAbsent);
-				}
+				case RuntimeRangeExpression it -> range(it, endpoint -> expression(endpoint, frame));
 				case RuntimeBetweenExpression it -> {
 					Object val = expression(it.value(), frame);
 					yield compare(val, expression(it.lower(), frame)) >= 0
@@ -230,7 +243,7 @@ public final class DmnRuntime {
 						yield null;
 					Boolean res = false;
 					for (RuntimeUnaryTest t : it.tests().tests()) {
-						Object match = test(val, t, frame);
+						Object match = matchTest(val, t, endpoint -> expression(endpoint, frame));
 						if (Boolean.TRUE.equals(match))
 							yield it.tests().negated() ? false : true;
 						if (match == null)
@@ -251,7 +264,7 @@ public final class DmnRuntime {
 			};
 		}
 
-		private Object constant(RuntimeConstant value) {
+		private static Object constant(RuntimeConstant value) {
 			try {
 				return switch (value.kind()) {
 					case NULL -> null;
@@ -856,33 +869,7 @@ public final class DmnRuntime {
 		}
 
 		private boolean tests(Object candidate, RuntimeUnaryTests tests, Frame frame) {
-			boolean match = tests.wildcard()
-					|| tests.tests().stream().anyMatch(test -> Boolean.TRUE.equals(test(candidate, test, frame)));
-			return tests.negated() ? !match : match;
-		}
-		private Object test(Object candidate, RuntimeUnaryTest test, Frame frame) {
-			return switch (test) {
-				case RuntimeComparisonUnaryTest it ->
-					comparison(it.operator(), candidate, expression(it.endpoint(), frame));
-				case RuntimeRangeUnaryTest it -> contains((RuntimeRangeValue) expression(it.range(), frame), candidate);
-				case RuntimeExpressionUnaryTest it -> {
-					Object expected = expression(it.expression(), frame);
-					if (expected instanceof Collection<?> col) {
-						boolean match = col.stream().anyMatch(elem -> {
-							if (elem instanceof RuntimeRangeValue range) {
-								return Boolean.TRUE.equals(contains(range, candidate));
-							}
-							return Boolean.TRUE.equals(equal(candidate, elem));
-						});
-						if (match)
-							yield true;
-					}
-					if (expected instanceof RuntimeRangeValue range) {
-						yield contains(range, candidate);
-					}
-					yield Boolean.TRUE.equals(equal(candidate, expected));
-				}
-			};
+			return matchTests(candidate, tests, value -> expression(value, frame));
 		}
 
 		private Object invokeBuiltinNamed(String fnName, Map<String, Object> namedArgs) {
@@ -1966,6 +1953,53 @@ public final class DmnRuntime {
 		if (a.getClass() != b.getClass())
 			return false;
 		return Boolean.TRUE.equals(equal(a, b));
+	}
+
+	private static RuntimeRangeValue range(RuntimeRangeExpression range, Function<RuntimeExpression, Object> evaluate) {
+		Object lower = range.lower().map(evaluate).orElse(null);
+		if (lower == null && range.lower().isPresent())
+			return null;
+		Object upper = range.upper().map(evaluate).orElse(null);
+		if (upper == null && range.upper().isPresent())
+			return null;
+		if (lower != null && upper != null) {
+			Integer comparison = compare(lower, upper);
+			if (comparison == null || comparison > 0)
+				return null;
+		}
+		return new RuntimeRangeValue(lower, upper, range.lowerBoundary(), range.upperBoundary(),
+				range.lower().isEmpty(), range.upper().isEmpty());
+	}
+
+	private static boolean matchTests(Object candidate, RuntimeUnaryTests tests,
+			Function<RuntimeExpression, Object> evaluate) {
+		boolean match = tests.wildcard()
+				|| tests.tests().stream().anyMatch(test -> Boolean.TRUE.equals(matchTest(candidate, test, evaluate)));
+		return tests.negated() ? !match : match;
+	}
+	private static Object matchTest(Object candidate, RuntimeUnaryTest test,
+			Function<RuntimeExpression, Object> evaluate) {
+		return switch (test) {
+			case RuntimeComparisonUnaryTest it -> comparison(it.operator(), candidate, evaluate.apply(it.endpoint()));
+			case RuntimeRangeUnaryTest it -> contains((RuntimeRangeValue) evaluate.apply(it.range()), candidate);
+			case RuntimeExpressionUnaryTest it -> {
+				Object expected = evaluate.apply(it.expression());
+				if (expected instanceof Collection<?> col) {
+					boolean match = col.stream().anyMatch(elem -> {
+						if (elem instanceof RuntimeRangeValue range) {
+							return Boolean.TRUE.equals(contains(range, candidate));
+						}
+						return Boolean.TRUE.equals(equal(candidate, elem));
+					});
+					if (match)
+						yield true;
+				}
+				if (expected instanceof RuntimeRangeValue range) {
+					yield contains(range, candidate);
+				}
+				yield Boolean.TRUE.equals(equal(candidate, expected));
+			}
+		};
 	}
 
 	private static boolean comparison(RuntimeUnaryTestOperator operator, Object left, Object right) {

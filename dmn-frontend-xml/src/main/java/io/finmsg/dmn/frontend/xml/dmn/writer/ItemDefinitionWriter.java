@@ -13,6 +13,10 @@ public final class ItemDefinitionWriter implements XmlWriter<ItemDefinition> {
 
 	@Override
 	public void write(XmlEmitter xml, ItemDefinition value) {
+		write(xml, value, false);
+	}
+
+	void write(XmlEmitter xml, ItemDefinition value, boolean typeConstraint) {
 		xml.startElement("itemDefinition");
 		nodeWriter.writeAttributes(xml, value.getNode());
 		if (value.hasType()) {
@@ -23,13 +27,13 @@ public final class ItemDefinitionWriter implements XmlWriter<ItemDefinition> {
 		}
 		nodeWriter.writeChildren(xml, value.getNode());
 		if (value.hasConstraint()) {
-			typeConstraintWriter.write(xml, value.getConstraint());
+			typeConstraintWriter.write(xml, value.getConstraint(), typeConstraint);
 		}
-		value.getComponentsList().forEach(component -> writeComponent(xml, component));
+		value.getComponentsList().forEach(component -> writeComponent(xml, component, typeConstraint));
 		xml.endElement();
 	}
 
-	private void writeComponent(XmlEmitter xml, ItemComponent value) {
+	private void writeComponent(XmlEmitter xml, ItemComponent value, boolean typeConstraint) {
 		xml.startElement("itemComponent");
 		nodeWriter.writeAttributes(xml, value.getNode());
 		if (value.getIsCollection()) {
@@ -42,7 +46,7 @@ public final class ItemDefinitionWriter implements XmlWriter<ItemDefinition> {
 			xml.endElement();
 		}
 		if (value.hasConstraint()) {
-			typeConstraintWriter.write(xml, value.getConstraint());
+			typeConstraintWriter.write(xml, value.getConstraint(), typeConstraint);
 		}
 		xml.endElement();
 	}

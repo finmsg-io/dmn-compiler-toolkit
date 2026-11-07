@@ -83,6 +83,15 @@ class DmnJavaGeneratorTest {
 	}
 	@Test
 	void portableTableGeneratesJavaForComposedPolicy(@TempDir Path tempDir) throws Exception {
+		assertComposedPolicy(tempDir, false);
+	}
+
+	@Test
+	void portableJavaEnforcesImportedInputAndTableResultConstraints(@TempDir Path tempDir) throws Exception {
+		assertComposedPolicy(tempDir, true);
+	}
+
+	private void assertComposedPolicy(Path tempDir, boolean constrained) throws Exception {
 		String calendar = """
 				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="calendar" name="Calendar" namespace="urn:tables:calendar">
 				<itemDefinition id="permit" name="tPermit"><itemComponent name="Expiry"><typeRef>date</typeRef></itemComponent></itemDefinition>
@@ -114,6 +123,14 @@ class DmnJavaGeneratorTest {
 				<contextEntry><literalExpression><text>if Outcome.Reason = null then Base Fee else Base Fee + 5</text></literalExpression></contextEntry></context>
 				</decision></definitions>
 				""";
+		if (constrained) {
+			calendar = calendar.replace("<typeRef>date</typeRef>",
+					"""
+							<typeRef>date</typeRef><allowedValues><text>[date("2024-01-01") .. date("2024-04-01")), null</text></allowedValues>
+							""");
+			xml = xml.replace("<typeRef>number</typeRef>",
+					"<typeRef>number</typeRef><typeConstraint><text>[-1 .. 100)</text></typeConstraint>");
+		}
 		var imported = new DmnSource(DmnSourceId.of("memory:/calendar.dmn"),
 				calendar.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 		var source = new DmnSource(DmnSourceId.of("memory:/tables.dmn"),
@@ -125,19 +142,59 @@ class DmnJavaGeneratorTest {
 		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
 				generated.mainSource()).getDeclaredConstructor().newInstance();
 		var input = model.inputs().values().iterator().next();
-		for (var date : Arrays.asList(java.time.LocalDate.of(2024, 1, 31), java.time.LocalDate.of(2024, 2, 1),
+		for (var date : Arrays.asList(java.time.LocalDate.of(2024, 1, 1), java.time.LocalDate.of(2024, 2, 1),
 				java.time.LocalDate.of(2024, 2, 29), java.time.LocalDate.of(2024, 3, 1),
 				java.time.LocalDate.of(2024, 4, 1), null)) {
 			Map<String, Object> permit = new HashMap<>();
 			permit.put("Expiry", date);
 			var applicant = Map.of("Permit", permit);
-			var expected = model.evaluate(Map.of(input.id(), applicant));
 			Object[] slots = new Object[model.runtimeModel().valueSlotCount()];
 			slots[input.slot()] = applicant;
+			if (constrained && (date == null || date.getMonthValue() == 1 || date.getMonthValue() == 4)) {
+				var expected = org.junit.jupiter.api.Assertions.assertThrows(
+						io.finmsg.dmn.runtime.DmnEvaluationException.class,
+						() -> model.evaluate(Map.of(input.id(), applicant)));
+				org.assertj.core.api.Assertions.assertThatThrownBy(() -> engine.evaluate(slots))
+						.isInstanceOf(expected.getClass()).hasMessage(expected.getMessage());
+				continue;
+			}
+			var expected = model.evaluate(Map.of(input.id(), applicant));
 			Object[] actual = engine.evaluate(slots);
 			for (var decision : model.decisions().values())
 				assertThat(actual[decision.slot()]).isEqualTo(expected.get(decision.id()));
 		}
+	}
+
+	@Test
+	void portableTrafficViolationGeneratesBothDecisions(@TempDir Path tempDir) throws Exception {
+		DmnSource source;
+		try (var fixture = Objects.requireNonNull(getClass().getResourceAsStream("/TrafficViolation.dmn"))) {
+			source = new DmnSource(DmnSourceId.of("memory:/traffic-violation.dmn"), fixture.readAllBytes());
+		}
+		var model = new DmnIrRuntimeAdapter()
+				.adapt(new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var driver = Map.of("Name", "Example", "Age", 40, "State", "Example", "City", "Example", "Points", 17);
+		var violation = new HashMap<String, Object>(
+				Map.of("Code", "example", "Date", java.time.LocalDate.of(2024, 1, 1), "Type", "speed", "SpeedLimit",
+						BigDecimal.valueOf(50), "ActualSpeed", BigDecimal.valueOf(60)));
+		Map<DmnIrRuntimeAdapter.ElementId, Object> inputs = new HashMap<>();
+		Object[] slots = new Object[model.runtimeModel().valueSlotCount()];
+		for (var binding : model.inputs().values()) {
+			Object value = binding.variableName().equals("Driver") ? driver : violation;
+			inputs.put(binding.id(), value);
+			slots[binding.slot()] = value;
+		}
+		var expected = model.evaluate(inputs);
+		var actual = engine.evaluate(slots);
+		for (var binding : model.decisions().values())
+			assertThat(actual[binding.slot()]).isEqualTo(expected.get(binding.id()));
+		violation.put("Type", "other");
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> engine.evaluate(slots))
+				.isInstanceOf(io.finmsg.dmn.runtime.DmnEvaluationException.class)
+				.hasMessage("Field constraint violated at /Type");
 	}
 
 	@Test

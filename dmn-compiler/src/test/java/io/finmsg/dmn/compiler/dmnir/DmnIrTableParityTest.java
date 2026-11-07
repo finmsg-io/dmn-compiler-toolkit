@@ -46,16 +46,17 @@ class DmnIrTableParityTest {
 			<contextEntry><literalExpression><text>if Outcome.Reason = null then Base Fee else Base Fee + 5</text></literalExpression></contextEntry></context></decision>
 			""";
 
+	private static final String CALENDAR = """
+			<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="calendar" name="Calendar" namespace="urn:tables:calendar">
+			<itemDefinition id="permit-type" name="tPermit"><itemComponent name="Expiry"><typeRef>date</typeRef></itemComponent></itemDefinition>
+			<decision id="cutoff" name="Cutoff"><variable name="Cutoff" typeRef="date"/><literalExpression><text>date("2024-02-01")</text></literalExpression></decision>
+			</definitions>
+			""";
+
 	@Test
 	void composedPolicyPreservesRulesIdentitiesDefaultsAndResults(@TempDir Path dir) throws Exception {
 		var source = policy(COMPOSED);
-		var calendar = source("calendar.dmn",
-				"""
-						<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="calendar" name="Calendar" namespace="urn:tables:calendar">
-						<itemDefinition id="permit-type" name="tPermit"><itemComponent name="Expiry"><typeRef>date</typeRef></itemComponent></itemDefinition>
-						<decision id="cutoff" name="Cutoff"><variable name="Cutoff" typeRef="date"/><literalExpression><text>date("2024-02-01")</text></literalExpression></decision>
-						</definitions>
-						""");
+		var calendar = source("calendar.dmn", CALENDAR);
 		var resolver = new InMemoryDmnModelResolver(List.of(calendar));
 		var verified = new DmnIrScalarProducer().produce(source, resolver);
 		byte[] bytes = verified.artifact().toByteArray();
@@ -165,6 +166,124 @@ class DmnIrTableParityTest {
 	}
 
 	private record FineCase(String type, int speed, Integer amount, Integer points) {
+	}
+
+	@Test
+	void constraintsSurviveImportedRecordsTablesAndReexport(@TempDir Path dir) throws Exception {
+		var calendar = source("calendar.dmn", CALENDAR.replace("<typeRef>date</typeRef>",
+				"""
+						<typeRef>date</typeRef><allowedValues><text>[date("2024-01-01") .. date("2024-04-01")), null</text></allowedValues>
+						"""));
+		var source = policy(COMPOSED.replace("<typeRef>number</typeRef>",
+				"<typeRef>number</typeRef><typeConstraint><text>[-1 .. 100)</text></typeConstraint>"));
+		var producer = new DmnIrScalarProducer();
+		var resolver = new InMemoryDmnModelResolver(List.of(calendar));
+		var verified = producer.produce(source, resolver);
+		byte[] bytes = verified.artifact().toByteArray();
+		assertEquals(6, verified.artifact().getSchemaVersion().getMinor());
+		assertArrayEquals(bytes, producer.produce(source, resolver).artifact().toByteArray());
+		var bundle = new DmnIrScalarDmnExporter().export(verified);
+		DmnIrDateParityTest.validate(bundle);
+		assertEquals(bundle.documents(), new DmnIrScalarDmnExporter().export(verified).documents());
+		assertTrue(bundle.documents().values().stream().anyMatch(xml -> xml.contains("<typeConstraint>")));
+		var documents = bundle.documents().entrySet().stream().map(e -> source(e.getKey(), e.getValue())).toList();
+		var exported = source(bundle.rootDocument(), bundle.documents().get(bundle.rootDocument()));
+		var roundTrip = producer.produce(exported, new InMemoryDmnModelResolver(documents));
+		for (var artifact : List.of(verified, roundTrip)) {
+			var model = new DmnIrRuntimeAdapter().adapt(artifact);
+			assertEquals(BigDecimal.valueOf(5),
+					model.evaluate(Map.of(key("applicant"), applicant(LocalDate.of(2024, 2, 1)))).get(key("answer")));
+			assertEquals("Field constraint violated at /Permit/Expiry",
+					assertThrows(DmnEvaluationException.class,
+							() -> model.evaluate(Map.of(key("applicant"), applicant(LocalDate.of(2024, 4, 1)))))
+							.getMessage());
+			assertEquals("Field constraint violated at /Fee",
+					assertThrows(DmnEvaluationException.class,
+							() -> model.evaluate(Map.of(key("applicant"), applicant(LocalDate.of(2024, 1, 1)))))
+							.getMessage());
+			assertEquals("Field constraint violated at /Fee", assertThrows(DmnEvaluationException.class,
+					() -> model.evaluate(Map.of(key("applicant"), applicant(null)))).getMessage());
+		}
+
+		var file = Files.write(dir.resolve("constrained.dmnir"), bytes);
+		var log = dir.resolve("consumer.log");
+		String exe = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win") ? "java.exe" : "java";
+		var process = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", exe).toString(), "-cp",
+				System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")),
+				Consumer.class.getName(), file.toString()).redirectErrorStream(true).redirectOutput(log.toFile())
+				.start();
+		try {
+			assertTrue(process.waitFor(30, TimeUnit.SECONDS));
+			assertEquals(0, process.exitValue(), Files.readString(log));
+		} finally {
+			process.destroyForcibly();
+		}
+	}
+
+	@Test
+	void fullTrafficViolationPreservesConstraintAndTerminalDecision() throws Exception {
+		DmnSource source;
+		try (var fixture = Objects.requireNonNull(getClass().getResourceAsStream("/TrafficViolation.dmn"))) {
+			source = new DmnSource(DmnSourceId.of("memory:/traffic-violation.dmn"), fixture.readAllBytes());
+		}
+		var artifact = new DmnIrScalarProducer().produce(source);
+		var adapted = new DmnIrRuntimeAdapter().adapt(artifact);
+		var resolver = new InMemoryDmnModelResolver(List.of());
+		var direct = compile(source, resolver);
+		var bundle = new DmnIrScalarDmnExporter().export(artifact);
+		DmnIrDateParityTest.validate(bundle);
+		String xml = bundle.documents().get(bundle.rootDocument());
+		assertTrue(xml.contains("<typeConstraint>"));
+		assertTrue(xml.contains("Should the driver be suspended?"));
+		var exported = compile(source(bundle.rootDocument(), xml), resolver);
+		var driver = Map.of("Name", "Example", "Age", 40, "State", "Example", "City", "Example", "Points", 17);
+		var violation = new HashMap<String, Object>(Map.of("Code", "example", "Date", LocalDate.of(2024, 1, 1), "Type",
+				"speed", "SpeedLimit", BigDecimal.valueOf(50), "ActualSpeed", BigDecimal.valueOf(60)));
+		Map<DmnIrRuntimeAdapter.ElementId, Object> inputs = new HashMap<>();
+		for (var binding : adapted.inputs().values())
+			inputs.put(binding.id(), binding.variableName().equals("Driver") ? driver : violation);
+		var decisions = adapted.evaluate(inputs);
+		for (var binding : adapted.decisions().values()) {
+			var sourceInputs = Map.<String, Object>of("Driver", driver, "Violation", violation);
+			var result = decisions.get(binding.id());
+			if (binding.variableName().equals("Fine")) {
+				var fine = assertInstanceOf(io.finmsg.dmn.runtime.RuntimeContextValue.class, result);
+				assertEquals(BigDecimal.valueOf(500), fine.field("Amount"));
+				assertEquals(BigDecimal.valueOf(3), fine.field("Points"));
+			} else {
+				assertEquals("Yes", result);
+			}
+			assertEquals(evaluate(direct, binding.variableName(), sourceInputs), result);
+			assertEquals(evaluate(exported, binding.variableName(), sourceInputs), decisions.get(binding.id()));
+		}
+		violation.put("Type", "other");
+		assertEquals("Field constraint violated at /Type",
+				assertThrows(DmnEvaluationException.class, () -> adapted.evaluate(inputs)).getMessage());
+	}
+
+	@Test
+	void rejectsDuplicateSourceDomainsAndUnsafeReferencedDecisionNames() {
+		var calendar = source("calendar.dmn", CALENDAR);
+		var resolver = new InMemoryDmnModelResolver(List.of(calendar));
+		var producer = new DmnIrScalarProducer();
+		String duplicate = "<allowedValues><text>1</text></allowedValues><typeConstraint><text>2</text></typeConstraint>";
+		var duplicateError = assertThrows(DmnModelLoadException.class,
+				() -> producer.produce(
+						policy(COMPOSED.replace("<typeRef>number</typeRef>", "<typeRef>number</typeRef>" + duplicate)),
+						resolver));
+		assertTrue(duplicateError.getMessage().contains("An item type can declare only one constraint."));
+		var artifact = producer.produce(
+				policy(COMPOSED.replace("<typeRef>number</typeRef>",
+						"<typeRef>number</typeRef><typeConstraint><text>[-1 .. 100)</text></typeConstraint>")),
+				resolver).artifact().toBuilder();
+		var root = artifact.getModelsBuilderList().stream().filter(m -> m.getNamespace().equals(NS)).findFirst()
+				.orElseThrow();
+		var outcome = root.getDecisionsBuilderList().stream().filter(d -> d.getIdentity().getId().equals("outcome"))
+				.findFirst().orElseThrow();
+		outcome.getIdentityBuilder().setName("Outcome?");
+		outcome.getVariableBuilder().setName("Outcome?");
+		var verified = new DmnIrArtifactReader().read(artifact.build().toByteArray());
+		assertThrows(DmnIrExportException.class, () -> new DmnIrScalarDmnExporter().export(verified));
 	}
 
 	public static final class Consumer {

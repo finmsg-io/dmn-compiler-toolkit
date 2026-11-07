@@ -14,9 +14,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiConsumer;
 
 /**
- * Strict, bounded reader for experimental portable profiles 0.0 through 0.5.
+ * Strict, bounded reader for experimental portable profiles 0.0 through 0.6.
  */
 public final class DmnIrArtifactReader {
 	public static final String SEMANTICS_VERSION = "finmsg-dmnir-scalar/0";
@@ -31,6 +32,10 @@ public final class DmnIrArtifactReader {
 	public static final String DATE_CAPABILITY = "dmnir.date";
 	public static final String TABLE_SEMANTICS_VERSION = "finmsg-dmnir-tables/0";
 	public static final String TABLE_CAPABILITY = "dmnir.tables";
+	public static final String FIELD_CONSTRAINT_SEMANTICS_VERSION = "finmsg-dmnir-field-constraints/0";
+	public static final String FIELD_CONSTRAINT_CAPABILITY = "dmnir.field-constraints";
+	private static final List<String> CAPABILITIES = List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY,
+			RECORD_CAPABILITY, LOCAL_CAPABILITY, DATE_CAPABILITY, TABLE_CAPABILITY, FIELD_CONSTRAINT_CAPABILITY);
 	private final DmnIrLimits limits;
 
 	public DmnIrArtifactReader() {
@@ -103,6 +108,7 @@ public final class DmnIrArtifactReader {
 		private boolean localsProfile;
 		private boolean datesProfile;
 		private boolean tablesProfile;
+		private boolean fieldConstraintsProfile;
 		private boolean tableCell;
 		private final Map<String, Set<String>> modelIds = new HashMap<>();
 		private final Set<String> bindingIds = new HashSet<>();
@@ -121,53 +127,39 @@ public final class DmnIrArtifactReader {
 			check(artifact.hasSchemaVersion() && artifact.getSchemaVersion().hasMajor()
 					&& artifact.getSchemaVersion().hasMinor(), INVALID_HEADER, "artifact.schema_version",
 					"Explicit major and minor versions are required.");
-			tablesProfile = artifact.getSchemaVersion().getMinor() == 5;
-			datesProfile = artifact.getSchemaVersion().getMinor() == 4 || tablesProfile;
-			localsProfile = artifact.getSchemaVersion().getMinor() == 3 || datesProfile;
-			recordsProfile = artifact.getSchemaVersion().getMinor() == 2 || localsProfile;
-			expressions = artifact.getSchemaVersion().getMinor() == 1 || recordsProfile;
-			check(artifact.getSchemaVersion().getMajor() == 0
-					&& (artifact.getSchemaVersion().getMinor() == 0 || expressions)
-					&& artifact.getSemanticsVersion().equals(tablesProfile
-							? TABLE_SEMANTICS_VERSION
-							: datesProfile
-									? DATE_SEMANTICS_VERSION
-									: localsProfile
-											? LOCAL_SEMANTICS_VERSION
-											: recordsProfile
-													? RECORD_SEMANTICS_VERSION
-													: expressions ? EXPRESSION_SEMANTICS_VERSION : SEMANTICS_VERSION),
-					UNSUPPORTED_VERSION, "artifact.schema_version", "Unsupported wire or semantic version.");
+			int minor = artifact.getSchemaVersion().getMinor();
+			String semantics = switch (minor) {
+				case 0 -> SEMANTICS_VERSION;
+				case 1 -> EXPRESSION_SEMANTICS_VERSION;
+				case 2 -> RECORD_SEMANTICS_VERSION;
+				case 3 -> LOCAL_SEMANTICS_VERSION;
+				case 4 -> DATE_SEMANTICS_VERSION;
+				case 5 -> TABLE_SEMANTICS_VERSION;
+				case 6 -> FIELD_CONSTRAINT_SEMANTICS_VERSION;
+				default -> "";
+			};
+			check(artifact.getSchemaVersion().getMajor() == 0 && !semantics.isEmpty()
+					&& artifact.getSemanticsVersion().equals(semantics), UNSUPPORTED_VERSION, "artifact.schema_version",
+					"Unsupported wire or semantic version.");
+			fieldConstraintsProfile = minor >= 6;
+			tablesProfile = minor >= 5;
+			datesProfile = minor >= 4;
+			localsProfile = minor >= 3;
+			recordsProfile = minor >= 2;
+			expressions = minor >= 1;
+			var expected = CAPABILITIES.subList(0, minor + 1);
 			Set<String> capabilities = new HashSet<>();
 			for (int i = 0; i < artifact.getRequiredCapabilitiesCount(); i++) {
 				String capability = artifact.getRequiredCapabilities(i);
 				String path = "artifact.required_capabilities[" + i + "]";
-				check(capability.equals(SCALAR_CAPABILITY) || expressions && capability.equals(EXPRESSION_CAPABILITY)
-						|| recordsProfile && capability.equals(RECORD_CAPABILITY)
-						|| localsProfile && capability.equals(LOCAL_CAPABILITY)
-						|| datesProfile && capability.equals(DATE_CAPABILITY)
-						|| tablesProfile && capability.equals(TABLE_CAPABILITY), UNSUPPORTED_CAPABILITY, path,
+				check(expected.contains(capability), UNSUPPORTED_CAPABILITY, path,
 						"Required capability is not supported.");
 				check(capabilities.add(capability), INVALID_HEADER, path, "Duplicate required capability.");
 			}
 			check(capabilities.contains(SCALAR_CAPABILITY), INVALID_HEADER, "artifact.required_capabilities",
 					"The scalar capability must be declared.");
-			check(artifact.getRequiredCapabilitiesList().equals(tablesProfile
-					? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY, LOCAL_CAPABILITY,
-							DATE_CAPABILITY, TABLE_CAPABILITY)
-					: datesProfile
-							? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY, LOCAL_CAPABILITY,
-									DATE_CAPABILITY)
-							: localsProfile
-									? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY,
-											LOCAL_CAPABILITY)
-									: recordsProfile
-											? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY)
-											: expressions
-													? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY)
-													: List.of(SCALAR_CAPABILITY)),
-					INVALID_HEADER, "artifact.required_capabilities",
-					"Exact ordered profile capabilities are required.");
+			check(artifact.getRequiredCapabilitiesList().equals(expected), INVALID_HEADER,
+					"artifact.required_capabilities", "Exact ordered profile capabilities are required.");
 			check(artifact.getModelsCount() > 0, INVALID_HEADER, "artifact.models", "A model is required.");
 			check(artifact.getModelsCount() <= limits.maxModels(), LIMIT_EXCEEDED, "artifact.models",
 					"Model budget exceeded.");
@@ -374,9 +366,11 @@ public final class DmnIrArtifactReader {
 				check(rule.getInputEntriesCount() == table.getInputsCount()
 						&& rule.getOutputEntriesCount() == table.getOutputsCount(), INVALID_EXPRESSION, rulePath,
 						"Rule entry counts must match column counts.");
-				for (int j = 0; j < rule.getInputEntriesCount(); j++)
-					tests(rule.getInputEntries(j), table.getInputs(j).getType(), owner, dependencies,
-							rulePath + ".input_entries[" + j + "]");
+				for (int j = 0; j < rule.getInputEntriesCount(); j++) {
+					var type = table.getInputs(j).getType();
+					tests(rule.getInputEntries(j), type, rulePath + ".input_entries[" + j + "]",
+							(value, endpointPath) -> cell(value, type, owner, dependencies, endpointPath));
+				}
 				for (int j = 0; j < rule.getOutputEntriesCount(); j++)
 					cell(rule.getOutputEntries(j), table.getOutputs(j).getType(), owner, dependencies,
 							rulePath + ".output_entries[" + j + "]");
@@ -388,8 +382,8 @@ public final class DmnIrArtifactReader {
 					"A unique non-empty ID is required when present.");
 		}
 
-		private void tests(DmnIrUnaryTests group, DmnIrScalarType type, Element owner, Set<Address> dependencies,
-				String path) {
+		private void tests(DmnIrUnaryTests group, DmnIrScalarType type, String path,
+				BiConsumer<DmnIrExpression, String> endpointValidator) {
 			check(group.getWildcard() ? !group.getNegated() && group.getTestsCount() == 0 : group.getTestsCount() > 0,
 					INVALID_EXPRESSION, path, "Expected a wildcard or non-empty test alternatives.");
 			for (int i = 0; i < group.getTestsCount(); i++) {
@@ -404,32 +398,30 @@ public final class DmnIrArtifactReader {
 								check(endpoint.getType() != DmnIrScalarType.SCALAR_TYPE_NULL
 										|| endpoint.getLiteral().getValueCase() == DmnIrLiteral.ValueCase.NULL_VALUE,
 										INVALID_TYPE, testPath, "A null endpoint must be explicit.");
-								cell(endpoint, type, owner, dependencies, testPath + ".comparison.endpoint");
+								endpointValidator.accept(endpoint, testPath + ".comparison.endpoint");
 							}
 							case BINARY_OPERATOR_LESS, BINARY_OPERATOR_LESS_EQUAL, BINARY_OPERATOR_GREATER,
 									BINARY_OPERATOR_GREATER_EQUAL ->
-								orderedEndpoint(comparison.getEndpoint(), type, owner, dependencies,
+								orderedEndpoint(comparison.getEndpoint(), type, endpointValidator,
 										testPath + ".comparison.endpoint");
 							default -> check(false, INVALID_EXPRESSION, testPath, "Unsupported test comparison.");
 						}
 					}
 					case RANGE -> {
-						orderedEndpoint(test.getRange().getLower(), type, owner, dependencies,
-								testPath + ".range.lower");
-						orderedEndpoint(test.getRange().getUpper(), type, owner, dependencies,
-								testPath + ".range.upper");
+						orderedEndpoint(test.getRange().getLower(), type, endpointValidator, testPath + ".range.lower");
+						orderedEndpoint(test.getRange().getUpper(), type, endpointValidator, testPath + ".range.upper");
 					}
 					case TEST_NOT_SET -> check(false, INVALID_EXPRESSION, testPath, "A test is required.");
 				}
 			}
 		}
 
-		private void orderedEndpoint(DmnIrExpression endpoint, DmnIrScalarType type, Element owner,
-				Set<Address> dependencies, String path) {
+		private void orderedEndpoint(DmnIrExpression endpoint, DmnIrScalarType type,
+				BiConsumer<DmnIrExpression, String> endpointValidator, String path) {
 			check((type == DmnIrScalarType.SCALAR_TYPE_NUMBER || type == DmnIrScalarType.SCALAR_TYPE_STRING
 					|| type == DmnIrScalarType.SCALAR_TYPE_DATE) && endpoint.getType() == type, INVALID_TYPE, path,
 					"Ordered endpoints require the same ordered scalar type as the input.");
-			cell(endpoint, type, owner, dependencies, path);
+			endpointValidator.accept(endpoint, path);
 		}
 
 		private void cell(DmnIrExpression expression, DmnIrScalarType type, Element owner, Set<Address> dependencies,
@@ -619,6 +611,21 @@ public final class DmnIrArtifactReader {
 					INVALID_IMPORT, path, "Imported type requires a direct bundled import.");
 			return address;
 		}
+		private void fieldConstraint(DmnIrRecordField field, String path) {
+			check(fieldConstraintsProfile, UNSUPPORTED_CAPABILITY, path, "Field constraints require profile 0.6.");
+			var type = field.getType().getScalarType();
+			check(field.getType().hasScalarType() && type != DmnIrScalarType.SCALAR_TYPE_NULL, INVALID_TYPE, path,
+					"A field constraint requires a non-null scalar base type.");
+			tests(field.getConstraint(), type, path, (endpoint, endpointPath) -> {
+				check(endpoint.hasLiteral(), INVALID_EXPRESSION, endpointPath, "A constant endpoint is required.");
+				check(!endpoint.hasRecordType() && assignable(endpoint.getType(), type)
+						&& (!endpoint.getLiteral().hasNullValue()
+								|| endpoint.getType() == DmnIrScalarType.SCALAR_TYPE_NULL),
+						INVALID_TYPE, endpointPath, "Constraint endpoint must be compatible with the field type.");
+				literal(endpoint.getLiteral(), endpoint.getType(), endpointPath + ".literal");
+			});
+		}
+
 		private void recordGraph() {
 			Map<Address, Set<Address>> pending = new HashMap<>();
 			Map<Address, List<Address>> parents = new HashMap<>();
@@ -626,14 +633,17 @@ public final class DmnIrArtifactReader {
 				Set<Address> dependencies = new HashSet<>();
 				int fieldIndex = 0;
 				for (var field : entry.getValue().getFieldsList()) {
-					String fieldPath = recordPaths.get(entry.getKey()) + ".fields[" + fieldIndex++ + "].type";
+					String fieldPath = recordPaths.get(entry.getKey()) + ".fields[" + fieldIndex++ + "]";
 					var type = field.getType();
 					if (type.hasScalarType())
-						scalar(type.getScalarType(), fieldPath);
+						scalar(type.getScalarType(), fieldPath + ".type");
 					else {
-						check(type.hasRecordType(), INVALID_TYPE, fieldPath, "A field type is required.");
-						dependencies.add(typeTarget(type.getRecordType(), entry.getKey().namespace(), fieldPath));
+						check(type.hasRecordType(), INVALID_TYPE, fieldPath + ".type", "A field type is required.");
+						dependencies
+								.add(typeTarget(type.getRecordType(), entry.getKey().namespace(), fieldPath + ".type"));
 					}
+					if (field.hasConstraint())
+						fieldConstraint(field, fieldPath + ".constraint");
 				}
 				pending.put(entry.getKey(), dependencies);
 				for (var dependency : dependencies)

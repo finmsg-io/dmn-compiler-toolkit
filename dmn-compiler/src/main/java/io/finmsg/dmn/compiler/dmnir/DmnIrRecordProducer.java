@@ -7,6 +7,7 @@ import io.finmsg.dmn.model.*;
 import io.finmsg.dmn.semantic.analysis.DmnSymbolBinding;
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.function.BiFunction;
 
 /** Retains source named identity before structural Runtime IR erases it. */
 final class DmnIrRecordProducer {
@@ -30,8 +31,12 @@ final class DmnIrRecordProducer {
 	}
 
 	DmnIrArtifactReader.VerifiedArtifact produce() {
-		boolean tableProfile = models.values().stream().flatMap(m -> m.model().getDrgElementsList().stream())
-				.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasDecisionTable());
+		boolean fieldConstraintsProfile = models.values().stream()
+				.flatMap(m -> m.model().getItemDefinitionsList().stream())
+				.flatMap(item -> item.getComponentsList().stream()).anyMatch(ItemComponent::hasConstraint);
+		boolean tableProfile = fieldConstraintsProfile
+				|| models.values().stream().flatMap(m -> m.model().getDrgElementsList().stream())
+						.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasDecisionTable());
 		dateProfile = tableProfile || models.values().stream().anyMatch(m -> DmnIrDates.containsDate(m.model()));
 		localProfile = models.values().stream().anyMatch(m -> m.model().getDrgElementsList().stream()
 				.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasBoxedExpression()));
@@ -47,12 +52,21 @@ final class DmnIrRecordProducer {
 			for (var item : model.model().getItemDefinitionsList()) {
 				var record = DmnIrRecordDefinition.newBuilder().setIdentity(identity(item.getNode()));
 				for (var component : item.getComponentsList()) {
-					if (component.getIsCollection() || component.hasConstraint() || component.getComponentsCount() != 0)
+					if (component.getIsCollection() || component.getComponentsCount() != 0)
 						throw unsupported();
 					var field = DmnIrRecordField.newBuilder().setName(component.getNode().getName())
 							.setType(type(component.getType(), model));
 					if (!component.getNode().getId().isBlank())
 						field.setId(component.getNode().getId());
+					if (component.hasConstraint()) {
+						if (!field.getType().hasScalarType() || !component.getConstraint().hasParsed()
+								|| field.getType().getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL)
+							throw unsupported();
+						String path = "definitions/itemDefinition[" + item.getNode().getName() + "]/component["
+								+ component.getNode().getName() + "]/typeConstraint";
+						field.setConstraint(tests(component.getConstraint().getParsed().getTests(), path,
+								(value, endpointPath) -> constraintEndpoint(value, model, endpointPath)));
+					}
 					record.addFields(field);
 				}
 				records.put(ref(model.identity().namespace(), item.getNode().getId()), record.build());
@@ -69,15 +83,17 @@ final class DmnIrRecordProducer {
 					throw unsupported();
 			}
 		var artifact = DmnIrArtifact.newBuilder()
-				.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0)
-						.setMinor(tableProfile ? 5 : dateProfile ? 4 : localProfile ? 3 : 2))
-				.setSemanticsVersion(tableProfile
-						? DmnIrArtifactReader.TABLE_SEMANTICS_VERSION
-						: dateProfile
-								? DmnIrArtifactReader.DATE_SEMANTICS_VERSION
-								: localProfile
-										? DmnIrArtifactReader.LOCAL_SEMANTICS_VERSION
-										: DmnIrArtifactReader.RECORD_SEMANTICS_VERSION)
+				.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(
+						fieldConstraintsProfile ? 6 : tableProfile ? 5 : dateProfile ? 4 : localProfile ? 3 : 2))
+				.setSemanticsVersion(fieldConstraintsProfile
+						? DmnIrArtifactReader.FIELD_CONSTRAINT_SEMANTICS_VERSION
+						: tableProfile
+								? DmnIrArtifactReader.TABLE_SEMANTICS_VERSION
+								: dateProfile
+										? DmnIrArtifactReader.DATE_SEMANTICS_VERSION
+										: localProfile
+												? DmnIrArtifactReader.LOCAL_SEMANTICS_VERSION
+												: DmnIrArtifactReader.RECORD_SEMANTICS_VERSION)
 				.addRequiredCapabilities("dmnir.scalar").addRequiredCapabilities("dmnir.scalar-expressions")
 				.addRequiredCapabilities("dmnir.records")
 				.setRootModelNamespace(semantic.model(semantic.rootId()).orElseThrow().identity().namespace());
@@ -87,6 +103,8 @@ final class DmnIrRecordProducer {
 			artifact.addRequiredCapabilities(DmnIrArtifactReader.DATE_CAPABILITY);
 		if (tableProfile)
 			artifact.addRequiredCapabilities(DmnIrArtifactReader.TABLE_CAPABILITY);
+		if (fieldConstraintsProfile)
+			artifact.addRequiredCapabilities(DmnIrArtifactReader.FIELD_CONSTRAINT_CAPABILITY);
 		for (var model : models.values()) {
 			var output = DmnIrModel.newBuilder().setIdentity(identity(model.model().getNode()))
 					.setNamespace(model.identity().namespace());
@@ -253,6 +271,11 @@ final class DmnIrRecordProducer {
 
 	private DmnIrUnaryTests tests(UnaryTestsExpression source, DmnSemanticModel model, String path,
 			Set<DmnIrReference> dependencies) {
+		return tests(source, path, (value, endpointPath) -> expression(value, model, endpointPath, dependencies, 1));
+	}
+
+	private static DmnIrUnaryTests tests(UnaryTestsExpression source, String path,
+			BiFunction<Expression, String, DmnIrExpression> endpoint) {
 		var group = DmnIrUnaryTests.newBuilder().setWildcard(source.getWildcard()).setNegated(source.getNegated());
 		for (int i = 0; i < source.getTestsCount(); i++) {
 			var test = source.getTests(i);
@@ -269,18 +292,18 @@ final class DmnIrRecordProducer {
 						case UNARY_TEST_OPERATOR_GREATER -> DmnIrBinaryOperator.BINARY_OPERATOR_GREATER;
 						case UNARY_TEST_OPERATOR_GREATER_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_GREATER_EQUAL;
 						default -> throw unsupported();
-					}).setEndpoint(expression(comparison.getEndpoint(), model, testPath, dependencies, 1)));
+					}).setEndpoint(endpoint.apply(comparison.getEndpoint(), testPath)));
 				}
 				case EXPRESSION -> value.setComparison(
 						DmnIrTestComparison.newBuilder().setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL)
-								.setEndpoint(expression(test.getExpression(), model, testPath, dependencies, 1)));
+								.setEndpoint(endpoint.apply(test.getExpression(), testPath)));
 				case RANGE -> {
 					var range = test.getRange();
 					if (!range.hasLower() || !range.hasUpper())
 						throw unsupported();
 					value.setRange(DmnIrTestRange.newBuilder()
-							.setLower(expression(range.getLower(), model, testPath + "/lower", dependencies, 1))
-							.setUpper(expression(range.getUpper(), model, testPath + "/upper", dependencies, 1))
+							.setLower(endpoint.apply(range.getLower(), testPath + "/lower"))
+							.setUpper(endpoint.apply(range.getUpper(), testPath + "/upper"))
 							.setLowerInclusive(range.getLowerBoundary() == RangeBoundary.RANGE_BOUNDARY_CLOSED)
 							.setUpperInclusive(range.getUpperBoundary() == RangeBoundary.RANGE_BOUNDARY_CLOSED));
 				}
@@ -289,6 +312,25 @@ final class DmnIrRecordProducer {
 			group.addTests(value);
 		}
 		return group.build();
+	}
+
+	private DmnIrExpression constraintEndpoint(Expression value, DmnSemanticModel model, String path) {
+		var endpoint = expression(value, model, path, new HashSet<>(), 1);
+		if (endpoint.hasLiteral())
+			return endpoint;
+		if (endpoint.hasUnary()) {
+			var unary = endpoint.getUnary();
+			var number = unary.getOperand().getLiteral().getNumberValue();
+			if (number.hasScale() && unary.getOperator() == DmnIrUnaryOperator.UNARY_OPERATOR_POSITIVE)
+				return unary.getOperand();
+			if (number.hasScale() && unary.getOperator() == DmnIrUnaryOperator.UNARY_OPERATOR_NEGATE) {
+				String coefficient = new java.math.BigInteger(number.getUnscaledValue()).negate().toString();
+				return unary.getOperand().toBuilder().setLiteral(
+						DmnIrLiteral.newBuilder().setNumberValue(number.toBuilder().setUnscaledValue(coefficient)))
+						.build();
+			}
+		}
+		throw unsupported();
 	}
 
 	private DmnIrTypeReference type(TypeReference type, DmnSemanticModel model) {

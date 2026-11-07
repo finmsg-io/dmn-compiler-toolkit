@@ -68,8 +68,13 @@ public final class DmnIrRuntimeAdapter {
 				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-tables/0")
 				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions",
 						"dmnir.records", "dmnir.local-bindings", "dmnir.date", "dmnir.tables"));
+		boolean constraintProfile = artifact.getSchemaVersion().getMinor() == 6
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-field-constraints/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
+								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints"));
 		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
-				|| localProfile || dateProfile || tableProfile))
+				|| localProfile || dateProfile || tableProfile || constraintProfile))
 			throw new IllegalArgumentException("Unsupported runtime adapter profile.");
 		var types = new DmnIrRecordTypes(artifact);
 		List<Declaration> declarations = new ArrayList<>();
@@ -156,7 +161,7 @@ public final class DmnIrRuntimeAdapter {
 		}, Optional.empty(), inputs, outputs, rules, 0);
 	}
 
-	private static RuntimeUnaryTest test(DmnIrUnaryTest test, Function<DmnIrExpression, RuntimeExpression> expression) {
+	static RuntimeUnaryTest test(DmnIrUnaryTest test, Function<DmnIrExpression, RuntimeExpression> expression) {
 		return switch (test.getTestCase()) {
 			case COMPARISON -> new RuntimeComparisonUnaryTest(switch (test.getComparison().getOperator()) {
 				case BINARY_OPERATOR_EQUAL -> RuntimeUnaryTestOperator.EQUAL;
@@ -246,27 +251,27 @@ public final class DmnIrRuntimeAdapter {
 					expression(expression.getConditional().getCondition(), slots, types, locals, nextSlot),
 					expression(expression.getConditional().getThenExpression(), slots, types, locals, nextSlot),
 					expression(expression.getConditional().getElseExpression(), slots, types, locals, nextSlot), type);
-			case LITERAL -> {
-				DmnIrLiteral literal = expression.getLiteral();
-				yield switch (literal.getValueCase()) {
-					case NULL_VALUE -> new RuntimeConstant(RuntimeConstantKind.NULL, "null", type);
-					case BOOLEAN_VALUE -> new RuntimeConstant(RuntimeConstantKind.BOOLEAN,
-							Boolean.toString(literal.getBooleanValue()), type);
-					case DATE_VALUE -> new RuntimeConstant(RuntimeConstantKind.DATE,
-							DmnIrDates.value(literal.getDateValue()).toString(), type);
-					case STRING_VALUE ->
-						new RuntimeConstant(RuntimeConstantKind.STRING, literal.getStringValue(), type);
-					case NUMBER_VALUE -> {
-						DmnIrDecimal decimal = literal.getNumberValue();
-						// toString round-trips signed scale; do not expand scientific notation.
-						String value = new BigDecimal(new BigInteger(decimal.getUnscaledValue()), decimal.getScale())
-								.toString();
-						yield new RuntimeConstant(RuntimeConstantKind.NUMBER, value, type);
-					}
-					default -> throw new IllegalArgumentException("Unsupported literal in runtime adapter.");
-				};
-			}
+			case LITERAL -> literal(expression.getLiteral(), type);
 			default -> throw new IllegalArgumentException("Unsupported expression in runtime adapter.");
+		};
+	}
+
+	static RuntimeConstant literal(DmnIrLiteral literal, RuntimeType type) {
+		return switch (literal.getValueCase()) {
+			case NULL_VALUE -> new RuntimeConstant(RuntimeConstantKind.NULL, "null", type);
+			case BOOLEAN_VALUE ->
+				new RuntimeConstant(RuntimeConstantKind.BOOLEAN, Boolean.toString(literal.getBooleanValue()), type);
+			case DATE_VALUE -> new RuntimeConstant(RuntimeConstantKind.DATE,
+					DmnIrDates.value(literal.getDateValue()).toString(), type);
+			case STRING_VALUE -> new RuntimeConstant(RuntimeConstantKind.STRING, literal.getStringValue(), type);
+			case NUMBER_VALUE -> {
+				DmnIrDecimal decimal = literal.getNumberValue();
+				// toString round-trips signed scale; do not expand scientific notation.
+				String value = new BigDecimal(new BigInteger(decimal.getUnscaledValue()), decimal.getScale())
+						.toString();
+				yield new RuntimeConstant(RuntimeConstantKind.NUMBER, value, type);
+			}
+			default -> throw new IllegalArgumentException("Unsupported literal in runtime adapter.");
 		};
 	}
 

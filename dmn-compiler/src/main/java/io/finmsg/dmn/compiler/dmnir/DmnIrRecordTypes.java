@@ -26,8 +26,10 @@ final class DmnIrRecordTypes {
 					continue;
 				List<RuntimeField> fields = new ArrayList<>();
 				for (var field : record.getFieldsList())
-					fields.add(new RuntimeField(fields.size(), field.getName(), type(field.getType().getScalarType(),
-							field.getType().hasRecordType(), field.getType().getRecordType())));
+					fields.add(new RuntimeField(fields.size(), field.getName(),
+							type(field.getType().getScalarType(), field.getType().hasRecordType(),
+									field.getType().getRecordType()),
+							field.hasConstraint() ? Optional.of(constraint(field.getConstraint())) : Optional.empty()));
 				layouts.put(key, RuntimeType.contextFields(fields));
 				pending.remove(key);
 				progress = true;
@@ -36,6 +38,15 @@ final class DmnIrRecordTypes {
 				throw new IllegalArgumentException("Unresolved verified record graph.");
 		}
 	}
+	private RuntimeUnaryTests constraint(DmnIrUnaryTests tests) {
+		return new RuntimeUnaryTests(tests.getNegated(), tests.getWildcard(), tests
+				.getTestsList().stream().map(
+						test -> DmnIrRuntimeAdapter.test(test,
+								endpoint -> DmnIrRuntimeAdapter.literal(endpoint.getLiteral(),
+										type(endpoint.getType(), false, DmnIrReference.getDefaultInstance()))))
+				.toList());
+	}
+
 	DmnIrRecordDefinition definition(DmnIrReference reference) {
 		return Objects.requireNonNull(definitions.get(reference));
 	}

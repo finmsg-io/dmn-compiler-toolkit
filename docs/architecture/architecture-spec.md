@@ -16,7 +16,7 @@ Runtime IR. The architecture is accepted and the initial experimental scalar sch
 in `dmn-ir-protobuf`. `dmn-ir-codec` provides bounded validation for the supported profiles;
 the compiler's `DmnIrRuntimeAdapter` derives and executes Runtime IR from verified artifacts.
 Experimental schema 0.1 extends the scalar contract with typed unary/binary/conditional trees;
-the reader and consumers pin the exact supported 0.0 through 0.5 profiles independently.
+the reader and consumers pin the exact supported 0.0 through 0.6 profiles independently.
 Schema 0.2 adds named records and field access with bounded type-graph validation. Named identities
 are retained from source analysis before Runtime IR expands types structurally; execution field
 indexes are consumer-local and absent from the wire contract.
@@ -27,7 +27,9 @@ Schema 0.4 adds civil date values and date ordering. The wire stores calendar co
 the consumer derives the date spelling needed by execution or DMN export.
 Schema 0.5 retains typed decision tables, structured unary tests and ordered rules. The portable
 table is the decision body. Execution adapters derive local rule indexes, and DMN export
-renders the same table and its cells.
+renders the same table and its cells. Schema 0.6 retains unary-test domains on scalar
+record fields. The adapter derives execution metadata, and portable runtime and generated
+Java check the domains on record inputs and decision results.
 DMN-to-artifact compilation and artifact-only DMN 1.6 synthesis for the admitted profiles are implemented
 experimentally. Broader expression production, broader DMN synthesis and
 cross-language conformance remain pending. The
