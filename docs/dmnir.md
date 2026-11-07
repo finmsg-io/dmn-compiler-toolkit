@@ -10,6 +10,7 @@ The `dmn-ir-protobuf` module defines the experimental structured scalar wire con
 | 0.2 | `finmsg-dmnir-records/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records` |
 | 0.3 | `finmsg-dmnir-local-bindings/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`, `dmnir.local-bindings` |
 | 0.4 | `finmsg-dmnir-dates/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`, `dmnir.local-bindings`, `dmnir.date` |
+| 0.5 | `finmsg-dmnir-tables/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`, `dmnir.local-bindings`, `dmnir.date`, `dmnir.tables` |
 
 This implements the first scalar slice of [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md).
 The reader validates without executing. `DmnIrRuntimeAdapter` in `dmn-compiler` now derives and
@@ -152,6 +153,25 @@ The lexical boundary follows the [DMN 1.6 specification](https://www.omg.org/spe
 and its referenced [XML Schema datatypes](https://www.w3.org/TR/xmlschema-2/#date).
 Dynamic date constructors, date arithmetic, time, date-time and durations remain outside 0.4.
 
+## Decision tables (schema 0.5)
+
+A decision carries one body, either an expression or a decision table. The table stores ordered
+input columns, output columns and rules. The runtime derives rule indexes from that order.
+`UNIQUE` requires at most one matching rule, `FIRST` selects the earliest match, and `ANY`
+requires all matching rules to produce equal results. With no matches, each output uses its
+default expression or null. One output produces a scalar. Multiple named outputs produce a
+named record whose fields match the columns in declaration order, including null fields.
+
+Each input entry is a wildcard or a disjunction of typed comparisons and bounded ranges. A
+group can negate its match result. A bare scalar test becomes equality. Ordered tests use
+matching number, string or date types. Range boundaries independently include or exclude
+their endpoints. Cells can read resolved dependencies, including record fields. The bounded
+reader validates these references, column types, rule widths, IDs and allocation budgets.
+
+Artifact-only DMN 1.6 export renders the cells as FEEL and retains table, column and rule IDs
+when available, as well as input labels. Clause value domains, rule annotations, item constraints,
+other hit policies, aggregation, candidate-bound predicates and boxed cells require later profiles.
+
 ## Read an artifact
 
 ```java
@@ -225,8 +245,8 @@ The reader preserves scale and trailing coefficient zeros, including negative sc
 - Each decision appears exactly once in the schedule. Decision dependencies precede their
   consumers, detecting cycles without recursive graph traversal. Inputs are outside the schedule.
 
-These checks establish validity for the experimental portable profiles. Collections, decision
-tables, functions, constraints and temporal values beyond civil dates remain outside this schema.
+These checks establish validity for the experimental portable profiles. Collections, functions,
+constraints and temporal values beyond civil dates remain outside this schema.
 
 ## Strict compatibility and diagnostics
 
@@ -261,7 +281,7 @@ var result = values.get(new ElementId("urn:example:root", "result"));
 ```
 
 The sample IDs must match the artifact's declarations. The adapter accepts a `VerifiedArtifact`,
-not an unchecked generated message. It independently pins the exact supported 0.0 through 0.4 profiles. It derives
+not an unchecked generated message. It independently pins the exact supported 0.0 through 0.5 profiles. It derives
 local slots deterministically by namespace and element ID, preserves the verified schedule, and
 lowers the supported expression graph into the existing Runtime IR records. No XML or FEEL parsing occurs
 on this path. The original verified artifact remains available through `source()`; the derived

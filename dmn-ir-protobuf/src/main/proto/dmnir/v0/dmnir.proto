@@ -6,7 +6,7 @@ option java_package = "io.finmsg.dmn.dmnir.proto.v0";
 option java_multiple_files = true;
 option java_outer_classname = "DmnIrProtos";
 
-// Experimental profiles 0.0 through 0.4 of ADR-0026. Not a stable v1 wire contract.
+// Experimental profiles 0.0 through 0.5 of ADR-0026. Not a stable v1 wire contract.
 // No semantic-protobuf imports, FEEL source, original XML or second logic graph.
 // Parsing these messages does NOT validate an executable model. A bounded verifier
 // must check versions, capabilities, declarations, types, references and ordering.
@@ -70,6 +70,67 @@ message DmnIrDecision {
   DmnIrVariable variable = 2;
   repeated DmnIrReference dependencies = 3;
   DmnIrExpression expression = 4;
+  DmnIrDecisionTable decision_table = 5;
+}
+
+enum DmnIrTableHitPolicy {
+  TABLE_HIT_POLICY_UNSPECIFIED = 0;
+  TABLE_HIT_POLICY_UNIQUE = 1;
+  TABLE_HIT_POLICY_FIRST = 2;
+  TABLE_HIT_POLICY_ANY = 3;
+}
+
+message DmnIrDecisionTable {
+  optional string id = 1;
+  DmnIrTableHitPolicy hit_policy = 2;
+  repeated DmnIrTableInput inputs = 3;
+  repeated DmnIrTableOutput outputs = 4;
+  repeated DmnIrTableRule rules = 5;
+}
+
+message DmnIrTableInput {
+  optional string id = 1;
+  optional string label = 2;
+  DmnIrExpression expression = 3;
+  DmnIrScalarType type = 4;
+}
+
+message DmnIrTableOutput {
+  optional string id = 1;
+  optional string name = 2;
+  DmnIrScalarType type = 3;
+  DmnIrExpression default_expression = 4;
+}
+
+message DmnIrTableRule {
+  optional string id = 1;
+  repeated DmnIrUnaryTests input_entries = 2;
+  repeated DmnIrExpression output_entries = 3;
+}
+
+message DmnIrUnaryTests {
+  bool wildcard = 1;
+  bool negated = 2;
+  repeated DmnIrUnaryTest tests = 3;
+}
+
+message DmnIrUnaryTest {
+  oneof test {
+    DmnIrTestComparison comparison = 1;
+    DmnIrTestRange range = 2;
+  }
+}
+
+message DmnIrTestComparison {
+  DmnIrBinaryOperator operator = 1;
+  DmnIrExpression endpoint = 2;
+}
+
+message DmnIrTestRange {
+  DmnIrExpression lower = 1;
+  DmnIrExpression upper = 2;
+  bool lower_inclusive = 3;
+  bool upper_inclusive = 4;
 }
 
 message DmnIrReference {

@@ -25,6 +25,7 @@ public final class DmnJavaGenerator {
 		sb.append("import java.math.BigDecimal;\n");
 		sb.append("import java.time.*;\n");
 		sb.append("import java.util.*;\n");
+		sb.append("import io.finmsg.dmn.runtime.DmnEvaluationException;\n");
 		sb.append("import io.finmsg.dmn.runtime.RuntimeRangeValue;\n");
 		sb.append("import io.finmsg.dmn.ir.RuntimeRangeBoundary;\n");
 		sb.append("import io.finmsg.dmn.ir.RuntimeType;\n");
@@ -230,6 +231,13 @@ public final class DmnJavaGenerator {
 			sb.append("    List<Object> matches = new ArrayList<>();\n");
 		}
 
+		boolean unique = table.hitPolicy() == RuntimeHitPolicy.UNIQUE;
+		boolean any = table.hitPolicy() == RuntimeHitPolicy.ANY;
+		if (unique || any) {
+			sb.append("    int matchCount = 0;\n");
+			sb.append("    Object firstMatch = null;\n");
+		}
+
 		sb.append("\n    // Match Decision Table Rules (Hit Policy: ").append(table.hitPolicy()).append(")\n");
 		for (int r = 0; r < table.rules().size(); r++) {
 			RuntimeDecisionTableRule rule = table.rules().get(r);
@@ -266,6 +274,12 @@ public final class DmnJavaGenerator {
 			}
 			if (isMultiMatch) {
 				sb.append("      matches.add(").append(outExpr).append(");\n");
+			} else if (unique || any) {
+				sb.append("      Object result = ").append(outExpr).append(";\n");
+				sb.append("      if (matchCount++ == 0) firstMatch = result;\n");
+				if (any)
+					sb.append("      else if (!Boolean.TRUE.equals(equal(firstMatch, result))) "
+							+ "throw new DmnEvaluationException(\"ANY table produced different outputs\");\n");
 			} else {
 				sb.append("      return ").append(outExpr).append(";\n");
 			}
@@ -275,7 +289,8 @@ public final class DmnJavaGenerator {
 		String defaultExpr = null;
 		if (table.outputs().size() == 1 && table.outputs().get(0).defaultValue().isPresent()) {
 			defaultExpr = JavaExpressionEmitter.emitWithBkms(table.outputs().get(0).defaultValue().get(), bkmBySlot);
-		} else if (table.outputs().size() > 1 && table.outputs().stream().anyMatch(o -> o.defaultValue().isPresent())) {
+		} else if (table.outputs().size() > 1
+				&& (!isMultiMatch || table.outputs().stream().anyMatch(o -> o.defaultValue().isPresent()))) {
 			StringBuilder ctxSb = new StringBuilder("createContext(new Object[][]{");
 			for (int o = 0; o < table.outputs().size(); o++) {
 				if (o > 0)
@@ -305,6 +320,11 @@ public final class DmnJavaGenerator {
 				sb.append("    return Collections.unmodifiableList(new ArrayList<>(matches));\n");
 			}
 		} else {
+			if (unique)
+				sb.append("    if (matchCount > 1) throw new DmnEvaluationException(")
+						.append("\"UNIQUE table matched \" + matchCount + \" rules\");\n");
+			if (unique || any)
+				sb.append("    if (matchCount > 0) return firstMatch;\n");
 			sb.append("    return ").append(defaultExpr != null ? defaultExpr : "null").append(";\n");
 		}
 	}

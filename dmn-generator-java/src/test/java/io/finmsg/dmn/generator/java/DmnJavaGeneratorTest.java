@@ -82,6 +82,110 @@ class DmnJavaGeneratorTest {
 		}
 	}
 	@Test
+	void portableTableGeneratesJavaForComposedPolicy(@TempDir Path tempDir) throws Exception {
+		String calendar = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="calendar" name="Calendar" namespace="urn:tables:calendar">
+				<itemDefinition id="permit" name="tPermit"><itemComponent name="Expiry"><typeRef>date</typeRef></itemComponent></itemDefinition>
+				<decision id="cutoff" name="Cutoff"><variable name="Cutoff" typeRef="date"/><literalExpression><text>date("2024-02-01")</text></literalExpression></decision>
+				</definitions>
+				""";
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" xmlns:cal="urn:tables:calendar" id="model" name="Policy" namespace="urn:generated:tables">
+				<import name="cal" namespace="urn:tables:calendar" locationURI="calendar.dmn" importType="DMN"/>
+				<itemDefinition id="applicant" name="tApplicant"><itemComponent name="Permit"><typeRef>cal:tPermit</typeRef></itemComponent></itemDefinition>
+				<itemDefinition id="outcome" name="tOutcome"><itemComponent name="Fee"><typeRef>number</typeRef></itemComponent>
+				<itemComponent name="Reason"><typeRef>string</typeRef></itemComponent></itemDefinition>
+				<inputData id="input" name="Applicant"><variable name="Applicant" typeRef="tApplicant"/></inputData>
+				<decision id="decision" name="Outcome"><variable name="Outcome" typeRef="tOutcome"/>
+				<informationRequirement><requiredInput href="#input"/></informationRequirement>
+				<informationRequirement><requiredDecision href="urn:tables:calendar#cutoff"/></informationRequirement>
+				<decisionTable hitPolicy="FIRST">
+				<input><inputExpression typeRef="date"><text>Applicant.Permit.Expiry</text></inputExpression></input>
+				<output name="Fee" typeRef="number"><defaultOutputEntry><text>100</text></defaultOutputEntry></output>
+				<output name="Reason" typeRef="string"/>
+				<rule><inputEntry><text>[cal.Cutoff .. date("2024-03-01")), date("2024-04-01")</text></inputEntry>
+				<outputEntry><text>0</text></outputEntry><outputEntry><text>"preferred"</text></outputEntry></rule>
+				<rule><inputEntry><text>not(&lt; cal.Cutoff, null)</text></inputEntry>
+				<outputEntry><text>30</text></outputEntry><outputEntry><text>"regular"</text></outputEntry></rule>
+				</decisionTable></decision>
+				<decision id="answer" name="Answer"><variable name="Answer" typeRef="number"/>
+				<informationRequirement><requiredDecision href="#decision"/></informationRequirement>
+				<context><contextEntry><variable name="Base Fee" typeRef="number"/><literalExpression><text>Outcome.Fee</text></literalExpression></contextEntry>
+				<contextEntry><literalExpression><text>if Outcome.Reason = null then Base Fee else Base Fee + 5</text></literalExpression></contextEntry></context>
+				</decision></definitions>
+				""";
+		var imported = new DmnSource(DmnSourceId.of("memory:/calendar.dmn"),
+				calendar.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var source = new DmnSource(DmnSourceId.of("memory:/tables.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var artifact = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source,
+				new InMemoryDmnModelResolver(List.of(imported)));
+		var model = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.artifact().toByteArray()));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var input = model.inputs().values().iterator().next();
+		for (var date : Arrays.asList(java.time.LocalDate.of(2024, 1, 31), java.time.LocalDate.of(2024, 2, 1),
+				java.time.LocalDate.of(2024, 2, 29), java.time.LocalDate.of(2024, 3, 1),
+				java.time.LocalDate.of(2024, 4, 1), null)) {
+			Map<String, Object> permit = new HashMap<>();
+			permit.put("Expiry", date);
+			var applicant = Map.of("Permit", permit);
+			var expected = model.evaluate(Map.of(input.id(), applicant));
+			Object[] slots = new Object[model.runtimeModel().valueSlotCount()];
+			slots[input.slot()] = applicant;
+			Object[] actual = engine.evaluate(slots);
+			for (var decision : model.decisions().values())
+				assertThat(actual[decision.slot()]).isEqualTo(expected.get(decision.id()));
+		}
+	}
+
+	@Test
+	void portableJavaEnforcesSingleResultHitPoliciesAndRetainsNullFields(@TempDir Path tempDir) throws Exception {
+		String table = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="model" name="Policy" namespace="urn:generated:table-policies">
+				<itemDefinition id="outcome" name="tOutcome"><itemComponent name="Fee"><typeRef>number</typeRef></itemComponent>
+				<itemComponent name="Reason"><typeRef>string</typeRef></itemComponent></itemDefinition>
+				<inputData id="input" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<decision id="answer" name="Outcome"><variable name="Outcome" typeRef="tOutcome"/>
+				<informationRequirement><requiredInput href="#input"/></informationRequirement>
+				<decisionTable hitPolicy="%s">
+				<input><inputExpression typeRef="number"><text>Amount</text></inputExpression></input>
+				<output name="Fee" typeRef="number"/><output name="Reason" typeRef="string"/>
+				<rule><inputEntry><text>&gt; 0</text></inputEntry><outputEntry><text>1</text></outputEntry><outputEntry><text>null</text></outputEntry></rule>
+				<rule><inputEntry><text>&gt; 1</text></inputEntry><outputEntry><text>%d</text></outputEntry><outputEntry><text>null</text></outputEntry></rule>
+				</decisionTable></decision></definitions>
+				""";
+		for (String policy : List.of("UNIQUE", "ANY")) {
+			for (int secondFee : List.of(1, 2)) {
+				var source = new DmnSource(DmnSourceId.of("memory:/policy.dmn"),
+						table.formatted(policy, secondFee).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+				var model = new DmnIrRuntimeAdapter()
+						.adapt(new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source));
+				var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+				var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve(policy + secondFee),
+						generated.mainClassName(), generated.mainSource()).getDeclaredConstructor().newInstance();
+				var input = model.inputs().values().iterator().next();
+				var decision = model.decisions().values().iterator().next();
+				for (int amount : List.of(0, 1, 2)) {
+					Object[] slots = new Object[model.runtimeModel().valueSlotCount()];
+					slots[input.slot()] = amount;
+					if (amount == 2 && (policy.equals("UNIQUE") || secondFee != 1)) {
+						var expected = org.junit.jupiter.api.Assertions.assertThrows(
+								io.finmsg.dmn.runtime.DmnEvaluationException.class,
+								() -> model.evaluate(Map.of(input.id(), amount)));
+						org.assertj.core.api.Assertions.assertThatThrownBy(() -> engine.evaluate(slots))
+								.isInstanceOf(expected.getClass()).hasMessage(expected.getMessage());
+					} else {
+						var expected = model.evaluate(Map.of(input.id(), amount)).get(decision.id());
+						assertThat(engine.evaluate(slots)[decision.slot()]).isEqualTo(expected);
+					}
+				}
+			}
+		}
+	}
+
+	@Test
 	void portableLocalBindingsGenerateExecutableJava(@TempDir Path tempDir) throws Exception {
 		String xml = """
 				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="model" name="Locals" namespace="urn:generated:locals">

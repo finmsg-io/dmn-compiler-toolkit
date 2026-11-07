@@ -16,7 +16,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Strict, bounded reader for experimental portable profiles 0.0 through 0.4.
+ * Strict, bounded reader for experimental portable profiles 0.0 through 0.5.
  */
 public final class DmnIrArtifactReader {
 	public static final String SEMANTICS_VERSION = "finmsg-dmnir-scalar/0";
@@ -29,6 +29,8 @@ public final class DmnIrArtifactReader {
 	public static final String LOCAL_CAPABILITY = "dmnir.local-bindings";
 	public static final String DATE_SEMANTICS_VERSION = "finmsg-dmnir-dates/0";
 	public static final String DATE_CAPABILITY = "dmnir.date";
+	public static final String TABLE_SEMANTICS_VERSION = "finmsg-dmnir-tables/0";
+	public static final String TABLE_CAPABILITY = "dmnir.tables";
 	private final DmnIrLimits limits;
 
 	public DmnIrArtifactReader() {
@@ -100,6 +102,8 @@ public final class DmnIrArtifactReader {
 		private boolean recordsProfile;
 		private boolean localsProfile;
 		private boolean datesProfile;
+		private boolean tablesProfile;
+		private boolean tableCell;
 		private final Map<String, Set<String>> modelIds = new HashMap<>();
 		private final Set<String> bindingIds = new HashSet<>();
 		private Map<String, DmnIrTypeReference> visibleLocals = new HashMap<>();
@@ -117,14 +121,16 @@ public final class DmnIrArtifactReader {
 			check(artifact.hasSchemaVersion() && artifact.getSchemaVersion().hasMajor()
 					&& artifact.getSchemaVersion().hasMinor(), INVALID_HEADER, "artifact.schema_version",
 					"Explicit major and minor versions are required.");
-			datesProfile = artifact.getSchemaVersion().getMinor() == 4;
+			tablesProfile = artifact.getSchemaVersion().getMinor() == 5;
+			datesProfile = artifact.getSchemaVersion().getMinor() == 4 || tablesProfile;
 			localsProfile = artifact.getSchemaVersion().getMinor() == 3 || datesProfile;
 			recordsProfile = artifact.getSchemaVersion().getMinor() == 2 || localsProfile;
 			expressions = artifact.getSchemaVersion().getMinor() == 1 || recordsProfile;
 			check(artifact.getSchemaVersion().getMajor() == 0
 					&& (artifact.getSchemaVersion().getMinor() == 0 || expressions)
-					&& artifact.getSemanticsVersion()
-							.equals(datesProfile
+					&& artifact.getSemanticsVersion().equals(tablesProfile
+							? TABLE_SEMANTICS_VERSION
+							: datesProfile
 									? DATE_SEMANTICS_VERSION
 									: localsProfile
 											? LOCAL_SEMANTICS_VERSION
@@ -139,22 +145,27 @@ public final class DmnIrArtifactReader {
 				check(capability.equals(SCALAR_CAPABILITY) || expressions && capability.equals(EXPRESSION_CAPABILITY)
 						|| recordsProfile && capability.equals(RECORD_CAPABILITY)
 						|| localsProfile && capability.equals(LOCAL_CAPABILITY)
-						|| datesProfile && capability.equals(DATE_CAPABILITY), UNSUPPORTED_CAPABILITY, path,
+						|| datesProfile && capability.equals(DATE_CAPABILITY)
+						|| tablesProfile && capability.equals(TABLE_CAPABILITY), UNSUPPORTED_CAPABILITY, path,
 						"Required capability is not supported.");
 				check(capabilities.add(capability), INVALID_HEADER, path, "Duplicate required capability.");
 			}
 			check(capabilities.contains(SCALAR_CAPABILITY), INVALID_HEADER, "artifact.required_capabilities",
 					"The scalar capability must be declared.");
-			check(artifact.getRequiredCapabilitiesList().equals(datesProfile
+			check(artifact.getRequiredCapabilitiesList().equals(tablesProfile
 					? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY, LOCAL_CAPABILITY,
-							DATE_CAPABILITY)
-					: localsProfile
-							? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY, LOCAL_CAPABILITY)
-							: recordsProfile
-									? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY)
-									: expressions
-											? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY)
-											: List.of(SCALAR_CAPABILITY)),
+							DATE_CAPABILITY, TABLE_CAPABILITY)
+					: datesProfile
+							? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY, LOCAL_CAPABILITY,
+									DATE_CAPABILITY)
+							: localsProfile
+									? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY,
+											LOCAL_CAPABILITY)
+									: recordsProfile
+											? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY, RECORD_CAPABILITY)
+											: expressions
+													? List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY)
+													: List.of(SCALAR_CAPABILITY)),
 					INVALID_HEADER, "artifact.required_capabilities",
 					"Exact ordered profile capabilities are required.");
 			check(artifact.getModelsCount() > 0, INVALID_HEADER, "artifact.models", "A model is required.");
@@ -290,12 +301,143 @@ public final class DmnIrArtifactReader {
 				check(target != owner && dependencies.add(Address.of(value)), INVALID_DEPENDENCY, dependencyPath,
 						"Dependencies must be unique and must not reference their owner.");
 			}
+			check(!decision.hasDecisionTable() || tablesProfile, UNSUPPORTED_CAPABILITY, path,
+					"Decision tables require profile 0.5.");
+			check(decision.hasDecisionTable() != decision.hasExpression(), INVALID_EXPRESSION, path,
+					"Exactly one decision body is required.");
+			if (decision.hasDecisionTable()) {
+				tableCell = true;
+				table(decision.getDecisionTable(), owner, dependencies, path + ".decision_table");
+				tableCell = false;
+				return;
+			}
 			DmnIrExpression expression = decision.getExpression();
 			var resultType = typeOf(expression.getType(), expression.hasRecordType(), expression.getRecordType(),
 					path + ".expression.type");
 			check(assignable(resultType, owner.type()), INVALID_TYPE, path + ".expression.type",
 					"Expression type is incompatible with its declared result.");
 			node(expression, owner, dependencies, path + ".expression", 1);
+		}
+
+		private void table(DmnIrDecisionTable table, Element owner, Set<Address> dependencies, String path) {
+			switch (table.getHitPolicy()) {
+				case TABLE_HIT_POLICY_UNIQUE, TABLE_HIT_POLICY_FIRST, TABLE_HIT_POLICY_ANY -> {
+				}
+				default -> check(false, INVALID_EXPRESSION, path + ".hit_policy", "Unsupported hit policy.");
+			}
+			check(table.getInputsCount() > 0 && table.getOutputsCount() > 0 && table.getRulesCount() > 0,
+					INVALID_EXPRESSION, path, "A table requires inputs, outputs and rules.");
+			if (table.hasId())
+				tableId(table.getId(), owner, path);
+			for (int i = 0; i < table.getInputsCount(); i++) {
+				var input = table.getInputs(i);
+				String inputPath = path + ".inputs[" + i + "]";
+				budget(inputPath);
+				if (input.hasId())
+					tableId(input.getId(), owner, inputPath);
+				cell(input.getExpression(), input.getType(), owner, dependencies, inputPath + ".expression");
+			}
+			var fields = owner.type().hasRecordType()
+					? records.get(Address.of(owner.type().getRecordType())).getFieldsList()
+					: List.<DmnIrRecordField>of();
+			check(table.getOutputsCount() == 1
+					? owner.type().hasScalarType()
+					: table.getOutputsCount() == fields.size(), INVALID_TYPE, path, "Incompatible table result shape.");
+			for (int i = 0; i < table.getOutputsCount(); i++) {
+				var output = table.getOutputs(i);
+				String outputPath = path + ".outputs[" + i + "]";
+				budget(outputPath);
+				if (output.hasId())
+					tableId(output.getId(), owner, outputPath);
+				check(!output.hasName() || !output.getName().isBlank(), INVALID_IDENTITY, outputPath,
+						"An output name must be non-empty when present.");
+				scalar(output.getType(), outputPath);
+				if (fields.isEmpty()) {
+					check(output.getType() == owner.type().getScalarType(), INVALID_TYPE, outputPath,
+							"Output type must match the decision type.");
+				} else {
+					var field = fields.get(i);
+					check(output.getName().equals(field.getName()) && field.getType().hasScalarType()
+							&& output.getType() == field.getType().getScalarType(), INVALID_TYPE, outputPath,
+							"Output names and types must match record fields in declaration order.");
+				}
+				if (output.hasDefaultExpression())
+					cell(output.getDefaultExpression(), output.getType(), owner, dependencies,
+							outputPath + ".default_expression");
+			}
+			for (int i = 0; i < table.getRulesCount(); i++) {
+				var rule = table.getRules(i);
+				String rulePath = path + ".rules[" + i + "]";
+				budget(rulePath);
+				if (rule.hasId())
+					tableId(rule.getId(), owner, rulePath);
+				check(rule.getInputEntriesCount() == table.getInputsCount()
+						&& rule.getOutputEntriesCount() == table.getOutputsCount(), INVALID_EXPRESSION, rulePath,
+						"Rule entry counts must match column counts.");
+				for (int j = 0; j < rule.getInputEntriesCount(); j++)
+					tests(rule.getInputEntries(j), table.getInputs(j).getType(), owner, dependencies,
+							rulePath + ".input_entries[" + j + "]");
+				for (int j = 0; j < rule.getOutputEntriesCount(); j++)
+					cell(rule.getOutputEntries(j), table.getOutputs(j).getType(), owner, dependencies,
+							rulePath + ".output_entries[" + j + "]");
+			}
+		}
+
+		private void tableId(String id, Element owner, String path) {
+			check(!id.isBlank() && modelIds.get(owner.namespace()).add(id), INVALID_IDENTITY, path + ".id",
+					"A unique non-empty ID is required when present.");
+		}
+
+		private void tests(DmnIrUnaryTests group, DmnIrScalarType type, Element owner, Set<Address> dependencies,
+				String path) {
+			check(group.getWildcard() ? !group.getNegated() && group.getTestsCount() == 0 : group.getTestsCount() > 0,
+					INVALID_EXPRESSION, path, "Expected a wildcard or non-empty test alternatives.");
+			for (int i = 0; i < group.getTestsCount(); i++) {
+				var test = group.getTests(i);
+				String testPath = path + ".tests[" + i + "]";
+				switch (test.getTestCase()) {
+					case COMPARISON -> {
+						var comparison = test.getComparison();
+						switch (comparison.getOperator()) {
+							case BINARY_OPERATOR_EQUAL, BINARY_OPERATOR_NOT_EQUAL -> {
+								var endpoint = comparison.getEndpoint();
+								check(endpoint.getType() != DmnIrScalarType.SCALAR_TYPE_NULL
+										|| endpoint.getLiteral().getValueCase() == DmnIrLiteral.ValueCase.NULL_VALUE,
+										INVALID_TYPE, testPath, "A null endpoint must be explicit.");
+								cell(endpoint, type, owner, dependencies, testPath + ".comparison.endpoint");
+							}
+							case BINARY_OPERATOR_LESS, BINARY_OPERATOR_LESS_EQUAL, BINARY_OPERATOR_GREATER,
+									BINARY_OPERATOR_GREATER_EQUAL ->
+								orderedEndpoint(comparison.getEndpoint(), type, owner, dependencies,
+										testPath + ".comparison.endpoint");
+							default -> check(false, INVALID_EXPRESSION, testPath, "Unsupported test comparison.");
+						}
+					}
+					case RANGE -> {
+						orderedEndpoint(test.getRange().getLower(), type, owner, dependencies,
+								testPath + ".range.lower");
+						orderedEndpoint(test.getRange().getUpper(), type, owner, dependencies,
+								testPath + ".range.upper");
+					}
+					case TEST_NOT_SET -> check(false, INVALID_EXPRESSION, testPath, "A test is required.");
+				}
+			}
+		}
+
+		private void orderedEndpoint(DmnIrExpression endpoint, DmnIrScalarType type, Element owner,
+				Set<Address> dependencies, String path) {
+			check((type == DmnIrScalarType.SCALAR_TYPE_NUMBER || type == DmnIrScalarType.SCALAR_TYPE_STRING
+					|| type == DmnIrScalarType.SCALAR_TYPE_DATE) && endpoint.getType() == type, INVALID_TYPE, path,
+					"Ordered endpoints require the same ordered scalar type as the input.");
+			cell(endpoint, type, owner, dependencies, path);
+		}
+
+		private void cell(DmnIrExpression expression, DmnIrScalarType type, Element owner, Set<Address> dependencies,
+				String path) {
+			scalar(type, path);
+			check(!expression.hasRecordType() && assignable(expression.getType(), type), INVALID_TYPE, path,
+					"Cell expression must be compatible with the column's scalar type.");
+			node(expression, owner, dependencies, path, 1);
 		}
 
 		private void node(DmnIrExpression expression, Element owner, Set<Address> dependencies, String path,
@@ -305,6 +447,8 @@ public final class DmnIrArtifactReader {
 			var nodeType = typeOf(expression.getType(), expression.hasRecordType(), expression.getRecordType(),
 					nodeTypePath);
 			validateType(nodeType, owner.namespace(), nodeTypePath);
+			check(!tableCell || !expression.hasContext(), INVALID_EXPRESSION, path,
+					"Boxed expressions are unsupported in table cells.");
 			switch (expression.getNodeCase()) {
 				case LOCAL_REFERENCE -> {
 					check(localsProfile, UNSUPPORTED_CAPABILITY, path, "Local references require profile 0.3.");

@@ -2082,3 +2082,235 @@ Mixed Spark SQL regression actions from the full reactor:
 The completed regression action rates were 96.23% native and 3.77% fallback. The failed actions
 come from intentional failure tests and are counted separately. The official focused date
 results and the established whole-suite TCK checkpoint have separate denominators.
+
+## 21. Decision tables and structured unary tests — approved schema 0.5
+
+Date 2026-11-07. Status **implemented and verified**. Schema 0.4 is available at `ac09016` and its
+[feature CI passed](https://github.com/finmsg-io/dmn-compiler-toolkit/actions/runs/42348312005).
+
+The next slice adds executable decision tables with `UNIQUE`, `FIRST` and `ANY`, ordered rules,
+scalar columns, scalar or named-record results, and optional default outputs. A composed policy
+bundle will combine imported dates, nested records, a multi-output table and a downstream boxed
+context. Traffic Violation's Fine table supplies a second fixture with constraints handled in a
+later slice. The compiler currently parses and writes item constraints. Runtime type lowering
+does not retain them, so constraint enforcement needs its own reviewed contract.
+
+Retain the structured table as the single decision body. Flattening rules into conditionals
+would obscure hit policies, defaults and column identities needed for export. Storing FEEL cells
+would require every independent consumer to parse FEEL. This design follows the ideation
+SPEC-001 direction of typed columns and ordered rules while leaving runtime indexes derived.
+
+### Wire proposal
+
+Schema 0.5 uses `finmsg-dmnir-tables/0` and appends `dmnir.tables` to the exact ordered 0.4
+capabilities. `DmnIrDecision` adds `decision_table = 5` beside the existing `expression = 4`.
+The verifier requires exactly one body. Older profiles retain their existing body and header rules.
+
+```proto
+enum DmnIrTableHitPolicy {
+  TABLE_HIT_POLICY_UNSPECIFIED = 0;
+  TABLE_HIT_POLICY_UNIQUE = 1;
+  TABLE_HIT_POLICY_FIRST = 2;
+  TABLE_HIT_POLICY_ANY = 3;
+}
+message DmnIrDecisionTable {
+  optional string id = 1;
+  DmnIrTableHitPolicy hit_policy = 2;
+  repeated DmnIrTableInput inputs = 3;
+  repeated DmnIrTableOutput outputs = 4;
+  repeated DmnIrTableRule rules = 5;
+}
+message DmnIrTableInput {
+  optional string id = 1;
+  optional string label = 2;
+  DmnIrExpression expression = 3;
+  DmnIrScalarType type = 4;
+}
+message DmnIrTableOutput {
+  optional string id = 1;
+  optional string name = 2;
+  DmnIrScalarType type = 3;
+  DmnIrExpression default_expression = 4;
+}
+message DmnIrTableRule {
+  optional string id = 1;
+  repeated DmnIrUnaryTests input_entries = 2;
+  repeated DmnIrExpression output_entries = 3;
+}
+message DmnIrUnaryTests {
+  bool wildcard = 1;
+  bool negated = 2;
+  repeated DmnIrUnaryTest tests = 3;
+}
+message DmnIrUnaryTest {
+  oneof test {
+    DmnIrTestComparison comparison = 1;
+    DmnIrTestRange range = 2;
+  }
+}
+message DmnIrTestComparison {
+  DmnIrBinaryOperator operator = 1;
+  DmnIrExpression endpoint = 2;
+}
+message DmnIrTestRange {
+  DmnIrExpression lower = 1;
+  DmnIrExpression upper = 2;
+  bool lower_inclusive = 3;
+  bool upper_inclusive = 4;
+}
+```
+
+### Execution and export boundaries
+
+- Require at least one input, output and rule. Preserve all three orders. Each rule has one
+  test group per input and one expression per output. Derive rule indexes from order. Retain
+  available table, column and rule IDs as model-local source identities and check uniqueness.
+- `-` maps to a wildcard with an empty test list and no negation. Other groups have at least one
+  alternative and may negate the group's match result. A bare scalar test becomes equality.
+  Comparison operators are limited to equality, inequality and the four ordered comparisons.
+  Ordered comparisons and bounded ranges use matching number, string or date types. Equality
+  and inequality accept matching scalar types or an explicit null endpoint. Range endpoints
+  are required. An evaluated range with lower greater than upper matches no value.
+- Column expressions, endpoints and outputs use the existing FEEL-renderable scalar subset.
+  They can read globals or record fields. Candidate-bound predicates using `?`, general list
+  tests and boxed expressions inside table cells are deferred. Record-valued table results
+  come from multiple scalar output columns. Output names and types must match the decision's
+  named record fields in declaration order. A single output matches the scalar result type.
+- The current runtime supplies hit-policy behavior. `UNIQUE` reports overlap, `FIRST` uses the
+  earliest match and `ANY` reports unequal matched results. With no matches, each column uses
+  its default expression or null. A multi-output result retains the names and null fields.
+- Verify dependencies and type compatibility throughout table bodies. Preflight counts columns
+  and rules toward declaration limits and applies existing wire budgets to entries and tests.
+  Reject other hit policies, aggregation, clause value domains, rule annotations and item
+  constraints before production. Preserve admitted IDs and labels in synthesized DMN 1.6.
+
+```mermaid
+flowchart LR
+    Source["Analyzed table and resolved expressions"] --> Table["Typed columns, unary tests, ordered rules"]
+    Table --> Verify["Profile, widths, types, dependencies and budgets"]
+    Verify --> Run["Existing table runtime and generated Java"]
+    Verify --> Export["DMN 1.6 decision table"]
+    Export --> Parity["XSD validation and recompiled parity"]
+```
+
+### Acceptance
+
+1. Pin wire tags and headers. Test earlier reader rejection and earlier artifact acceptance.
+2. Exercise malformed shapes, duplicate IDs, illegal test groups, missing bounds, incorrect
+   types, undeclared dependencies, old profiles and size limits in the bounded codec.
+3. Verify no-match defaults, null candidates, open/closed endpoints, disjunction and negation.
+   Exercise overlapping `UNIQUE` and `FIRST` rules and equal/unequal `ANY` results.
+4. Compare direct compilation, artifact execution, generated Java and recompiled DMN across
+   the composed policy and standalone Fine fixtures. Validate against official DMN 1.6 XSD,
+   verify determinism and run an artifact-only consumer in a separate JVM.
+5. Run JUnit 5/Surefire focused tests, the full reactor, tooling and strict documentation checks.
+
+The slice touches the portable schema, codec, compiler adapters and their tests and docs.
+It reuses existing source analysis, runtime table execution and DMN writing. The public wire
+change is the review boundary. The accepted representation architecture remains ADR-0026.
+
+
+### Implementation and verification
+
+The producer retains table, column and rule identities and binds cell references using the
+existing semantic analyzer. The bounded reader checks table shape, result types, dependencies,
+unary tests and declaration budgets. The runtime adapter derives local rule indexes, and DMN 1.6
+synthesis writes the same table with normalized FEEL. An artifact-only JVM process runs the
+composed policy from bytes. The Fine fixture is extracted from the existing Traffic Violation
+model with its item constraint removed for this slice.
+
+The saved 0.4 binaries accepted a 0.4 artifact and rejected a 0.5 table with `UNKNOWN_FIELD`.
+The current reader accepted both. The compatibility harness and input artifacts are in
+`target/dmnir-0.4-baseline`.
+
+The focused runs found and corrected a missing 0.5 namespace declaration for named result
+types and supplied the Fine fixture's complete input record. A generated-Java parity check
+then exposed the missing all-null record default. The Java emitter preserves the record shape
+on no match and enforces the existing runtime's `UNIQUE` and `ANY` overlap rules.
+
+The focused DMNIR and Java suites passed 113 tests before the Java emitter correction.
+The final full reactor passed 623 tests with zero failures, errors or skips, including 16 Java
+generator tests. The separate generated-Java Fine check passed all six cases. See
+`target/release-1.2-tables-focused-complete.log`, `target/release-1.2-tables-reactor.log` and
+`target/release-1.2-tables-generated-fine-final.log`. The focused runs did not measure Spark
+routing. The reactor measured 3,034 native actions (96.23%) and 119 fallback actions (3.77%)
+of 3,153 completed SQL actions across four Spark suites, with zero unknown and 60 failed actions
+counted separately. These are regression-suite actions. No new official TCK was run for this slice.
+
+All 73 tooling tests, strict MkDocs and documentation facts and maintained-link checks passed.
+The full Traffic Violation model still requires item constraints. Collections, functions,
+authoring DSL and independent Rust execution remain open.
+
+## 22. Scalar constraints on record fields
+
+Date 2026-11-07. Status **proposed for review**. The bounded outcome is to preserve an admitted
+field domain through DMN import, portable execution, Java generation and artifact-only DMN 1.6
+export. The existing frontend parses both item-constraint spellings, and semantic analysis
+checks unary-test operand types. Runtime type lowering currently drops the domain. The
+[DMN 1.6 schema](https://www.omg.org/spec/DMN/20240513/DMN16.xsd) allows `typeConstraint`
+on a typed item component. [OMG's operational-semantics issue](https://issues.omg.org/issues/DMN18-70)
+records an open question about when constraints apply. The timing and diagnostic below are
+proposed DMNIR profile behavior.
+
+### Additive schema 0.6
+
+Use `finmsg-dmnir-field-constraints/0` and append `dmnir.field-constraints` to the exact ordered
+0.5 capability list. Add a presence-bearing `DmnIrUnaryTests constraint = 4` to
+`DmnIrRecordField`. Store the tests on their declaring field, including unused declarations and
+fields reached through imported named types. Keep the existing record type reference and
+all 0.0 through 0.5 wire tags.
+
+- Admit constraints on scalar record fields with boolean, number, string or civil-date bases.
+  Reuse 0.5 unary-test groups and comparison/range typing. Endpoints must be constants:
+  normalize signed decimal literals and supported constant date spellings before validation.
+  Admit explicit null as an equality or inequality endpoint under the existing test rules.
+- Reject empty test groups, unbounded ranges, dynamic endpoints, candidate-bound predicates,
+  constraints on collections or whole records, and top-level constrained scalar type aliases.
+  Apply the existing wire budgets, field declaration limits and model-local identity checks.
+- Accept one source constraint per field using either `allowedValues` or `typeConstraint`.
+  Diagnose duplicate constraint children before either can overwrite the other in the frontend.
+  Export the normalized domain as `typeConstraint` in synthesized DMN 1.6. The legacy element
+  spelling and vendor styling are outside the portable semantics.
+
+### Execution and compatibility
+
+Proposed default for schema 0.6 consumers is **enforcement**. Carry the field domain into
+derived execution metadata and share one matcher across portable runtime and generated Java.
+Test a structurally accepted record when it enters a model input slot or is bound as a
+decision result, traversing nested records in field order. At this profile, record-valued
+local bindings take a record already checked at a slot, select between such values, or
+produce null. A null record has no field values to check. A null field is tested against its
+domain using the same matching rules as a table candidate. Report the first domain violation
+as an evaluation error with a stable field path and omit the rejected value. Preserve existing
+structural conversion rules, including their treatment of missing or ill-typed fields.
+
+Limit the new execution behavior to models derived from verified 0.6 artifacts. The ordinary
+DMN compiler and Spark paths keep their current behavior for source models. For disallowed
+values, test the re-export path by producing a fresh portable artifact from the synthesized
+DMN. Compare ordinary direct compilation on valid values. Carrying the constraint as export
+metadata alone would preserve XML round trips but would leave independent consumers without
+an agreed runtime contract. Applying the new checks to ordinary source execution would
+change existing runtime and Spark behavior and is a separate compatibility decision.
+
+The full Traffic Violation fixture also includes a terminal decision name ending in `?`.
+Allow an XML-safe display name for a decision that is never rendered as a FEEL reference.
+Keep the existing FEEL name validation for actual references and retain the original terminal
+name, ID and variable name. Verify this rule with both referenced and unreferenced decisions.
+
+### Acceptance
+
+1. Verify exact headers and tags, 0.5 reader rejection, acceptance of earlier artifacts,
+   malformed tests and bounded validation. Reject unsupported source constraints explicitly.
+2. Exercise the full Traffic Violation source and compare both decisions on valid inputs
+   through direct compilation, portable execution, generated Java and recompiled DMN 1.6.
+   Check the emitted constraint and terminal decision against the official DMN 1.6 XSD.
+3. Extend the composed policy with an imported nested record containing number and date
+   constraints, a decision table and a downstream boxed context. Cover open and closed
+   boundaries, explicit null, invalid input and invalid decision output. Compare violation
+   diagnostics across portable runtime, generated Java and artifacts reproduced from DMN.
+4. Prove deterministic artifacts and XML, execute from bytes in a separate JVM, and run
+   focused JUnit 5/Surefire, full reactor, tooling and strict documentation checks.
+
+Review covers the public wire addition, the portable violation policy and the narrow export
+name rule. Changes would touch the portable schema and codec, frontend and compiler adapters,
+derived Runtime IR and Java execution, with no new dependencies or publication.

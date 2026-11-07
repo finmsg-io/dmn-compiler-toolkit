@@ -63,8 +63,8 @@ Schema 0.2 adds named acyclic records and resolved field access while preserving
 identity, optional field IDs and declaration order. Runtime field indexes remain derived locally.
 
 Schema 0.3 adds ordered boxed contexts and decision-local binding identities, with runtime slots
-derived by consumers. Schema 0.4 adds Gregorian dates. The separate codec validates profiles
-0.0 through 0.4, and the compiler layer adapts verified artifacts to Runtime IR and synthesizes DMN 1.6 for its admitted
+derived by consumers. Schema 0.4 adds Gregorian dates. Schema 0.5 adds typed decision tables.
+The separate codec validates profiles 0.0 through 0.5, and the compiler layer adapts verified artifacts to Runtime IR and synthesizes DMN 1.6 for its admitted
 subset. Broader DMN synthesis and Rust generation remain subsequent slices. The `v0` namespace
 is experimental and does not establish stable `v1` compatibility or canonical content hashing.
 See [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md) for the accepted architecture.
@@ -72,7 +72,7 @@ See [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md) for the a
 <a id="portable-dmnir-codec"></a>
 ## `dmn-ir-codec`
 
-Bounded reader and verifier for the experimental schemas 0.0 through 0.4. Its production dependencies
+Bounded reader and verifier for the experimental schemas 0.0 through 0.5. Its production dependencies
 are `dmn-ir-protobuf` and `protobuf-java`; existing execution modules do not depend on it.
 The reader performs an allocation-bounded wire scan, generated decoding and semantic graph
 checks before returning an immutable verified-artifact wrapper. Imports are resolved only

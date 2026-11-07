@@ -12,8 +12,12 @@ Schema 0.4 and its civil-date amendment are implemented and verified in section 
 focused tests, 615 reactor tests and 73 tooling tests passed. The optimizer formatting fix
 passed the rerun of all 52 official date cases on each backend. Spark recorded 52 native passes
 and zero fallback in that focused run. Strict documentation and link checks passed.
-Sophisticated composed models, rather than Traffic Violation alone, are required acceptance
-coverage. Constraints, decision tables, collections/functions, DSL/CLI and Rust remain open.
+The date profile was pushed as `ac09016` and its feature CI passed. Schema 0.5 is implemented
+and verified in section 21. The composed policy and Fine fixture passed portable execution,
+generated Java and DMN 1.6 round-trip checks. The full reactor passed 623 tests, and 73 tooling
+tests, strict documentation and maintained-link checks passed. Constraints, collections/functions,
+the DSL/CLI and independent Rust execution remain open. Section 22 proposes schema 0.6
+for scalar constraints on record fields and awaits public-contract review.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome

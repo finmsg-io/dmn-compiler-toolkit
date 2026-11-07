@@ -7,6 +7,7 @@ import io.finmsg.dmn.runtime.DmnRuntime;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * Derives process-local scalar Runtime IR from the verified, authoritative
@@ -63,8 +64,12 @@ public final class DmnIrRuntimeAdapter {
 				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-dates/0")
 				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions",
 						"dmnir.records", "dmnir.local-bindings", "dmnir.date"));
-		if (artifact.getSchemaVersion().getMajor() != 0
-				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile))
+		boolean tableProfile = artifact.getSchemaVersion().getMinor() == 5
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-tables/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions",
+						"dmnir.records", "dmnir.local-bindings", "dmnir.date", "dmnir.tables"));
+		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
+				|| localProfile || dateProfile || tableProfile))
 			throw new IllegalArgumentException("Unsupported runtime adapter profile.");
 		var types = new DmnIrRecordTypes(artifact);
 		List<Declaration> declarations = new ArrayList<>();
@@ -104,14 +109,75 @@ public final class DmnIrRuntimeAdapter {
 				List<Integer> dependencies = decision.getDependenciesList().stream()
 						.map(reference -> slots.get(id(reference))).toList();
 				int[] nextLocalSlot = {0};
-				var body = expression(decision.getExpression(), slots, types, new HashMap<>(), nextLocalSlot);
-				runtimeDecisions.add(new RuntimeDecision(slot, slot, type, dependencies, Optional.of(body),
-						Optional.empty(), nextLocalSlot[0]));
+				if (decision.hasDecisionTable()) {
+					var table = table(decision.getDecisionTable(), types,
+							cell -> expression(cell, slots, types, Map.of(), nextLocalSlot));
+					runtimeDecisions.add(new RuntimeDecision(slot, slot, type, dependencies, Optional.empty(),
+							Optional.of(table), nextLocalSlot[0]));
+				} else {
+					var body = expression(decision.getExpression(), slots, types, new HashMap<>(), nextLocalSlot);
+					runtimeDecisions.add(new RuntimeDecision(slot, slot, type, dependencies, Optional.of(body),
+							Optional.empty(), nextLocalSlot[0]));
+				}
 			}
 		}
 		List<Integer> order = artifact.getEvaluationOrderList().stream().map(value -> slots.get(id(value))).toList();
 		RuntimeModel model = new RuntimeModel(runtimeInputs, runtimeDecisions, List.of(), order, slots.size());
 		return new AdaptedModel(verified, model, inputs, decisions);
+	}
+
+	private static RuntimeDecisionTable table(DmnIrDecisionTable table, DmnIrRecordTypes types,
+			Function<DmnIrExpression, RuntimeExpression> expression) {
+		var inputs = table.getInputsList().stream().map(input -> {
+			var value = expression.apply(input.getExpression());
+			return new RuntimeDecisionTableInput(value, Optional.empty(),
+					types.type(input.getType(), false, DmnIrReference.getDefaultInstance()));
+		}).toList();
+		var outputs = table.getOutputsList().stream()
+				.map(output -> new RuntimeDecisionTableOutput(
+						output.hasName() ? Optional.of(output.getName()) : Optional.empty(),
+						types.type(output.getType(), false, DmnIrReference.getDefaultInstance()), Optional.empty(),
+						output.hasDefaultExpression()
+								? Optional.of(expression.apply(output.getDefaultExpression()))
+								: Optional.empty()))
+				.toList();
+		List<RuntimeDecisionTableRule> rules = new ArrayList<>();
+		for (var rule : table.getRulesList()) {
+			rules.add(new RuntimeDecisionTableRule(rules.size(), rule.getInputEntriesList().stream()
+					.map(group -> new RuntimeUnaryTests(group.getNegated(), group.getWildcard(),
+							group.getTestsList().stream().map(test -> test(test, expression)).toList()))
+					.toList(), rule.getOutputEntriesList().stream().map(expression).toList(), List.of()));
+		}
+		return new RuntimeDecisionTable(switch (table.getHitPolicy()) {
+			case TABLE_HIT_POLICY_UNIQUE -> RuntimeHitPolicy.UNIQUE;
+			case TABLE_HIT_POLICY_FIRST -> RuntimeHitPolicy.FIRST;
+			case TABLE_HIT_POLICY_ANY -> RuntimeHitPolicy.ANY;
+			default -> throw new IllegalArgumentException("Unsupported verified hit policy.");
+		}, Optional.empty(), inputs, outputs, rules, 0);
+	}
+
+	private static RuntimeUnaryTest test(DmnIrUnaryTest test, Function<DmnIrExpression, RuntimeExpression> expression) {
+		return switch (test.getTestCase()) {
+			case COMPARISON -> new RuntimeComparisonUnaryTest(switch (test.getComparison().getOperator()) {
+				case BINARY_OPERATOR_EQUAL -> RuntimeUnaryTestOperator.EQUAL;
+				case BINARY_OPERATOR_NOT_EQUAL -> RuntimeUnaryTestOperator.NOT_EQUAL;
+				case BINARY_OPERATOR_LESS -> RuntimeUnaryTestOperator.LESS;
+				case BINARY_OPERATOR_LESS_EQUAL -> RuntimeUnaryTestOperator.LESS_EQUAL;
+				case BINARY_OPERATOR_GREATER -> RuntimeUnaryTestOperator.GREATER;
+				case BINARY_OPERATOR_GREATER_EQUAL -> RuntimeUnaryTestOperator.GREATER_EQUAL;
+				default -> throw new IllegalArgumentException("Unsupported verified comparison.");
+			}, expression.apply(test.getComparison().getEndpoint()));
+			case RANGE -> {
+				var range = test.getRange();
+				var lower = expression.apply(range.getLower());
+				yield new RuntimeRangeUnaryTest(
+						new RuntimeRangeExpression(Optional.of(lower), Optional.of(expression.apply(range.getUpper())),
+								range.getLowerInclusive() ? RuntimeRangeBoundary.CLOSED : RuntimeRangeBoundary.OPEN,
+								range.getUpperInclusive() ? RuntimeRangeBoundary.CLOSED : RuntimeRangeBoundary.OPEN,
+								RuntimeType.element(RuntimeTypeKind.RANGE, lower.type())));
+			}
+			case TEST_NOT_SET -> throw new IllegalArgumentException("Missing verified test.");
+		};
 	}
 
 	private record Local(int depth, int slot) {

@@ -30,7 +30,9 @@ final class DmnIrRecordProducer {
 	}
 
 	DmnIrArtifactReader.VerifiedArtifact produce() {
-		dateProfile = models.values().stream().anyMatch(m -> DmnIrDates.containsDate(m.model()));
+		boolean tableProfile = models.values().stream().flatMap(m -> m.model().getDrgElementsList().stream())
+				.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasDecisionTable());
+		dateProfile = tableProfile || models.values().stream().anyMatch(m -> DmnIrDates.containsDate(m.model()));
 		localProfile = models.values().stream().anyMatch(m -> m.model().getDrgElementsList().stream()
 				.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasBoxedExpression()));
 		for (var model : models.values())
@@ -67,13 +69,15 @@ final class DmnIrRecordProducer {
 					throw unsupported();
 			}
 		var artifact = DmnIrArtifact.newBuilder()
-				.setSchemaVersion(
-						DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(dateProfile ? 4 : localProfile ? 3 : 2))
-				.setSemanticsVersion(dateProfile
-						? DmnIrArtifactReader.DATE_SEMANTICS_VERSION
-						: localProfile
-								? DmnIrArtifactReader.LOCAL_SEMANTICS_VERSION
-								: DmnIrArtifactReader.RECORD_SEMANTICS_VERSION)
+				.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0)
+						.setMinor(tableProfile ? 5 : dateProfile ? 4 : localProfile ? 3 : 2))
+				.setSemanticsVersion(tableProfile
+						? DmnIrArtifactReader.TABLE_SEMANTICS_VERSION
+						: dateProfile
+								? DmnIrArtifactReader.DATE_SEMANTICS_VERSION
+								: localProfile
+										? DmnIrArtifactReader.LOCAL_SEMANTICS_VERSION
+										: DmnIrArtifactReader.RECORD_SEMANTICS_VERSION)
 				.addRequiredCapabilities("dmnir.scalar").addRequiredCapabilities("dmnir.scalar-expressions")
 				.addRequiredCapabilities("dmnir.records")
 				.setRootModelNamespace(semantic.model(semantic.rootId()).orElseThrow().identity().namespace());
@@ -81,6 +85,8 @@ final class DmnIrRecordProducer {
 			artifact.addRequiredCapabilities(DmnIrArtifactReader.LOCAL_CAPABILITY);
 		if (dateProfile)
 			artifact.addRequiredCapabilities(DmnIrArtifactReader.DATE_CAPABILITY);
+		if (tableProfile)
+			artifact.addRequiredCapabilities(DmnIrArtifactReader.TABLE_CAPABILITY);
 		for (var model : models.values()) {
 			var output = DmnIrModel.newBuilder().setIdentity(identity(model.model().getNode()))
 					.setNamespace(model.identity().namespace());
@@ -109,8 +115,8 @@ final class DmnIrRecordProducer {
 					if (!(decision.getLogic().hasLiteralExpression()
 							&& decision.getLogic().getLiteralExpression().hasParsed()
 							|| decision.getLogic().hasBoxedExpression()
-									&& decision.getLogic().getBoxedExpression().hasParsed())
-							|| decision.getKnowledgeRequirementsCount() != 0
+									&& decision.getLogic().getBoxedExpression().hasParsed()
+							|| decision.getLogic().hasDecisionTable()) || decision.getKnowledgeRequirementsCount() != 0
 							|| decision.getAuthorityRequirementsCount() != 0)
 						throw unsupported();
 					Set<DmnIrReference> dependencies = new TreeSet<>(ORDER);
@@ -119,15 +125,20 @@ final class DmnIrRecordProducer {
 								requirement.hasInput() ? requirement.getInput() : requirement.getDecision(), model));
 					localBindings.clear();
 					String path = "definitions/decision[" + decision.getNode().getName() + "]/logic";
-					var expression = decision.getLogic().hasLiteralExpression()
-							? expression(decision.getLogic().getLiteralExpression().getParsed().getAst(), model,
-									path + "/literalExpression", dependencies, 1)
-							: boxed(decision.getLogic().getBoxedExpression().getParsed(), model,
-									path + "/boxedExpression", dependencies, 1,
-									type(decision.getVariable().getType(), model));
-					decisions.add(DmnIrDecision.newBuilder().setIdentity(identity(decision.getNode()))
-							.setVariable(variable(decision.getVariable(), model)).addAllDependencies(dependencies)
-							.setExpression(expression).build());
+					var wire = DmnIrDecision.newBuilder().setIdentity(identity(decision.getNode()))
+							.setVariable(variable(decision.getVariable(), model));
+					var result = type(decision.getVariable().getType(), model);
+					if (decision.getLogic().hasDecisionTable()) {
+						wire.setDecisionTable(table(decision.getLogic().getDecisionTable(), result, model,
+								path + "/decisionTable", dependencies));
+					} else if (decision.getLogic().hasLiteralExpression()) {
+						wire.setExpression(feel(decision.getLogic().getLiteralExpression(), model,
+								path + "/literalExpression", dependencies));
+					} else {
+						wire.setExpression(boxed(decision.getLogic().getBoxedExpression().getParsed(), model,
+								path + "/boxedExpression", dependencies, 1, result));
+					}
+					decisions.add(wire.addAllDependencies(dependencies).build());
 				}
 			}
 			inputs.sort(Comparator.comparing(i -> i.getIdentity().getId()));
@@ -157,6 +168,127 @@ final class DmnIrRecordProducer {
 					? DmnIrProductionException.Category.UNSUPPORTED_PROFILE
 					: DmnIrProductionException.Category.ARTIFACT_INVALID, null, List.of(), e);
 		}
+	}
+
+	private DmnIrDecisionTable table(DecisionTable source, DmnIrTypeReference result, DmnSemanticModel model,
+			String path, Set<DmnIrReference> dependencies) {
+		if (source.getInputsCount() == 0 || source.getOutputsCount() == 0 || source.getRulesCount() == 0
+				|| source.getAnnotationsCount() != 0
+				|| source.getHitPolicy().getAggregation() != Aggregation.AGGREGATION_UNSPECIFIED)
+			throw unsupported();
+		var table = DmnIrDecisionTable.newBuilder().setHitPolicy(switch (source.getHitPolicy().getPolicy()) {
+			case HIT_POLICY_UNSPECIFIED, HIT_POLICY_UNIQUE -> DmnIrTableHitPolicy.TABLE_HIT_POLICY_UNIQUE;
+			case HIT_POLICY_FIRST -> DmnIrTableHitPolicy.TABLE_HIT_POLICY_FIRST;
+			case HIT_POLICY_ANY -> DmnIrTableHitPolicy.TABLE_HIT_POLICY_ANY;
+			default -> throw unsupported();
+		});
+		if (!source.getNode().getId().isBlank())
+			table.setId(source.getNode().getId());
+		for (int i = 0; i < source.getInputsCount(); i++) {
+			var clause = source.getInputs(i);
+			if (clause.hasInputValues())
+				throw unsupported();
+			var value = feel(clause.getInputExpression(), model, path + "/input[" + i + "]", dependencies);
+			var columnType = clause.hasType() ? type(clause.getType(), model) : expressionType(value);
+			var input = DmnIrTableInput.newBuilder().setExpression(value).setType(tableScalar(columnType));
+			if (!clause.getNode().getId().isBlank())
+				input.setId(clause.getNode().getId());
+			if (!clause.getNode().getLabel().isEmpty())
+				input.setLabel(clause.getNode().getLabel());
+			table.addInputs(input);
+		}
+		for (int i = 0; i < source.getOutputsCount(); i++) {
+			var clause = source.getOutputs(i);
+			if (clause.hasOutputValues())
+				throw unsupported();
+			var columnType = clause.hasType() ? type(clause.getType(), model) : result;
+			var output = DmnIrTableOutput.newBuilder().setType(tableScalar(columnType));
+			if (!clause.getNode().getId().isBlank())
+				output.setId(clause.getNode().getId());
+			if (!clause.getNode().getName().isBlank())
+				output.setName(clause.getNode().getName());
+			if (clause.hasDefaultOutputEntry()) {
+				var parsed = clause.getDefaultOutputEntry().getParsed();
+				if (!parsed.hasFeel())
+					throw unsupported();
+				output.setDefaultExpression(expression(parsed.getFeel().getAst(), model,
+						path + "/output[" + i + "]/defaultOutputEntry", dependencies, 1));
+			}
+			table.addOutputs(output);
+		}
+		for (int i = 0; i < source.getRulesCount(); i++) {
+			var sourceRule = source.getRules(i);
+			if (sourceRule.getAnnotationEntriesCount() != 0)
+				throw unsupported();
+			var rule = DmnIrTableRule.newBuilder();
+			if (!sourceRule.getNode().getId().isBlank())
+				rule.setId(sourceRule.getNode().getId());
+			String rulePath = path + "/rule[" + i + "]";
+			for (int j = 0; j < sourceRule.getInputEntriesCount(); j++) {
+				var entry = sourceRule.getInputEntries(j);
+				if (!entry.hasParsed())
+					throw unsupported();
+				rule.addInputEntries(
+						tests(entry.getParsed().getTests(), model, rulePath + "/inputEntry[" + j + "]", dependencies));
+			}
+			for (int j = 0; j < sourceRule.getOutputEntriesCount(); j++)
+				rule.addOutputEntries(feel(sourceRule.getOutputEntries(j), model, rulePath + "/outputEntry[" + j + "]",
+						dependencies));
+			table.addRules(rule);
+		}
+		return table.build();
+	}
+
+	private DmnIrExpression feel(Feel feel, DmnSemanticModel model, String path, Set<DmnIrReference> dependencies) {
+		if (!feel.hasParsed())
+			throw unsupported();
+		return expression(feel.getParsed().getAst(), model, path, dependencies, 1);
+	}
+
+	private static DmnIrScalarType tableScalar(DmnIrTypeReference type) {
+		if (!type.hasScalarType())
+			throw unsupported();
+		return type.getScalarType();
+	}
+
+	private DmnIrUnaryTests tests(UnaryTestsExpression source, DmnSemanticModel model, String path,
+			Set<DmnIrReference> dependencies) {
+		var group = DmnIrUnaryTests.newBuilder().setWildcard(source.getWildcard()).setNegated(source.getNegated());
+		for (int i = 0; i < source.getTestsCount(); i++) {
+			var test = source.getTests(i);
+			String testPath = path + "/test[" + i + "]";
+			var value = DmnIrUnaryTest.newBuilder();
+			switch (test.getTypeCase()) {
+				case COMPARISON -> {
+					var comparison = test.getComparison();
+					value.setComparison(DmnIrTestComparison.newBuilder().setOperator(switch (comparison.getOperator()) {
+						case UNARY_TEST_OPERATOR_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL;
+						case UNARY_TEST_OPERATOR_NOT_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_NOT_EQUAL;
+						case UNARY_TEST_OPERATOR_LESS -> DmnIrBinaryOperator.BINARY_OPERATOR_LESS;
+						case UNARY_TEST_OPERATOR_LESS_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_LESS_EQUAL;
+						case UNARY_TEST_OPERATOR_GREATER -> DmnIrBinaryOperator.BINARY_OPERATOR_GREATER;
+						case UNARY_TEST_OPERATOR_GREATER_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_GREATER_EQUAL;
+						default -> throw unsupported();
+					}).setEndpoint(expression(comparison.getEndpoint(), model, testPath, dependencies, 1)));
+				}
+				case EXPRESSION -> value.setComparison(
+						DmnIrTestComparison.newBuilder().setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL)
+								.setEndpoint(expression(test.getExpression(), model, testPath, dependencies, 1)));
+				case RANGE -> {
+					var range = test.getRange();
+					if (!range.hasLower() || !range.hasUpper())
+						throw unsupported();
+					value.setRange(DmnIrTestRange.newBuilder()
+							.setLower(expression(range.getLower(), model, testPath + "/lower", dependencies, 1))
+							.setUpper(expression(range.getUpper(), model, testPath + "/upper", dependencies, 1))
+							.setLowerInclusive(range.getLowerBoundary() == RangeBoundary.RANGE_BOUNDARY_CLOSED)
+							.setUpperInclusive(range.getUpperBoundary() == RangeBoundary.RANGE_BOUNDARY_CLOSED));
+				}
+				case TYPE_NOT_SET -> throw unsupported();
+			}
+			group.addTests(value);
+		}
+		return group.build();
 	}
 
 	private DmnIrTypeReference type(TypeReference type, DmnSemanticModel model) {

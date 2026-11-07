@@ -187,7 +187,7 @@ class DmnIrDateParityTest {
 						""");
 		return List.of(policy, calendar);
 	}
-	private static void validate(DmnIrScalarDmnExporter.ExportedDmnBundle bundle) throws Exception {
+	static void validate(DmnIrScalarDmnExporter.ExportedDmnBundle bundle) throws Exception {
 		var factory = javax.xml.validation.SchemaFactory.newInstance(javax.xml.XMLConstants.W3C_XML_SCHEMA_NS_URI);
 		factory.setProperty(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
 		factory.setProperty(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "file");

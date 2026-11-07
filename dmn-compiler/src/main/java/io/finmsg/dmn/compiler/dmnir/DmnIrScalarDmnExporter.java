@@ -10,6 +10,8 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Artifact-only normalized DMN 1.6 synthesis for an explicitly admitted scalar
@@ -69,8 +71,12 @@ public final class DmnIrScalarDmnExporter {
 				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-dates/0")
 				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions",
 						"dmnir.records", "dmnir.local-bindings", "dmnir.date"));
-		if (artifact.getSchemaVersion().getMajor() != 0
-				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile))
+		boolean tableProfile = artifact.getSchemaVersion().getMinor() == 5
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-tables/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions",
+						"dmnir.records", "dmnir.local-bindings", "dmnir.date", "dmnir.tables"));
+		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
+				|| localProfile || dateProfile || tableProfile))
 			throw invalid(null);
 		var types = new DmnIrRecordTypes(artifact);
 		var models = artifact.getModelsList().stream().sorted(Comparator.comparing(DmnIrModel::getNamespace)).toList();
@@ -113,7 +119,7 @@ public final class DmnIrScalarDmnExporter {
 		for (var model : models) {
 			var definitions = Definitions.newBuilder().setNode(node(model.getIdentity()))
 					.setNamespace(model.getNamespace()).setModelNamespaceUri(DmnNamespaces.DMN_1_6);
-			if (recordProfile || localProfile || dateProfile) {
+			if (recordProfile || localProfile || dateProfile || tableProfile) {
 				int prefix = 0;
 				for (var namespace : models.stream().map(DmnIrModel::getNamespace).toList())
 					definitions.addNamespaces(Namespace.newBuilder().setPrefix("t" + prefix++).setUri(namespace));
@@ -164,13 +170,18 @@ public final class DmnIrScalarDmnExporter {
 						requirement.setDecision(reference);
 					output.addInformationRequirements(requirement);
 				}
-				var exported = expressionText(decision.getExpression(), model, declarations, address, types,
-						new LinkedHashMap<>());
 				var logic = DecisionLogic.newBuilder();
-				if (exported.hasBoxed())
-					logic.setBoxedExpression(BoxedExpression.newBuilder().setText(exported.getBoxed()));
-				else
-					logic.setLiteralExpression(Feel.newBuilder().setText(exported.getFeel()));
+				if (decision.hasDecisionTable()) {
+					logic.setDecisionTable(table(decision.getDecisionTable(), types, address,
+							cell -> expression(cell, model, declarations, address, Map.of())));
+				} else {
+					var exported = expressionText(decision.getExpression(), model, declarations, address, types,
+							new LinkedHashMap<>());
+					if (exported.hasBoxed())
+						logic.setBoxedExpression(BoxedExpression.newBuilder().setText(exported.getBoxed()));
+					else
+						logic.setLiteralExpression(Feel.newBuilder().setText(exported.getFeel()));
+				}
 				output.setLogic(logic);
 				definitions.addDrgElements(DrgElement.newBuilder().setDecision(output));
 			}
@@ -178,6 +189,94 @@ public final class DmnIrScalarDmnExporter {
 					new String(new DmnWriter().write(definitions.build()), StandardCharsets.UTF_8));
 		}
 		return new ExportedDmnBundle(filenames.get(artifact.getRootModelNamespace()), documents);
+	}
+
+	private static DecisionTable table(DmnIrDecisionTable source, DmnIrRecordTypes types, DmnIrReference address,
+			Function<DmnIrExpression, String> expression) {
+		var ids = new HashSet<String>();
+		var table = DecisionTable.newBuilder().setNode(tableNode(source.hasId(), source.getId(), ids, address))
+				.setHitPolicy(HitPolicySpec.newBuilder().setPolicy(switch (source.getHitPolicy()) {
+					case TABLE_HIT_POLICY_UNIQUE -> HitPolicy.HIT_POLICY_UNIQUE;
+					case TABLE_HIT_POLICY_FIRST -> HitPolicy.HIT_POLICY_FIRST;
+					case TABLE_HIT_POLICY_ANY -> HitPolicy.HIT_POLICY_ANY;
+					default -> throw invalid(address);
+				}));
+		for (var input : source.getInputsList()) {
+			var node = tableNode(input.hasId(), input.getId(), ids, address);
+			if (input.hasLabel()) {
+				xml(input.getLabel(), address);
+				if (input.getLabel().chars().anyMatch(c -> c == 9 || c == 10 || c == 13))
+					throw invalid(address);
+				node.setLabel(input.getLabel());
+			}
+			table.addInputs(InputClause.newBuilder().setNode(node)
+					.setType(dmnType(input.getType(), false, DmnIrReference.getDefaultInstance(), types))
+					.setInputExpression(Feel.newBuilder().setText(text(expression.apply(input.getExpression())))));
+		}
+		for (var output : source.getOutputsList()) {
+			var node = tableNode(output.hasId(), output.getId(), ids, address);
+			if (output.hasName()) {
+				name(output.getName(), address);
+				node.setName(output.getName());
+			}
+			var clause = OutputClause.newBuilder().setNode(node)
+					.setType(dmnType(output.getType(), false, DmnIrReference.getDefaultInstance(), types));
+			if (output.hasDefaultExpression())
+				clause.setDefaultOutputEntry(ExpressionNode.newBuilder().setText(
+						ExpressionText.newBuilder().setFeel(text(expression.apply(output.getDefaultExpression())))));
+			table.addOutputs(clause);
+		}
+		for (var rule : source.getRulesList()) {
+			var entry = DecisionRule.newBuilder().setRuleIndex(table.getRulesCount())
+					.setNode(tableNode(rule.hasId(), rule.getId(), ids, address));
+			for (var tests : rule.getInputEntriesList())
+				entry.addInputEntries(UnaryTest.newBuilder().setText(text(tests(tests, expression, address))));
+			for (var cell : rule.getOutputEntriesList())
+				entry.addOutputEntries(Feel.newBuilder().setText(text(expression.apply(cell))));
+			table.addRules(entry);
+		}
+		return table.build();
+	}
+
+	private static Node.Builder tableNode(boolean hasId, String value, Set<String> ids, DmnIrReference address) {
+		var node = Node.newBuilder();
+		if (hasId) {
+			id(value, ids, address);
+			node.setId(value);
+		}
+		return node;
+	}
+
+	private static FeelText text(String text) {
+		return FeelText.newBuilder().setText(text).build();
+	}
+
+	private static String tests(DmnIrUnaryTests group, Function<DmnIrExpression, String> expression,
+			DmnIrReference address) {
+		if (group.getWildcard())
+			return "-";
+		String alternatives = group.getTestsList().stream().map(test -> switch (test.getTestCase()) {
+			case COMPARISON -> {
+				var comparison = test.getComparison();
+				String operator = switch (comparison.getOperator()) {
+					case BINARY_OPERATOR_EQUAL -> "";
+					case BINARY_OPERATOR_NOT_EQUAL -> "!= ";
+					case BINARY_OPERATOR_LESS -> "< ";
+					case BINARY_OPERATOR_LESS_EQUAL -> "<= ";
+					case BINARY_OPERATOR_GREATER -> "> ";
+					case BINARY_OPERATOR_GREATER_EQUAL -> ">= ";
+					default -> throw invalid(address);
+				};
+				yield operator + expression.apply(comparison.getEndpoint());
+			}
+			case RANGE -> {
+				var range = test.getRange();
+				yield (range.getLowerInclusive() ? "[" : "(") + expression.apply(range.getLower()) + " .. "
+						+ expression.apply(range.getUpper()) + (range.getUpperInclusive() ? "]" : ")");
+			}
+			case TEST_NOT_SET -> throw invalid(address);
+		}).collect(Collectors.joining(", "));
+		return group.getNegated() ? "not(" + alternatives + ")" : alternatives;
 	}
 
 	private record Declaration(String name, boolean input) {

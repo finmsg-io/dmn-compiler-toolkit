@@ -15,6 +15,9 @@ import io.finmsg.dmn.dmnir.proto.v0.DmnIrRecordDefinition;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrRecordField;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrLocalBinding;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrLocalReference;
+import io.finmsg.dmn.dmnir.proto.v0.DmnIrTableInput;
+import io.finmsg.dmn.dmnir.proto.v0.DmnIrTableOutput;
+import io.finmsg.dmn.dmnir.proto.v0.DmnIrTableRule;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,7 +53,8 @@ final class DmnIrWireScanner {
 			check(++models <= limits.maxModels(), LIMIT_EXCEEDED, path, "Model budget exceeded.");
 		} else if (descriptor == DmnIrInput.getDescriptor() || descriptor == DmnIrDecision.getDescriptor()
 				|| descriptor == DmnIrRecordDefinition.getDescriptor() || descriptor == DmnIrRecordField.getDescriptor()
-				|| descriptor == DmnIrLocalBinding.getDescriptor()) {
+				|| descriptor == DmnIrLocalBinding.getDescriptor() || descriptor == DmnIrTableInput.getDescriptor()
+				|| descriptor == DmnIrTableOutput.getDescriptor() || descriptor == DmnIrTableRule.getDescriptor()) {
 			check(++elements <= limits.maxElements(), LIMIT_EXCEEDED, path, "Declaration budget exceeded.");
 		} else if (descriptor == DmnIrReference.getDescriptor() || descriptor == DmnIrLocalReference.getDescriptor()) {
 			check(++references <= limits.maxReferences(), LIMIT_EXCEEDED, path, "Reference budget exceeded.");

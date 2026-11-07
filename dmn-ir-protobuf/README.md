@@ -17,6 +17,11 @@ Schema **0.4** adds civil dates (`finmsg-dmnir-dates/0`) with the ordered 0.3 ca
 by `dmnir.date`. Dates carry a signed year, month and day. The codec requires all three components
 and checks calendar validity, the signed year range and exclusion of year zero.
 
+Schema **0.5** uses `finmsg-dmnir-tables/0` and appends `dmnir.tables` to the ordered 0.4
+capabilities. A decision has exactly one body. Tables retain ordered columns and rules,
+typed unary tests, default outputs and model-local identities. The admitted hit policies
+are `UNIQUE`, `FIRST` and `ANY`. See the [portable contract](../docs/dmnir.md#decision-tables-schema-05).
+
 ## Purpose and boundaries
 
 DMNIR stores one authoritative, typed and resolved decision graph, plus the declarations and
@@ -89,7 +94,7 @@ not be edited manually. The module JAR includes the namespaced `.proto` resource
 
 Profile 0.1 adds numeric arithmetic, scalar comparisons, boolean operations and conditionals.
 Profile 0.2 adds acyclic named records and resolved fields; record construction and equality remain
-unsupported. The current profiles cover local scopes and civil dates. Lists, decision tables,
+unsupported. The current profiles cover local scopes, civil dates and the admitted decision tables. Lists,
 general functions, constraints, time, date-time and durations remain release work. The compiler
 layer exports the admitted profiles to DMN 1.6. Broader export, the DSL and the Rust proof remain open.
 

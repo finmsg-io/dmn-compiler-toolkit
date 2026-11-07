@@ -14,6 +14,11 @@ Schema **0.4** uses `finmsg-dmnir-dates/0` and appends `dmnir.date` to the order
 It checks civil component presence, Gregorian validity, the nonzero signed year range and date
 type compatibility. DATE types and literals require 0.4, including dates in unused declarations.
 
+Schema **0.5** uses `finmsg-dmnir-tables/0` and appends `dmnir.tables` to the ordered 0.4
+capabilities. A decision has exactly one body. Tables retain ordered columns and rules,
+typed unary tests, default outputs and model-local identities. The admitted hit policies
+are `UNIQUE`, `FIRST` and `ANY`. See the [portable contract](../docs/dmnir.md#decision-tables-schema-05).
+
 ## Purpose and boundaries
 
 `DmnIrArtifactReader` converts untrusted binary bytes into a `VerifiedArtifact`. The generated
