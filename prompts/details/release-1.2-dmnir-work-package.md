@@ -2679,4 +2679,86 @@ skips. The separate Spark regression actions recorded 3,034 native (96.23%), 119
 fallback (3.77%), and zero unknown across 3,153 completed actions, with 60 failed
 actions counted separately. Spotless, 73 tooling tests, strict MkDocs and maintained
 documentation checks passed. This run completed the usage checkpoint. The 0.10
-implementation remains local.
+implementation was pushed as `ceb52d5`.
+
+## 27. Inline FEEL functions and lexical capture (proposed schema 0.11)
+
+Use semantics `finmsg-dmnir-inline-feel/0` and append `dmnir.inline-feel` to the exact
+ordered 0.10 capabilities. Admit a FEEL function declared in a boxed context and called
+later in that context, and a FEEL function literal invoked immediately. Both forms use the
+same typed body and capture contract. A call can appear wherever the existing profile
+admits an expression of its result type and the source and exporter can represent it.
+
+### Wire shape
+
+- Add `DmnIrClosureInvocation closure_invocation = 16` to `DmnIrExpression.node`.
+  Its `target` oneof contains `string local_binding_id = 1` or `DmnIrClosure inline = 2`.
+  Field 3 is `repeated DmnIrExpression arguments` in positional evaluation order.
+- Add `DmnIrClosureBinding closure = 4` to `DmnIrLocalBinding`. A value binding keeps
+  the existing `binding_id`, `variable` and `value`. A closure binding uses the existing
+  `binding_id` with `closure` and leaves `variable` and `value` unset. The new message
+  has `string name = 1`, `optional string id = 2` for the local information item, and
+  `DmnIrClosure definition = 3`.
+- `DmnIrClosure` has `repeated DmnIrBkmParameter parameters = 1`,
+  `DmnIrTypeReference result_type = 2`, `repeated string captured_binding_ids = 3`, and
+  `DmnIrExpression body = 4`. Reuse the BKM formal's binding ID and typed variable shape.
+  Parameters, captures and results use existing scalar, record or collection types.
+  Closure signatures stay in the closure declarations. Existing value types and tags
+  retain their meanings.
+
+### Scope and evaluation
+
+- A closure can capture earlier value bindings visible at its definition, including BKM
+  parameters and an enclosing filter's item. The capture list must equal the outer value
+  references used by the body, with unique IDs in ascending unsigned UTF-8 byte order.
+  Check each capture against the definition scope before entering the body. Within the
+  body, only these captures, its formals and its own value bindings are visible. Bound BKM
+  calls still require the enclosing declaration's knowledge dependencies.
+- A closure binding becomes callable after its definition. Reject value references to
+  closure bindings, calls to value bindings, forward references, recursion, nested closure
+  definitions or closure calls within a closure body, and direct global reads within a
+  closure body. A global value can be assigned to a local before the closure is created.
+  Require unique formal names and unique binding IDs within the enclosing declaration.
+  Verify exact arity and type assignability using the existing nullable and qualified type
+  rules. Count formals, declarations, captures, local targets and body nodes against the
+  existing budgets, including the pre-allocation wire scan.
+- Capture the bound values when the definition is evaluated. Later shadowing does not
+  change which values it reads. A call evaluates arguments once from left to right in
+  the caller's scope and runs the body in a fresh frame. Preserve null arguments and
+  captures. Calls return the typed body result. Runtime IR and generated Java derive
+  slots and lexical depths locally. No runtime slot or Java-specific type is stored.
+- The producer admits typed positional calls and emits only captures proven by semantic
+  bindings. DMN 1.6 export reconstructs local boxed function definitions and FEEL calls,
+  or a parenthesized function literal for an immediate call. Reject export if a name
+  would resolve to a different binding or the body cannot be rendered in its expression
+  position. Validate against the [OMG DMN 1.6 schema](https://www.omg.org/spec/DMN/1.6).
+  Named closure arguments, passing or returning functions as values, external functions
+  and general higher-order calls remain outside this profile.
+
+### Acceptance
+
+1. Use the existing Maven JUnit/Surefire harness. Pin the new fields and ordered header.
+   Verify that a saved 0.10 reader accepts 0.10 and rejects 0.11. Exercise missing bodies,
+   invalid or surplus captures, escaped scope, wrong call targets, duplicate bindings,
+   mismatched types and wire limits.
+2. Extend the composed policy with a closure that captures the table-derived cutoff and
+   is called from a filter. Include a repeated call, an immediate call, a later shadowing
+   binding, nullable capture and argument vectors, and a qualified structured type.
+   Confirm definition-time binding and fresh frames per call.
+3. Compare direct evaluation, separate-JVM artifact execution, generated Java and
+   recompiled artifact-only DMN 1.6. Include an XML capture rejection case. Record the
+   portable input and expected-value vectors for independent consumers.
+4. Run the affected official cases and the full reactor. Report official Spark routing
+   separately from the regression-action denominator.
+
+Review covers the new public wire fields, the first supported call forms, and scope and
+evaluation behavior. The implementation would touch the DMNIR schema, verifier, source
+producer, Runtime IR adapter and exporter, plus any parity fixes needed by the approved
+profile. No new dependencies or publication are required.
+
+The weekly usage window reached 20% remaining during review preparation. The full
+pinned Spark TCK rerun on `ceb52d5` passed all 3,391 executable cases natively
+(100%), with zero fallback (0%), failures, execution or compilation errors,
+expected rejections, or unknown routes. See `target/release-1.2-inline-feel-checkpoint.log`
+and `target/release-1.2-inline-feel-checkpoint-accounting.json`. This run verifies the
+0.10 baseline. The 0.11 proposal has no implementation or execution evidence yet.
