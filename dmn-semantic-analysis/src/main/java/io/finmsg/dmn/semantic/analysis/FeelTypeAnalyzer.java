@@ -22,7 +22,7 @@ public final class FeelTypeAnalyzer {
 	private static final TypeReference DATE_TIME = builtin(BuiltinType.BUILTIN_TYPE_DATE_AND_TIME);
 	private static final TypeReference DURATION = builtin(BuiltinType.BUILTIN_TYPE_DURATION);
 	private final FeelFunctionRegistry functions;
-	private final boolean portableBkmTyping;
+	private final boolean portableFunctionTyping;
 
 	public FeelTypeAnalyzer() {
 		this(new BuiltinFeelFunctionRegistry());
@@ -32,9 +32,9 @@ public final class FeelTypeAnalyzer {
 		this(functions, false);
 	}
 
-	FeelTypeAnalyzer(FeelFunctionRegistry functions, boolean portableBkmTyping) {
+	FeelTypeAnalyzer(FeelFunctionRegistry functions, boolean portableFunctionTyping) {
 		this.functions = Objects.requireNonNull(functions, "functions");
-		this.portableBkmTyping = portableBkmTyping;
+		this.portableFunctionTyping = portableFunctionTyping;
 	}
 
 	public FeelTypeAnalysisResult analyze(Expression expression, FeelTypeEnvironment environment) {
@@ -686,8 +686,12 @@ public final class FeelTypeAnalyzer {
 					result = resolveFunction(fnName, argumentTypes, path);
 				}
 			} else {
-				result = portableBkmTyping && value.getTarget().hasPath() && target.expression.hasName()
-						&& target.type.hasFunction() ? target.type.getFunction().getReturnType() : ANY;
+				boolean resolvedFunction = value.getTarget().hasPath() && target.expression.hasName()
+						|| value.getTarget().hasFunctionDefinition()
+								&& !value.getTarget().getFunctionDefinition().getExternal();
+				result = portableFunctionTyping && resolvedFunction && target.type.hasFunction()
+						? target.type.getFunction().getReturnType()
+						: ANY;
 			}
 			String functionName = namedFunction ? value.getTarget().getName().getName() : "";
 			if (isAny(result) && (functionName.equals("min") || functionName.equals("max")) && argumentTypes.size() == 1

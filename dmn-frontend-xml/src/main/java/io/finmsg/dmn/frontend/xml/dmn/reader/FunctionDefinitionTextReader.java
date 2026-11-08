@@ -15,6 +15,7 @@ public final class FunctionDefinitionTextReader {
 	public FunctionDefinitionText read(XmlCursor cursor) {
 
 		FunctionDefinitionText.Builder builder = FunctionDefinitionText.newBuilder();
+		cursor.attribute("kind").ifPresent(builder::setSourceKind);
 
 		if (cursor.firstChild()) {
 			do {

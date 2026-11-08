@@ -16,6 +16,7 @@ The `dmn-ir-protobuf` module defines the experimental structured scalar wire con
 | 0.8 | `finmsg-dmnir-scalar-filters/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`, `dmnir.local-bindings`, `dmnir.date`, `dmnir.tables`, `dmnir.field-constraints`, `dmnir.scalar-collections`, `dmnir.scalar-filters` |
 | 0.9 | `finmsg-dmnir-builtin-calls/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`, `dmnir.local-bindings`, `dmnir.date`, `dmnir.tables`, `dmnir.field-constraints`, `dmnir.scalar-collections`, `dmnir.scalar-filters`, `dmnir.builtin-calls` |
 | 0.10 | `finmsg-dmnir-named-feel-bkms/0` | The ordered 0.9 capabilities followed by `dmnir.named-feel-bkms` |
+| 0.11 | `finmsg-dmnir-inline-feel/0` | The ordered 0.10 capabilities followed by `dmnir.inline-feel` |
 
 This implements the first scalar slice of [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md).
 The reader validates without executing. `DmnIrRuntimeAdapter` in `dmn-compiler` now derives and
@@ -259,6 +260,21 @@ positional FEEL calls when the stored positions are in order and named FEEL call
 The profile covers expression-bodied FEEL BKMs. Decision-table BKM bodies, global captures,
 recursive calls, external functions and inline function values require separate contracts.
 
+## Inline FEEL functions and lexical capture (schema 0.11)
+
+A boxed context can bind a FEEL function for later positional calls. A function
+literal can also be invoked immediately. The signature uses the existing value types
+for its parameters and result. Functions stay local to these call forms.
+
+The artifact identifies captured values by binding ID. The verifier checks that
+each capture was visible at the definition and used by the body. A call evaluates
+its arguments once in order and runs the body in a fresh frame. Captures retain
+their original bindings through later name shadowing, and nullable values are preserved.
+
+DMN 1.6 export reconstructs the boxed function or a parenthesized FEEL literal.
+It checks that emitted names resolve to the stored bindings. Named closure arguments,
+recursive calls, external functions and higher-order uses remain outside this profile.
+
 ## Read an artifact
 
 ```java
@@ -368,7 +384,7 @@ var result = values.get(new ElementId("urn:example:root", "result"));
 ```
 
 The sample IDs must match the artifact's declarations. The adapter accepts a `VerifiedArtifact`,
-not an unchecked generated message. It supports the verified 0.0 through 0.10 profiles. It derives
+not an unchecked generated message. It supports the verified 0.0 through 0.11 profiles. It derives
 local slots deterministically by namespace and element ID, preserves the verified schedule, and
 lowers the supported expression graph into the existing Runtime IR records. No XML or FEEL parsing occurs
 on this path. The original verified artifact remains available through `source()`; the derived

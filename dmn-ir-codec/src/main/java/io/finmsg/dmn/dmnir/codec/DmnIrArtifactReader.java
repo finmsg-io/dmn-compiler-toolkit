@@ -5,6 +5,8 @@ import static io.finmsg.dmn.dmnir.codec.DmnIrValidationException.Code.*;
 import com.google.protobuf.CodedInputStream;
 import io.finmsg.dmn.dmnir.proto.v0.*;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -18,7 +20,7 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
- * Strict, bounded reader for experimental portable profiles 0.0 through 0.10.
+ * Strict, bounded reader for experimental portable profiles 0.0 through 0.11.
  */
 public final class DmnIrArtifactReader {
 	public static final String SEMANTICS_VERSION = "finmsg-dmnir-scalar/0";
@@ -43,9 +45,11 @@ public final class DmnIrArtifactReader {
 	public static final String BUILTIN_CAPABILITY = "dmnir.builtin-calls";
 	public static final String BKM_SEMANTICS_VERSION = "finmsg-dmnir-named-feel-bkms/0";
 	public static final String BKM_CAPABILITY = "dmnir.named-feel-bkms";
+	public static final String CLOSURE_SEMANTICS_VERSION = "finmsg-dmnir-inline-feel/0";
+	public static final String CLOSURE_CAPABILITY = "dmnir.inline-feel";
 	private static final List<String> CAPABILITIES = List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY,
 			RECORD_CAPABILITY, LOCAL_CAPABILITY, DATE_CAPABILITY, TABLE_CAPABILITY, FIELD_CONSTRAINT_CAPABILITY,
-			COLLECTION_CAPABILITY, FILTER_CAPABILITY, BUILTIN_CAPABILITY, BKM_CAPABILITY);
+			COLLECTION_CAPABILITY, FILTER_CAPABILITY, BUILTIN_CAPABILITY, BKM_CAPABILITY, CLOSURE_CAPABILITY);
 	private final DmnIrLimits limits;
 
 	public DmnIrArtifactReader() {
@@ -124,11 +128,14 @@ public final class DmnIrArtifactReader {
 		private boolean filtersProfile;
 		private boolean builtinProfile;
 		private boolean bkmProfile;
+		private boolean closureProfile;
 		private boolean filterPredicate;
 		private boolean tableCell;
 		private final Map<String, Set<String>> modelIds = new HashMap<>();
 		private final Set<String> bindingIds = new HashSet<>();
 		private Map<String, DmnIrTypeReference> visibleLocals = new HashMap<>();
+		private Map<String, DmnIrClosure> visibleClosures = new HashMap<>();
+		private Set<String> unusedCaptures;
 		private Set<Address> visibleKnowledge = Set.of();
 		private int declarations;
 		private long expandedTypes;
@@ -158,6 +165,7 @@ public final class DmnIrArtifactReader {
 				case 8 -> FILTER_SEMANTICS_VERSION;
 				case 9 -> BUILTIN_SEMANTICS_VERSION;
 				case 10 -> BKM_SEMANTICS_VERSION;
+				case 11 -> CLOSURE_SEMANTICS_VERSION;
 				default -> "";
 			};
 			check(artifact.getSchemaVersion().getMajor() == 0 && !semantics.isEmpty()
@@ -166,6 +174,7 @@ public final class DmnIrArtifactReader {
 			filtersProfile = minor >= 8;
 			builtinProfile = minor >= 9;
 			bkmProfile = minor >= 10;
+			closureProfile = minor >= 11;
 			collectionsProfile = minor >= 7;
 			fieldConstraintsProfile = minor >= 6;
 			tablesProfile = minor >= 5;
@@ -409,11 +418,20 @@ public final class DmnIrArtifactReader {
 			visibleLocals = new HashMap<>();
 			visibleKnowledge = knowledge;
 			var bkm = owner.bkm();
+			formals(bkm.getParametersList(), owner, owner.path());
+			String bodyPath = owner.path() + ".body";
+			check(bkm.hasBody(), INVALID_EXPRESSION, bodyPath, "A BKM body is required.");
+			check(assignable(typeOf(bkm.getBody(), bodyPath), owner.type()), INVALID_TYPE, bodyPath,
+					"BKM body type must be compatible with the declared result.");
+			node(bkm.getBody(), owner, Set.of(), bodyPath, 1);
+		}
+
+		private void formals(List<DmnIrBkmParameter> parameters, Element owner, String declarationPath) {
 			Set<String> names = new HashSet<>();
-			for (int i = 0; i < bkm.getParametersCount(); i++) {
-				var parameter = bkm.getParameters(i);
+			for (int i = 0; i < parameters.size(); i++) {
+				var parameter = parameters.get(i);
 				var variable = parameter.getVariable();
-				String path = owner.path() + ".parameters[" + i + "]";
+				String path = declarationPath + ".parameters[" + i + "]";
 				budget(path);
 				check(!parameter.getBindingId().isBlank() && bindingIds.add(parameter.getBindingId())
 						&& !variable.getName().isBlank() && names.add(variable.getName()), INVALID_IDENTITY, path,
@@ -425,11 +443,40 @@ public final class DmnIrArtifactReader {
 				validateType(type, owner.namespace(), path);
 				visibleLocals.put(parameter.getBindingId(), type);
 			}
-			String bodyPath = owner.path() + ".body";
-			check(bkm.hasBody(), INVALID_EXPRESSION, bodyPath, "A BKM body is required.");
-			check(assignable(typeOf(bkm.getBody(), bodyPath), owner.type()), INVALID_TYPE, bodyPath,
-					"BKM body type must be compatible with the declared result.");
-			node(bkm.getBody(), owner, Set.of(), bodyPath, 1);
+		}
+
+		private void closure(DmnIrClosure definition, Element owner, String path, int depth) {
+			check(unusedCaptures == null, INVALID_EXPRESSION, path, "Nested closure definitions are unsupported.");
+			budget(path);
+			check(definition.hasResultType() && definition.hasBody(), INVALID_EXPRESSION, path,
+					"Closure requires a result type and body.");
+			validateType(definition.getResultType(), owner.namespace(), path + ".result_type");
+			var outer = visibleLocals;
+			var captures = new HashMap<String, DmnIrTypeReference>();
+			byte[] previous = null;
+			for (String capture : definition.getCapturedBindingIdsList()) {
+				check(++references <= limits.maxReferences(), LIMIT_EXCEEDED, path, "Reference budget exceeded.");
+				var type = outer.get(capture);
+				check(type != null, INVALID_REFERENCE, path, "Capture must reference a visible value binding.");
+				byte[] current = capture.getBytes(StandardCharsets.UTF_8);
+				check(previous == null || Arrays.compareUnsigned(previous, current) < 0, INVALID_REFERENCE, path,
+						"Capture IDs must be unique and sorted by UTF-8 bytes.");
+				captures.put(capture, type);
+				previous = current;
+			}
+			visibleLocals = captures;
+			unusedCaptures = new HashSet<>(captures.keySet());
+			try {
+				formals(definition.getParametersList(), owner, path);
+				String bodyPath = path + ".body";
+				check(assignable(typeOf(definition.getBody(), bodyPath), definition.getResultType()), INVALID_TYPE,
+						bodyPath, "Closure body type must be compatible with the declared result.");
+				node(definition.getBody(), owner, Set.of(), bodyPath, depth + 1);
+				check(unusedCaptures.isEmpty(), INVALID_REFERENCE, path, "Closure has unused captures.");
+			} finally {
+				unusedCaptures = null;
+				visibleLocals = outer;
+			}
 		}
 
 		private void table(DmnIrDecisionTable table, Element owner, Set<Address> dependencies, String path) {
@@ -566,10 +613,13 @@ public final class DmnIrArtifactReader {
 				case LOCAL_REFERENCE -> {
 					check(localsProfile, UNSUPPORTED_CAPABILITY, path, "Local references require profile 0.3.");
 					check(++references <= limits.maxReferences(), LIMIT_EXCEEDED, path, "Reference budget exceeded.");
-					var target = visibleLocals.get(expression.getLocalReference().getBindingId());
+					String bindingId = expression.getLocalReference().getBindingId();
+					var target = visibleLocals.get(bindingId);
 					check(target != null, INVALID_REFERENCE, path, "Local binding is not visible here.");
 					check(target.equals(nodeType), INVALID_TYPE, path,
 							"Local reference type must match its declaration.");
+					if (unusedCaptures != null)
+						unusedCaptures.remove(bindingId);
 				}
 				case CONTEXT -> {
 					check(!filterPredicate, INVALID_EXPRESSION, path, "Boxed predicates cannot be rendered in FEEL.");
@@ -577,7 +627,9 @@ public final class DmnIrArtifactReader {
 					var context = expression.getContext();
 					check(context.hasResult(), INVALID_EXPRESSION, path, "A final context result is required.");
 					var outer = visibleLocals;
+					var outerClosures = visibleClosures;
 					visibleLocals = new HashMap<>(outer);
+					visibleClosures = new HashMap<>(outerClosures);
 					Set<String> names = new HashSet<>();
 					try {
 						for (int i = 0; i < context.getBindingsCount(); i++) {
@@ -586,6 +638,22 @@ public final class DmnIrArtifactReader {
 							budget(bp);
 							check(!binding.getBindingId().isBlank() && bindingIds.add(binding.getBindingId()),
 									INVALID_IDENTITY, bp, "Unique decision-local binding IDs are required.");
+							if (binding.hasClosure()) {
+								check(closureProfile, UNSUPPORTED_CAPABILITY, bp, "Closures require profile 0.11.");
+								var closure = binding.getClosure();
+								check(!binding.hasVariable() && !binding.hasValue() && closure.hasDefinition(),
+										INVALID_EXPRESSION, bp,
+										"Expected a closure definition without a value binding.");
+								check(!closure.getName().isBlank() && names.add(closure.getName()), INVALID_IDENTITY,
+										bp, "Unique non-empty context variable names are required.");
+								if (closure.hasId())
+									check(!closure.getId().isBlank()
+											&& modelIds.get(owner.namespace()).add(closure.getId()), INVALID_IDENTITY,
+											bp, "Source variable ID must be unique.");
+								closure(closure.getDefinition(), owner, bp + ".closure.definition", depth + 1);
+								visibleClosures.put(binding.getBindingId(), closure.getDefinition());
+								continue;
+							}
 							var variable = binding.getVariable();
 							check(!variable.getName().isBlank() && names.add(variable.getName()), INVALID_IDENTITY, bp,
 									"Unique non-empty context variable names are required.");
@@ -608,12 +676,45 @@ public final class DmnIrArtifactReader {
 								"Context result type is incompatible.");
 					} finally {
 						visibleLocals = outer;
+						visibleClosures = outerClosures;
 					}
 				}
 				case LITERAL -> {
 					check(!nodeType.hasCollectionType(), INVALID_TYPE, path + ".type",
 							"Use a list constructor or scalar null for a collection value.");
 					literal(expression.getLiteral(), expression.getType(), path + ".literal");
+				}
+				case CLOSURE_INVOCATION -> {
+					check(closureProfile, UNSUPPORTED_CAPABILITY, path, "Closure calls require profile 0.11.");
+					check(unusedCaptures == null, INVALID_EXPRESSION, path, "Nested closure calls are unsupported.");
+					var call = expression.getClosureInvocation();
+					var definition = switch (call.getTargetCase()) {
+						case INLINE -> {
+							closure(call.getInline(), owner, path + ".closure_invocation.inline", depth + 1);
+							yield call.getInline();
+						}
+						case LOCAL_BINDING_ID -> {
+							check(++references <= limits.maxReferences(), LIMIT_EXCEEDED, path,
+									"Reference budget exceeded.");
+							var target = visibleClosures.get(call.getLocalBindingId());
+							check(target != null, INVALID_REFERENCE, path, "Closure binding is not visible here.");
+							yield target;
+						}
+						case TARGET_NOT_SET -> throw new DmnIrValidationException(INVALID_EXPRESSION, path,
+								"Closure call requires a target.");
+					};
+					check(nodeType.equals(definition.getResultType()), INVALID_TYPE, path,
+							"Closure call type must match the result declaration.");
+					check(call.getArgumentsCount() == definition.getParametersCount(), INVALID_EXPRESSION, path,
+							"Closure call requires an argument for every formal parameter.");
+					for (int i = 0; i < call.getArgumentsCount(); i++) {
+						var argument = call.getArguments(i);
+						String argumentPath = path + ".closure_invocation.arguments[" + i + "]";
+						var expected = typeOf(definition.getParameters(i).getVariable(), argumentPath);
+						check(assignable(typeOf(argument, argumentPath), expected), INVALID_TYPE, argumentPath,
+								"Argument must match the formal parameter type.");
+						node(argument, owner, dependencies, argumentPath, depth + 1);
+					}
 				}
 				case BKM_CALL -> {
 					check(bkmProfile, UNSUPPORTED_CAPABILITY, path, "BKM calls require profile 0.10.");

@@ -507,7 +507,7 @@ public final class DmnFeelParser {
 
 	private FunctionDefinitionParsed parseFunctionDefinitionText(FunctionDefinitionText value) {
 		FunctionDefinitionParsed.Builder parsed = FunctionDefinitionParsed.newBuilder()
-				.addAllParameters(value.getParametersList());
+				.addAllParameters(value.getParametersList()).setSourceKind(value.getSourceKind());
 		if (value.hasBody()) {
 			ExpressionParsed body = at("body", () -> parseExpressionText(value.getBody()));
 			if (body != null) {

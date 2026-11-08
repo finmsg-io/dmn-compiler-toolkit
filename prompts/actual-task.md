@@ -38,8 +38,10 @@ tests outside the TCK runner. The selected official suites passed 33 cases per b
 all native on Spark. Schema 0.9 was pushed as `a9e84b8`. Section 26 implements schema
 0.10 for resolved named FEEL BKMs. The final reactor passed 650 tests outside the TCK
 runner. The full pinned Spark TCK passed 3,391/3,391 cases natively with zero fallback.
-Schema 0.10 was pushed as `ceb52d5`. Section 27 proposes schema 0.11 for inline FEEL
-functions with lexical capture and positional invocation.
+Schema 0.10 was pushed as `ceb52d5`. Section 27 implements and verifies schema 0.11
+for inline FEEL functions with lexical capture and positional invocation. The final
+reactor passed 654 tests outside the TCK runner, and the full Spark TCK passed
+3,391/3,391 natively with zero fallback. Schema 0.11 is verified locally.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome

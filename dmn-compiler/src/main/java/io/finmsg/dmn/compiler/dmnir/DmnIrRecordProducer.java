@@ -6,6 +6,7 @@ import io.finmsg.dmn.dmnir.proto.v0.*;
 import io.finmsg.dmn.model.*;
 import io.finmsg.dmn.semantic.analysis.DmnSymbolBinding;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiFunction;
 
@@ -14,6 +15,9 @@ final class DmnIrRecordProducer {
 	private final DmnModelSetSemanticResult semantic;
 	private boolean filters;
 	private boolean builtinCalls;
+	private boolean closures;
+	private Set<String> captures;
+	private Set<String> captureScope = Set.of();
 	private final Map<String, DmnIrLocalBinding> localBindings = new HashMap<>();
 	private final Map<String, DmnSemanticModel> models = new LinkedHashMap<>();
 	private record TypeName(String namespace, String name) {
@@ -226,21 +230,25 @@ final class DmnIrRecordProducer {
 			done.add(next.getKey());
 			pending.remove(next.getKey());
 		}
-		if (filters || builtinCalls || !bkms.isEmpty()) {
+		if (filters || builtinCalls || !bkms.isEmpty() || closures) {
 			var capabilities = List.of(DmnIrArtifactReader.LOCAL_CAPABILITY, DmnIrArtifactReader.DATE_CAPABILITY,
 					DmnIrArtifactReader.TABLE_CAPABILITY, DmnIrArtifactReader.FIELD_CONSTRAINT_CAPABILITY,
 					DmnIrArtifactReader.COLLECTION_CAPABILITY, DmnIrArtifactReader.FILTER_CAPABILITY);
 			artifact.addAllRequiredCapabilities(capabilities.subList(minor - 2, capabilities.size()));
-			artifact.getSchemaVersionBuilder().setMinor(!bkms.isEmpty() ? 10 : builtinCalls ? 9 : 8);
-			artifact.setSemanticsVersion(!bkms.isEmpty()
-					? DmnIrArtifactReader.BKM_SEMANTICS_VERSION
-					: builtinCalls
-							? DmnIrArtifactReader.BUILTIN_SEMANTICS_VERSION
-							: DmnIrArtifactReader.FILTER_SEMANTICS_VERSION);
-			if (builtinCalls || !bkms.isEmpty())
+			artifact.getSchemaVersionBuilder().setMinor(closures ? 11 : !bkms.isEmpty() ? 10 : builtinCalls ? 9 : 8);
+			artifact.setSemanticsVersion(closures
+					? DmnIrArtifactReader.CLOSURE_SEMANTICS_VERSION
+					: !bkms.isEmpty()
+							? DmnIrArtifactReader.BKM_SEMANTICS_VERSION
+							: builtinCalls
+									? DmnIrArtifactReader.BUILTIN_SEMANTICS_VERSION
+									: DmnIrArtifactReader.FILTER_SEMANTICS_VERSION);
+			if (builtinCalls || !bkms.isEmpty() || closures)
 				artifact.addRequiredCapabilities(DmnIrArtifactReader.BUILTIN_CAPABILITY);
-			if (!bkms.isEmpty())
+			if (!bkms.isEmpty() || closures)
 				artifact.addRequiredCapabilities(DmnIrArtifactReader.BKM_CAPABILITY);
+			if (closures)
+				artifact.addRequiredCapabilities(DmnIrArtifactReader.CLOSURE_CAPABILITY);
 		}
 		try {
 			return new DmnIrArtifactReader().read(artifact.build().toByteArray());
@@ -496,8 +504,10 @@ final class DmnIrRecordProducer {
 			if (symbol.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE
 					|| symbol.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.PARAMETER) {
 				var local = localBindings.get(symbol.declarationPath());
-				if (local == null)
+				if (local == null || local.hasClosure())
 					throw unsupported();
+				if (captures != null && captureScope.contains(local.getBindingId()))
+					captures.add(local.getBindingId());
 				var variable = local.getVariable();
 				var localType = DmnIrTypeReference.newBuilder();
 				if (variable.hasCollectionType())
@@ -589,6 +599,12 @@ final class DmnIrRecordProducer {
 		}
 		if (source.hasInvocation()) {
 			var call = source.getInvocation();
+			var targetPath = path + "/target";
+			var closureBinding = model.bindings().stream().filter(symbol -> symbol.referencePath().equals(targetPath))
+					.map(symbol -> localBindings.get(symbol.declarationPath())).filter(Objects::nonNull)
+					.filter(DmnIrLocalBinding::hasClosure).findFirst();
+			if (call.getTarget().hasFunctionDefinition() || closureBinding.isPresent())
+				return closureCall(call, closureBinding, model, path, dependencies, depth);
 			var signature = DmnIrBuiltinSignature.forFeelName(call.getTarget().getName().getName());
 			if (signature.isPresent())
 				return builtinCall(call, signature.get(), model, path, dependencies, depth);
@@ -662,6 +678,69 @@ final class DmnIrRecordProducer {
 						.build();
 			}
 			default -> throw unsupported();
+		}
+	}
+	private DmnIrExpression closureCall(InvocationExpression source, Optional<DmnIrLocalBinding> binding,
+			DmnSemanticModel model, String path, Set<DmnIrReference> dependencies, int depth) {
+		if (captures != null || source.getArgumentsCount() != 0)
+			throw unsupported();
+		var call = DmnIrClosureInvocation.newBuilder();
+		DmnIrClosure definition;
+		if (binding.isPresent()) {
+			definition = binding.get().getClosure().getDefinition();
+			call.setLocalBindingId(binding.get().getBindingId());
+		} else {
+			var target = source.getTarget();
+			var inline = target.getFunctionDefinition();
+			if (inline.getExternal() || !target.getInferredType().hasFunction())
+				throw unsupported();
+			var types = target.getInferredType().getFunction().getParameterTypeList();
+			var formals = new ArrayList<InformationItem>();
+			for (int i = 0; i < inline.getParametersCount(); i++)
+				formals.add(InformationItem.newBuilder()
+						.setNode(Node.newBuilder().setName(inline.getParameters(i).getName())).setType(types.get(i))
+						.build());
+			var body = ExpressionParsed.newBuilder().setFeel(FeelParsed.newBuilder().setAst(inline.getBody())).build();
+			definition = closure(formals, body, model, path + "/target", depth + 1);
+			call.setInline(definition);
+		}
+		if (source.getPositionalArgumentsCount() != definition.getParametersCount())
+			throw unsupported();
+		for (int i = 0; i < source.getPositionalArgumentsCount(); i++) {
+			call.addArguments(expression(source.getPositionalArguments(i), model, path + "/argument[" + i + "]",
+					dependencies, depth + 1));
+		}
+		return typed(definition.getResultType()).setClosureInvocation(call).build();
+	}
+
+	private DmnIrClosure closure(List<InformationItem> formals, ExpressionParsed source, DmnSemanticModel model,
+			String path, int depth) {
+		if (captures != null || depth > 32)
+			throw unsupported();
+		var outer = new HashMap<>(localBindings);
+		captureScope = outer.keySet();
+		captures = new TreeSet<>((left, right) -> Arrays.compareUnsigned(left.getBytes(StandardCharsets.UTF_8),
+				right.getBytes(StandardCharsets.UTF_8)));
+		try {
+			var definition = DmnIrClosure.newBuilder();
+			for (int i = 0; i < formals.size(); i++) {
+				String id = path + "/parameter[" + i + "]";
+				var formal = variable(formals.get(i), model);
+				localBindings.put(id, DmnIrLocalBinding.newBuilder().setBindingId(id).setVariable(formal).build());
+				definition.addParameters(DmnIrBkmParameter.newBuilder().setBindingId(id).setVariable(formal));
+			}
+			Set<DmnIrReference> globals = new HashSet<>();
+			var body = parsed(source, model, path + "/body", globals, depth + 1, null);
+			if (!globals.isEmpty())
+				throw unsupported();
+			closures = true;
+			return definition.setResultType(expressionType(body)).addAllCapturedBindingIds(captures).setBody(body)
+					.build();
+		} finally {
+			captures = null;
+			captureScope = Set.of();
+			localBindings.clear();
+			localBindings.putAll(outer);
 		}
 	}
 	private Optional<DmnIrReference> boundBkm(DmnSemanticModel model, String path) {
@@ -748,6 +827,23 @@ final class DmnIrRecordProducer {
 				} else {
 					if (!entry.hasVariable() || entry.getVariable().getNode().getName().isBlank())
 						throw unsupported();
+					if (entry.getExpression().getBoxed().hasFunctionDefinition()) {
+						var function = entry.getExpression().getBoxed().getFunctionDefinition();
+						var item = entry.getVariable();
+						if (!function.getSourceKind().isEmpty() && !function.getSourceKind().equals("FEEL"))
+							throw unsupported();
+						if (item.getType().getKindCase() != TypeReference.KindCase.KIND_NOT_SET || !function.hasBody())
+							throw unsupported();
+						var local = DmnIrClosureBinding.newBuilder().setName(item.getNode().getName())
+								.setDefinition(closure(function.getParametersList(), function.getBody(), model,
+										ep + "/expression", depth + 1));
+						if (!item.getNode().getId().isBlank())
+							local.setId(item.getNode().getId());
+						var binding = DmnIrLocalBinding.newBuilder().setBindingId(ep).setClosure(local).build();
+						output.addBindings(binding);
+						localBindings.put(ep, binding);
+						continue;
+					}
 					var variable = variable(entry.getVariable(), model);
 					var value = parsed(entry.getExpression(), model, ep + "/expression", dependencies, depth + 1,
 							type(entry.getVariable().getType(), model));

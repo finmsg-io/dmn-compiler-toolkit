@@ -17,15 +17,15 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 	private static final TypeReference NUMBER = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
 	private static final TypeReference NULL = builtin(BuiltinType.BUILTIN_TYPE_NULL);
 	private final FeelTypeAnalyzer feelTypes;
-	private final boolean portableBkmTyping;
+	private final boolean portableFunctionTyping;
 
 	public DmnTypeAnalyzer() {
 		this(false);
 	}
 
-	DmnTypeAnalyzer(boolean portableBkmTyping) {
-		this.portableBkmTyping = portableBkmTyping;
-		this.feelTypes = new FeelTypeAnalyzer(new BuiltinFeelFunctionRegistry(), portableBkmTyping);
+	DmnTypeAnalyzer(boolean portableFunctionTyping) {
+		this.portableFunctionTyping = portableFunctionTyping;
+		this.feelTypes = new FeelTypeAnalyzer(new BuiltinFeelFunctionRegistry(), portableFunctionTyping);
 	}
 
 	@Override
@@ -225,7 +225,7 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 						var bkm = element.getBusinessKnowledgeModel();
 						name = bkm.getNode().getName();
 						type = bkm.getVariable().getType();
-						if (portableBkmTyping && !type.hasFunction()
+						if (portableFunctionTyping && !type.hasFunction()
 								&& type.getKindCase() != TypeReference.KindCase.KIND_NOT_SET
 								&& (bkm.getFunction().getKind() == FunctionKind.FUNCTION_KIND_FEEL
 										|| bkm.getFunction().getKind() == FunctionKind.FUNCTION_KIND_UNSPECIFIED)) {

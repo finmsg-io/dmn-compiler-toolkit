@@ -28,6 +28,8 @@ public final class DmnIrScalarProducer {
 		}
 		if (semantic.models().stream()
 				.anyMatch(m -> DmnIrDates.containsDate(m.model()) || DmnIrRecordProducer.containsBuiltinCall(m.model())
+						|| DmnIrDates.containsNode(m.model(),
+								node -> node instanceof io.finmsg.dmn.model.FunctionDefinitionExpression)
 						|| m.model().getItemDefinitionsCount() != 0
 						|| m.model().getDrgElementsList().stream()
 								.anyMatch(e -> e.hasBusinessKnowledgeModel()

@@ -2681,7 +2681,7 @@ actions counted separately. Spotless, 73 tooling tests, strict MkDocs and mainta
 documentation checks passed. This run completed the usage checkpoint. The 0.10
 implementation was pushed as `ceb52d5`.
 
-## 27. Inline FEEL functions and lexical capture (proposed schema 0.11)
+## 27. Inline FEEL functions and lexical capture (schema 0.11)
 
 Use semantics `finmsg-dmnir-inline-feel/0` and append `dmnir.inline-feel` to the exact
 ordered 0.10 capabilities. Admit a FEEL function declared in a boxed context and called
@@ -2761,4 +2761,33 @@ pinned Spark TCK rerun on `ceb52d5` passed all 3,391 executable cases natively
 (100%), with zero fallback (0%), failures, execution or compilation errors,
 expected rejections, or unknown routes. See `target/release-1.2-inline-feel-checkpoint.log`
 and `target/release-1.2-inline-feel-checkpoint-accounting.json`. This run verifies the
-0.10 baseline. The 0.11 proposal has no implementation or execution evidence yet.
+0.10 baseline.
+
+### Implementation and verification
+
+After the user directed work to continue below the usage checkpoint, the schema,
+verifier, producer, runtime adapter and DMN 1.6 exporter implemented the reviewed
+call forms. The XML frontend and FEEL parser preserve the boxed function kind so
+portable production can reject external kinds. The existing compiler continues
+to use its original function typing mode.
+
+The composed policy verified a table-derived capture, repeated calls from a filter,
+later name shadowing, an immediately invoked literal, and a qualified record
+parameter. Direct execution, separate-JVM artifact execution, and XSD-validated
+DMN 1.6 export and recompilation agreed. Generated Java verified repeated calls
+and null arguments and captures. The verifier tests covered missing bodies, capture
+scope and use, duplicate capture IDs, invalid targets, arity and argument types.
+Export rejected a mutated formal name that would hide a capture. The saved 0.10
+reader accepted 0.10 and rejected the new closure field with `UNKNOWN_FIELD`.
+
+The full reactor passed 654 tests outside the TCK runner with zero failures,
+errors or skips. The full pinned Spark TCK passed **3,391/3,391 natively (100%)**
+with zero fallback (0%), failures, execution or compilation errors, expected
+rejections or unknown routes. See `target/release-1.2-closure-reactor-spark.log`
+and `target/release-1.2-closure-full-spark-accounting.json`.
+
+The separate Spark regression suites recorded 3,034 native actions (96.23%),
+119 fallback actions (3.77%) and zero unknown across 3,153 completed actions.
+Sixty failed SQL actions were counted separately. Spotless, 73 tooling tests,
+strict MkDocs and maintained documentation checks passed. This implementation
+remains local.

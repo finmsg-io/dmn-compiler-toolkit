@@ -86,10 +86,10 @@ public final class DmnIrRuntimeAdapter {
 						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
 								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
 								"dmnir.scalar-collections", "dmnir.scalar-filters"));
-		if (artifact.getSchemaVersion().getMajor() != 0
-				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile || tableProfile
-						|| constraintProfile || collectionProfile || filterProfile
-						|| artifact.getSchemaVersion().getMinor() == 9 || artifact.getSchemaVersion().getMinor() == 10))
+		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
+				|| localProfile || dateProfile || tableProfile || constraintProfile || collectionProfile
+				|| filterProfile || artifact.getSchemaVersion().getMinor() == 9
+				|| artifact.getSchemaVersion().getMinor() == 10 || artifact.getSchemaVersion().getMinor() == 11))
 			throw new IllegalArgumentException("Unsupported runtime adapter profile.");
 		var types = new DmnIrRecordTypes(artifact);
 		List<Declaration> declarations = new ArrayList<>();
@@ -255,6 +255,31 @@ public final class DmnIrRuntimeAdapter {
 	private record Local(int depth, int slot) {
 	}
 
+	private static RuntimeFunctionDefinition closure(DmnIrClosure source, Map<ElementId, Integer> slots,
+			DmnIrRecordTypes types, Map<String, Local> locals) {
+		Map<String, Local> frame = new HashMap<>();
+		for (String capture : source.getCapturedBindingIdsList()) {
+			var local = locals.get(capture);
+			frame.put(capture, new Local(local.depth() + 1, local.slot()));
+		}
+		List<RuntimeFunctionParameter> parameters = new ArrayList<>();
+		for (var formal : source.getParametersList()) {
+			int slot = parameters.size();
+			frame.put(formal.getBindingId(), new Local(0, slot));
+			parameters.add(new RuntimeFunctionParameter(formal.getVariable().getName(), slot,
+					variableType(formal.getVariable(), types)));
+		}
+		int[] nextSlot = {parameters.size()};
+		var body = expression(source.getBody(), slots, types, frame, nextSlot);
+		var result = source.getResultType();
+		var resultType = result.hasCollectionType()
+				? types.collectionType(result.getCollectionType())
+				: types.type(result.getScalarType(), result.hasRecordType(), result.getRecordType());
+		var signature = RuntimeType.function(parameters.stream().map(RuntimeFunctionParameter::type).toList(),
+				resultType);
+		return new RuntimeFunctionDefinition(parameters, Optional.of(body), false, nextSlot[0], signature);
+	}
+
 	private static RuntimeExpression expression(DmnIrExpression expression, Map<ElementId, Integer> slots,
 			DmnIrRecordTypes types, Map<String, Local> locals, int[] nextSlot) {
 		RuntimeType type = expression.hasCollectionType()
@@ -272,9 +297,14 @@ public final class DmnIrRuntimeAdapter {
 				child.putAll(locals);
 				List<RuntimeContextEntry> entries = new ArrayList<>();
 				for (var binding : expression.getContext().getBindingsList()) {
-					var value = expression(binding.getValue(), slots, types, child, nextSlot);
+					var value = binding.hasClosure()
+							? closure(binding.getClosure().getDefinition(), slots, types, child)
+							: expression(binding.getValue(), slots, types, child, nextSlot);
 					int slot = nextSlot[0]++;
-					entries.add(new RuntimeContextEntry(binding.getVariable().getName(), slot, value));
+					String name = binding.hasClosure()
+							? binding.getClosure().getName()
+							: binding.getVariable().getName();
+					entries.add(new RuntimeContextEntry(name, slot, value));
 					child.put(binding.getBindingId(), new Local(0, slot));
 				}
 				entries.add(new RuntimeContextEntry("", -1,
@@ -321,6 +351,21 @@ public final class DmnIrRuntimeAdapter {
 					expression(expression.getConditional().getThenExpression(), slots, types, locals, nextSlot),
 					expression(expression.getConditional().getElseExpression(), slots, types, locals, nextSlot), type);
 			case LITERAL -> literal(expression.getLiteral(), type);
+			case CLOSURE_INVOCATION -> {
+				var call = expression.getClosureInvocation();
+				RuntimeExpression target;
+				if (call.hasInline()) {
+					target = closure(call.getInline(), slots, types, locals);
+				} else {
+					var local = locals.get(call.getLocalBindingId());
+					target = new RuntimeLocalReference(local.depth(), local.slot(),
+							RuntimeType.scalar(RuntimeTypeKind.FUNCTION));
+				}
+				var arguments = call.getArgumentsList().stream()
+						.map(argument -> expression(argument, slots, types, locals, nextSlot)).toList();
+				yield new RuntimeInvocationExpression(Optional.empty(), Optional.of(target), List.of(), arguments,
+						type);
+			}
 			case BKM_CALL -> {
 				var call = expression.getBkmCall();
 				List<RuntimeExpression> ordered = new ArrayList<>(Collections.nCopies(call.getArgumentsCount(), null));

@@ -224,6 +224,45 @@ class DmnJavaGeneratorTest {
 	}
 
 	@Test
+	void portableClosuresGenerateCapturedAndImmediateCalls(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/"
+				  id="model" name="Closures" namespace="urn:generated:closures">
+				<inputData id="base" name="Base"><variable name="Base" typeRef="number"/></inputData>
+				<decision id="result" name="Result"><variable name="Result" typeRef="number"/>
+				  <informationRequirement><requiredInput href="#base"/></informationRequirement>
+				  <context>
+				    <contextEntry><variable name="Saved" typeRef="number"/><literalExpression><text>Base</text></literalExpression></contextEntry>
+				    <contextEntry><variable name="Adjust"/>
+				      <functionDefinition kind="FEEL"><formalParameter name="Delta" typeRef="number"/>
+				        <literalExpression><text>if Delta = null then Saved else Saved + Delta</text></literalExpression>
+				      </functionDefinition>
+				    </contextEntry>
+				    <contextEntry><literalExpression><text>Adjust(null) + Adjust(2) + (function(x: number) x + Saved)(1)</text></literalExpression></contextEntry>
+				  </context>
+				</decision></definitions>
+				""";
+		var source = new DmnSource(DmnSourceId.of("memory:/closures.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var artifact = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source);
+		var model = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.artifact().toByteArray()));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var input = model.inputs().values().iterator().next();
+		var result = model.decisions().values().iterator().next();
+		for (var base : Arrays.asList(BigDecimal.TEN, null)) {
+			var inputs = new HashMap<DmnIrRuntimeAdapter.ElementId, Object>();
+			inputs.put(input.id(), base);
+			var slots = new Object[model.runtimeModel().valueSlotCount()];
+			slots[input.slot()] = base;
+			var expected = base == null ? null : new BigDecimal("33");
+			assertThat(model.evaluate(inputs).get(result.id())).isEqualTo(expected);
+			assertThat(engine.evaluate(slots)[result.slot()]).isEqualTo(expected);
+		}
+	}
+
+	@Test
 	void portableBuiltinsGenerateExactDecimalAndUnicodeResults(@TempDir Path tempDir) throws Exception {
 		String xml = """
 				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/"

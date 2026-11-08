@@ -39,7 +39,7 @@ public final class DmnModelSetSemanticAnalyzer {
 		return analyze(loadedModels, true);
 	}
 
-	private DmnModelSetSemanticResult analyze(DmnModelLoadResult loadedModels, boolean portableBkmTyping) {
+	private DmnModelSetSemanticResult analyze(DmnModelLoadResult loadedModels, boolean portableFunctionTyping) {
 		Objects.requireNonNull(loadedModels, "loadedModels");
 		List<DmnCompilerDiagnostic> diagnostics = new ArrayList<>(loadedModels.diagnostics());
 		if (loadedModels.hasErrors()) {
@@ -61,7 +61,7 @@ public final class DmnModelSetSemanticAnalyzer {
 			List<Definitions> availableModels = parsedModels.entrySet().stream()
 					.filter(candidate -> !candidate.getKey().equals(entry.getKey())).map(Map.Entry::getValue).toList();
 			var pipeline = new DmnSemanticPipeline();
-			DmnSemanticPipelineResult semantic = portableBkmTyping
+			DmnSemanticPipelineResult semantic = portableFunctionTyping
 					? pipeline.analyzeForPortableDmnIr(entry.getValue(), availableModels)
 					: pipeline.analyze(entry.getValue(), availableModels);
 			DmnModelIdentity identity = identity(entry.getValue());

@@ -61,7 +61,7 @@ public final class DmnSemanticPipeline {
 	}
 
 	private DmnSemanticPipelineResult analyze(Definitions parsedModel, Collection<Definitions> availableModels,
-			boolean portableBkmTyping) {
+			boolean portableFunctionTyping) {
 		Objects.requireNonNull(parsedModel, "parsedModel");
 		Objects.requireNonNull(availableModels, "availableModels");
 		List<Definitions> repositoryModels = new ArrayList<>();
@@ -70,8 +70,8 @@ public final class DmnSemanticPipeline {
 		DmnModelRepository repository = new DmnModelRepository(repositoryModels);
 
 		DmnSemanticAnalysisResult referenceResult = new DmnSemanticAnalyzer().analyze(parsedModel, repository);
-		DmnSemanticAnalysisResult typeResult = new DmnTypeAnalyzer(portableBkmTyping).analyze(referenceResult.model(),
-				repository);
+		DmnSemanticAnalysisResult typeResult = new DmnTypeAnalyzer(portableFunctionTyping)
+				.analyze(referenceResult.model(), repository);
 		DmnDependencyAnalysisResult dependencyResult = new DmnDependencyAnalyzer().analyze(typeResult.model(),
 				repository);
 

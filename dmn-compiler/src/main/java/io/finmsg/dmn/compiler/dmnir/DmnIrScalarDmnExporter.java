@@ -95,7 +95,7 @@ public final class DmnIrScalarDmnExporter {
 								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
 								"dmnir.scalar-collections", "dmnir.scalar-filters"));
 		boolean builtinProfile = artifact.getSchemaVersion().getMinor() == 9
-				|| artifact.getSchemaVersion().getMinor() == 10;
+				|| artifact.getSchemaVersion().getMinor() == 10 || artifact.getSchemaVersion().getMinor() == 11;
 		if (artifact.getSchemaVersion().getMajor() != 0
 				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile || tableProfile
 						|| constraintProfile || collectionProfile || filterProfile || builtinProfile))
@@ -185,10 +185,13 @@ public final class DmnIrScalarDmnExporter {
 												fieldType.getRecordType(), types));
 						if (field.hasConstraint()) {
 							var address = ref(model.getNamespace(), record.getIdentity().getId());
-							component.setConstraint(TypeConstraint.newBuilder()
-									.setText(text(tests(field.getConstraint(),
-											endpoint -> expression(endpoint, model, declarations, address, Map.of()),
-											address))));
+							component
+									.setConstraint(
+											TypeConstraint.newBuilder()
+													.setText(text(tests(
+															field.getConstraint(), endpoint -> expression(endpoint,
+																	model, declarations, address, types, Map.of()),
+															address))));
 						}
 						item.addComponents(component);
 					}
@@ -215,7 +218,7 @@ public final class DmnIrScalarDmnExporter {
 					locals.put(parameter.getBindingId(), parameter.getVariable().getName());
 				}
 				function.setLogic(Feel.newBuilder()
-						.setText(text(expression(bkm.getBody(), model, declarations, address, locals))));
+						.setText(text(expression(bkm.getBody(), model, declarations, address, types, locals))));
 				output.setFunction(function).addAllKnowledgeRequirements(knowledgeRequirements(
 						bkm.getKnowledgeDependenciesList(), model, declarations, address, new HashSet<>()));
 				definitions.addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(output));
@@ -250,7 +253,7 @@ public final class DmnIrScalarDmnExporter {
 				var logic = DecisionLogic.newBuilder();
 				if (decision.hasDecisionTable()) {
 					logic.setDecisionTable(table(decision.getDecisionTable(), types, address,
-							cell -> expression(cell, model, declarations, address, Map.of())));
+							cell -> expression(cell, model, declarations, address, types, Map.of())));
 				} else {
 					var exported = expressionText(decision.getExpression(), model, declarations, address, types,
 							new LinkedHashMap<>());
@@ -448,13 +451,34 @@ public final class DmnIrScalarDmnExporter {
 			Map<DmnIrReference, Declaration> declarations, DmnIrReference address, DmnIrRecordTypes types,
 			Map<String, String> locals) {
 		if (!expression.hasContext())
-			return ExpressionText.newBuilder()
-					.setFeel(
-							FeelText.newBuilder().setText(expression(expression, model, declarations, address, locals)))
+			return ExpressionText.newBuilder().setFeel(
+					FeelText.newBuilder().setText(expression(expression, model, declarations, address, types, locals)))
 					.build();
 		var child = new LinkedHashMap<>(locals);
 		var context = ContextText.newBuilder();
 		for (var binding : expression.getContext().getBindingsList()) {
+			if (binding.hasClosure()) {
+				var closure = binding.getClosure();
+				name(closure.getName(), address);
+				var declaration = Node.newBuilder().setName(closure.getName());
+				if (closure.hasId()) {
+					if (!ID.matcher(closure.getId()).matches())
+						throw invalid(address);
+					declaration.setId(closure.getId());
+				}
+				var definition = closure.getDefinition();
+				var function = FunctionDefinitionText.newBuilder();
+				for (var formal : definition.getParametersList())
+					function.addParameters(variable(formal.getVariable(), types));
+				function.setBody(expressionText(definition.getBody(), model, declarations, address, types,
+						formalScope(definition, child, address)));
+				context.addEntries(
+						ContextEntryText.newBuilder().setVariable(InformationItem.newBuilder().setNode(declaration))
+								.setExpression(ExpressionText.newBuilder()
+										.setBoxed(BoxedExpressionText.newBuilder().setFunctionDefinition(function))));
+				child.put(binding.getBindingId(), closure.getName());
+				continue;
+			}
 			var variable = binding.getVariable();
 			name(variable.getName(), address);
 			if (variable.hasId() && !ID.matcher(variable.getId()).matches())
@@ -469,23 +493,40 @@ public final class DmnIrScalarDmnExporter {
 		return ExpressionText.newBuilder().setBoxed(BoxedExpressionText.newBuilder().setContext(context)).build();
 	}
 	private static String expression(DmnIrExpression expression, DmnIrModel model,
-			Map<DmnIrReference, Declaration> declarations, DmnIrReference address, Map<String, String> locals) {
+			Map<DmnIrReference, Declaration> declarations, DmnIrReference address, DmnIrRecordTypes types,
+			Map<String, String> locals) {
 		if (expression.hasContext())
 			throw invalid(address); // Boxed contexts require an XML expression position.
 		if (expression.hasLocalReference()) {
-			String id = expression.getLocalReference().getBindingId();
-			String localName = locals.get(id);
-			String visible = null;
-			for (var entry : locals.entrySet())
-				if (entry.getValue().equals(localName))
-					visible = entry.getKey();
-			if (localName == null || !id.equals(visible))
-				throw invalid(address);
-			return localName;
+			return localName(expression.getLocalReference().getBindingId(), locals, address);
+		}
+		if (expression.hasClosureInvocation()) {
+			var call = expression.getClosureInvocation();
+			String target;
+			if (call.hasInline()) {
+				var closure = call.getInline();
+				var scope = formalScope(closure, locals, address);
+				var formals = closure.getParametersList().stream().map(formal -> {
+					var variable = formal.getVariable();
+					if (variable.hasId())
+						throw invalid(address);
+					return variable.getName() + ": " + feelTypeName(variable, model, address, types);
+				}).collect(Collectors.joining(", "));
+				target = "(function(" + formals + ") "
+						+ expression(closure.getBody(), model, declarations, address, types, scope) + ")";
+			} else {
+				target = localName(call.getLocalBindingId(), locals, address);
+				if (BuiltinFeelFunctionRegistry.isBuiltin(target))
+					throw invalid(address);
+			}
+			return call.getArgumentsList().stream()
+					.map(argument -> expression(argument, model, declarations, address, types, locals))
+					.collect(Collectors.joining(", ", target + "(", ")"));
 		}
 		if (expression.hasFieldAccess()) {
 			name(expression.getFieldAccess().getFieldName(), address);
-			return "(" + expression(expression.getFieldAccess().getSource(), model, declarations, address, locals)
+			return "("
+					+ expression(expression.getFieldAccess().getSource(), model, declarations, address, types, locals)
 					+ ")." + expression.getFieldAccess().getFieldName();
 		}
 		if (expression.hasBkmCall()) {
@@ -500,7 +541,7 @@ public final class DmnIrScalarDmnExporter {
 				named |= call.getArguments(i).getParameterPosition() != i + 1;
 			List<String> arguments = new ArrayList<>();
 			for (var argument : call.getArgumentsList()) {
-				String value = expression(argument.getExpression(), model, declarations, address, locals);
+				String value = expression(argument.getExpression(), model, declarations, address, types, locals);
 				if (named)
 					value = target.bkm().getParameters(argument.getParameterPosition() - 1).getVariable().getName()
 							+ ": " + value;
@@ -516,19 +557,19 @@ public final class DmnIrScalarDmnExporter {
 							&& entry.getValue().name().equals(name)))
 				throw invalid(address);
 			return call.getArgumentsList().stream()
-					.map(argument -> expression(argument, model, declarations, address, locals))
+					.map(argument -> expression(argument, model, declarations, address, types, locals))
 					.collect(Collectors.joining(", ", name + "(", ")"));
 		}
 		if (expression.hasFilter()) {
 			var filter = expression.getFilter();
 			var child = new LinkedHashMap<>(locals);
 			child.put(filter.getItemBindingId(), "item");
-			return "(" + expression(filter.getSource(), model, declarations, address, locals) + ")["
-					+ expression(filter.getPredicate(), model, declarations, address, child) + "]";
+			return "(" + expression(filter.getSource(), model, declarations, address, types, locals) + ")["
+					+ expression(filter.getPredicate(), model, declarations, address, types, child) + "]";
 		}
 		if (expression.hasList())
 			return expression.getList().getElementsList().stream()
-					.map(element -> expression(element, model, declarations, address, locals))
+					.map(element -> expression(element, model, declarations, address, types, locals))
 					.collect(Collectors.joining(", ", "[", "]"));
 		if (expression.hasGlobalReference()) {
 			var reference = expression.getGlobalReference();
@@ -536,7 +577,8 @@ public final class DmnIrScalarDmnExporter {
 		}
 		if (expression.hasUnary()) {
 			if (expression.getUnary().getOperator() == DmnIrUnaryOperator.UNARY_OPERATOR_POSITIVE)
-				return "(" + expression(expression.getUnary().getOperand(), model, declarations, address, locals) + ")";
+				return "(" + expression(expression.getUnary().getOperand(), model, declarations, address, types, locals)
+						+ ")";
 			String token = switch (expression.getUnary().getOperator()) {
 				case UNARY_OPERATOR_POSITIVE -> "+";
 				case UNARY_OPERATOR_NEGATE -> "-";
@@ -544,7 +586,8 @@ public final class DmnIrScalarDmnExporter {
 				default -> throw invalid(address);
 			};
 			return "(" + token + "("
-					+ expression(expression.getUnary().getOperand(), model, declarations, address, locals) + "))";
+					+ expression(expression.getUnary().getOperand(), model, declarations, address, types, locals)
+					+ "))";
 		}
 		if (expression.hasBinary()) {
 			String token = switch (expression.getBinary().getOperator()) {
@@ -563,15 +606,17 @@ public final class DmnIrScalarDmnExporter {
 				case BINARY_OPERATOR_OR -> "or";
 				default -> throw invalid(address);
 			};
-			return "((" + expression(expression.getBinary().getLeft(), model, declarations, address, locals) + ") "
-					+ token + " (" + expression(expression.getBinary().getRight(), model, declarations, address, locals)
-					+ "))";
+			return "((" + expression(expression.getBinary().getLeft(), model, declarations, address, types, locals)
+					+ ") " + token + " ("
+					+ expression(expression.getBinary().getRight(), model, declarations, address, types, locals) + "))";
 		}
 		if (expression.hasConditional()) {
 			var conditional = expression.getConditional();
-			return "(if (" + expression(conditional.getCondition(), model, declarations, address, locals) + ") then ("
-					+ expression(conditional.getThenExpression(), model, declarations, address, locals) + ") else ("
-					+ expression(conditional.getElseExpression(), model, declarations, address, locals) + "))";
+			return "(if (" + expression(conditional.getCondition(), model, declarations, address, types, locals)
+					+ ") then ("
+					+ expression(conditional.getThenExpression(), model, declarations, address, types, locals)
+					+ ") else ("
+					+ expression(conditional.getElseExpression(), model, declarations, address, types, locals) + "))";
 		}
 		var value = expression.getLiteral();
 		return switch (value.getValueCase()) {
@@ -591,6 +636,46 @@ public final class DmnIrScalarDmnExporter {
 	private static DmnIrReference ref(String namespace, String id) {
 		return DmnIrReference.newBuilder().setModelNamespace(namespace).setElementId(id).build();
 	}
+	private static Map<String, String> formalScope(DmnIrClosure closure, Map<String, String> locals,
+			DmnIrReference address) {
+		var scope = new LinkedHashMap<>(locals);
+		for (var formal : closure.getParametersList()) {
+			name(formal.getVariable().getName(), address);
+			if (formal.getVariable().hasId() && !ID.matcher(formal.getVariable().getId()).matches())
+				throw invalid(address);
+			scope.put(formal.getBindingId(), formal.getVariable().getName());
+		}
+		return scope;
+	}
+
+	private static String localName(String bindingId, Map<String, String> locals, DmnIrReference address) {
+		String name = locals.get(bindingId);
+		String visible = null;
+		for (var entry : locals.entrySet())
+			if (entry.getValue().equals(name))
+				visible = entry.getKey();
+		if (name == null || !bindingId.equals(visible))
+			throw invalid(address);
+		return name;
+	}
+
+	private static String feelTypeName(DmnIrVariable formal, DmnIrModel model, DmnIrReference address,
+			DmnIrRecordTypes types) {
+		if (formal.hasRecordType())
+			return referenceName(formal.getRecordType(),
+					types.definition(formal.getRecordType()).getIdentity().getName(), model, address, Map.of());
+		if (formal.hasCollectionType())
+			return referenceName(formal.getCollectionType(),
+					types.collection(formal.getCollectionType()).getIdentity().getName(), model, address, Map.of());
+		return switch (formal.getType()) {
+			case SCALAR_TYPE_NUMBER -> "number";
+			case SCALAR_TYPE_STRING -> "string";
+			case SCALAR_TYPE_BOOLEAN -> "boolean";
+			case SCALAR_TYPE_DATE -> "date";
+			default -> throw invalid(address);
+		};
+	}
+
 	private static String referenceName(DmnIrReference reference, String variable, DmnIrModel model,
 			DmnIrReference address, Map<String, String> locals) {
 		name(variable, address);

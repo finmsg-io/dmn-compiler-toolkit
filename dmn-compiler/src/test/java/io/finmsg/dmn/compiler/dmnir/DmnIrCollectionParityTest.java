@@ -179,15 +179,85 @@ class DmnIrCollectionParityTest {
 		public static void main(String[] args) throws Exception {
 			var verified = new DmnIrArtifactReader().read(Files.readAllBytes(Path.of(args[0])));
 			var output = new DmnIrRuntimeAdapter().adapt(verified).evaluate(inputs(true));
-			var expected = args[1].equals("filters") || args[1].equals("builtin")
-					? Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null)
-					: Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null, new BigDecimal("0.125"));
+			var expected = args[1].equals("closure")
+					? List.of(new BigDecimal("30.125"), new BigDecimal("30.125"))
+					: args[1].equals("filters") || args[1].equals("builtin")
+							? Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null)
+							: Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null,
+									new BigDecimal("0.125"));
 			if (!expected.equals(output.get(key("history"))))
+				throw new AssertionError(output);
+			if (args[1].equals("closure") && !new BigDecimal("3").equals(output.get(key("immediate"))))
 				throw new AssertionError(output);
 			if (args[1].equals("bkms") && (!new BigDecimal("9").equals(output.get(key("difference")))
 					|| !LocalDate.of(2024, 2, 1).equals(output.get(key("expiry")))))
 				throw new AssertionError(output);
 		}
+	}
+
+	@Test
+	void closuresCapturePriorValuesAndRoundTripBothCallForms(@TempDir Path dir) throws Exception {
+		String policy = POLICY.replace(
+				"<contextEntry><literalExpression><text>if Include then [Fee, Fee, null, 0.125] else Prior</text></literalExpression></contextEntry>",
+				"""
+						<contextEntry><variable name="Cutoff" typeRef="number"/><literalExpression><text>Fee</text></literalExpression></contextEntry>
+						<contextEntry><variable name="Qualifies"/>
+						<functionDefinition kind="FEEL"><formalParameter name="Candidate" typeRef="number"/>
+						<literalExpression><text>Candidate &gt;= Cutoff</text></literalExpression>
+						</functionDefinition></contextEntry>
+						<contextEntry><context>
+						<contextEntry><variable name="Cutoff" typeRef="number"/><literalExpression><text>999</text></literalExpression></contextEntry>
+						<contextEntry><literalExpression><text>if Include then [Fee, Fee, null, 0.125][Qualifies(item)] else Prior</text></literalExpression></contextEntry>
+						</context></contextEntry>
+						""")
+				.replace("</definitions>",
+						"""
+								<decision id="immediate" name="Immediate"><variable name="Immediate" typeRef="number"/>
+								<literalExpression><text>(function(x: number) x + 1)(2)</text></literalExpression>
+								</decision>
+								<decision id="structured" name="Structured"><variable name="Structured" typeRef="date"/>
+								<informationRequirement><requiredInput href="#applicant"/></informationRequirement>
+								<literalExpression><text>(function(p: catalog.tPermit) p.Expiry)(Applicant.Permit)</text></literalExpression>
+								</decision></definitions>
+								""");
+		var source = source("policy.dmn", policy);
+		var resolver = new InMemoryDmnModelResolver(List.of(source("catalog.dmn", CATALOG)));
+		var producer = new DmnIrScalarProducer();
+		var verified = producer.produce(source, resolver);
+		var external = source("policy.dmn", policy.replace("kind=\"FEEL\"", "kind=\"Java\""));
+		assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE,
+				assertThrows(DmnIrProductionException.class, () -> producer.produce(external, resolver)).category());
+		assertEquals(11, verified.artifact().getSchemaVersion().getMinor());
+		assertArrayEquals(verified.artifact().toByteArray(),
+				producer.produce(source, resolver).artifact().toByteArray());
+		var output = new DmnIrRuntimeAdapter().adapt(verified).evaluate(inputs(true));
+		assertEquals(List.of(new BigDecimal("30.125"), new BigDecimal("30.125")), output.get(key("history")));
+		assertEquals(new BigDecimal("3"), output.get(key("immediate")));
+		assertEquals(LocalDate.of(2024, 2, 1), output.get(key("structured")));
+		var captured = verified.artifact().toBuilder();
+		var root = captured.getModelsBuilderList().stream().filter(model -> model.getNamespace().equals(NS)).findFirst()
+				.orElseThrow();
+		var history = root.getDecisionsBuilderList().stream()
+				.filter(decision -> decision.getIdentity().getId().equals("history")).findFirst().orElseThrow();
+		history.getExpressionBuilder().getContextBuilder().getBindingsBuilder(2).getClosureBuilder()
+				.getDefinitionBuilder().getParametersBuilder(0).getVariableBuilder().setName("Cutoff");
+		var capturedArtifact = new DmnIrArtifactReader().read(captured.build().toByteArray());
+		assertThrows(DmnIrExportException.class, () -> new DmnIrScalarDmnExporter().export(capturedArtifact));
+		var bundle = new DmnIrScalarDmnExporter().export(verified);
+		DmnIrDateParityTest.validate(bundle);
+		var documents = bundle.documents().entrySet().stream().map(e -> source(e.getKey(), e.getValue())).toList();
+		var exported = source(bundle.rootDocument(), bundle.documents().get(bundle.rootDocument()));
+		var exportResolver = new InMemoryDmnModelResolver(documents);
+		assertEquals(output,
+				new DmnIrRuntimeAdapter().adapt(producer.produce(exported, exportResolver)).evaluate(inputs(true)));
+		var named = Map.of("Applicant", inputs(true).get(key("applicant")), "Include", true, "External",
+				inputs(true).get(key("external")));
+		for (var compiled : List.of(compile(source, resolver), compile(exported, exportResolver))) {
+			assertEquals(output.get(key("history")), evaluate(compiled, "History", named));
+			assertEquals(output.get(key("immediate")), evaluate(compiled, "Immediate", named));
+			assertEquals(output.get(key("structured")), evaluate(compiled, "Structured", named));
+		}
+		runConsumer(dir, verified.artifact().toByteArray(), "closure");
 	}
 
 	@Test

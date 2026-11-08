@@ -12,6 +12,8 @@ import io.finmsg.dmn.dmnir.proto.v0.DmnIrInput;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrDecision;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrBkm;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrBkmParameter;
+import io.finmsg.dmn.dmnir.proto.v0.DmnIrClosure;
+import io.finmsg.dmn.dmnir.proto.v0.DmnIrClosureInvocation;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrReference;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrRecordDefinition;
 import io.finmsg.dmn.dmnir.proto.v0.DmnIrCollectionDefinition;
@@ -57,7 +59,7 @@ final class DmnIrWireScanner {
 			check(++models <= limits.maxModels(), LIMIT_EXCEEDED, path, "Model budget exceeded.");
 		} else if (descriptor == DmnIrInput.getDescriptor() || descriptor == DmnIrDecision.getDescriptor()
 				|| descriptor == DmnIrBkm.getDescriptor() || descriptor == DmnIrBkmParameter.getDescriptor()
-				|| descriptor == DmnIrCollectionDefinition.getDescriptor()
+				|| descriptor == DmnIrClosure.getDescriptor() || descriptor == DmnIrCollectionDefinition.getDescriptor()
 				|| descriptor == DmnIrFilterExpression.getDescriptor()
 				|| descriptor == DmnIrRecordDefinition.getDescriptor() || descriptor == DmnIrRecordField.getDescriptor()
 				|| descriptor == DmnIrLocalBinding.getDescriptor() || descriptor == DmnIrTableInput.getDescriptor()
@@ -74,6 +76,9 @@ final class DmnIrWireScanner {
 			check(++fields <= limits.maxFields(), LIMIT_EXCEEDED, path, "Wire field budget exceeded.");
 			FieldDescriptor field = descriptor.findFieldByNumber(tag >>> 3);
 			check(field != null, UNKNOWN_FIELD, path, "Unknown wire field in the experimental profile.");
+			if ((descriptor == DmnIrClosure.getDescriptor() && field.getNumber() == 3)
+					|| (descriptor == DmnIrClosureInvocation.getDescriptor() && field.getNumber() == 1))
+				check(++references <= limits.maxReferences(), LIMIT_EXCEEDED, path, "Reference budget exceeded.");
 			String fieldPath = path + "." + field.getName();
 			if (field.isRepeated()) {
 				int index = repeated.merge(field.getNumber(), 1, Integer::sum) - 1;

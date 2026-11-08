@@ -197,6 +197,7 @@ message DmnIrExpression {
     DmnIrFilterExpression filter = 13;
     DmnIrBuiltinCall builtin_call = 14;
     DmnIrBkmCall bkm_call = 15;
+    DmnIrClosureInvocation closure_invocation = 16;
   }
 }
 
@@ -260,6 +261,28 @@ message DmnIrLocalBinding {
   string binding_id = 1;
   DmnIrVariable variable = 2;
   DmnIrExpression value = 3;
+  DmnIrClosureBinding closure = 4;
+}
+
+message DmnIrClosureBinding {
+  string name = 1;
+  optional string id = 2;
+  DmnIrClosure definition = 3;
+}
+
+message DmnIrClosure {
+  repeated DmnIrBkmParameter parameters = 1;
+  DmnIrTypeReference result_type = 2;
+  repeated string captured_binding_ids = 3;
+  DmnIrExpression body = 4;
+}
+
+message DmnIrClosureInvocation {
+  oneof target {
+    string local_binding_id = 1;
+    DmnIrClosure inline = 2;
+  }
+  repeated DmnIrExpression arguments = 3;
 }
 message DmnIrContextExpression {
   repeated DmnIrLocalBinding bindings = 1;
