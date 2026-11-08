@@ -12,6 +12,7 @@ import java.util.function.BiFunction;
 /** Retains source named identity before structural Runtime IR erases it. */
 final class DmnIrRecordProducer {
 	private final DmnModelSetSemanticResult semantic;
+	private boolean filters;
 	private final Map<String, DmnIrLocalBinding> localBindings = new HashMap<>();
 	private final Map<String, DmnSemanticModel> models = new LinkedHashMap<>();
 	private record TypeName(String namespace, String name) {
@@ -197,6 +198,11 @@ final class DmnIrRecordProducer {
 			artifact.addEvaluationOrder(next.getKey());
 			done.add(next.getKey());
 			pending.remove(next.getKey());
+		}
+		if (filters) {
+			artifact.getSchemaVersionBuilder().setMinor(8);
+			artifact.setSemanticsVersion(DmnIrArtifactReader.FILTER_SEMANTICS_VERSION)
+					.addRequiredCapabilities(DmnIrArtifactReader.FILTER_CAPABILITY);
 		}
 		try {
 			return new DmnIrArtifactReader().read(artifact.build().toByteArray());
@@ -450,6 +456,29 @@ final class DmnIrRecordProducer {
 			return typed(field.getType())
 					.setFieldAccess(DmnIrFieldAccess.newBuilder().setSource(parent).setFieldName(value.getMember()))
 					.build();
+		}
+		if (source.hasFilter()) {
+			var filter = source.getFilter();
+			var input = expression(filter.getSource(), model, path + "/source", dependencies, depth + 1, expected);
+			if (!input.hasCollectionType())
+				throw unsupported();
+			var collection = collections.get(input.getCollectionType());
+			String itemId = path + "/filter/item";
+			localBindings.put(itemId,
+					DmnIrLocalBinding.newBuilder().setBindingId(itemId)
+							.setVariable(
+									DmnIrVariable.newBuilder().setName("item").setType(collection.getElementType()))
+							.build());
+			try {
+				var predicate = expression(filter.getFilter(), model, path + "/filter", dependencies, depth + 1);
+				if (predicate.getType() != DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+					throw unsupported();
+				filters = true;
+				return typed(expressionType(input)).setFilter(DmnIrFilterExpression.newBuilder().setSource(input)
+						.setItemBindingId(itemId).setPredicate(predicate)).build();
+			} finally {
+				localBindings.remove(itemId);
+			}
 		}
 		if (source.hasList()) {
 			if (expected == null || !expected.hasCollectionType())

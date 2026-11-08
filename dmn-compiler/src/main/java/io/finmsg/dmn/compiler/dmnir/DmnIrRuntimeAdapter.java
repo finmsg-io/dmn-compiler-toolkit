@@ -79,8 +79,15 @@ public final class DmnIrRuntimeAdapter {
 						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
 								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
 								"dmnir.scalar-collections"));
-		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
-				|| localProfile || dateProfile || tableProfile || constraintProfile || collectionProfile))
+		boolean filterProfile = artifact.getSchemaVersion().getMinor() == 8
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar-filters/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
+								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
+								"dmnir.scalar-collections", "dmnir.scalar-filters"));
+		if (artifact.getSchemaVersion().getMajor() != 0
+				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile || tableProfile
+						|| constraintProfile || collectionProfile || filterProfile))
 			throw new IllegalArgumentException("Unsupported runtime adapter profile.");
 		var types = new DmnIrRecordTypes(artifact);
 		List<Declaration> declarations = new ArrayList<>();
@@ -262,6 +269,15 @@ public final class DmnIrRuntimeAdapter {
 					expression(expression.getConditional().getThenExpression(), slots, types, locals, nextSlot),
 					expression(expression.getConditional().getElseExpression(), slots, types, locals, nextSlot), type);
 			case LITERAL -> literal(expression.getLiteral(), type);
+			case FILTER -> {
+				var filter = expression.getFilter();
+				var source = expression(filter.getSource(), slots, types, locals, nextSlot);
+				Map<String, Local> child = new HashMap<>(locals);
+				int slot = nextSlot[0]++;
+				child.put(filter.getItemBindingId(), new Local(0, slot));
+				yield new RuntimeFilterExpression(source, slot,
+						expression(filter.getPredicate(), slots, types, child, nextSlot), type);
+			}
 			case LIST -> new RuntimeListExpression(expression.getList().getElementsList().stream()
 					.map(element -> expression(element, slots, types, locals, nextSlot)).toList(), type);
 			default -> throw new IllegalArgumentException("Unsupported expression in runtime adapter.");

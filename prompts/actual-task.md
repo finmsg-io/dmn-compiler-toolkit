@@ -25,8 +25,13 @@ policy. The full reactor passed 630 tests. Schema 0.6 was pushed as `abedbb7`. T
 Spark TCK rerun at a 120-second limit passed 3,391/3,391 cases natively with zero fallback.
 Schema 0.7 is implemented and verified locally in section 23. Named scalar collections and
 ordered list values survive portable execution, generated Java and DMN 1.6 export. The full
-reactor passed 635 tests.
-Broader collections/functions, the DSL/CLI and independent Rust execution remain open.
+reactor passed 635 tests. The implementation was pushed as `bd5f509`.
+The full official Spark TCK passed 3,391/3,391 cases natively for `bd5f509` with zero
+fallback. Schema 0.8 is implemented and verified locally in section 24. It adds boolean
+filters over named scalar collections with resolved item bindings. The reactor passed 640
+tests and the focused official list/filter run passed 41 cases per backend, all native on
+Spark. Broader collections, built-in calls, FEEL BKMs and inline functions remain open.
+DSL design and a bounded artifact-only Rust prototype can start from the implemented profiles.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome

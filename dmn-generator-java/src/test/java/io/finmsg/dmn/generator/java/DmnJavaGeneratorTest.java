@@ -167,6 +167,15 @@ class DmnJavaGeneratorTest {
 
 	@Test
 	void portableCollectionsGenerateOrderedListValues(@TempDir Path tempDir) throws Exception {
+		assertPortableListGeneration(tempDir, false);
+	}
+
+	@Test
+	void portableFiltersGenerateScopedPredicates(@TempDir Path tempDir) throws Exception {
+		assertPortableListGeneration(tempDir, true);
+	}
+
+	private void assertPortableListGeneration(Path tempDir, boolean filtered) throws Exception {
 		String types = """
 				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="catalog" name="Catalog" namespace="urn:generated:list-types">
 				<itemDefinition id="fees" name="tFees" isCollection="true"><typeRef>number</typeRef></itemDefinition>
@@ -190,6 +199,13 @@ class DmnJavaGeneratorTest {
 				<contextEntry><literalExpression><text>if Fee &gt; 0 then History else []</text></literalExpression></contextEntry>
 				</context></decision></definitions>
 				""";
+		if (filtered)
+			xml = xml
+					.replace("<context><contextEntry><variable name=\"History\"",
+							"<context><contextEntry><variable name=\"Cutoff\" typeRef=\"number\"/>"
+									+ "<literalExpression><text>Fee</text></literalExpression></contextEntry>"
+									+ "<contextEntry><variable name=\"History\"")
+					.replace("[Fee, Fee, null]", "[Fee, Fee, null][item = null or item &gt;= Cutoff][true]");
 		var imported = new DmnSource(DmnSourceId.of("memory:/catalog.dmn"),
 				types.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 		var source = new DmnSource(DmnSourceId.of("memory:/policy.dmn"),

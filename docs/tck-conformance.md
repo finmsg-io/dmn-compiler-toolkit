@@ -293,6 +293,13 @@ unknown routes, failures, execution or compilation errors, compilation blocks, r
 skips. Maven exited 0, and every outcome matched the retained ledger. Both logs and accounting
 files are under `target/` with the `release-1.2-field-constraints-full-sparksql` prefix.
 
+The full DMNIR 0.7 run tested `bd5f509` against the same pinned TCK revision with a
+120-second case limit. Maven exited 0. All 3,391 cases passed natively (100.00%), with
+zero fallback (0.00%), unknown routes, failures, execution errors, compilation errors,
+rejections or skips. The case identities, statuses and routes matched the retained ledger.
+See `target/release-1.2-collections-full-sparksql.log` and
+`target/release-1.2-collections-full-sparksql-accounting.json`.
+
 ### Historical interpreter/Java baseline - 2026-09-04 (`OfficialTckSuiteTest`)
 
 <a id="contents-section-3-1"></a>

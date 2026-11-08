@@ -523,12 +523,22 @@ public final class DmnRuntime {
 			if (source == null)
 				return null;
 			List<?> list = source instanceof List<?> l ? l : List.of(source);
+			RuntimeType sourceType = filter.source().type();
+			boolean scalarPredicate = sourceType.kind() == RuntimeTypeKind.LIST
+					&& filter.filter().type().kind() == RuntimeTypeKind.BOOLEAN
+					&& switch (sourceType.elementType().kind()) {
+						case BOOLEAN, NUMBER, STRING, DATE -> true;
+						default -> false;
+					};
 			List<Object> result = new ArrayList<>();
 			for (int i = 0; i < list.size(); i++) {
 				Object item = list.get(i);
-				Frame child = new Frame(frame, filter.localSlot() + 1);
-				child.set(filter.localSlot(), item);
-				Object selector = expression(filter.filter(), child);
+				// Typed scalar predicates share the allocated frame with captured locals.
+				Frame predicateFrame = scalarPredicate && filter.localSlot() < frame.values.length
+						? frame
+						: new Frame(frame, filter.localSlot() + 1);
+				predicateFrame.set(filter.localSlot(), item);
+				Object selector = expression(filter.filter(), predicateFrame);
 				if (selector instanceof BigDecimal number) {
 					int position = number.intValueExact();
 					int index = position > 0 ? position - 1 : list.size() + position;
@@ -540,7 +550,7 @@ public final class DmnRuntime {
 					result.add(item);
 				}
 			}
-			return List.copyOf(result);
+			return scalarPredicate ? Collections.unmodifiableList(result) : List.copyOf(result);
 		}
 
 		private List<Object> iterate(RuntimeForExpression forExpr, List<RuntimeIteration> iterations, int index,

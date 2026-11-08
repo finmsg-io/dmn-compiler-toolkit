@@ -2439,7 +2439,100 @@ accepted both. Compatibility evidence is in `target/dmnir-0.6-baseline`.
 The final focused run passed 140 tests, with no Spark routing measurements. The full reactor
 passed 635 tests with zero failures, errors or skips. It measured 3,034 native actions (96.23%)
 and 119 fallback actions (3.77%) among 3,153 completed Spark regression SQL actions, with zero
-unknown routes and 60 failed actions counted separately. The official TCK checkpoint remains
-the separately measured 0.6 run. All 73 tooling tests, strict MkDocs and documentation facts
+unknown routes and 60 failed actions counted separately. The official 0.7 checkpoint below
+uses a separate case denominator. All 73 tooling tests, strict MkDocs and documentation facts
 and maintained-link checks passed. Logs are in `target/release-1.2-collections-focused-final.log`
 and `target/release-1.2-collections-reactor.log`.
+
+The full official Spark TCK on pushed 0.7 source `bd5f509` passed 3,391/3,391 cases natively
+(100.00%) with zero fallback (0.00%), unknown routes, failures, execution or compilation
+errors, rejections or skips. The 120-second run matched the retained case ledger. See the
+[Spark conformance record](../../docs/tck-conformance.md#native-spark-sql-checkpoint-2026-10-26).
+
+## 24. Boolean filters on named scalar collections
+
+Date 2026-11-07. Status **implemented and verified locally on 2026-11-08**. Add FEEL boolean filters to the named scalar
+collections in 0.7. Reuse the existing parser, semantic binding for implicit `item`, and
+Runtime IR filter. The [OMG list and filter semantics](https://www.omg.org/spec/DMN/1.5/PDF)
+describe retaining elements whose predicate is true. In the current toolkit the interpreter
+copies filtered results with `List.copyOf`, which throws if the predicate retained a null
+member. Generated Java retains such members. The slice includes an interpreter parity fix.
+
+### Additive schema 0.8
+
+Use `finmsg-dmnir-scalar-filters/0` and append `dmnir.scalar-filters` to the exact ordered 0.7
+capabilities. Add `DmnIrFilterExpression filter = 13` to the existing `DmnIrExpression.node`
+oneof. The new message has `DmnIrExpression source = 1`, `string item_binding_id = 2` and
+`DmnIrExpression predicate = 3`. All existing tags retain their meanings.
+
+- The source and result have the same namespace-qualified collection type from 0.7. The item
+  type is the scalar element type from that declaration. Derive it once and use existing
+  `DmnIrLocalReference` nodes to refer to the item by binding ID.
+- Resolve the source in the outer scope. Bind the non-empty, decision-local unique item ID
+  only while verifying the predicate. The predicate has static boolean type and may read
+  the item, resolved outer locals and declared global dependencies. A boolean expression
+  may evaluate to null. Apply existing declaration, depth and reference budgets.
+- Evaluate the source once. A null source yields null. For an empty list, return an empty
+  list without evaluating the predicate. Retain each element whose predicate evaluates to
+  true, including null members. Preserve order and duplicates. False and null results omit
+  the candidate. Keep interpreter results immutable while allowing retained nulls.
+- Admit chained filters in source positions. Defer filters inside a predicate, scalar
+  source promotion within the filter operation, implicit record member scopes, collection
+  functions, quantifiers and numeric indexing. Numeric indexing needs its own boundary:
+  the current interpreter uses exact integer conversion while generated Java truncates.
+- Export normalized FEEL bracket syntax with `item` bound only inside the predicate. Reject
+  an artifact for XML export if rendering a resolved reference would capture a different
+  binding. Slot numbers are derived by each consumer.
+
+### Acceptance
+
+1. Pin the field tags and exact profile, verify rejection by a saved 0.7 reader, and test
+   missing bodies, invalid types, duplicate IDs, escaped scope and undeclared dependencies.
+2. Extend the composed policy with an imported scalar collection, a table-derived cutoff
+   and a boxed local used by the predicate. Test chained filters, exact boundaries,
+   duplicate and null members, null and empty sources, and false or null predicate results.
+3. Compare direct compilation, artifact execution in a separate JVM, generated Java and
+   recompiled DMN 1.6. Verify deterministic artifacts, XSD validation and capture rejection.
+4. Run focused JUnit/Surefire, the affected official list/filter cases, full reactor and
+   documentation checks. Keep focused TCK and reactor routing accounting separate.
+
+Review covers the public wire field and predicate semantics, including preserving selected
+null members in direct interpretation. The slice touches the schema, codec, compiler
+adapters and runtime filter path, with no new dependencies or publication.
+
+The user asked to continue after the section 24 review request. The five-hour window had
+23% remaining before the official 0.7 baseline and 17% after it. The usage checkpoint took
+priority over implementation. Implementation resumed after the user directed it to continue.
+
+### Implementation and verification
+
+The codec enforces collection identity, boolean predicates, item binding scope, and declared
+dependencies. The producer resolves the item, the adapter derives the runtime slot, and DMN 1.6
+export renders the bracket expression while checking name capture. The composed policy passed
+direct interpretation, artifact-only execution in a separate JVM, generated Java, and
+artifact-only DMN 1.6 export and recompiled evaluation. Tests cover order, duplicates, retained
+nulls, null and empty sources, nullable predicates, and XML name capture.
+
+The saved 0.7 reader accepted a 0.7 artifact and rejected the new filter field with
+`UNKNOWN_FIELD`. The current reader accepted both. See `target/dmnir-0.7-baseline`.
+
+The first focused run exposed a runtime lexical-frame mismatch. An early full run after
+fixing the mismatch failed one indexed-join assertion because the runtime change also affected
+record-valued filters. That run measured 3,030 native actions (96.22%) and 119 fallback actions
+(3.78%) among 3,149 completed Spark regression actions, with zero unknown and 56 failed SQL
+actions counted separately. The final fix limits shared frames and null-preserving results
+to typed scalar boolean filters. The indexed-join retest passed, measuring six native actions
+(100%), zero fallback (0%), and six expected failed SQL actions counted separately.
+
+Final focused verification passed 131 DMNIR and Java generator tests and the indexed-join
+regression. The focused official list/filter TCK passed all 41 cases on each of interpreter,
+generated Java and Spark. All 41 Spark cases ran natively (100%) with zero fallback (0%),
+failures, execution or compilation errors, rejections or skips. Evidence:
+`target/release-1.2-scalar-filters-parity-retry.log` and
+`target/release-1.2-scalar-filters-tck-final-accounting.json`.
+
+The full reactor passed 640 tests with zero failures, errors or skips. It measured 3,034
+native actions (96.23%) and 119 fallback actions (3.77%) among 3,153 completed Spark regression
+actions, with zero unknown and 60 failed actions counted separately. This routing denominator
+is separate from the official TCK. See `target/release-1.2-scalar-filters-reactor-verified.log`.
+All 73 tooling tests, strict MkDocs and documentation facts and maintained-link checks passed.

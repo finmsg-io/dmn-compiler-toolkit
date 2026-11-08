@@ -86,8 +86,15 @@ public final class DmnIrScalarDmnExporter {
 						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
 								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
 								"dmnir.scalar-collections"));
-		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
-				|| localProfile || dateProfile || tableProfile || constraintProfile || collectionProfile))
+		boolean filterProfile = artifact.getSchemaVersion().getMinor() == 8
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar-filters/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
+								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
+								"dmnir.scalar-collections", "dmnir.scalar-filters"));
+		if (artifact.getSchemaVersion().getMajor() != 0
+				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile || tableProfile
+						|| constraintProfile || collectionProfile || filterProfile))
 			throw invalid(null);
 		var types = new DmnIrRecordTypes(artifact);
 		var models = artifact.getModelsList().stream().sorted(Comparator.comparing(DmnIrModel::getNamespace)).toList();
@@ -125,7 +132,7 @@ public final class DmnIrScalarDmnExporter {
 				admit(model, input.getIdentity(), input.getVariable(), true, true, ids, names, declarations);
 			for (var decision : model.getDecisionsList())
 				admit(model, decision.getIdentity(), decision.getVariable(), false,
-						!constraintProfile && !collectionProfile, ids, names, declarations);
+						!constraintProfile && !collectionProfile && !filterProfile, ids, names, declarations);
 			for (var imported : model.getImportsList()) {
 				name(imported.getName(), null);
 				if (!names.add(imported.getName()))
@@ -136,8 +143,8 @@ public final class DmnIrScalarDmnExporter {
 		for (var model : models) {
 			var definitions = Definitions.newBuilder().setNode(node(model.getIdentity()))
 					.setNamespace(model.getNamespace()).setModelNamespaceUri(DmnNamespaces.DMN_1_6);
-			if (recordProfile || localProfile || dateProfile || tableProfile || constraintProfile
-					|| collectionProfile) {
+			if (recordProfile || localProfile || dateProfile || tableProfile || constraintProfile || collectionProfile
+					|| filterProfile) {
 				int prefix = 0;
 				for (var namespace : models.stream().map(DmnIrModel::getNamespace).toList())
 					definitions.addNamespaces(Namespace.newBuilder().setPrefix("t" + prefix++).setUri(namespace));
@@ -428,6 +435,13 @@ public final class DmnIrScalarDmnExporter {
 			name(expression.getFieldAccess().getFieldName(), address);
 			return "(" + expression(expression.getFieldAccess().getSource(), model, declarations, address, locals)
 					+ ")." + expression.getFieldAccess().getFieldName();
+		}
+		if (expression.hasFilter()) {
+			var filter = expression.getFilter();
+			var child = new LinkedHashMap<>(locals);
+			child.put(filter.getItemBindingId(), "item");
+			return "(" + expression(filter.getSource(), model, declarations, address, locals) + ")["
+					+ expression(filter.getPredicate(), model, declarations, address, child) + "]";
 		}
 		if (expression.hasList())
 			return expression.getList().getElementsList().stream()

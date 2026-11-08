@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
- * Strict, bounded reader for experimental portable profiles 0.0 through 0.7.
+ * Strict, bounded reader for experimental portable profiles 0.0 through 0.8.
  */
 public final class DmnIrArtifactReader {
 	public static final String SEMANTICS_VERSION = "finmsg-dmnir-scalar/0";
@@ -36,9 +36,11 @@ public final class DmnIrArtifactReader {
 	public static final String FIELD_CONSTRAINT_CAPABILITY = "dmnir.field-constraints";
 	public static final String COLLECTION_SEMANTICS_VERSION = "finmsg-dmnir-scalar-collections/0";
 	public static final String COLLECTION_CAPABILITY = "dmnir.scalar-collections";
+	public static final String FILTER_SEMANTICS_VERSION = "finmsg-dmnir-scalar-filters/0";
+	public static final String FILTER_CAPABILITY = "dmnir.scalar-filters";
 	private static final List<String> CAPABILITIES = List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY,
 			RECORD_CAPABILITY, LOCAL_CAPABILITY, DATE_CAPABILITY, TABLE_CAPABILITY, FIELD_CONSTRAINT_CAPABILITY,
-			COLLECTION_CAPABILITY);
+			COLLECTION_CAPABILITY, FILTER_CAPABILITY);
 	private final DmnIrLimits limits;
 
 	public DmnIrArtifactReader() {
@@ -113,6 +115,8 @@ public final class DmnIrArtifactReader {
 		private boolean tablesProfile;
 		private boolean fieldConstraintsProfile;
 		private boolean collectionsProfile;
+		private boolean filtersProfile;
+		private boolean filterPredicate;
 		private boolean tableCell;
 		private final Map<String, Set<String>> modelIds = new HashMap<>();
 		private final Set<String> bindingIds = new HashSet<>();
@@ -142,11 +146,13 @@ public final class DmnIrArtifactReader {
 				case 5 -> TABLE_SEMANTICS_VERSION;
 				case 6 -> FIELD_CONSTRAINT_SEMANTICS_VERSION;
 				case 7 -> COLLECTION_SEMANTICS_VERSION;
+				case 8 -> FILTER_SEMANTICS_VERSION;
 				default -> "";
 			};
 			check(artifact.getSchemaVersion().getMajor() == 0 && !semantics.isEmpty()
 					&& artifact.getSemanticsVersion().equals(semantics), UNSUPPORTED_VERSION, "artifact.schema_version",
 					"Unsupported wire or semantic version.");
+			filtersProfile = minor >= 8;
 			collectionsProfile = minor >= 7;
 			fieldConstraintsProfile = minor >= 6;
 			tablesProfile = minor >= 5;
@@ -469,6 +475,7 @@ public final class DmnIrArtifactReader {
 							"Local reference type must match its declaration.");
 				}
 				case CONTEXT -> {
+					check(!filterPredicate, INVALID_EXPRESSION, path, "Boxed predicates cannot be rendered in FEEL.");
 					check(localsProfile, UNSUPPORTED_CAPABILITY, path, "Contexts require profile 0.3.");
 					var context = expression.getContext();
 					check(context.hasResult(), INVALID_EXPRESSION, path, "A final context result is required.");
@@ -510,6 +517,32 @@ public final class DmnIrArtifactReader {
 					check(!nodeType.hasCollectionType(), INVALID_TYPE, path + ".type",
 							"Use a list constructor or scalar null for a collection value.");
 					literal(expression.getLiteral(), expression.getType(), path + ".literal");
+				}
+				case FILTER -> {
+					check(filtersProfile, UNSUPPORTED_CAPABILITY, path, "Filters require profile 0.8.");
+					check(!filterPredicate, INVALID_EXPRESSION, path, "Filters inside predicates are unsupported.");
+					var filter = expression.getFilter();
+					check(filter.hasSource() && filter.hasPredicate(), INVALID_EXPRESSION, path,
+							"A filter source and predicate are required.");
+					check(nodeType.hasCollectionType()
+							&& nodeType.equals(typeOf(filter.getSource(), path + ".filter.source")), INVALID_TYPE, path,
+							"Filter source and result must have the same named collection type.");
+					node(filter.getSource(), owner, dependencies, path + ".filter.source", depth + 1);
+					var binding = filter.getItemBindingId();
+					budget(path + ".filter.item_binding_id");
+					check(!binding.isBlank() && bindingIds.add(binding), INVALID_IDENTITY, path,
+							"A unique filter item binding ID is required.");
+					check(filter.getPredicate().getType() == DmnIrScalarType.SCALAR_TYPE_BOOLEAN, INVALID_TYPE,
+							path + ".filter.predicate", "A statically boolean predicate is required.");
+					var itemType = collections.get(Address.of(nodeType.getCollectionType()));
+					visibleLocals.put(binding, DmnIrTypeReference.newBuilder().setScalarType(itemType).build());
+					filterPredicate = true;
+					try {
+						node(filter.getPredicate(), owner, dependencies, path + ".filter.predicate", depth + 1);
+					} finally {
+						filterPredicate = false;
+						visibleLocals.remove(binding);
+					}
 				}
 				case LIST -> {
 					check(collectionsProfile, UNSUPPORTED_CAPABILITY, path, "List expressions require profile 0.7.");

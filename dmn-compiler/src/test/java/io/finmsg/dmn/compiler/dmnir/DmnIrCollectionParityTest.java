@@ -105,12 +105,67 @@ class DmnIrCollectionParityTest {
 			}
 		}
 
+		runConsumer(dir, bytes, "collections");
+	}
+
+	@Test
+	void filtersUseResolvedItemsAndOuterLocalsAndRetainNulls(@TempDir Path dir) throws Exception {
+		var source = source("policy.dmn", POLICY.replace(
+				"<contextEntry><literalExpression><text>if Include then [Fee, Fee, null, 0.125] else Prior</text>",
+				"""
+						<contextEntry><variable name="Threshold" typeRef="number"/><literalExpression><text>Fee</text></literalExpression></contextEntry>
+						<contextEntry><literalExpression><text>if Include then [Fee, Fee, null, 0.125][item = null or item &gt;= Threshold][true] else Prior[true]</text>
+						"""));
+		var resolver = new InMemoryDmnModelResolver(List.of(source("catalog.dmn", CATALOG)));
+		var producer = new DmnIrScalarProducer();
+		var artifact = producer.produce(source, resolver);
+		assertArrayEquals(artifact.artifact().toByteArray(),
+				producer.produce(source, resolver).artifact().toByteArray());
+		assertEquals(8, artifact.artifact().getSchemaVersion().getMinor());
+		var adapted = new DmnIrRuntimeAdapter().adapt(artifact);
+		var expected = Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null);
+		assertEquals(expected, adapted.evaluate(inputs(true)).get(key("history")));
+		var bundle = new DmnIrScalarDmnExporter().export(artifact);
+		DmnIrDateParityTest.validate(bundle);
+		var documents = bundle.documents().entrySet().stream().map(e -> source(e.getKey(), e.getValue())).toList();
+		var recompiled = compile(source(bundle.rootDocument(), bundle.documents().get(bundle.rootDocument())),
+				new InMemoryDmnModelResolver(documents));
+		var namedInputs = Map.of("Applicant", inputs(true).get(key("applicant")), "Include", true, "External",
+				inputs(true).get(key("external")));
+		assertEquals(expected, evaluate(compile(source, resolver), "History", namedInputs));
+		assertEquals(expected, evaluate(recompiled, "History", namedInputs));
+		for (Object prior : Arrays.asList(null, List.of())) {
+			var values = new HashMap<>(inputs(false));
+			var permit = new HashMap<String, Object>();
+			permit.put("Expiry", LocalDate.of(2024, 2, 1));
+			permit.put("Previous Dates", List.of());
+			permit.put("Previous Fees", prior);
+			values.put(key("applicant"), Map.of("Permit", permit));
+			assertEquals(prior, adapted.evaluate(values).get(key("history")));
+		}
+		var changed = source("policy.dmn", new String(source.content(), StandardCharsets.UTF_8)
+				.replace("item = null or item &gt;= Threshold", "if item = null then null else item &gt;= Threshold"));
+		var nullable = new DmnIrRuntimeAdapter().adapt(producer.produce(changed, resolver));
+		assertEquals(expected.subList(0, 2), nullable.evaluate(inputs(true)).get(key("history")));
+
+		var captured = artifact.artifact().toBuilder();
+		var root = captured.getModelsBuilderList().stream().filter(m -> m.getNamespace().equals(NS)).findFirst()
+				.orElseThrow();
+		var history = root.getDecisionsBuilderList().stream().filter(d -> d.getIdentity().getId().equals("history"))
+				.findFirst().orElseThrow();
+		history.getExpressionBuilder().getContextBuilder().getBindingsBuilder(1).getVariableBuilder().setName("item");
+		var verified = new DmnIrArtifactReader().read(captured.build().toByteArray());
+		assertThrows(DmnIrExportException.class, () -> new DmnIrScalarDmnExporter().export(verified));
+		runConsumer(dir, artifact.artifact().toByteArray(), "filters");
+	}
+
+	private static void runConsumer(Path dir, byte[] bytes, String mode) throws Exception {
 		var file = Files.write(dir.resolve("collections.dmnir"), bytes);
 		var log = dir.resolve("consumer.log");
 		String exe = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win") ? "java.exe" : "java";
 		var process = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", exe).toString(), "-cp",
 				System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")),
-				Consumer.class.getName(), file.toString()).redirectErrorStream(true).redirectOutput(log.toFile())
+				Consumer.class.getName(), file.toString(), mode).redirectErrorStream(true).redirectOutput(log.toFile())
 				.start();
 		try {
 			assertTrue(process.waitFor(30, TimeUnit.SECONDS));
@@ -124,8 +179,10 @@ class DmnIrCollectionParityTest {
 		public static void main(String[] args) throws Exception {
 			var verified = new DmnIrArtifactReader().read(Files.readAllBytes(Path.of(args[0])));
 			var output = new DmnIrRuntimeAdapter().adapt(verified).evaluate(inputs(true));
-			if (!Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null, new BigDecimal("0.125"))
-					.equals(output.get(key("history"))))
+			var expected = args[1].equals("filters")
+					? Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null)
+					: Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null, new BigDecimal("0.125"));
+			if (!expected.equals(output.get(key("history"))))
 				throw new AssertionError(output);
 		}
 	}

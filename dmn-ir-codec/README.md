@@ -27,6 +27,10 @@ Schema **0.7** appends `dmnir.scalar-collections` to the ordered 0.6 capabilitie
 `finmsg-dmnir-scalar-collections/0`. Named scalar collections and ordered constructors retain
 their declaration identities. See the [portable contract](../docs/dmnir.md#named-scalar-collections-schema-07).
 
+Schema **0.8** appends `dmnir.scalar-filters` to the ordered 0.7 capabilities and uses
+`finmsg-dmnir-scalar-filters/0`. A typed boolean filter binds one scalar item inside its
+predicate. See the [portable contract](../docs/dmnir.md#boolean-filters-schema-08).
+
 ## Purpose and boundaries
 
 `DmnIrArtifactReader` converts untrusted binary bytes into a `VerifiedArtifact`. The generated

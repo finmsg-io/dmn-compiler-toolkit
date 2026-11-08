@@ -73,8 +73,8 @@ The text schema does not depend on the parsed schema. `feel.proto` composes both
 Separate experimental Protobuf schema for the authoritative structured portable DMNIR selected
 in [ADR-0026](../adr/adr-0026-structured-portable-dmnir.md). Production depends only on
 `protobuf-java`; tests use JUnit. No existing runtime or frontend depends on this module.
-The experimental profiles 0.0 through 0.7 cover scalars, structured scalar expressions, named
-records, boxed contexts, local bindings, civil dates, typed decision tables, scalar field constraints and named scalar collections. Generated bindings do not establish
+The experimental profiles 0.0 through 0.8 cover scalars, structured scalar expressions, named
+records, boxed contexts, local bindings, civil dates, typed decision tables, scalar field constraints, named scalar collections and boolean filters. Generated bindings do not establish
 artifact validity; the separate codec validates each exact profile. The compiler layer adapts
 verified artifacts into Runtime IR and exports the admitted graph to DMN 1.6.
 
