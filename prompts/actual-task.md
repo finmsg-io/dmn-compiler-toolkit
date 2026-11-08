@@ -35,8 +35,11 @@ DSL design and a bounded artifact-only Rust prototype can start from the impleme
 Section 25 implements schema 0.9 for fixed-signature FEEL calls to `abs(number)`,
 `string length(string)` and `contains(string, string)`. The full reactor passed 645
 tests outside the TCK runner. The selected official suites passed 33 cases per backend,
-all native on Spark. Schema 0.9 is verified locally. Section 26 proposes resolved named
-FEEL BKMs. Inline FEEL functions and lexical capture need a separate contract.
+all native on Spark. Schema 0.9 was pushed as `a9e84b8`. Section 26 implements schema
+0.10 for resolved named FEEL BKMs. The final reactor passed 650 tests outside the TCK
+runner. The full pinned Spark TCK passed 3,391/3,391 cases natively with zero fallback.
+Schema 0.10 is verified locally. Inline FEEL functions and lexical capture need a
+separate contract.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome

@@ -51,6 +51,17 @@ public final class DmnSemanticPipeline {
 	 * Analyzes a root model with candidate models available to satisfy its imports.
 	 */
 	public DmnSemanticPipelineResult analyze(Definitions parsedModel, Collection<Definitions> availableModels) {
+		return analyze(parsedModel, availableModels, false);
+	}
+
+	/** Retains resolved FEEL BKM return types for portable artifact production. */
+	public DmnSemanticPipelineResult analyzeForPortableDmnIr(Definitions parsedModel,
+			Collection<Definitions> availableModels) {
+		return analyze(parsedModel, availableModels, true);
+	}
+
+	private DmnSemanticPipelineResult analyze(Definitions parsedModel, Collection<Definitions> availableModels,
+			boolean portableBkmTyping) {
 		Objects.requireNonNull(parsedModel, "parsedModel");
 		Objects.requireNonNull(availableModels, "availableModels");
 		List<Definitions> repositoryModels = new ArrayList<>();
@@ -59,7 +70,8 @@ public final class DmnSemanticPipeline {
 		DmnModelRepository repository = new DmnModelRepository(repositoryModels);
 
 		DmnSemanticAnalysisResult referenceResult = new DmnSemanticAnalyzer().analyze(parsedModel, repository);
-		DmnSemanticAnalysisResult typeResult = new DmnTypeAnalyzer().analyze(referenceResult.model(), repository);
+		DmnSemanticAnalysisResult typeResult = new DmnTypeAnalyzer(portableBkmTyping).analyze(referenceResult.model(),
+				repository);
 		DmnDependencyAnalysisResult dependencyResult = new DmnDependencyAnalyzer().analyze(typeResult.model(),
 				repository);
 

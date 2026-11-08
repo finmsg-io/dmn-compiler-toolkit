@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayDeque;
@@ -17,7 +18,7 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
- * Strict, bounded reader for experimental portable profiles 0.0 through 0.8.
+ * Strict, bounded reader for experimental portable profiles 0.0 through 0.10.
  */
 public final class DmnIrArtifactReader {
 	public static final String SEMANTICS_VERSION = "finmsg-dmnir-scalar/0";
@@ -40,9 +41,11 @@ public final class DmnIrArtifactReader {
 	public static final String FILTER_CAPABILITY = "dmnir.scalar-filters";
 	public static final String BUILTIN_SEMANTICS_VERSION = "finmsg-dmnir-builtin-calls/0";
 	public static final String BUILTIN_CAPABILITY = "dmnir.builtin-calls";
+	public static final String BKM_SEMANTICS_VERSION = "finmsg-dmnir-named-feel-bkms/0";
+	public static final String BKM_CAPABILITY = "dmnir.named-feel-bkms";
 	private static final List<String> CAPABILITIES = List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY,
 			RECORD_CAPABILITY, LOCAL_CAPABILITY, DATE_CAPABILITY, TABLE_CAPABILITY, FIELD_CONSTRAINT_CAPABILITY,
-			COLLECTION_CAPABILITY, FILTER_CAPABILITY, BUILTIN_CAPABILITY);
+			COLLECTION_CAPABILITY, FILTER_CAPABILITY, BUILTIN_CAPABILITY, BKM_CAPABILITY);
 	private final DmnIrLimits limits;
 
 	public DmnIrArtifactReader() {
@@ -101,7 +104,8 @@ public final class DmnIrArtifactReader {
 		}
 	}
 
-	private record Element(DmnIrTypeReference type, DmnIrDecision decision, String path, String namespace) {
+	private record Element(DmnIrTypeReference type, DmnIrDecision decision, DmnIrBkm bkm, String path,
+			String namespace) {
 	}
 
 	private static final class Validation {
@@ -119,11 +123,13 @@ public final class DmnIrArtifactReader {
 		private boolean collectionsProfile;
 		private boolean filtersProfile;
 		private boolean builtinProfile;
+		private boolean bkmProfile;
 		private boolean filterPredicate;
 		private boolean tableCell;
 		private final Map<String, Set<String>> modelIds = new HashMap<>();
 		private final Set<String> bindingIds = new HashSet<>();
 		private Map<String, DmnIrTypeReference> visibleLocals = new HashMap<>();
+		private Set<Address> visibleKnowledge = Set.of();
 		private int declarations;
 		private long expandedTypes;
 		private final Map<Address, DmnIrScalarType> collections = new HashMap<>();
@@ -151,6 +157,7 @@ public final class DmnIrArtifactReader {
 				case 7 -> COLLECTION_SEMANTICS_VERSION;
 				case 8 -> FILTER_SEMANTICS_VERSION;
 				case 9 -> BUILTIN_SEMANTICS_VERSION;
+				case 10 -> BKM_SEMANTICS_VERSION;
 				default -> "";
 			};
 			check(artifact.getSchemaVersion().getMajor() == 0 && !semantics.isEmpty()
@@ -158,6 +165,7 @@ public final class DmnIrArtifactReader {
 					"Unsupported wire or semantic version.");
 			filtersProfile = minor >= 8;
 			builtinProfile = minor >= 9;
+			bkmProfile = minor >= 10;
 			collectionsProfile = minor >= 7;
 			fieldConstraintsProfile = minor >= 6;
 			tablesProfile = minor >= 5;
@@ -231,13 +239,20 @@ public final class DmnIrArtifactReader {
 				}
 				for (int j = 0; j < model.getInputsCount(); j++) {
 					DmnIrInput input = model.getInputs(j);
-					declaration(model, input.getIdentity(), input.getVariable(), null, ids, names, variableNames,
+					declaration(model, input.getIdentity(), input.getVariable(), null, null, ids, names, variableNames,
 							path + ".inputs[" + j + "]");
 				}
 				for (int j = 0; j < model.getDecisionsCount(); j++) {
 					DmnIrDecision decision = model.getDecisions(j);
-					declaration(model, decision.getIdentity(), decision.getVariable(), decision, ids, names,
+					declaration(model, decision.getIdentity(), decision.getVariable(), decision, null, ids, names,
 							variableNames, path + ".decisions[" + j + "]");
+				}
+				check(bkmProfile || model.getBkmsCount() == 0, UNSUPPORTED_CAPABILITY, path + ".bkms",
+						"BKMs require profile 0.10.");
+				for (int j = 0; j < model.getBkmsCount(); j++) {
+					var bkm = model.getBkms(j);
+					declaration(model, bkm.getIdentity(), bkm.getVariable(), null, bkm, ids, names, variableNames,
+							path + ".bkms[" + j + "]");
 				}
 			}
 			check(models.containsKey(artifact.getRootModelNamespace()), INVALID_HEADER, "artifact.root_model_namespace",
@@ -247,9 +262,22 @@ public final class DmnIrArtifactReader {
 			for (Element element : elements.values())
 				validateType(element.type(), element.namespace(),
 						element.path() + (element.type().hasRecordType() ? ".variable.record_type" : ".variable.type"));
+			Map<Address, Set<Address>> knowledgeGraph = new LinkedHashMap<>();
+			for (var entry : elements.entrySet()) {
+				var element = entry.getValue();
+				if (element.bkm() != null)
+					knowledgeGraph.put(entry.getKey(),
+							knowledge(element, element.bkm().getKnowledgeDependenciesList()));
+			}
+			Map<Address, Integer> heights = new HashMap<>();
+			for (var address : knowledgeGraph.keySet())
+				knowledgeHeight(address, knowledgeGraph, heights, new HashSet<>(), 1);
 			for (Element element : elements.values()) {
 				if (element.decision() != null) {
 					expression(element);
+				} else if (element.bkm() != null) {
+					bkmBody(element,
+							knowledgeGraph.get(new Address(element.namespace(), element.bkm().getIdentity().getId())));
 				}
 			}
 			order(artifact);
@@ -265,7 +293,8 @@ public final class DmnIrArtifactReader {
 		}
 
 		private void declaration(DmnIrModel model, DmnIrElementIdentity identity, DmnIrVariable variable,
-				DmnIrDecision decision, Set<String> ids, Set<String> names, Set<String> variableNames, String path) {
+				DmnIrDecision decision, DmnIrBkm bkm, Set<String> ids, Set<String> names, Set<String> variableNames,
+				String path) {
 			budget(path);
 			identity(identity, ids, names, path + ".identity");
 			check(!variable.getName().isBlank() && variableNames.add(variable.getName()), INVALID_IDENTITY,
@@ -276,7 +305,7 @@ public final class DmnIrArtifactReader {
 			}
 			var type = typeOf(variable, path + ".variable.type");
 			elements.put(new Address(model.getNamespace(), identity.getId()),
-					new Element(type, decision, path, model.getNamespace()));
+					new Element(type, decision, bkm, path, model.getNamespace()));
 		}
 
 		private void validateImports(DmnIrArtifact artifact) {
@@ -314,14 +343,15 @@ public final class DmnIrArtifactReader {
 			bindingIds.clear();
 			visibleLocals = new HashMap<>();
 			DmnIrDecision decision = owner.decision();
+			visibleKnowledge = knowledge(owner, decision.getKnowledgeDependenciesList());
 			String path = owner.path();
 			Set<Address> dependencies = new HashSet<>();
 			for (int i = 0; i < decision.getDependenciesCount(); i++) {
 				DmnIrReference value = decision.getDependencies(i);
 				String dependencyPath = path + ".dependencies[" + i + "]";
 				Element target = reference(value, owner, dependencyPath);
-				check(target != owner && dependencies.add(Address.of(value)), INVALID_DEPENDENCY, dependencyPath,
-						"Dependencies must be unique and must not reference their owner.");
+				check(target.bkm() == null && target != owner && dependencies.add(Address.of(value)),
+						INVALID_DEPENDENCY, dependencyPath, "Expected a unique input or decision dependency.");
 			}
 			check(!decision.hasDecisionTable() || tablesProfile, UNSUPPORTED_CAPABILITY, path,
 					"Decision tables require profile 0.5.");
@@ -338,6 +368,68 @@ public final class DmnIrArtifactReader {
 			check(assignable(resultType, owner.type()), INVALID_TYPE, path + ".expression.type",
 					"Expression type is incompatible with its declared result.");
 			node(expression, owner, dependencies, path + ".expression", 1);
+		}
+
+		private Set<Address> knowledge(Element owner, List<DmnIrReference> references) {
+			String path = owner.path() + ".knowledge_dependencies";
+			check(bkmProfile || references.isEmpty(), UNSUPPORTED_CAPABILITY, path,
+					"Knowledge dependencies require profile 0.10.");
+			Set<Address> dependencies = new LinkedHashSet<>();
+			for (int i = 0; i < references.size(); i++) {
+				var value = references.get(i);
+				String dependencyPath = path + "[" + i + "]";
+				Element target = reference(value, owner, dependencyPath);
+				check(target.bkm() != null && target != owner && dependencies.add(Address.of(value)),
+						INVALID_DEPENDENCY, dependencyPath, "Expected a unique BKM dependency other than the owner.");
+			}
+			return dependencies;
+		}
+
+		private int knowledgeHeight(Address address, Map<Address, Set<Address>> graph, Map<Address, Integer> heights,
+				Set<Address> active, int depth) {
+			String path = elements.get(address).path() + ".knowledge_dependencies";
+			check(depth <= limits.maxDepth(), LIMIT_EXCEEDED, path, "Knowledge dependency depth exceeded.");
+			Integer height = heights.get(address);
+			if (height != null) {
+				check(depth + height - 1 <= limits.maxDepth(), LIMIT_EXCEEDED, path,
+						"Knowledge dependency depth exceeded.");
+				return height;
+			}
+			check(active.add(address), INVALID_DEPENDENCY, path, "Cyclic knowledge dependency.");
+			int result = 1;
+			for (var dependency : graph.get(address))
+				result = Math.max(result, 1 + knowledgeHeight(dependency, graph, heights, active, depth + 1));
+			active.remove(address);
+			heights.put(address, result);
+			return result;
+		}
+
+		private void bkmBody(Element owner, Set<Address> knowledge) {
+			bindingIds.clear();
+			visibleLocals = new HashMap<>();
+			visibleKnowledge = knowledge;
+			var bkm = owner.bkm();
+			Set<String> names = new HashSet<>();
+			for (int i = 0; i < bkm.getParametersCount(); i++) {
+				var parameter = bkm.getParameters(i);
+				var variable = parameter.getVariable();
+				String path = owner.path() + ".parameters[" + i + "]";
+				budget(path);
+				check(!parameter.getBindingId().isBlank() && bindingIds.add(parameter.getBindingId())
+						&& !variable.getName().isBlank() && names.add(variable.getName()), INVALID_IDENTITY, path,
+						"Parameters require unique names and binding IDs.");
+				if (variable.hasId())
+					check(!variable.getId().isBlank() && modelIds.get(owner.namespace()).add(variable.getId()),
+							INVALID_IDENTITY, path, "A parameter ID must be non-empty and unique when present.");
+				var type = typeOf(variable, path);
+				validateType(type, owner.namespace(), path);
+				visibleLocals.put(parameter.getBindingId(), type);
+			}
+			String bodyPath = owner.path() + ".body";
+			check(bkm.hasBody(), INVALID_EXPRESSION, bodyPath, "A BKM body is required.");
+			check(assignable(typeOf(bkm.getBody(), bodyPath), owner.type()), INVALID_TYPE, bodyPath,
+					"BKM body type must be compatible with the declared result.");
+			node(bkm.getBody(), owner, Set.of(), bodyPath, 1);
 		}
 
 		private void table(DmnIrDecisionTable table, Element owner, Set<Address> dependencies, String path) {
@@ -522,6 +614,31 @@ public final class DmnIrArtifactReader {
 					check(!nodeType.hasCollectionType(), INVALID_TYPE, path + ".type",
 							"Use a list constructor or scalar null for a collection value.");
 					literal(expression.getLiteral(), expression.getType(), path + ".literal");
+				}
+				case BKM_CALL -> {
+					check(bkmProfile, UNSUPPORTED_CAPABILITY, path, "BKM calls require profile 0.10.");
+					var call = expression.getBkmCall();
+					var target = reference(call.getTarget(), owner, path + ".bkm_call.target");
+					check(target.bkm() != null && visibleKnowledge.contains(Address.of(call.getTarget())),
+							INVALID_DEPENDENCY, path, "BKM call requires a declared knowledge dependency.");
+					check(nodeType.equals(target.type()), INVALID_TYPE, path, "Call must match the BKM result type.");
+					var parameters = target.bkm().getParametersList();
+					check(call.getArgumentsCount() == parameters.size(), INVALID_EXPRESSION, path,
+							"Call requires exactly one argument for every formal parameter.");
+					Set<Integer> positions = new HashSet<>();
+					for (int i = 0; i < call.getArgumentsCount(); i++) {
+						var argument = call.getArguments(i);
+						int position = argument.getParameterPosition();
+						String argumentPath = path + ".bkm_call.arguments[" + i + "]";
+						check(position > 0 && position <= parameters.size() && positions.add(position)
+								&& argument.hasExpression(), INVALID_EXPRESSION, argumentPath,
+								"Expected a unique valid formal position and an argument expression.");
+						var value = argument.getExpression();
+						check(assignable(typeOf(value, argumentPath),
+								typeOf(parameters.get(position - 1).getVariable(), target.path())), INVALID_TYPE,
+								argumentPath, "Argument must match the formal parameter type.");
+						node(value, owner, dependencies, argumentPath, depth + 1);
+					}
 				}
 				case BUILTIN_CALL -> {
 					check(builtinProfile, UNSUPPORTED_CAPABILITY, path, "Built-in calls require profile 0.9.");

@@ -16,7 +16,17 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 	private static final TypeReference ANY = builtin(BuiltinType.BUILTIN_TYPE_ANY);
 	private static final TypeReference NUMBER = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
 	private static final TypeReference NULL = builtin(BuiltinType.BUILTIN_TYPE_NULL);
-	private final FeelTypeAnalyzer feelTypes = new FeelTypeAnalyzer();
+	private final FeelTypeAnalyzer feelTypes;
+	private final boolean portableBkmTyping;
+
+	public DmnTypeAnalyzer() {
+		this(false);
+	}
+
+	DmnTypeAnalyzer(boolean portableBkmTyping) {
+		this.portableBkmTyping = portableBkmTyping;
+		this.feelTypes = new FeelTypeAnalyzer(new BuiltinFeelFunctionRegistry(), portableBkmTyping);
+	}
 
 	@Override
 	public DmnSemanticAnalysisResult analyze(Definitions parsedModel) {
@@ -212,8 +222,18 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 						type = element.getDecision().getVariable().getType();
 					}
 					case BUSINESS_KNOWLEDGE_MODEL -> {
-						name = element.getBusinessKnowledgeModel().getNode().getName();
-						type = element.getBusinessKnowledgeModel().getVariable().getType();
+						var bkm = element.getBusinessKnowledgeModel();
+						name = bkm.getNode().getName();
+						type = bkm.getVariable().getType();
+						if (portableBkmTyping && !type.hasFunction()
+								&& type.getKindCase() != TypeReference.KindCase.KIND_NOT_SET
+								&& (bkm.getFunction().getKind() == FunctionKind.FUNCTION_KIND_FEEL
+										|| bkm.getFunction().getKind() == FunctionKind.FUNCTION_KIND_UNSPECIFIED)) {
+							var signature = FunctionTypeReference.newBuilder().setReturnType(type);
+							for (var parameter : bkm.getFunction().getFormalParametersList())
+								signature.addParameterType(parameter.getType());
+							type = TypeReference.newBuilder().setFunction(signature).build();
+						}
 					}
 					case DECISION_SERVICE -> {
 						name = element.getDecisionService().getNode().getName();

@@ -36,6 +36,7 @@ message DmnIrModel {
   repeated DmnIrDecision decisions = 5;
   repeated DmnIrRecordDefinition record_definitions = 6;
   repeated DmnIrCollectionDefinition collection_definitions = 7;
+  repeated DmnIrBkm bkms = 8;
 }
 
 message DmnIrElementIdentity {
@@ -73,6 +74,31 @@ message DmnIrDecision {
   repeated DmnIrReference dependencies = 3;
   DmnIrExpression expression = 4;
   DmnIrDecisionTable decision_table = 5;
+  repeated DmnIrReference knowledge_dependencies = 6;
+}
+
+message DmnIrBkm {
+  DmnIrElementIdentity identity = 1;
+  repeated DmnIrBkmParameter parameters = 2;
+  DmnIrVariable variable = 3;
+  DmnIrExpression body = 4;
+  repeated DmnIrReference knowledge_dependencies = 5;
+}
+
+message DmnIrBkmParameter {
+  string binding_id = 1;
+  DmnIrVariable variable = 2;
+}
+
+message DmnIrBkmCall {
+  DmnIrReference target = 1;
+  repeated DmnIrBkmArgument arguments = 2;
+}
+
+message DmnIrBkmArgument {
+  // One-based formal parameter position. Arguments remain in evaluation order.
+  uint32 parameter_position = 1;
+  DmnIrExpression expression = 2;
 }
 
 enum DmnIrTableHitPolicy {
@@ -170,6 +196,7 @@ message DmnIrExpression {
     DmnIrListExpression list = 12;
     DmnIrFilterExpression filter = 13;
     DmnIrBuiltinCall builtin_call = 14;
+    DmnIrBkmCall bkm_call = 15;
   }
 }
 

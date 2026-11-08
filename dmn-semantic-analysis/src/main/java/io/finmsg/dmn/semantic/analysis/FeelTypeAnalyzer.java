@@ -22,13 +22,19 @@ public final class FeelTypeAnalyzer {
 	private static final TypeReference DATE_TIME = builtin(BuiltinType.BUILTIN_TYPE_DATE_AND_TIME);
 	private static final TypeReference DURATION = builtin(BuiltinType.BUILTIN_TYPE_DURATION);
 	private final FeelFunctionRegistry functions;
+	private final boolean portableBkmTyping;
 
 	public FeelTypeAnalyzer() {
 		this(new BuiltinFeelFunctionRegistry());
 	}
 
 	public FeelTypeAnalyzer(FeelFunctionRegistry functions) {
+		this(functions, false);
+	}
+
+	FeelTypeAnalyzer(FeelFunctionRegistry functions, boolean portableBkmTyping) {
 		this.functions = Objects.requireNonNull(functions, "functions");
+		this.portableBkmTyping = portableBkmTyping;
 	}
 
 	public FeelTypeAnalysisResult analyze(Expression expression, FeelTypeEnvironment environment) {
@@ -680,7 +686,8 @@ public final class FeelTypeAnalyzer {
 					result = resolveFunction(fnName, argumentTypes, path);
 				}
 			} else {
-				result = ANY;
+				result = portableBkmTyping && value.getTarget().hasPath() && target.expression.hasName()
+						&& target.type.hasFunction() ? target.type.getFunction().getReturnType() : ANY;
 			}
 			String functionName = namedFunction ? value.getTarget().getName().getName() : "";
 			if (isAny(result) && (functionName.equals("min") || functionName.equals("max")) && argumentTypes.size() == 1

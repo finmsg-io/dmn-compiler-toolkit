@@ -31,6 +31,15 @@ public final class DmnModelSetSemanticAnalyzer {
 	}
 
 	public DmnModelSetSemanticResult analyze(DmnModelLoadResult loadedModels) {
+		return analyze(loadedModels, false);
+	}
+
+	/** Keeps type information required by the portable artifact producer. */
+	public DmnModelSetSemanticResult analyzeForPortableDmnIr(DmnModelLoadResult loadedModels) {
+		return analyze(loadedModels, true);
+	}
+
+	private DmnModelSetSemanticResult analyze(DmnModelLoadResult loadedModels, boolean portableBkmTyping) {
 		Objects.requireNonNull(loadedModels, "loadedModels");
 		List<DmnCompilerDiagnostic> diagnostics = new ArrayList<>(loadedModels.diagnostics());
 		if (loadedModels.hasErrors()) {
@@ -51,7 +60,10 @@ public final class DmnModelSetSemanticAnalyzer {
 		for (Map.Entry<DmnSourceId, Definitions> entry : parsedModels.entrySet()) {
 			List<Definitions> availableModels = parsedModels.entrySet().stream()
 					.filter(candidate -> !candidate.getKey().equals(entry.getKey())).map(Map.Entry::getValue).toList();
-			DmnSemanticPipelineResult semantic = new DmnSemanticPipeline().analyze(entry.getValue(), availableModels);
+			var pipeline = new DmnSemanticPipeline();
+			DmnSemanticPipelineResult semantic = portableBkmTyping
+					? pipeline.analyzeForPortableDmnIr(entry.getValue(), availableModels)
+					: pipeline.analyze(entry.getValue(), availableModels);
 			DmnModelIdentity identity = identity(entry.getValue());
 			semanticModels.add(new DmnSemanticModel(entry.getKey(), identity, semantic.model(),
 					semantic.compilationOrder(), semantic.bindings()));

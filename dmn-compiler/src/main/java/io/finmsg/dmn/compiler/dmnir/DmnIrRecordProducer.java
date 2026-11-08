@@ -20,6 +20,8 @@ final class DmnIrRecordProducer {
 	}
 	private final Map<TypeName, DmnIrReference> named = new HashMap<>();
 	private final Map<DmnIrReference, DmnIrTypeReference> declarations = new HashMap<>();
+	private final Map<DmnIrReference, BusinessKnowledgeModel> bkms = new HashMap<>();
+	private Set<DmnIrReference> knowledge = Set.of();
 	private final Map<DmnIrReference, DmnIrRecordDefinition> records = new HashMap<>();
 	private final Map<DmnIrReference, DmnIrCollectionDefinition> collections = new HashMap<>();
 	private static final Comparator<DmnIrReference> ORDER = Comparator.comparing(DmnIrReference::getModelNamespace)
@@ -99,7 +101,10 @@ final class DmnIrRecordProducer {
 				else if (element.hasDecision())
 					declarations.put(ref(model.identity().namespace(), element.getDecision().getNode().getId()),
 							type(element.getDecision().getVariable().getType(), model));
-				else
+				else if (element.hasBusinessKnowledgeModel()) {
+					var bkm = element.getBusinessKnowledgeModel();
+					bkms.put(ref(model.identity().namespace(), bkm.getNode().getId()), bkm);
+				} else
 					throw unsupported();
 			}
 		int minor = !collections.isEmpty()
@@ -150,18 +155,21 @@ final class DmnIrRecordProducer {
 					});
 			List<DmnIrInput> inputs = new ArrayList<>();
 			List<DmnIrDecision> decisions = new ArrayList<>();
+			List<DmnIrBkm> modelBkms = new ArrayList<>();
 			for (var element : model.model().getDrgElementsList()) {
 				if (element.hasInputData()) {
 					var input = element.getInputData();
 					inputs.add(DmnIrInput.newBuilder().setIdentity(identity(input.getNode()))
 							.setVariable(variable(input.getVariable(), model)).build());
+				} else if (element.hasBusinessKnowledgeModel()) {
+					modelBkms.add(bkm(element.getBusinessKnowledgeModel(), model));
 				} else {
 					var decision = element.getDecision();
 					if (!(decision.getLogic().hasLiteralExpression()
 							&& decision.getLogic().getLiteralExpression().hasParsed()
 							|| decision.getLogic().hasBoxedExpression()
 									&& decision.getLogic().getBoxedExpression().hasParsed()
-							|| decision.getLogic().hasDecisionTable()) || decision.getKnowledgeRequirementsCount() != 0
+							|| decision.getLogic().hasDecisionTable() || decision.getLogic().hasInvocation())
 							|| decision.getAuthorityRequirementsCount() != 0)
 						throw unsupported();
 					Set<DmnIrReference> dependencies = new TreeSet<>(ORDER);
@@ -169,9 +177,11 @@ final class DmnIrRecordProducer {
 						dependencies.add(requirement(
 								requirement.hasInput() ? requirement.getInput() : requirement.getDecision(), model));
 					localBindings.clear();
+					knowledge = knowledge(decision.getKnowledgeRequirementsList(), model);
 					String path = "definitions/decision[" + decision.getNode().getName() + "]/logic";
 					var wire = DmnIrDecision.newBuilder().setIdentity(identity(decision.getNode()))
-							.setVariable(variable(decision.getVariable(), model));
+							.setVariable(variable(decision.getVariable(), model))
+							.addAllKnowledgeDependencies(knowledge);
 					var result = type(decision.getVariable().getType(), model);
 					if (decision.getLogic().hasDecisionTable()) {
 						wire.setDecisionTable(table(decision.getLogic().getDecisionTable(), result, model,
@@ -179,6 +189,15 @@ final class DmnIrRecordProducer {
 					} else if (decision.getLogic().hasLiteralExpression()) {
 						wire.setExpression(expression(decision.getLogic().getLiteralExpression().getParsed().getAst(),
 								model, path + "/literalExpression", dependencies, 1, result));
+					} else if (decision.getLogic().hasInvocation()) {
+						var invocation = decision.getLogic().getInvocation();
+						var target = invocation.getExpression().getParsed().getAst();
+						var call = InvocationExpression.newBuilder().setTarget(target);
+						for (var binding : invocation.getBindingsList())
+							call.addArguments(NamedArgument.newBuilder().setName(binding.getParameter())
+									.setExpression(binding.getExpression().getParsed().getAst()));
+						wire.setExpression(bkmCall(call.build(), model, path + "/invocation/expression", dependencies,
+								1, index -> path + "/invocation/binding[" + index + "]/expression"));
 					} else {
 						wire.setExpression(boxed(decision.getLogic().getBoxedExpression().getParsed(), model,
 								path + "/boxedExpression", dependencies, 1, result));
@@ -188,7 +207,8 @@ final class DmnIrRecordProducer {
 			}
 			inputs.sort(Comparator.comparing(i -> i.getIdentity().getId()));
 			decisions.sort(Comparator.comparing(d -> d.getIdentity().getId()));
-			output.addAllInputs(inputs).addAllDecisions(decisions);
+			modelBkms.sort(Comparator.comparing(b -> b.getIdentity().getId()));
+			output.addAllInputs(inputs).addAllDecisions(decisions).addAllBkms(modelBkms);
 			artifact.addModels(output);
 		}
 		Map<DmnIrReference, DmnIrDecision> pending = new TreeMap<>(ORDER);
@@ -206,17 +226,21 @@ final class DmnIrRecordProducer {
 			done.add(next.getKey());
 			pending.remove(next.getKey());
 		}
-		if (filters || builtinCalls) {
+		if (filters || builtinCalls || !bkms.isEmpty()) {
 			var capabilities = List.of(DmnIrArtifactReader.LOCAL_CAPABILITY, DmnIrArtifactReader.DATE_CAPABILITY,
 					DmnIrArtifactReader.TABLE_CAPABILITY, DmnIrArtifactReader.FIELD_CONSTRAINT_CAPABILITY,
 					DmnIrArtifactReader.COLLECTION_CAPABILITY, DmnIrArtifactReader.FILTER_CAPABILITY);
 			artifact.addAllRequiredCapabilities(capabilities.subList(minor - 2, capabilities.size()));
-			artifact.getSchemaVersionBuilder().setMinor(builtinCalls ? 9 : 8);
-			artifact.setSemanticsVersion(builtinCalls
-					? DmnIrArtifactReader.BUILTIN_SEMANTICS_VERSION
-					: DmnIrArtifactReader.FILTER_SEMANTICS_VERSION);
-			if (builtinCalls)
+			artifact.getSchemaVersionBuilder().setMinor(!bkms.isEmpty() ? 10 : builtinCalls ? 9 : 8);
+			artifact.setSemanticsVersion(!bkms.isEmpty()
+					? DmnIrArtifactReader.BKM_SEMANTICS_VERSION
+					: builtinCalls
+							? DmnIrArtifactReader.BUILTIN_SEMANTICS_VERSION
+							: DmnIrArtifactReader.FILTER_SEMANTICS_VERSION);
+			if (builtinCalls || !bkms.isEmpty())
 				artifact.addRequiredCapabilities(DmnIrArtifactReader.BUILTIN_CAPABILITY);
+			if (!bkms.isEmpty())
+				artifact.addRequiredCapabilities(DmnIrArtifactReader.BKM_CAPABILITY);
 		}
 		try {
 			return new DmnIrArtifactReader().read(artifact.build().toByteArray());
@@ -225,6 +249,42 @@ final class DmnIrRecordProducer {
 					? DmnIrProductionException.Category.UNSUPPORTED_PROFILE
 					: DmnIrProductionException.Category.ARTIFACT_INVALID, null, List.of(), e);
 		}
+	}
+
+	private DmnIrBkm bkm(BusinessKnowledgeModel source, DmnSemanticModel model) {
+		var function = source.getFunction();
+		if (!function.getLogic().hasParsed() || source.getAuthorityRequirementsCount() != 0
+				|| function.getKind() != FunctionKind.FUNCTION_KIND_UNSPECIFIED
+						&& function.getKind() != FunctionKind.FUNCTION_KIND_FEEL)
+			throw unsupported();
+		localBindings.clear();
+		knowledge = knowledge(source.getKnowledgeRequirementsList(), model);
+		String path = "definitions/businessKnowledgeModel[" + source.getNode().getName() + "]";
+		var bkm = DmnIrBkm.newBuilder().setIdentity(identity(source.getNode()))
+				.setVariable(variable(source.getVariable(), model)).addAllKnowledgeDependencies(knowledge);
+		for (int i = 0; i < function.getFormalParametersCount(); i++) {
+			String binding = path + "/parameter[" + i + "]";
+			var formal = variable(function.getFormalParameters(i), model);
+			localBindings.put(binding,
+					DmnIrLocalBinding.newBuilder().setBindingId(binding).setVariable(formal).build());
+			bkm.addParameters(DmnIrBkmParameter.newBuilder().setBindingId(binding).setVariable(formal));
+		}
+		Set<DmnIrReference> globals = new HashSet<>();
+		var body = expression(function.getLogic().getParsed().getAst(), model, path + "/logic", globals, 1,
+				type(source.getVariable().getType(), model));
+		if (!globals.isEmpty())
+			throw unsupported();
+		return bkm.setBody(body).build();
+	}
+
+	private Set<DmnIrReference> knowledge(List<KnowledgeRequirement> requirements, DmnSemanticModel model) {
+		Set<DmnIrReference> targets = new TreeSet<>(ORDER);
+		for (var requirement : requirements) {
+			var target = address(requirement.getRequiredKnowledge(), model);
+			if (!bkms.containsKey(target) || !targets.add(target))
+				throw unsupported();
+		}
+		return targets;
 	}
 
 	private DmnIrDecisionTable table(DecisionTable source, DmnIrTypeReference result, DmnSemanticModel model,
@@ -433,7 +493,8 @@ final class DmnIrRecordProducer {
 		var binding = model.bindings().stream().filter(b -> b.referencePath().equals(path)).findFirst();
 		if ((source.hasName() || source.hasPath()) && binding.isPresent()) {
 			DmnSymbolBinding symbol = binding.get();
-			if (symbol.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE) {
+			if (symbol.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE
+					|| symbol.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.PARAMETER) {
 				var local = localBindings.get(symbol.declarationPath());
 				if (local == null)
 					throw unsupported();
@@ -526,11 +587,14 @@ final class DmnIrRecordProducer {
 			return typed(result).setConditional(DmnIrConditionalExpression.newBuilder().setCondition(condition)
 					.setThenExpression(yes).setElseExpression(no)).build();
 		}
-		if (source.hasInvocation() && source.getInvocation().getTarget().hasName()) {
+		if (source.hasInvocation()) {
 			var call = source.getInvocation();
 			var signature = DmnIrBuiltinSignature.forFeelName(call.getTarget().getName().getName());
 			if (signature.isPresent())
 				return builtinCall(call, signature.get(), model, path, dependencies, depth);
+			if (boundBkm(model, path + "/target").isPresent())
+				return bkmCall(call, model, path + "/target", dependencies, depth,
+						index -> path + "/argument[" + index + "]");
 		}
 		var output = typed(type(source.getInferredType(), model));
 		if (!source.hasLiteral() && source.getInferredType().getBuiltin() == BuiltinType.BUILTIN_TYPE_NULL)
@@ -599,6 +663,41 @@ final class DmnIrRecordProducer {
 			}
 			default -> throw unsupported();
 		}
+	}
+	private Optional<DmnIrReference> boundBkm(DmnSemanticModel model, String path) {
+		return model.bindings().stream().filter(binding -> binding.referencePath().equals(path))
+				.map(binding -> ref(
+						binding.targetNamespace().isBlank() ? model.identity().namespace() : binding.targetNamespace(),
+						binding.symbolId()))
+				.filter(bkms::containsKey).findFirst();
+	}
+
+	private DmnIrExpression bkmCall(InvocationExpression source, DmnSemanticModel model, String targetPath,
+			Set<DmnIrReference> dependencies, int depth, java.util.function.IntFunction<String> argumentPath) {
+		var target = boundBkm(model, targetPath).orElseThrow(DmnIrRecordProducer::unsupported);
+		if (!knowledge.contains(target) || source.getArgumentsCount() > 0 && source.getPositionalArgumentsCount() > 0)
+			throw unsupported();
+		var bkm = bkms.get(target);
+		var owner = models.get(target.getModelNamespace());
+		var parameters = bkm.getFunction().getFormalParametersList();
+		var call = DmnIrBkmCall.newBuilder().setTarget(target);
+		boolean named = source.getArgumentsCount() > 0;
+		int count = named ? source.getArgumentsCount() : source.getPositionalArgumentsCount();
+		if (count != parameters.size())
+			throw unsupported();
+		Map<String, Integer> positions = new HashMap<>();
+		for (int i = 0; i < parameters.size(); i++)
+			positions.put(parameters.get(i).getNode().getName(), i);
+		for (int i = 0; i < count; i++) {
+			Integer position = named ? positions.get(source.getArguments(i).getName()) : Integer.valueOf(i);
+			if (position == null)
+				throw unsupported();
+			var value = named ? source.getArguments(i).getExpression() : source.getPositionalArguments(i);
+			var parameterType = type(parameters.get(position).getType(), owner);
+			call.addArguments(DmnIrBkmArgument.newBuilder().setParameterPosition(position + 1).setExpression(
+					expression(value, model, argumentPath.apply(i), dependencies, depth + 1, parameterType)));
+		}
+		return typed(type(bkm.getVariable().getType(), owner)).setBkmCall(call).build();
 	}
 	private DmnIrExpression builtinCall(InvocationExpression source, DmnIrBuiltinSignature signature,
 			DmnSemanticModel model, String path, Set<DmnIrReference> dependencies, int depth) {
@@ -683,6 +782,12 @@ final class DmnIrRecordProducer {
 		};
 	}
 	private DmnIrReference requirement(ElementReference reference, DmnSemanticModel model) {
+		var target = address(reference, model);
+		if (!declarations.containsKey(target))
+			throw unsupported();
+		return target;
+	}
+	private DmnIrReference address(ElementReference reference, DmnSemanticModel model) {
 		String href = reference.getHref();
 		int hash = href.lastIndexOf('#');
 		String namespace = hash <= 0 ? model.identity().namespace() : href.substring(0, hash);
@@ -690,10 +795,7 @@ final class DmnIrRecordProducer {
 		final String qualifier = namespace;
 		namespace = model.model().getImportsList().stream().filter(i -> i.getName().equals(qualifier))
 				.map(io.finmsg.dmn.model.Import::getNamespace).findFirst().orElse(namespace);
-		var target = ref(namespace, id);
-		if (!declarations.containsKey(target))
-			throw unsupported();
-		return target;
+		return ref(namespace, id);
 	}
 	private static DmnIrTypeReference expressionType(DmnIrExpression value) {
 		var type = DmnIrTypeReference.newBuilder();

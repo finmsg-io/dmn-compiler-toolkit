@@ -22,7 +22,7 @@ public final class DmnIrScalarProducer {
 		Objects.requireNonNull(source, "source");
 		Objects.requireNonNull(resolver, "resolver");
 		var loaded = new DmnModelLoader().load(source, resolver);
-		var semantic = new DmnModelSetSemanticAnalyzer().analyze(loaded);
+		var semantic = new DmnModelSetSemanticAnalyzer().analyzeForPortableDmnIr(loaded);
 		if (semantic.hasErrors()) {
 			throw new DmnIrProductionException(SOURCE_INVALID, null, semantic.diagnostics(), null);
 		}
@@ -30,8 +30,9 @@ public final class DmnIrScalarProducer {
 				.anyMatch(m -> DmnIrDates.containsDate(m.model()) || DmnIrRecordProducer.containsBuiltinCall(m.model())
 						|| m.model().getItemDefinitionsCount() != 0
 						|| m.model().getDrgElementsList().stream()
-								.anyMatch(e -> e.hasDecision() && (e.getDecision().getLogic().hasBoxedExpression()
-										|| e.getDecision().getLogic().hasDecisionTable()))))
+								.anyMatch(e -> e.hasBusinessKnowledgeModel()
+										|| e.hasDecision() && (e.getDecision().getLogic().hasBoxedExpression()
+												|| e.getDecision().getLogic().hasDecisionTable()))))
 			return new DmnIrRecordProducer(semantic).produce();
 		var models = semantic.models().stream().sorted(Comparator.comparing(m -> m.identity().namespace())).toList();
 		// Match the lowerer's ordered model/declaration index before emitting stable

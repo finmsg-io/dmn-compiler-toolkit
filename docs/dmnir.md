@@ -15,6 +15,7 @@ The `dmn-ir-protobuf` module defines the experimental structured scalar wire con
 | 0.7 | `finmsg-dmnir-scalar-collections/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`, `dmnir.local-bindings`, `dmnir.date`, `dmnir.tables`, `dmnir.field-constraints`, `dmnir.scalar-collections` |
 | 0.8 | `finmsg-dmnir-scalar-filters/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`, `dmnir.local-bindings`, `dmnir.date`, `dmnir.tables`, `dmnir.field-constraints`, `dmnir.scalar-collections`, `dmnir.scalar-filters` |
 | 0.9 | `finmsg-dmnir-builtin-calls/0` | `dmnir.scalar`, `dmnir.scalar-expressions`, `dmnir.records`, `dmnir.local-bindings`, `dmnir.date`, `dmnir.tables`, `dmnir.field-constraints`, `dmnir.scalar-collections`, `dmnir.scalar-filters`, `dmnir.builtin-calls` |
+| 0.10 | `finmsg-dmnir-named-feel-bkms/0` | The ordered 0.9 capabilities followed by `dmnir.named-feel-bkms` |
 
 This implements the first scalar slice of [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md).
 The reader validates without executing. `DmnIrRuntimeAdapter` in `dmn-compiler` now derives and
@@ -241,6 +242,23 @@ The producer admits positional source calls with the declared static argument ty
 DMN 1.6 export renders a positional FEEL call and checks for name capture. Named built-in
 arguments and other overloads remain outside this profile.
 
+## Named FEEL business knowledge models (schema 0.10)
+
+A BKM declares a typed result, ordered formal parameters and a FEEL expression body.
+Formal parameters use binding IDs distinct from the names retained for DMN 1.6 export.
+Calls resolve to a model namespace and element ID through a declared knowledge dependency.
+The verifier checks direct imports, dependency cycles and depth, and argument and result types.
+
+Each argument records its one-based formal position. The list preserves source evaluation
+order even for reordered named arguments. Consumers evaluate arguments once in that order,
+then bind their values in a fresh function frame. BKM dependency order is derived separately
+from the persisted decision schedule.
+
+DMN 1.6 export reconstructs the BKM declaration and its knowledge requirements. It renders
+positional FEEL calls when the stored positions are in order and named FEEL calls otherwise.
+The profile covers expression-bodied FEEL BKMs. Decision-table BKM bodies, global captures,
+recursive calls, external functions and inline function values require separate contracts.
+
 ## Read an artifact
 
 ```java
@@ -350,7 +368,7 @@ var result = values.get(new ElementId("urn:example:root", "result"));
 ```
 
 The sample IDs must match the artifact's declarations. The adapter accepts a `VerifiedArtifact`,
-not an unchecked generated message. It supports the verified 0.0 through 0.9 profiles. It derives
+not an unchecked generated message. It supports the verified 0.0 through 0.10 profiles. It derives
 local slots deterministically by namespace and element ID, preserves the verified schedule, and
 lowers the supported expression graph into the existing Runtime IR records. No XML or FEEL parsing occurs
 on this path. The original verified artifact remains available through `source()`; the derived

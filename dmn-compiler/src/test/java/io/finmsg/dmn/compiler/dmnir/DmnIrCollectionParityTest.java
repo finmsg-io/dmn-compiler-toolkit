@@ -179,12 +179,102 @@ class DmnIrCollectionParityTest {
 		public static void main(String[] args) throws Exception {
 			var verified = new DmnIrArtifactReader().read(Files.readAllBytes(Path.of(args[0])));
 			var output = new DmnIrRuntimeAdapter().adapt(verified).evaluate(inputs(true));
-			var expected = !args[1].equals("collections")
+			var expected = args[1].equals("filters") || args[1].equals("builtin")
 					? Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null)
 					: Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null, new BigDecimal("0.125"));
 			if (!expected.equals(output.get(key("history"))))
 				throw new AssertionError(output);
+			if (args[1].equals("bkms") && (!new BigDecimal("9").equals(output.get(key("difference")))
+					|| !LocalDate.of(2024, 2, 1).equals(output.get(key("expiry")))))
+				throw new AssertionError(output);
 		}
+	}
+
+	@Test
+	void namedBkmsPreserveImportedTargetsAndFormalPositions(@TempDir Path dir) throws Exception {
+		String catalog = CATALOG.replace("</definitions>", """
+				<businessKnowledgeModel id="subtract" name="Subtract">
+				<variable name="Subtract" typeRef="number"/>
+				<encapsulatedLogic kind="FEEL">
+				<formalParameter id="left" name="Left" typeRef="number"/>
+				<formalParameter id="right" name="Right" typeRef="number"/>
+				<literalExpression><text>Left - Right</text></literalExpression>
+				</encapsulatedLogic></businessKnowledgeModel>
+				<businessKnowledgeModel id="get-expiry" name="Get Expiry">
+				<variable name="Get Expiry" typeRef="date"/>
+				<encapsulatedLogic kind="FEEL">
+				<formalParameter name="Permit" typeRef="tPermit"/>
+				<literalExpression><text>Permit.Expiry</text></literalExpression>
+				</encapsulatedLogic></businessKnowledgeModel>
+				</definitions>
+				""");
+		String policy = POLICY.replace("</definitions>",
+				"""
+								<businessKnowledgeModel id="adjust" name="Adjust">
+								<variable name="Adjust" typeRef="number"/>
+								<encapsulatedLogic kind="FEEL">
+								<formalParameter name="Applicant" typeRef="number"/>
+								<formalParameter name="Delta" typeRef="number"/>
+						<literalExpression><text>catalog.Subtract(Applicant, Delta) + 1</text></literalExpression>
+								</encapsulatedLogic>
+								<knowledgeRequirement><requiredKnowledge href="urn:collections:catalog#subtract"/></knowledgeRequirement>
+								</businessKnowledgeModel>
+								<decision id="difference" name="Difference"><variable name="Difference" typeRef="number"/>
+								<knowledgeRequirement><requiredKnowledge href="#adjust"/></knowledgeRequirement>
+								<literalExpression><text>Adjust(Delta: 2, Applicant: 10)</text></literalExpression>
+								</decision>
+								<decision id="nullable" name="Nullable"><variable name="Nullable" typeRef="number"/>
+								<knowledgeRequirement><requiredKnowledge href="#adjust"/></knowledgeRequirement>
+								<literalExpression><text>Adjust(null, 2)</text></literalExpression>
+								</decision>
+								<decision id="expiry" name="Expiry"><variable name="Expiry" typeRef="date"/>
+								<informationRequirement><requiredInput href="#applicant"/></informationRequirement>
+								<knowledgeRequirement><requiredKnowledge href="urn:collections:catalog#get-expiry"/></knowledgeRequirement>
+								<literalExpression><text>catalog.Get Expiry(Applicant.Permit)</text></literalExpression>
+								</decision></definitions>
+								""");
+		var source = source("policy.dmn", policy);
+		var resolver = new InMemoryDmnModelResolver(List.of(source("catalog.dmn", catalog)));
+		var producer = new DmnIrScalarProducer();
+		var verified = producer.produce(source, resolver);
+		var artifact = verified.artifact();
+		assertEquals(10, artifact.getSchemaVersion().getMinor());
+		assertArrayEquals(artifact.toByteArray(), producer.produce(source, resolver).artifact().toByteArray());
+		var root = artifact.getModelsList().stream().filter(model -> model.getNamespace().equals(NS)).findFirst()
+				.orElseThrow();
+		var difference = root.getDecisionsList().stream()
+				.filter(decision -> decision.getIdentity().getId().equals("difference")).findFirst().orElseThrow();
+		assertEquals(List.of(2, 1), difference.getExpression().getBkmCall().getArgumentsList().stream()
+				.map(argument -> argument.getParameterPosition()).toList());
+		var outputs = new DmnIrRuntimeAdapter().adapt(verified).evaluate(inputs(true));
+		assertEquals(new BigDecimal("9"), outputs.get(key("difference")));
+		assertNull(outputs.get(key("nullable")));
+		assertEquals(LocalDate.of(2024, 2, 1), outputs.get(key("expiry")));
+		var boxedSource = source("policy.dmn", policy.replace(
+				"<literalExpression><text>Adjust(Delta: 2, Applicant: 10)</text></literalExpression>",
+				"""
+						<invocation><literalExpression><text>Adjust</text></literalExpression>
+						<binding><parameter name="Delta"/><literalExpression><text>2</text></literalExpression></binding>
+						<binding><parameter name="Applicant"/><literalExpression><text>10</text></literalExpression></binding>
+						</invocation>
+						"""));
+		var boxed = producer.produce(boxedSource, resolver);
+		assertEquals(outputs, new DmnIrRuntimeAdapter().adapt(boxed).evaluate(inputs(true)));
+		var bundle = new DmnIrScalarDmnExporter().export(verified);
+		DmnIrDateParityTest.validate(bundle);
+		var documents = bundle.documents().entrySet().stream().map(e -> source(e.getKey(), e.getValue())).toList();
+		var exported = source(bundle.rootDocument(), bundle.documents().get(bundle.rootDocument()));
+		var exportResolver = new InMemoryDmnModelResolver(documents);
+		var roundTrip = producer.produce(exported, exportResolver);
+		assertEquals(outputs, new DmnIrRuntimeAdapter().adapt(roundTrip).evaluate(inputs(true)));
+		var named = Map.of("Applicant", inputs(true).get(key("applicant")), "Include", true, "External",
+				inputs(true).get(key("external")));
+		for (var compiled : List.of(compile(source, resolver), compile(exported, exportResolver))) {
+			assertEquals(outputs.get(key("difference")), evaluate(compiled, "Difference", named));
+			assertEquals(outputs.get(key("expiry")), evaluate(compiled, "Expiry", named));
+			assertNull(evaluate(compiled, "Nullable", named));
+		}
+		runConsumer(dir, artifact.toByteArray(), "bkms");
 	}
 
 	@Test

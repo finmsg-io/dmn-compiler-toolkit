@@ -86,9 +86,10 @@ public final class DmnIrRuntimeAdapter {
 						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
 								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
 								"dmnir.scalar-collections", "dmnir.scalar-filters"));
-		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
-				|| localProfile || dateProfile || tableProfile || constraintProfile || collectionProfile
-				|| filterProfile || artifact.getSchemaVersion().getMinor() == 9))
+		if (artifact.getSchemaVersion().getMajor() != 0
+				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile || tableProfile
+						|| constraintProfile || collectionProfile || filterProfile
+						|| artifact.getSchemaVersion().getMinor() == 9 || artifact.getSchemaVersion().getMinor() == 10))
 			throw new IllegalArgumentException("Unsupported runtime adapter profile.");
 		var types = new DmnIrRecordTypes(artifact);
 		List<Declaration> declarations = new ArrayList<>();
@@ -107,6 +108,14 @@ public final class DmnIrRuntimeAdapter {
 		Map<ElementId, Integer> slots = new LinkedHashMap<>();
 		for (Declaration declaration : declarations) {
 			slots.put(declaration.id(), slots.size());
+		}
+		Map<ElementId, DmnIrBkm> bkms = new LinkedHashMap<>();
+		for (var model : artifact.getModelsList()) {
+			for (var bkm : model.getBkmsList()) {
+				var address = new ElementId(model.getNamespace(), bkm.getIdentity().getId());
+				bkms.put(address, bkm);
+				slots.put(address, slots.size());
+			}
 		}
 		List<RuntimeInput> runtimeInputs = new ArrayList<>();
 		List<RuntimeDecision> runtimeDecisions = new ArrayList<>();
@@ -127,8 +136,10 @@ public final class DmnIrRuntimeAdapter {
 			} else {
 				decisions.put(declaration.id(), binding);
 				DmnIrDecision decision = declaration.decision();
-				List<Integer> dependencies = decision.getDependenciesList().stream()
-						.map(reference -> slots.get(id(reference))).toList();
+				List<Integer> dependencies = new ArrayList<>();
+				decision.getDependenciesList().forEach(reference -> dependencies.add(slots.get(id(reference))));
+				decision.getKnowledgeDependenciesList()
+						.forEach(reference -> dependencies.add(slots.get(id(reference))));
 				int[] nextLocalSlot = {0};
 				if (decision.hasDecisionTable()) {
 					var table = table(decision.getDecisionTable(), types,
@@ -142,9 +153,49 @@ public final class DmnIrRuntimeAdapter {
 				}
 			}
 		}
-		List<Integer> order = artifact.getEvaluationOrderList().stream().map(value -> slots.get(id(value))).toList();
-		RuntimeModel model = new RuntimeModel(runtimeInputs, runtimeDecisions, List.of(), order, slots.size());
+		List<RuntimeBkm> runtimeBkms = new ArrayList<>();
+		for (var entry : bkms.entrySet()) {
+			var bkm = entry.getValue();
+			int slot = slots.get(entry.getKey());
+			Map<String, Local> locals = new HashMap<>();
+			List<RuntimeFunctionParameter> parameters = new ArrayList<>();
+			for (var parameter : bkm.getParametersList()) {
+				int localSlot = parameters.size();
+				locals.put(parameter.getBindingId(), new Local(0, localSlot));
+				parameters.add(new RuntimeFunctionParameter(parameter.getVariable().getName(), localSlot,
+						variableType(parameter.getVariable(), types)));
+			}
+			int[] nextSlot = {parameters.size()};
+			var body = expression(bkm.getBody(), slots, types, locals, nextSlot);
+			var resultType = variableType(bkm.getVariable(), types);
+			var function = new RuntimeFunctionDefinition(parameters, Optional.of(body), false, nextSlot[0], resultType);
+			var dependencies = bkm.getKnowledgeDependenciesList().stream().map(reference -> slots.get(id(reference)))
+					.toList();
+			runtimeBkms.add(new RuntimeBkm(slot, slot, resultType, dependencies, RuntimeFunctionKind.FEEL,
+					Optional.of(function)));
+		}
+		Set<ElementId> complete = new HashSet<>();
+		List<Integer> order = new ArrayList<>();
+		for (var address : bkms.keySet())
+			orderBkm(address, bkms, slots, complete, order);
+		artifact.getEvaluationOrderList().forEach(value -> order.add(slots.get(id(value))));
+		RuntimeModel model = new RuntimeModel(runtimeInputs, runtimeDecisions, runtimeBkms, order, slots.size());
 		return new AdaptedModel(verified, model, inputs, decisions);
+	}
+
+	private static RuntimeType variableType(DmnIrVariable variable, DmnIrRecordTypes types) {
+		return variable.hasCollectionType()
+				? types.collectionType(variable.getCollectionType())
+				: types.type(variable.getType(), variable.hasRecordType(), variable.getRecordType());
+	}
+
+	private static void orderBkm(ElementId address, Map<ElementId, DmnIrBkm> bkms, Map<ElementId, Integer> slots,
+			Set<ElementId> complete, List<Integer> order) {
+		if (!complete.add(address))
+			return;
+		for (var dependency : bkms.get(address).getKnowledgeDependenciesList())
+			orderBkm(id(dependency), bkms, slots, complete, order);
+		order.add(slots.get(address));
 	}
 
 	private static RuntimeDecisionTable table(DmnIrDecisionTable table, DmnIrRecordTypes types,
@@ -270,6 +321,33 @@ public final class DmnIrRuntimeAdapter {
 					expression(expression.getConditional().getThenExpression(), slots, types, locals, nextSlot),
 					expression(expression.getConditional().getElseExpression(), slots, types, locals, nextSlot), type);
 			case LITERAL -> literal(expression.getLiteral(), type);
+			case BKM_CALL -> {
+				var call = expression.getBkmCall();
+				List<RuntimeExpression> ordered = new ArrayList<>(Collections.nCopies(call.getArgumentsCount(), null));
+				List<RuntimeContextEntry> temporaries = new ArrayList<>();
+				boolean reordered = false;
+				for (int i = 0; i < call.getArgumentsCount(); i++)
+					reordered |= call.getArguments(i).getParameterPosition() != i + 1;
+				for (var argument : call.getArgumentsList()) {
+					var value = expression(argument.getExpression(), slots, types, locals, nextSlot);
+					if (reordered) {
+						// Evaluate in source order before binding in formal order on every backend.
+						int slot = nextSlot[0]++;
+						temporaries.add(
+								new RuntimeContextEntry("argument " + argument.getParameterPosition(), slot, value));
+						value = new RuntimeLocalReference(0, slot, value.type());
+					}
+					ordered.set(argument.getParameterPosition() - 1, value);
+				}
+				var target = new RuntimeValueReference(slots.get(id(call.getTarget())),
+						RuntimeType.scalar(RuntimeTypeKind.FUNCTION));
+				var invocation = new RuntimeInvocationExpression(Optional.empty(), Optional.of(target), List.of(),
+						ordered, type);
+				if (!reordered)
+					yield invocation;
+				temporaries.add(new RuntimeContextEntry("", -1, invocation));
+				yield new RuntimeContextExpression(temporaries, type);
+			}
 			case BUILTIN_CALL -> {
 				var call = expression.getBuiltinCall();
 				var signature = DmnIrBuiltinSignature.forOperation(call.getOperation()).orElseThrow();

@@ -2605,7 +2605,10 @@ actions ran natively (96.23%), 119 used fallback (3.77%), and none had an unknow
 route. Sixty failed SQL actions were counted separately. Spotless, all 73 tooling
 tests, strict MkDocs, and the documentation facts and maintained-link checks passed.
 
-## 26. Resolved named FEEL BKMs (proposed schema 0.10)
+## 26. Resolved named FEEL BKMs (schema 0.10)
+
+The user approved this contract. The schema, bounded verifier, producer, runtime
+adapter and DMN 1.6 exporter implement it.
 
 Use semantics `finmsg-dmnir-named-feel-bkms/0` and append `dmnir.named-feel-bkms` to the
 exact ordered 0.9 capabilities. Add `repeated DmnIrBkm bkms = 8` to `DmnIrModel`,
@@ -2653,3 +2656,27 @@ full reactor. The DMN 1.6 export gates use the
 Review applies to the proposed public field tags, signatures, binding and evaluation rules.
 The target is the DMNIR schema, verifier, compiler adapters, artifact execution and DMN 1.6
 export. These slices require no new dependencies or publication.
+
+### Implementation and verification
+
+The composed fixture covers a local BKM calling an imported BKM in arithmetic, a
+qualified record parameter, a shadowing formal, positional, reordered named and
+boxed calls, and null values. Direct interpretation, separate-JVM artifact execution,
+and XSD-validated DMN 1.6 export and recompilation agreed. Generated Java independently
+verified reordered and nullable calls. The saved 0.9 reader accepted a 0.9 artifact
+and rejected 0.10 with `UNKNOWN_FIELD`. The current reader accepted both.
+
+The first full TCK run passed all 3,391 cases with 3,377 native (99.59%) and 14
+fallback (0.41%). The fallback cases were in suites 0037, 0038, 0086 and 0087.
+The fix confines BKM return-type inference to DMNIR production, preserving the
+existing compiler input to Spark. The final full pinned Spark TCK passed **3,391/3,391
+natively (100%), zero fallback (0%)**, with zero failures, unknown routes or
+compilation blocks. See `target/release-1.2-bkm-reactor-and-full-spark-final.log`
+and `target/release-1.2-bkm-full-spark-accounting.json`.
+
+The final reactor passed 650 tests outside the TCK runner with no failures, errors or
+skips. The separate Spark regression actions recorded 3,034 native (96.23%), 119
+fallback (3.77%), and zero unknown across 3,153 completed actions, with 60 failed
+actions counted separately. Spotless, 73 tooling tests, strict MkDocs and maintained
+documentation checks passed. This run completed the usage checkpoint. The 0.10
+implementation remains local.

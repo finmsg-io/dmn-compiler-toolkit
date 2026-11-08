@@ -5,6 +5,7 @@ import io.finmsg.dmn.dmnir.codec.DmnIrBuiltinSignature;
 import io.finmsg.dmn.dmnir.proto.v0.*;
 import io.finmsg.dmn.frontend.xml.dmn.*;
 import io.finmsg.dmn.model.*;
+import io.finmsg.dmn.semantic.analysis.BuiltinFeelFunctionRegistry;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URI;
@@ -93,7 +94,8 @@ public final class DmnIrScalarDmnExporter {
 						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
 								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
 								"dmnir.scalar-collections", "dmnir.scalar-filters"));
-		boolean builtinProfile = artifact.getSchemaVersion().getMinor() == 9;
+		boolean builtinProfile = artifact.getSchemaVersion().getMinor() == 9
+				|| artifact.getSchemaVersion().getMinor() == 10;
 		if (artifact.getSchemaVersion().getMajor() != 0
 				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile || tableProfile
 						|| constraintProfile || collectionProfile || filterProfile || builtinProfile))
@@ -136,6 +138,17 @@ public final class DmnIrScalarDmnExporter {
 				admit(model, decision.getIdentity(), decision.getVariable(), false,
 						!constraintProfile && !collectionProfile && !filterProfile && !builtinProfile, ids, names,
 						declarations);
+			for (var bkm : model.getBkmsList()) {
+				var address = ref(model.getNamespace(), bkm.getIdentity().getId());
+				admit(model, bkm.getIdentity(), bkm.getVariable(), false, true, ids, names, declarations);
+				declarations.put(address, new Declaration(bkm.getVariable().getName(), false, bkm));
+				for (var parameter : bkm.getParametersList()) {
+					var formal = parameter.getVariable();
+					name(formal.getName(), address);
+					if (formal.hasId())
+						id(formal.getId(), ids, address);
+				}
+			}
 			for (var imported : model.getImportsList()) {
 				name(imported.getName(), null);
 				if (!names.add(imported.getName()))
@@ -190,6 +203,23 @@ public final class DmnIrScalarDmnExporter {
 			model.getInputsList().stream().sorted(Comparator.comparing(i -> i.getIdentity().getId()))
 					.forEach(i -> definitions.addDrgElements(DrgElement.newBuilder().setInputData(InputData.newBuilder()
 							.setNode(node(i.getIdentity())).setVariable(variable(i.getVariable(), types)))));
+			for (var bkm : model.getBkmsList().stream().sorted(Comparator.comparing(b -> b.getIdentity().getId()))
+					.toList()) {
+				var address = ref(model.getNamespace(), bkm.getIdentity().getId());
+				var output = BusinessKnowledgeModel.newBuilder().setNode(node(bkm.getIdentity()))
+						.setVariable(variable(bkm.getVariable(), types));
+				var function = FunctionDefinition.newBuilder().setKind(FunctionKind.FUNCTION_KIND_FEEL);
+				Map<String, String> locals = new LinkedHashMap<>();
+				for (var parameter : bkm.getParametersList()) {
+					function.addFormalParameters(variable(parameter.getVariable(), types));
+					locals.put(parameter.getBindingId(), parameter.getVariable().getName());
+				}
+				function.setLogic(Feel.newBuilder()
+						.setText(text(expression(bkm.getBody(), model, declarations, address, locals))));
+				output.setFunction(function).addAllKnowledgeRequirements(knowledgeRequirements(
+						bkm.getKnowledgeDependenciesList(), model, declarations, address, new HashSet<>()));
+				definitions.addDrgElements(DrgElement.newBuilder().setBusinessKnowledgeModel(output));
+			}
 			for (var decision : model.getDecisionsList().stream()
 					.sorted(Comparator.comparing(d -> d.getIdentity().getId())).toList()) {
 				var address = ref(model.getNamespace(), decision.getIdentity().getId());
@@ -215,6 +245,8 @@ public final class DmnIrScalarDmnExporter {
 						requirement.setDecision(reference);
 					output.addInformationRequirements(requirement);
 				}
+				output.addAllKnowledgeRequirements(knowledgeRequirements(decision.getKnowledgeDependenciesList(), model,
+						declarations, address, requiredNames));
 				var logic = DecisionLogic.newBuilder();
 				if (decision.hasDecisionTable()) {
 					logic.setDecisionTable(table(decision.getDecisionTable(), types, address,
@@ -234,6 +266,23 @@ public final class DmnIrScalarDmnExporter {
 					new String(new DmnWriter().write(definitions.build()), StandardCharsets.UTF_8));
 		}
 		return new ExportedDmnBundle(filenames.get(artifact.getRootModelNamespace()), documents);
+	}
+
+	private static List<KnowledgeRequirement> knowledgeRequirements(List<DmnIrReference> dependencies, DmnIrModel model,
+			Map<DmnIrReference, Declaration> declarations, DmnIrReference address, Set<String> requiredNames) {
+		return dependencies.stream().sorted(
+				Comparator.comparing(DmnIrReference::getModelNamespace).thenComparing(DmnIrReference::getElementId))
+				.map(dependency -> {
+					if (!requiredNames.add(declarations.get(dependency).name()))
+						throw invalid(address);
+					String prefix = dependency.getModelNamespace().equals(model.getNamespace())
+							? ""
+							: dependency.getModelNamespace();
+					return KnowledgeRequirement.newBuilder()
+							.setRequiredKnowledge(
+									ElementReference.newBuilder().setHref(prefix + "#" + dependency.getElementId()))
+							.build();
+				}).toList();
 	}
 
 	private static DecisionTable table(DmnIrDecisionTable source, DmnIrRecordTypes types, DmnIrReference address,
@@ -324,7 +373,7 @@ public final class DmnIrScalarDmnExporter {
 		return group.getNegated() ? "not(" + alternatives + ")" : alternatives;
 	}
 
-	private record Declaration(String name, boolean input) {
+	private record Declaration(String name, boolean input, DmnIrBkm bkm) {
 	}
 	private static void admit(DmnIrModel model, DmnIrElementIdentity identity, DmnIrVariable variable, boolean input,
 			boolean feelName, Set<String> ids, Set<String> names, Map<DmnIrReference, Declaration> declarations) {
@@ -336,7 +385,7 @@ public final class DmnIrScalarDmnExporter {
 			throw invalid(address);
 		if (variable.hasId())
 			id(variable.getId(), ids, address);
-		declarations.put(address, new Declaration(variable.getName(), input));
+		declarations.put(address, new Declaration(variable.getName(), input, null));
 	}
 	private static void checkIdentity(DmnIrElementIdentity identity, Set<String> ids, DmnIrReference address) {
 		id(identity.getId(), ids, address);
@@ -439,6 +488,26 @@ public final class DmnIrScalarDmnExporter {
 			return "(" + expression(expression.getFieldAccess().getSource(), model, declarations, address, locals)
 					+ ")." + expression.getFieldAccess().getFieldName();
 		}
+		if (expression.hasBkmCall()) {
+			var call = expression.getBkmCall();
+			var target = declarations.get(call.getTarget());
+			if (call.getTarget().getModelNamespace().equals(model.getNamespace())
+					&& BuiltinFeelFunctionRegistry.isBuiltin(target.name()))
+				throw invalid(address);
+			String function = referenceName(call.getTarget(), target.name(), model, address, locals);
+			boolean named = false;
+			for (int i = 0; i < call.getArgumentsCount(); i++)
+				named |= call.getArguments(i).getParameterPosition() != i + 1;
+			List<String> arguments = new ArrayList<>();
+			for (var argument : call.getArgumentsList()) {
+				String value = expression(argument.getExpression(), model, declarations, address, locals);
+				if (named)
+					value = target.bkm().getParameters(argument.getParameterPosition() - 1).getVariable().getName()
+							+ ": " + value;
+				arguments.add(value);
+			}
+			return function + "(" + String.join(", ", arguments) + ")";
+		}
 		if (expression.hasBuiltinCall()) {
 			var call = expression.getBuiltinCall();
 			String name = DmnIrBuiltinSignature.forOperation(call.getOperation()).orElseThrow().feelName();
@@ -463,19 +532,7 @@ public final class DmnIrScalarDmnExporter {
 					.collect(Collectors.joining(", ", "[", "]"));
 		if (expression.hasGlobalReference()) {
 			var reference = expression.getGlobalReference();
-			String variable = declarations.get(reference).name();
-			name(variable, address);
-			if (reference.getModelNamespace().equals(model.getNamespace()) && locals.containsValue(variable))
-				throw invalid(address);
-			if (reference.getModelNamespace().equals(model.getNamespace()))
-				return variable;
-			var imports = model.getImportsList().stream()
-					.filter(i -> i.getModelNamespace().equals(reference.getModelNamespace())).toList();
-			if (imports.size() != 1)
-				throw invalid(address);
-			if (locals.containsValue(imports.getFirst().getName()))
-				throw invalid(address);
-			return imports.getFirst().getName() + "." + variable;
+			return referenceName(reference, declarations.get(reference).name(), model, address, locals);
 		}
 		if (expression.hasUnary()) {
 			if (expression.getUnary().getOperator() == DmnIrUnaryOperator.UNARY_OPERATOR_POSITIVE)
@@ -534,6 +591,21 @@ public final class DmnIrScalarDmnExporter {
 	private static DmnIrReference ref(String namespace, String id) {
 		return DmnIrReference.newBuilder().setModelNamespace(namespace).setElementId(id).build();
 	}
+	private static String referenceName(DmnIrReference reference, String variable, DmnIrModel model,
+			DmnIrReference address, Map<String, String> locals) {
+		name(variable, address);
+		if (reference.getModelNamespace().equals(model.getNamespace())) {
+			if (locals.containsValue(variable))
+				throw invalid(address);
+			return variable;
+		}
+		var imports = model.getImportsList().stream()
+				.filter(i -> i.getModelNamespace().equals(reference.getModelNamespace())).toList();
+		if (imports.size() != 1 || locals.containsValue(imports.getFirst().getName()))
+			throw invalid(address);
+		return imports.getFirst().getName() + "." + variable;
+	}
+
 	private static DmnIrExportException invalid(DmnIrReference reference) {
 		return new DmnIrExportException(DmnIrExportException.Category.UNREPRESENTABLE_ARTIFACT,
 				reference == null

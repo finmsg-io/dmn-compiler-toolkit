@@ -181,6 +181,49 @@ class DmnJavaGeneratorTest {
 	}
 
 	@Test
+	void portableBkmsGenerateResolvedCallsAndBindReorderedArguments(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/"
+				  id="model" name="Functions" namespace="urn:generated:bkms">
+				<inputData id="amount" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<businessKnowledgeModel id="subtract" name="Subtract">
+				  <variable name="Subtract" typeRef="number"/>
+				  <encapsulatedLogic kind="FEEL">
+				    <formalParameter name="Left" typeRef="number"/><formalParameter name="Right" typeRef="number"/>
+				    <literalExpression><text>if Left = null then 0 else Left - Right</text></literalExpression>
+				  </encapsulatedLogic>
+				</businessKnowledgeModel>
+				<decision id="difference" name="Difference"><variable name="Difference" typeRef="number"/>
+				  <informationRequirement><requiredInput href="#amount"/></informationRequirement>
+				  <knowledgeRequirement><requiredKnowledge href="#subtract"/></knowledgeRequirement>
+				  <literalExpression><text>Subtract(Right: Amount, Left: 10)</text></literalExpression>
+				</decision>
+				<decision id="nullable" name="Nullable"><variable name="Nullable" typeRef="number"/>
+				  <knowledgeRequirement><requiredKnowledge href="#subtract"/></knowledgeRequirement>
+				  <literalExpression><text>Subtract(null, 3)</text></literalExpression>
+				</decision>
+				</definitions>
+				""";
+		var source = new DmnSource(DmnSourceId.of("memory:/bkms.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var artifact = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source);
+		var model = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.artifact().toByteArray()));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var input = model.inputs().values().iterator().next();
+		var slots = new Object[model.runtimeModel().valueSlotCount()];
+		slots[input.slot()] = new BigDecimal("3");
+		var direct = model.evaluate(Map.of(input.id(), slots[input.slot()]));
+		var results = engine.evaluate(slots);
+		for (var decision : model.decisions().values()) {
+			var expected = decision.id().elementId().equals("difference") ? new BigDecimal("7") : BigDecimal.ZERO;
+			assertThat(direct.get(decision.id())).isEqualTo(expected);
+			assertThat(results[decision.slot()]).isEqualTo(expected);
+		}
+	}
+
+	@Test
 	void portableBuiltinsGenerateExactDecimalAndUnicodeResults(@TempDir Path tempDir) throws Exception {
 		String xml = """
 				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/"
