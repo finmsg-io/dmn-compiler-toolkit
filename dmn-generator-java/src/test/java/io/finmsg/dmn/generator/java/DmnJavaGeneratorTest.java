@@ -167,15 +167,84 @@ class DmnJavaGeneratorTest {
 
 	@Test
 	void portableCollectionsGenerateOrderedListValues(@TempDir Path tempDir) throws Exception {
-		assertPortableListGeneration(tempDir, false);
+		assertPortableListGeneration(tempDir, null);
 	}
 
 	@Test
 	void portableFiltersGenerateScopedPredicates(@TempDir Path tempDir) throws Exception {
-		assertPortableListGeneration(tempDir, true);
+		assertPortableListGeneration(tempDir, "item");
 	}
 
-	private void assertPortableListGeneration(Path tempDir, boolean filtered) throws Exception {
+	@Test
+	void portableBuiltinsGenerateWithinScopedPredicates(@TempDir Path tempDir) throws Exception {
+		assertPortableListGeneration(tempDir, "abs(-item)");
+	}
+
+	@Test
+	void portableBuiltinsGenerateExactDecimalAndUnicodeResults(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/"
+				  id="model" name="Builtins" namespace="urn:generated:builtins">
+				<inputData id="number" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<inputData id="string" name="Source Text"><variable name="Source Text" typeRef="string"/></inputData>
+				<inputData id="search" name="Search Text"><variable name="Search Text" typeRef="string"/></inputData>
+				<decision id="magnitude" name="Magnitude"><variable name="Magnitude" typeRef="number"/>
+				  <informationRequirement><requiredInput href="#number"/></informationRequirement>
+				  <literalExpression><text>abs(Amount) + 0</text></literalExpression></decision>
+				<decision id="length" name="Length"><variable name="Length" typeRef="number"/>
+				  <informationRequirement><requiredInput href="#string"/></informationRequirement>
+				  <literalExpression><text>string length(Source Text)</text></literalExpression></decision>
+				<decision id="match" name="Match"><variable name="Match" typeRef="boolean"/>
+				  <informationRequirement><requiredInput href="#string"/></informationRequirement>
+				  <informationRequirement><requiredInput href="#search"/></informationRequirement>
+				  <literalExpression><text>contains(Source Text, Search Text)</text></literalExpression></decision>
+				</definitions>
+				""";
+		var source = new DmnSource(DmnSourceId.of("memory:/builtins.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var artifact = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source);
+		assertThat(artifact.artifact().getSchemaVersion().getMinor()).isEqualTo(9);
+		var model = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.artifact().toByteArray()));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		record Vector(BigDecimal amount, String text, String search, BigDecimal magnitude, BigDecimal length,
+				Boolean match) {
+		}
+		var exact = new BigDecimal("12345678901234567890.0000125");
+		for (var vector : List.of(
+				new Vector(exact.negate(), "A\uD83D\uDE00e\u0301", "\u00e9", exact, BigDecimal.valueOf(4), false),
+				new Vector(BigDecimal.ZERO, "", "", BigDecimal.ZERO, BigDecimal.ZERO, true),
+				new Vector(null, null, "", null, null, null),
+				new Vector(null, "A", null, null, BigDecimal.ONE, null))) {
+			var slots = new Object[model.runtimeModel().valueSlotCount()];
+			var inputs = new HashMap<DmnIrRuntimeAdapter.ElementId, Object>();
+			for (var input : model.inputs().values()) {
+				var value = switch (input.id().elementId()) {
+					case "number" -> vector.amount();
+					case "string" -> vector.text();
+					case "search" -> vector.search();
+					default -> throw new AssertionError(input);
+				};
+				slots[input.slot()] = value;
+				inputs.put(input.id(), value);
+			}
+			var interpreted = model.evaluate(inputs);
+			var compiled = engine.evaluate(slots);
+			for (var decision : model.decisions().values()) {
+				var expected = switch (decision.id().elementId()) {
+					case "magnitude" -> vector.magnitude();
+					case "length" -> vector.length();
+					case "match" -> vector.match();
+					default -> throw new AssertionError(decision);
+				};
+				assertThat(interpreted.get(decision.id())).isEqualTo(expected);
+				assertThat(compiled[decision.slot()]).isEqualTo(expected);
+			}
+		}
+	}
+
+	private void assertPortableListGeneration(Path tempDir, String comparisonOperand) throws Exception {
 		String types = """
 				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="catalog" name="Catalog" namespace="urn:generated:list-types">
 				<itemDefinition id="fees" name="tFees" isCollection="true"><typeRef>number</typeRef></itemDefinition>
@@ -199,13 +268,14 @@ class DmnJavaGeneratorTest {
 				<contextEntry><literalExpression><text>if Fee &gt; 0 then History else []</text></literalExpression></contextEntry>
 				</context></decision></definitions>
 				""";
-		if (filtered)
+		if (comparisonOperand != null)
 			xml = xml
 					.replace("<context><contextEntry><variable name=\"History\"",
 							"<context><contextEntry><variable name=\"Cutoff\" typeRef=\"number\"/>"
 									+ "<literalExpression><text>Fee</text></literalExpression></contextEntry>"
 									+ "<contextEntry><variable name=\"History\"")
-					.replace("[Fee, Fee, null]", "[Fee, Fee, null][item = null or item &gt;= Cutoff][true]");
+					.replace("[Fee, Fee, null]",
+							"[Fee, Fee, null][item = null or " + comparisonOperand + " &gt;= Cutoff][true]");
 		var imported = new DmnSource(DmnSourceId.of("memory:/catalog.dmn"),
 				types.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 		var source = new DmnSource(DmnSourceId.of("memory:/policy.dmn"),

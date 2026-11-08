@@ -38,9 +38,11 @@ public final class DmnIrArtifactReader {
 	public static final String COLLECTION_CAPABILITY = "dmnir.scalar-collections";
 	public static final String FILTER_SEMANTICS_VERSION = "finmsg-dmnir-scalar-filters/0";
 	public static final String FILTER_CAPABILITY = "dmnir.scalar-filters";
+	public static final String BUILTIN_SEMANTICS_VERSION = "finmsg-dmnir-builtin-calls/0";
+	public static final String BUILTIN_CAPABILITY = "dmnir.builtin-calls";
 	private static final List<String> CAPABILITIES = List.of(SCALAR_CAPABILITY, EXPRESSION_CAPABILITY,
 			RECORD_CAPABILITY, LOCAL_CAPABILITY, DATE_CAPABILITY, TABLE_CAPABILITY, FIELD_CONSTRAINT_CAPABILITY,
-			COLLECTION_CAPABILITY, FILTER_CAPABILITY);
+			COLLECTION_CAPABILITY, FILTER_CAPABILITY, BUILTIN_CAPABILITY);
 	private final DmnIrLimits limits;
 
 	public DmnIrArtifactReader() {
@@ -116,6 +118,7 @@ public final class DmnIrArtifactReader {
 		private boolean fieldConstraintsProfile;
 		private boolean collectionsProfile;
 		private boolean filtersProfile;
+		private boolean builtinProfile;
 		private boolean filterPredicate;
 		private boolean tableCell;
 		private final Map<String, Set<String>> modelIds = new HashMap<>();
@@ -147,12 +150,14 @@ public final class DmnIrArtifactReader {
 				case 6 -> FIELD_CONSTRAINT_SEMANTICS_VERSION;
 				case 7 -> COLLECTION_SEMANTICS_VERSION;
 				case 8 -> FILTER_SEMANTICS_VERSION;
+				case 9 -> BUILTIN_SEMANTICS_VERSION;
 				default -> "";
 			};
 			check(artifact.getSchemaVersion().getMajor() == 0 && !semantics.isEmpty()
 					&& artifact.getSemanticsVersion().equals(semantics), UNSUPPORTED_VERSION, "artifact.schema_version",
 					"Unsupported wire or semantic version.");
 			filtersProfile = minor >= 8;
+			builtinProfile = minor >= 9;
 			collectionsProfile = minor >= 7;
 			fieldConstraintsProfile = minor >= 6;
 			tablesProfile = minor >= 5;
@@ -517,6 +522,26 @@ public final class DmnIrArtifactReader {
 					check(!nodeType.hasCollectionType(), INVALID_TYPE, path + ".type",
 							"Use a list constructor or scalar null for a collection value.");
 					literal(expression.getLiteral(), expression.getType(), path + ".literal");
+				}
+				case BUILTIN_CALL -> {
+					check(builtinProfile, UNSUPPORTED_CAPABILITY, path, "Built-in calls require profile 0.9.");
+					var call = expression.getBuiltinCall();
+					var signature = DmnIrBuiltinSignature.forOperation(call.getOperation())
+							.orElseThrow(() -> new DmnIrValidationException(INVALID_EXPRESSION, path,
+									"Unsupported built-in operation."));
+					check(call.getArgumentsCount() == signature.parameters().size(), INVALID_EXPRESSION, path,
+							"Built-in argument count must match its signature.");
+					check(nodeType.hasScalarType() && nodeType.getScalarType() == signature.result(), INVALID_TYPE,
+							path, "Built-in result type must match its signature.");
+					for (int i = 0; i < call.getArgumentsCount(); i++) {
+						var argument = call.getArguments(i);
+						String argumentPath = path + ".builtin_call.arguments[" + i + "]";
+						var argumentType = typeOf(argument, argumentPath);
+						check(argumentType.hasScalarType()
+								&& argumentType.getScalarType() == signature.parameters().get(i), INVALID_TYPE,
+								argumentPath, "Built-in argument type must match its signature.");
+						node(argument, owner, dependencies, argumentPath, depth + 1);
+					}
 				}
 				case FILTER -> {
 					check(filtersProfile, UNSUPPORTED_CAPABILITY, path, "Filters require profile 0.8.");

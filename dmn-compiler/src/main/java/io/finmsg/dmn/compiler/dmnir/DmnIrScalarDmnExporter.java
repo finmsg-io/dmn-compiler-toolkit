@@ -1,6 +1,7 @@
 package io.finmsg.dmn.compiler.dmnir;
 
 import io.finmsg.dmn.dmnir.codec.DmnIrArtifactReader.VerifiedArtifact;
+import io.finmsg.dmn.dmnir.codec.DmnIrBuiltinSignature;
 import io.finmsg.dmn.dmnir.proto.v0.*;
 import io.finmsg.dmn.frontend.xml.dmn.*;
 import io.finmsg.dmn.model.*;
@@ -92,9 +93,10 @@ public final class DmnIrScalarDmnExporter {
 						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
 								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
 								"dmnir.scalar-collections", "dmnir.scalar-filters"));
+		boolean builtinProfile = artifact.getSchemaVersion().getMinor() == 9;
 		if (artifact.getSchemaVersion().getMajor() != 0
 				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile || tableProfile
-						|| constraintProfile || collectionProfile || filterProfile))
+						|| constraintProfile || collectionProfile || filterProfile || builtinProfile))
 			throw invalid(null);
 		var types = new DmnIrRecordTypes(artifact);
 		var models = artifact.getModelsList().stream().sorted(Comparator.comparing(DmnIrModel::getNamespace)).toList();
@@ -132,7 +134,8 @@ public final class DmnIrScalarDmnExporter {
 				admit(model, input.getIdentity(), input.getVariable(), true, true, ids, names, declarations);
 			for (var decision : model.getDecisionsList())
 				admit(model, decision.getIdentity(), decision.getVariable(), false,
-						!constraintProfile && !collectionProfile && !filterProfile, ids, names, declarations);
+						!constraintProfile && !collectionProfile && !filterProfile && !builtinProfile, ids, names,
+						declarations);
 			for (var imported : model.getImportsList()) {
 				name(imported.getName(), null);
 				if (!names.add(imported.getName()))
@@ -144,7 +147,7 @@ public final class DmnIrScalarDmnExporter {
 			var definitions = Definitions.newBuilder().setNode(node(model.getIdentity()))
 					.setNamespace(model.getNamespace()).setModelNamespaceUri(DmnNamespaces.DMN_1_6);
 			if (recordProfile || localProfile || dateProfile || tableProfile || constraintProfile || collectionProfile
-					|| filterProfile) {
+					|| filterProfile || builtinProfile) {
 				int prefix = 0;
 				for (var namespace : models.stream().map(DmnIrModel::getNamespace).toList())
 					definitions.addNamespaces(Namespace.newBuilder().setPrefix("t" + prefix++).setUri(namespace));
@@ -435,6 +438,17 @@ public final class DmnIrScalarDmnExporter {
 			name(expression.getFieldAccess().getFieldName(), address);
 			return "(" + expression(expression.getFieldAccess().getSource(), model, declarations, address, locals)
 					+ ")." + expression.getFieldAccess().getFieldName();
+		}
+		if (expression.hasBuiltinCall()) {
+			var call = expression.getBuiltinCall();
+			String name = DmnIrBuiltinSignature.forOperation(call.getOperation()).orElseThrow().feelName();
+			if (locals.containsValue(name) || declarations.entrySet().stream()
+					.anyMatch(entry -> entry.getKey().getModelNamespace().equals(model.getNamespace())
+							&& entry.getValue().name().equals(name)))
+				throw invalid(address);
+			return call.getArgumentsList().stream()
+					.map(argument -> expression(argument, model, declarations, address, locals))
+					.collect(Collectors.joining(", ", name + "(", ")"));
 		}
 		if (expression.hasFilter()) {
 			var filter = expression.getFilter();

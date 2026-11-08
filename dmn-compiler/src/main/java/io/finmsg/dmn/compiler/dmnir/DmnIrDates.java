@@ -5,6 +5,7 @@ import io.finmsg.dmn.dmnir.proto.v0.DmnIrDate;
 import io.finmsg.dmn.model.*;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.function.Predicate;
 
 /** Consumer-local date conversion; portable values never carry a timezone. */
 final class DmnIrDates {
@@ -39,12 +40,17 @@ final class DmnIrDates {
 		}
 	}
 	static boolean containsDate(Message source) {
+		return containsNode(source,
+				node -> node instanceof TypeReference type && type.getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE
+						|| node instanceof LiteralExpression literal
+								&& literal.getKind() == LiteralKind.LITERAL_KIND_DATE);
+	}
+	static boolean containsNode(Message source, Predicate<Message> matches) {
 		var pending = new ArrayDeque<Message>();
 		pending.add(source);
 		while (!pending.isEmpty()) {
 			var node = pending.remove();
-			if (node instanceof TypeReference type && type.getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE
-					|| node instanceof LiteralExpression literal && literal.getKind() == LiteralKind.LITERAL_KIND_DATE)
+			if (matches.test(node))
 				return true;
 			for (var field : node.getAllFields().values()) {
 				if (field instanceof Message child)

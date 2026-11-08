@@ -673,6 +673,9 @@ public final class FeelTypeAnalyzer {
 				TypeReference local = lookup(fnName);
 				if (local != null) {
 					result = local.hasFunction() ? local.getFunction().getReturnType() : ANY;
+				} else if (functions instanceof BuiltinFeelFunctionRegistry && fnName.equals("abs")
+						&& argumentTypes.size() == 1 && is(argumentTypes.getFirst(), NUMBER)) {
+					result = NUMBER;
 				} else {
 					result = resolveFunction(fnName, argumentTypes, path);
 				}

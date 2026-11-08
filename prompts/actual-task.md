@@ -27,11 +27,16 @@ Schema 0.7 is implemented and verified locally in section 23. Named scalar colle
 ordered list values survive portable execution, generated Java and DMN 1.6 export. The full
 reactor passed 635 tests. The implementation was pushed as `bd5f509`.
 The full official Spark TCK passed 3,391/3,391 cases natively for `bd5f509` with zero
-fallback. Schema 0.8 is implemented and verified locally in section 24. It adds boolean
+fallback. Schema 0.8 was pushed as `7c51dfd` and is verified in section 24. It adds boolean
 filters over named scalar collections with resolved item bindings. The reactor passed 640
 tests and the focused official list/filter run passed 41 cases per backend, all native on
 Spark. Broader collections, built-in calls, FEEL BKMs and inline functions remain open.
 DSL design and a bounded artifact-only Rust prototype can start from the implemented profiles.
+Section 25 implements schema 0.9 for fixed-signature FEEL calls to `abs(number)`,
+`string length(string)` and `contains(string, string)`. The full reactor passed 645
+tests outside the TCK runner. The selected official suites passed 33 cases per backend,
+all native on Spark. Schema 0.9 is verified locally. Section 26 proposes resolved named
+FEEL BKMs. Inline FEEL functions and lexical capture need a separate contract.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome

@@ -179,12 +179,43 @@ class DmnIrCollectionParityTest {
 		public static void main(String[] args) throws Exception {
 			var verified = new DmnIrArtifactReader().read(Files.readAllBytes(Path.of(args[0])));
 			var output = new DmnIrRuntimeAdapter().adapt(verified).evaluate(inputs(true));
-			var expected = args[1].equals("filters")
+			var expected = !args[1].equals("collections")
 					? Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null)
 					: Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null, new BigDecimal("0.125"));
 			if (!expected.equals(output.get(key("history"))))
 				throw new AssertionError(output);
 		}
+	}
+
+	@Test
+	void builtinsInComposedPolicySurviveArtifactExecutionAndExport(@TempDir Path dir) throws Exception {
+		var source = source("policy.dmn", POLICY.replace("if Include then [Fee, Fee, null, 0.125] else Prior",
+				"if Include then [Fee, Fee, null, 0.125][item = null or abs(item) &gt;= Fee] else Prior"));
+		var resolver = new InMemoryDmnModelResolver(List.of(source("catalog.dmn", CATALOG)));
+		var producer = new DmnIrScalarProducer();
+		var verified = producer.produce(source, resolver);
+		var bytes = verified.artifact().toByteArray();
+		assertEquals(9, verified.artifact().getSchemaVersion().getMinor());
+		assertArrayEquals(bytes, producer.produce(source, resolver).artifact().toByteArray());
+		var expected = Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null);
+		assertEquals(expected, new DmnIrRuntimeAdapter().adapt(verified).evaluate(inputs(true)).get(key("history")));
+		var bundle = new DmnIrScalarDmnExporter().export(verified);
+		DmnIrDateParityTest.validate(bundle);
+		var documents = bundle.documents().entrySet().stream().map(e -> source(e.getKey(), e.getValue())).toList();
+		var exported = source(bundle.rootDocument(), bundle.documents().get(bundle.rootDocument()));
+		var named = Map.of("Applicant", inputs(true).get(key("applicant")), "Include", true, "External",
+				inputs(true).get(key("external")));
+		assertEquals(expected, evaluate(compile(source, resolver), "History", named));
+		assertEquals(expected, evaluate(compile(exported, new InMemoryDmnModelResolver(documents)), "History", named));
+		var captured = verified.artifact().toBuilder();
+		var root = captured.getModelsBuilderList().stream().filter(model -> model.getNamespace().equals(NS)).findFirst()
+				.orElseThrow();
+		var history = root.getDecisionsBuilderList().stream()
+				.filter(decision -> decision.getIdentity().getId().equals("history")).findFirst().orElseThrow();
+		history.getExpressionBuilder().getContextBuilder().getBindingsBuilder(0).getVariableBuilder().setName("abs");
+		var capturedArtifact = new DmnIrArtifactReader().read(captured.build().toByteArray());
+		assertThrows(DmnIrExportException.class, () -> new DmnIrScalarDmnExporter().export(capturedArtifact));
+		runConsumer(dir, bytes, "builtin");
 	}
 
 	private static Map<DmnIrRuntimeAdapter.ElementId, Object> inputs(boolean include) {

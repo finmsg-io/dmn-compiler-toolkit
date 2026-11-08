@@ -2536,3 +2536,120 @@ native actions (96.23%) and 119 fallback actions (3.77%) among 3,153 completed S
 actions, with zero unknown and 60 failed actions counted separately. This routing denominator
 is separate from the official TCK. See `target/release-1.2-scalar-filters-reactor-verified.log`.
 All 73 tooling tests, strict MkDocs and documentation facts and maintained-link checks passed.
+
+## 25. Fixed-signature FEEL built-ins (schema 0.9)
+
+The user directed implementation after reviewing the 0.9 proposal. The contract below
+is implemented in the producer, verifier, runtime adapter and artifact-only DMN exporter.
+
+Use semantics `finmsg-dmnir-builtin-calls/0` and append `dmnir.builtin-calls` to the exact
+ordered 0.8 capabilities. Add `DmnIrBuiltinCall builtin_call = 14` to
+`DmnIrExpression.node`. The call has `DmnIrBuiltinOperation operation = 1` and
+`repeated DmnIrExpression arguments = 2`. Enum value zero is unspecified and rejected.
+The enum identifies a particular typed signature. This keeps existing IDs unambiguous
+when admitting more overloads.
+
+| Enum value | Signature | Result for non-null inputs |
+| --- | --- | --- |
+| `BUILTIN_OPERATION_ABS_NUMBER = 1` | `abs(number) -> number` | Exact decimal magnitude |
+| `BUILTIN_OPERATION_STRING_LENGTH = 2` | `string length(string) -> number` | Unicode code-point count |
+| `BUILTIN_OPERATION_CONTAINS_STRING = 3` | `contains(string, string) -> boolean` | Case-sensitive substring match, with an empty substring always matching |
+
+Verify exact arity, static argument types and result type, and apply existing expression
+and scope budgets to every argument. Evaluate arguments once in source order. Each signature
+returns null if any argument evaluates to null. Match strings without Unicode normalization.
+The producer resolves positional calls through the existing FEEL built-in resolution and
+admits only the listed signatures with the required static types. Preserve the existing
+representations for unary `not` and constant `date`. Named built-in arguments, aggregate
+overloads and other signatures remain outside this profile.
+
+Reuse Runtime IR built-in operations and existing runtime behavior. DMN 1.6 export renders
+the equivalent positional FEEL call and checks that the function name resolves to the intended
+built-in. Consumers derive dispatch locally from the enum.
+
+Use the existing Maven JUnit/Surefire harness. Pin the enum and field IDs, reject invalid
+calls and confirm that a saved 0.8 reader accepts 0.8 artifacts and rejects a 0.9 call.
+Extend the composed policy with a built-in inside a filter predicate. Cover exact decimals,
+empty strings, supplementary characters, composed and decomposed text, and null arguments.
+Compare direct execution, separate-JVM artifact execution, generated Java and recompiled
+artifact-only DMN 1.6 with XSD validation. Record artifact and expected-value vectors for
+the independent Rust consumer. Run affected official cases and the full reactor with
+separate routing accounting.
+
+### Implementation evidence
+
+The codec tests pin the operation IDs and field tags and reject missing or unknown
+operations, incorrect arity and types, and references outside the caller scope. The saved
+0.8 reader accepts a 0.8 artifact and rejects the new call with `UNKNOWN_FIELD`.
+The current reader accepts both. See `target/dmnir-0.8-baseline` for the binaries and vectors.
+
+The composed two-model fixture exercises `abs` in a filter using an imported list and a
+table-derived cutoff. It passed direct evaluation, artifact-only execution in a separate
+JVM, and XSD validation and recompiled evaluation of artifact-only DMN 1.6. A mutated
+artifact checks that export rejects function-name capture. An initial round-trip test
+exposed missing namespace declarations for 0.9 imports, which the verified run covers.
+Generated Java and the artifact interpreter agree on the composed filter and the scalar
+vectors for exact decimals, Unicode code points, empty strings and explicit null inputs.
+The scalar vectors also check that numeric `abs` can feed arithmetic.
+
+The full reactor passed 645 tests outside the optional TCK runner, with no failures,
+errors or skips. The selected official `abs`, `string length` and `contains` suites
+passed 33 cases on each of interpreter, generated Java and Spark SQL. Spark passed all
+33 cases natively (100%) with zero fallback (0%) or unknown routes. These official
+suites exercise the existing backends and are separate from the DMNIR parity fixtures.
+See `target/release-1.2-builtin-reactor-verified.log` and
+`target/release-1.2-builtin-tck-accounting.json`.
+
+Across the four instrumented Spark regression suites, 3,034 of 3,153 completed
+actions ran natively (96.23%), 119 used fallback (3.77%), and none had an unknown
+route. Sixty failed SQL actions were counted separately. Spotless, all 73 tooling
+tests, strict MkDocs, and the documentation facts and maintained-link checks passed.
+
+## 26. Resolved named FEEL BKMs (proposed schema 0.10)
+
+Use semantics `finmsg-dmnir-named-feel-bkms/0` and append `dmnir.named-feel-bkms` to the
+exact ordered 0.9 capabilities. Add `repeated DmnIrBkm bkms = 8` to `DmnIrModel`,
+`repeated DmnIrReference knowledge_dependencies = 6` to `DmnIrDecision`, and
+`DmnIrBkmCall bkm_call = 15` to `DmnIrExpression.node`.
+
+- `DmnIrBkm` has `DmnIrElementIdentity identity = 1`,
+  `repeated DmnIrBkmParameter parameters = 2`, `DmnIrVariable variable = 3` for the
+  typed result declaration, `DmnIrExpression body = 4` and
+  `repeated DmnIrReference knowledge_dependencies = 5`. Admit expression-bodied
+  FEEL BKMs with declared result types and check the body against the result declaration.
+- `DmnIrBkmParameter` has `string binding_id = 1` and `DmnIrVariable variable = 2`.
+  Parameter declaration order defines positional binding. Verify unique names and binding IDs
+  within the function scope. Existing local reference nodes address parameters by binding ID.
+- `DmnIrBkmCall` has `DmnIrReference target = 1` and
+  `repeated DmnIrBkmArgument arguments = 2`. An argument has
+  `uint32 parameter_position = 1` (one-based) and `DmnIrExpression expression = 2`.
+  Resolve positional and named source calls to these same formal positions. Preserve the
+  argument list in source evaluation order. Every formal position must occur exactly once.
+- Verify argument and result types against the declaration, including qualified record and
+  collection identities. Verify that each call targets a declared knowledge dependency in
+  the same model or a direct import. Reject missing and duplicate dependencies, cycles and
+  out-of-scope references. Apply declaration, dependency depth and expression budgets to the
+  BKM graph, including dependency chains spanning bundled models.
+- Evaluate each argument once in the caller's scope. Invoke the body with a fresh frame,
+  placing values into their formal positions, including null values. A body can read its
+  parameters and locals and call its declared knowledge dependencies. Derive BKM order
+  and slots independently of the existing decision evaluation order.
+
+Use Runtime IR function definitions and invocation support for execution. Export a FEEL
+BKM with its declaration, formals, expression body and knowledge requirements. Emit named
+arguments in the stored order if formal positions differ from positional order. Validate
+qualified call names and references during export. Defer BKM decision-table bodies, direct
+global capture, recursive calls, inline function values and external function kinds.
+
+Use the same Maven harness and parity stages as 0.9. Extend the composed policy with a local
+BKM that calls an imported BKM and a decision that calls it with reordered named arguments.
+Include positional calls, a parameter shadowing an outer name, nullable arguments and a
+structured type with qualified identity. Test wrong arity, missing or duplicate positions,
+undeclared and wrong-kind targets, mismatched types and cycles across bundled models.
+Check the prior reader boundary, XSD validation, the affected official cases and the
+full reactor. The DMN 1.6 export gates use the
+[OMG DMN 1.6 specification and schema](https://www.omg.org/spec/DMN/1.6).
+
+Review applies to the proposed public field tags, signatures, binding and evaluation rules.
+The target is the DMNIR schema, verifier, compiler adapters, artifact execution and DMN 1.6
+export. These slices require no new dependencies or publication.

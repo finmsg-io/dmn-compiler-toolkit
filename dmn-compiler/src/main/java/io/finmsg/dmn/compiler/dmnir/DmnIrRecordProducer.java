@@ -13,6 +13,7 @@ import java.util.function.BiFunction;
 final class DmnIrRecordProducer {
 	private final DmnModelSetSemanticResult semantic;
 	private boolean filters;
+	private boolean builtinCalls;
 	private final Map<String, DmnIrLocalBinding> localBindings = new HashMap<>();
 	private final Map<String, DmnSemanticModel> models = new LinkedHashMap<>();
 	private record TypeName(String namespace, String name) {
@@ -28,6 +29,12 @@ final class DmnIrRecordProducer {
 		this.semantic = semantic;
 		semantic.models().stream().sorted(Comparator.comparing(m -> m.identity().namespace()))
 				.forEach(m -> models.put(m.identity().namespace(), m));
+	}
+
+	static boolean containsBuiltinCall(com.google.protobuf.Message source) {
+		return DmnIrDates.containsNode(source,
+				node -> node instanceof InvocationExpression call && call.getTarget().hasName()
+						&& DmnIrBuiltinSignature.forFeelName(call.getTarget().getName().getName()).isPresent());
 	}
 
 	DmnIrArtifactReader.VerifiedArtifact produce() {
@@ -199,10 +206,17 @@ final class DmnIrRecordProducer {
 			done.add(next.getKey());
 			pending.remove(next.getKey());
 		}
-		if (filters) {
-			artifact.getSchemaVersionBuilder().setMinor(8);
-			artifact.setSemanticsVersion(DmnIrArtifactReader.FILTER_SEMANTICS_VERSION)
-					.addRequiredCapabilities(DmnIrArtifactReader.FILTER_CAPABILITY);
+		if (filters || builtinCalls) {
+			var capabilities = List.of(DmnIrArtifactReader.LOCAL_CAPABILITY, DmnIrArtifactReader.DATE_CAPABILITY,
+					DmnIrArtifactReader.TABLE_CAPABILITY, DmnIrArtifactReader.FIELD_CONSTRAINT_CAPABILITY,
+					DmnIrArtifactReader.COLLECTION_CAPABILITY, DmnIrArtifactReader.FILTER_CAPABILITY);
+			artifact.addAllRequiredCapabilities(capabilities.subList(minor - 2, capabilities.size()));
+			artifact.getSchemaVersionBuilder().setMinor(builtinCalls ? 9 : 8);
+			artifact.setSemanticsVersion(builtinCalls
+					? DmnIrArtifactReader.BUILTIN_SEMANTICS_VERSION
+					: DmnIrArtifactReader.FILTER_SEMANTICS_VERSION);
+			if (builtinCalls)
+				artifact.addRequiredCapabilities(DmnIrArtifactReader.BUILTIN_CAPABILITY);
 		}
 		try {
 			return new DmnIrArtifactReader().read(artifact.build().toByteArray());
@@ -512,6 +526,12 @@ final class DmnIrRecordProducer {
 			return typed(result).setConditional(DmnIrConditionalExpression.newBuilder().setCondition(condition)
 					.setThenExpression(yes).setElseExpression(no)).build();
 		}
+		if (source.hasInvocation() && source.getInvocation().getTarget().hasName()) {
+			var call = source.getInvocation();
+			var signature = DmnIrBuiltinSignature.forFeelName(call.getTarget().getName().getName());
+			if (signature.isPresent())
+				return builtinCall(call, signature.get(), model, path, dependencies, depth);
+		}
 		var output = typed(type(source.getInferredType(), model));
 		if (!source.hasLiteral() && source.getInferredType().getBuiltin() == BuiltinType.BUILTIN_TYPE_NULL)
 			throw unsupported();
@@ -579,6 +599,24 @@ final class DmnIrRecordProducer {
 			}
 			default -> throw unsupported();
 		}
+	}
+	private DmnIrExpression builtinCall(InvocationExpression source, DmnIrBuiltinSignature signature,
+			DmnSemanticModel model, String path, Set<DmnIrReference> dependencies, int depth) {
+		String name = signature.feelName();
+		if (source.getArgumentsCount() != 0 || source.getPositionalArgumentsCount() != signature.parameters().size()
+				|| localBindings.values().stream().anyMatch(local -> local.getVariable().getName().equals(name))
+				|| model.bindings().stream().anyMatch(binding -> binding.referencePath().equals(path + "/target")))
+			throw unsupported();
+		var call = DmnIrBuiltinCall.newBuilder().setOperation(signature.operation());
+		for (int i = 0; i < source.getPositionalArgumentsCount(); i++) {
+			var argument = expression(source.getPositionalArguments(i), model, path + "/argument[" + i + "]",
+					dependencies, depth + 1);
+			if (argument.getType() != signature.parameters().get(i))
+				throw unsupported();
+			call.addArguments(argument);
+		}
+		builtinCalls = true;
+		return DmnIrExpression.newBuilder().setType(signature.result()).setBuiltinCall(call).build();
 	}
 	private DmnIrExpression parsed(ExpressionParsed source, DmnSemanticModel model, String path,
 			Set<DmnIrReference> dependencies, int depth, DmnIrTypeReference expected) {

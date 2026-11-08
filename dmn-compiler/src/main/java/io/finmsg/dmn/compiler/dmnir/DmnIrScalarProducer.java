@@ -27,7 +27,8 @@ public final class DmnIrScalarProducer {
 			throw new DmnIrProductionException(SOURCE_INVALID, null, semantic.diagnostics(), null);
 		}
 		if (semantic.models().stream()
-				.anyMatch(m -> DmnIrDates.containsDate(m.model()) || m.model().getItemDefinitionsCount() != 0
+				.anyMatch(m -> DmnIrDates.containsDate(m.model()) || DmnIrRecordProducer.containsBuiltinCall(m.model())
+						|| m.model().getItemDefinitionsCount() != 0
 						|| m.model().getDrgElementsList().stream()
 								.anyMatch(e -> e.hasDecision() && (e.getDecision().getLogic().hasBoxedExpression()
 										|| e.getDecision().getLogic().hasDecisionTable()))))

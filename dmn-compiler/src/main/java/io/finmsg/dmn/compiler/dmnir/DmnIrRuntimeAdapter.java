@@ -1,6 +1,7 @@
 package io.finmsg.dmn.compiler.dmnir;
 
 import io.finmsg.dmn.dmnir.codec.DmnIrArtifactReader.VerifiedArtifact;
+import io.finmsg.dmn.dmnir.codec.DmnIrBuiltinSignature;
 import io.finmsg.dmn.dmnir.proto.v0.*;
 import io.finmsg.dmn.ir.*;
 import io.finmsg.dmn.runtime.DmnRuntime;
@@ -85,9 +86,9 @@ public final class DmnIrRuntimeAdapter {
 						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
 								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
 								"dmnir.scalar-collections", "dmnir.scalar-filters"));
-		if (artifact.getSchemaVersion().getMajor() != 0
-				|| !(scalarProfile || expressionProfile || recordProfile || localProfile || dateProfile || tableProfile
-						|| constraintProfile || collectionProfile || filterProfile))
+		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
+				|| localProfile || dateProfile || tableProfile || constraintProfile || collectionProfile
+				|| filterProfile || artifact.getSchemaVersion().getMinor() == 9))
 			throw new IllegalArgumentException("Unsupported runtime adapter profile.");
 		var types = new DmnIrRecordTypes(artifact);
 		List<Declaration> declarations = new ArrayList<>();
@@ -269,6 +270,13 @@ public final class DmnIrRuntimeAdapter {
 					expression(expression.getConditional().getThenExpression(), slots, types, locals, nextSlot),
 					expression(expression.getConditional().getElseExpression(), slots, types, locals, nextSlot), type);
 			case LITERAL -> literal(expression.getLiteral(), type);
+			case BUILTIN_CALL -> {
+				var call = expression.getBuiltinCall();
+				var signature = DmnIrBuiltinSignature.forOperation(call.getOperation()).orElseThrow();
+				var arguments = call.getArgumentsList().stream()
+						.map(argument -> expression(argument, slots, types, locals, nextSlot)).toList();
+				yield new RuntimeFunctionCall(signature.feelName(), arguments, type);
+			}
 			case FILTER -> {
 				var filter = expression.getFilter();
 				var source = expression(filter.getSource(), slots, types, locals, nextSlot);

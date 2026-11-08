@@ -169,6 +169,7 @@ message DmnIrExpression {
     DmnIrContextExpression context = 10;
     DmnIrListExpression list = 12;
     DmnIrFilterExpression filter = 13;
+    DmnIrBuiltinCall builtin_call = 14;
   }
 }
 
@@ -189,6 +190,18 @@ message DmnIrFilterExpression {
   DmnIrExpression source = 1;
   string item_binding_id = 2;
   DmnIrExpression predicate = 3;
+}
+
+enum DmnIrBuiltinOperation {
+  BUILTIN_OPERATION_UNSPECIFIED = 0;
+  BUILTIN_OPERATION_ABS_NUMBER = 1;
+  BUILTIN_OPERATION_STRING_LENGTH = 2;
+  BUILTIN_OPERATION_CONTAINS_STRING = 3;
+}
+
+message DmnIrBuiltinCall {
+  DmnIrBuiltinOperation operation = 1;
+  repeated DmnIrExpression arguments = 2;
 }
 
 message DmnIrListExpression {
