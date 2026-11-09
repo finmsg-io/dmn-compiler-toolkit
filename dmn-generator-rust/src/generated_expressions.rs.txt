@@ -1,0 +1,113 @@
+use std::cmp::Ordering;
+
+fn negate(value: Value) -> Value {
+    if let Value::Number {
+        mut coefficient,
+        scale,
+    } = value
+    {
+        if coefficient.starts_with('-') {
+            coefficient.remove(0);
+        } else if coefficient != "0" {
+            coefficient.insert(0, '-');
+        }
+        Value::Number { coefficient, scale }
+    } else {
+        Value::Null
+    }
+}
+
+fn not(value: Value) -> Value {
+    match value {
+        Value::Boolean(value) => Value::Boolean(!value),
+        _ => Value::Null,
+    }
+}
+
+fn and(left: Value, right: impl FnOnce() -> Value) -> Value {
+    match left {
+        Value::Boolean(false) => Value::Boolean(false),
+        Value::Boolean(true) => right(),
+        _ => match right() {
+            Value::Boolean(false) => Value::Boolean(false),
+            _ => Value::Null,
+        },
+    }
+}
+
+fn or(left: Value, right: impl FnOnce() -> Value) -> Value {
+    match left {
+        Value::Boolean(true) => Value::Boolean(true),
+        Value::Boolean(false) => right(),
+        _ => match right() {
+            Value::Boolean(true) => Value::Boolean(true),
+            _ => Value::Null,
+        },
+    }
+}
+
+fn equal(left: Value, right: Value) -> Value {
+    match (&left, &right) {
+        (Value::Null, Value::Null) => Value::Boolean(true),
+        (Value::Null, _) | (_, Value::Null) => Value::Boolean(false),
+        (Value::Boolean(a), Value::Boolean(b)) => Value::Boolean(a == b),
+        _ => compare(&left, &right).map_or(Value::Null, |order| Value::Boolean(order.is_eq())),
+    }
+}
+
+fn ordered(left: Value, right: Value, predicate: fn(Ordering) -> bool) -> Value {
+    compare(&left, &right).map_or(Value::Null, |order| Value::Boolean(predicate(order)))
+}
+
+fn compare(left: &Value, right: &Value) -> Option<Ordering> {
+    match (left, right) {
+        (Value::Text(a), Value::Text(b)) => Some(a.encode_utf16().cmp(b.encode_utf16())),
+        (
+            Value::Number {
+                coefficient: a,
+                scale: a_scale,
+            },
+            Value::Number {
+                coefficient: b,
+                scale: b_scale,
+            },
+        ) => Some(compare_decimal(a, *a_scale, b, *b_scale)),
+        _ => None,
+    }
+}
+
+fn compare_decimal(left: &str, left_scale: i32, right: &str, right_scale: i32) -> Ordering {
+    fn sign(coefficient: &str) -> i8 {
+        match coefficient.as_bytes()[0] {
+            b'-' => -1,
+            b'0' => 0,
+            _ => 1,
+        }
+    }
+    let left_sign = sign(left);
+    let right_sign = sign(right);
+    match left_sign.cmp(&right_sign) {
+        Ordering::Equal if left_sign != 0 => {
+            let left = left.trim_start_matches('-');
+            let right = right.trim_start_matches('-');
+            let magnitude = (left.len() as i32 - left_scale)
+                .cmp(&(right.len() as i32 - right_scale))
+                .then_with(|| {
+                    let width = left.len().max(right.len());
+                    padded(left, width).cmp(padded(right, width))
+                });
+            if left_sign < 0 {
+                magnitude.reverse()
+            } else {
+                magnitude
+            }
+        }
+        order => order,
+    }
+}
+
+fn padded(digits: &str, width: usize) -> impl Iterator<Item = u8> + '_ {
+    digits
+        .bytes()
+        .chain(std::iter::repeat_n(b'0', width - digits.len()))
+}

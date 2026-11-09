@@ -40,6 +40,89 @@ mod tests {
             Err("expression reference is not a declared dependency")
         );
     }
+
+    #[test]
+    fn requires_expression_profile_and_checks_unselected_branches() {
+        let mut artifact = expressions();
+        artifact.schema_version.as_mut().unwrap().minor = Some(0);
+        artifact.semantics_version = "finmsg-dmnir-scalar/0".into();
+        artifact.required_capabilities.pop();
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("expression outside scalar profile")
+        );
+
+        let mut artifact = expressions();
+        let conditional = selected(&mut artifact);
+        conditional.condition = Some(Box::new(DmnIrExpression {
+            r#type: DmnIrScalarType::ScalarTypeBoolean as i32,
+            node: Some(Node::Literal(DmnIrLiteral {
+                value: Some(Value::BooleanValue(true)),
+            })),
+            ..Default::default()
+        }));
+        let original = conditional.else_expression.clone();
+        conditional.else_expression = Some(Box::new(DmnIrExpression {
+            r#type: DmnIrScalarType::ScalarTypeNumber as i32,
+            node: Some(Node::Binary(Box::new(DmnIrBinaryExpression {
+                operator: DmnIrBinaryOperator::BinaryOperatorAdd as i32,
+                left: original.clone(),
+                right: original,
+            }))),
+            ..Default::default()
+        }));
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("unsupported binary signature")
+        );
+
+        let conditional = selected(&mut artifact);
+        conditional.else_expression = None;
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("missing else expression")
+        );
+    }
+
+    #[test]
+    fn preflight_bounds_recursive_expression_depth() {
+        let mut artifact = expressions();
+        let conditional = selected(&mut artifact);
+        let mut operand = conditional.else_expression.take().unwrap();
+        for _ in 0..32 {
+            operand = Box::new(DmnIrExpression {
+                r#type: DmnIrScalarType::ScalarTypeNumber as i32,
+                node: Some(Node::Unary(Box::new(DmnIrUnaryExpression {
+                    operator: DmnIrUnaryOperator::UnaryOperatorPositive as i32,
+                    operand: Some(operand),
+                }))),
+                ..Default::default()
+            });
+        }
+        conditional.else_expression = Some(operand);
+        assert_eq!(
+            crate::wire::verify(&artifact.encode_to_vec()),
+            Err("artifact exceeds message budget")
+        );
+    }
+
+    fn expressions() -> DmnIrArtifact {
+        let bytes = include_bytes!("../tests/fixtures/comparisons-0.1.dmnir");
+        DmnIrArtifact::decode(bytes.as_slice()).unwrap()
+    }
+
+    fn selected(artifact: &mut DmnIrArtifact) -> &mut DmnIrConditionalExpression {
+        let decision = artifact.models[0]
+            .decisions
+            .iter_mut()
+            .find(|decision| decision.identity.as_ref().unwrap().id == "selected")
+            .unwrap();
+        let Some(Node::Conditional(conditional)) = &mut decision.expression.as_mut().unwrap().node
+        else {
+            panic!("expected fixture conditional");
+        };
+        conditional
+    }
 }
 
 struct Declaration<'a> {
@@ -52,13 +135,23 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         .schema_version
         .as_ref()
         .ok_or("missing schema version")?;
-    if version.major != Some(0)
-        || version.minor != Some(0)
-        || artifact.semantics_version != "finmsg-dmnir-scalar/0"
-        || artifact.required_capabilities != ["dmnir.scalar"]
-    {
-        return Err("unsupported DMNIR profile");
-    }
+    let structured = match (
+        version.major,
+        version.minor,
+        artifact.semantics_version.as_str(),
+    ) {
+        (Some(0), Some(0), "finmsg-dmnir-scalar/0")
+            if artifact.required_capabilities == ["dmnir.scalar"] =>
+        {
+            false
+        }
+        (Some(0), Some(1), "finmsg-dmnir-scalar-expressions/0")
+            if artifact.required_capabilities == ["dmnir.scalar", "dmnir.scalar-expressions"] =>
+        {
+            true
+        }
+        _ => return Err("unsupported DMNIR profile"),
+    };
     let mut models = BTreeMap::new();
     let mut declarations = BTreeMap::new();
     for model in &artifact.models {
@@ -128,6 +221,10 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     let mut source = String::from(include_str!("decimal.rs"));
     source.push('\n');
     source.push_str(include_str!("generated_prelude.rs.txt"));
+    if structured {
+        source.push_str(include_str!("generated_expressions.rs.txt"));
+    }
+    source.push_str("pub fn evaluate(inputs: &BTreeMap<Key<'_>, Value>) -> Result<BTreeMap<Key<'static>, Value>, &'static str> {\n");
     let mut ready = BTreeSet::new();
     for (&key, declaration) in &declarations {
         if declaration.decision.is_none() {
@@ -169,24 +266,16 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             .expression
             .as_ref()
             .ok_or("missing decision expression")?;
-        let ty = scalar(expression.r#type)?;
+        let emitter = ExpressionEmitter {
+            structured,
+            dependencies: &dependencies,
+            declarations: &declarations,
+            slots: &slots,
+        };
+        let (ty, value) = emitter.expression(expression)?;
         if !assignable(ty, declaration.ty) {
             return Err("decision expression type mismatch");
         }
-        let value = match expression.node.as_ref().ok_or("missing expression node")? {
-            Node::Literal(literal) => literal_source(literal, ty)?,
-            Node::GlobalReference(reference) => {
-                let target = self::key(reference);
-                if !dependencies.contains(&target) {
-                    return Err("expression reference is not a declared dependency");
-                }
-                if declarations[&target].ty != ty {
-                    return Err("reference type mismatch");
-                }
-                format!("v{}.clone()", slots[&target])
-            }
-            _ => return Err("expression outside scalar profile"),
-        };
         writeln!(source, "    let v{} = {value};", slots[&key]).unwrap();
         writeln!(
             source,
@@ -200,6 +289,113 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     }
     source.push_str("    Ok(results)\n}\n");
     Ok(source)
+}
+
+struct ExpressionEmitter<'a, 'model> {
+    structured: bool,
+    dependencies: &'a BTreeSet<Key<'model>>,
+    declarations: &'a BTreeMap<Key<'model>, Declaration<'model>>,
+    slots: &'a BTreeMap<Key<'model>, usize>,
+}
+
+impl ExpressionEmitter<'_, '_> {
+    fn expression(&self, expression: &DmnIrExpression) -> Check<(DmnIrScalarType, String)> {
+        use DmnIrScalarType::{
+            ScalarTypeBoolean as Boolean, ScalarTypeNumber as Number, ScalarTypeString as Text,
+        };
+        use DmnIrUnaryOperator::{UnaryOperatorNegate, UnaryOperatorNot, UnaryOperatorPositive};
+
+        let ty = scalar(expression.r#type)?;
+        let value = match expression.node.as_ref().ok_or("missing expression node")? {
+            Node::Literal(literal) => literal_source(literal, ty)?,
+            Node::GlobalReference(reference) => {
+                let target = key(reference);
+                if !self.dependencies.contains(&target) {
+                    return Err("expression reference is not a declared dependency");
+                }
+                if !assignable(self.declarations[&target].ty, ty) {
+                    return Err("reference type mismatch");
+                }
+                format!("v{}.clone()", self.slots[&target])
+            }
+            Node::Unary(unary) if self.structured => {
+                let (operand_type, operand) =
+                    self.expression(unary.operand.as_deref().ok_or("missing unary operand")?)?;
+                match DmnIrUnaryOperator::try_from(unary.operator) {
+                    Ok(UnaryOperatorPositive) if ty == Number && operand_type == Number => operand,
+                    Ok(UnaryOperatorNegate) if ty == Number && operand_type == Number => {
+                        format!("negate({operand})")
+                    }
+                    Ok(UnaryOperatorNot) if ty == Boolean && assignable(operand_type, Boolean) => {
+                        format!("not({operand})")
+                    }
+                    _ => return Err("unsupported unary signature"),
+                }
+            }
+            Node::Binary(binary) if self.structured => {
+                use DmnIrBinaryOperator::*;
+                let (left_type, left) =
+                    self.expression(binary.left.as_deref().ok_or("missing left operand")?)?;
+                let (right_type, right) =
+                    self.expression(binary.right.as_deref().ok_or("missing right operand")?)?;
+                if ty != Boolean {
+                    return Err("unsupported binary signature");
+                }
+                let logical = assignable(left_type, Boolean) && assignable(right_type, Boolean);
+                let ordered = left_type == right_type && matches!(left_type, Number | Text);
+                match DmnIrBinaryOperator::try_from(binary.operator) {
+                    Ok(BinaryOperatorEqual) => format!("equal({left}, {right})"),
+                    Ok(BinaryOperatorNotEqual) => format!("not(equal({left}, {right}))"),
+                    Ok(BinaryOperatorAnd) if logical => format!("and({left}, || {right})"),
+                    Ok(BinaryOperatorOr) if logical => format!("or({left}, || {right})"),
+                    Ok(BinaryOperatorLess) if ordered => {
+                        format!("ordered({left}, {right}, Ordering::is_lt)")
+                    }
+                    Ok(BinaryOperatorLessEqual) if ordered => {
+                        format!("ordered({left}, {right}, Ordering::is_le)")
+                    }
+                    Ok(BinaryOperatorGreater) if ordered => {
+                        format!("ordered({left}, {right}, Ordering::is_gt)")
+                    }
+                    Ok(BinaryOperatorGreaterEqual) if ordered => {
+                        format!("ordered({left}, {right}, Ordering::is_ge)")
+                    }
+                    _ => return Err("unsupported binary signature"),
+                }
+            }
+            Node::Conditional(conditional) if self.structured => {
+                let (condition_type, condition) = self.expression(
+                    conditional
+                        .condition
+                        .as_deref()
+                        .ok_or("missing condition")?,
+                )?;
+                let (then_type, then_value) = self.expression(
+                    conditional
+                        .then_expression
+                        .as_deref()
+                        .ok_or("missing then expression")?,
+                )?;
+                let (else_type, else_value) = self.expression(
+                    conditional
+                        .else_expression
+                        .as_deref()
+                        .ok_or("missing else expression")?,
+                )?;
+                if !assignable(condition_type, Boolean)
+                    || !assignable(then_type, ty)
+                    || !assignable(else_type, ty)
+                {
+                    return Err("conditional type mismatch");
+                }
+                format!(
+                    "if matches!({condition}, Value::Boolean(true)) {{ {then_value} }} else {{ {else_value} }}"
+                )
+            }
+            _ => return Err("expression outside scalar profile"),
+        };
+        Ok((ty, value))
+    }
 }
 
 fn key(reference: &DmnIrReference) -> Key<'_> {

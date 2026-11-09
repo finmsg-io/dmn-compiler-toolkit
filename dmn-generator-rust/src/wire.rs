@@ -1,4 +1,4 @@
-//! Strict preflight for the admitted 0.0 shape. Prost discards unknown fields.
+//! Strict preflight for the admitted scalar shapes. Prost discards unknown fields.
 
 pub const MAX_BYTES: usize = 4 * 1024 * 1024;
 const MAX_DEPTH: usize = 32;
@@ -20,6 +20,9 @@ enum Message {
     Decision,
     Variable,
     Expression,
+    Unary,
+    Binary,
+    Conditional,
     Literal,
     Decimal,
     Reference,
@@ -57,6 +60,11 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Decision, 4) => (Nested(Expression), false, false),
         (Expression, 2) => (Nested(Literal), false, true),
         (Expression, 3) => (Nested(Reference), false, true),
+        (Expression, 4) => (Nested(Unary), false, true),
+        (Expression, 5) => (Nested(Binary), false, true),
+        (Expression, 6) => (Nested(Conditional), false, true),
+        (Unary | Binary, 1) => (Integer, false, false),
+        (Unary, 2) | (Binary, 2 | 3) | (Conditional, 1..=3) => (Nested(Expression), false, false),
         (Literal, 1) => (Integer, false, true),
         (Literal, 2) => (Boolean, false, true),
         (Literal, 3) => (Text, false, true),

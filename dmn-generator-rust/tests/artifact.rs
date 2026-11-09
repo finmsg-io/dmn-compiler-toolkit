@@ -8,9 +8,26 @@ const GENERATOR: &str = env!("CARGO_BIN_EXE_dmn-generator-rust");
 
 #[test]
 fn java_artifact_generates_deterministic_offline_rust() {
-    let directory = scratch("parity");
+    verify_parity(
+        "scalar",
+        FIXTURE,
+        include_str!("fixtures/generated_parity.rs.txt"),
+    );
+}
+
+#[test]
+fn java_expression_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "expressions",
+        include_bytes!("fixtures/comparisons-0.1.dmnir"),
+        include_str!("fixtures/expression_parity.rs.txt"),
+    );
+}
+
+fn verify_parity(label: &str, fixture: &[u8], test: &str) {
+    let directory = scratch(label);
     let artifact = directory.join("input.dmnir");
-    fs::write(&artifact, FIXTURE).unwrap();
+    fs::write(&artifact, fixture).unwrap();
     let first = directory.join("first");
     let second = directory.join("second");
     for output in [&first, &second] {
@@ -31,11 +48,7 @@ fn java_artifact_generates_deterministic_offline_rust() {
         );
     }
     fs::create_dir(first.join("tests")).unwrap();
-    fs::write(
-        first.join("tests/parity.rs"),
-        include_str!("fixtures/generated_parity.rs.txt"),
-    )
-    .unwrap();
+    fs::write(first.join("tests/parity.rs"), test).unwrap();
     let result = Command::new(env!("CARGO"))
         .args(["test", "--offline", "--quiet"])
         .current_dir(&first)
@@ -59,7 +72,7 @@ fn rejects_bad_and_unsupported_artifacts_before_writing() {
         ("truncated", [0x0a, 0x10].as_slice()),
         ("duplicate", duplicate.as_slice()),
         ("oversized", oversized.as_slice()),
-        ("higher", higher.as_slice()),
+        ("arithmetic", higher.as_slice()),
     ] {
         let artifact = directory.join(format!("{label}.dmnir"));
         let output = directory.join(label);

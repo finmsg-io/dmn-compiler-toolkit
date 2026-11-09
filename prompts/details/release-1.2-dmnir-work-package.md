@@ -2837,5 +2837,58 @@ The prototype is committed in the toolkit repository as `f381e0d`. The separate
 Rust artifact parity workflow checks out only the generator and schema trees, uses
 the matching Rust 1.99.1 container, checks that Java is absent, and runs the locked
 tests offline after fetching dependencies. The same sparse layout passed all three
-Rust tests locally on Windows with Java removed from PATH. The hosted Linux
-workflow awaits its first GitHub Actions run.
+Rust tests locally on Windows with Java removed from PATH. The prototype and CI
+commits were pushed, and the first hosted Linux workflow passed at `713f300`.
+[GitHub Actions run](https://github.com/finmsg-io/dmn-compiler-toolkit/actions/runs/42704961619)
+
+## 29. Rust scalar expression execution (R12-09b)
+
+Extend the Rust generator to the comparison and conditional subset of DMNIR 0.1.
+Reuse the existing exact `finmsg-dmnir-scalar-expressions/0` header and ordered
+`dmnir.scalar`, `dmnir.scalar-expressions` capabilities. The 0.0 producer and
+consumer contract remains available. This slice requires no new wire fields,
+dependencies, output crate API changes or publishing steps.
+
+- Admit numeric unary plus and negation, boolean `not`, scalar equality and
+  inequality, numeric and string ordering, `and`, `or`, and conditionals.
+  Match the Java verifier's admitted signatures for these operators. Reject
+  arithmetic binary operators in this first slice, including in unselected branches.
+- Compare exact decimals numerically across scales. Use the sign and digit
+  sequences with virtual zero padding, without allocating a widened decimal or
+  converting to floating point. Unary negation preserves the scale and keeps zero
+  canonical. Match Java string ordering by comparing UTF-16 code units.
+- Use the existing artifact evaluator's scalar equality semantics. Two nulls
+  compare equal, a single null compares unequal, and mismatched non-null types
+  yield null. Ordered comparisons yield null if either operand is null.
+  `and` and `or` use three-valued short-circuit logic. A conditional evaluates
+  its condition once and evaluates only the selected branch. False and null
+  conditions select the else branch.
+- Validate both operands and both branches before emitting output. Apply the
+  same depth, node, field and reference budgets to nested expressions. Reject
+  invalid signatures, missing operands, undeclared references and any structured
+  node under a 0.0 header. Keep the generated crate free of dependencies.
+- Add a Java-produced 0.1 fixture with a conditional over nullable numeric,
+  boolean and string inputs. Verify numeric equality across different scales,
+  supplementary characters in ordering, mixed-type equality, the three-valued
+  truth table, and null branch selection. Check each expected output in the
+  Java adapter and the generated Rust crate. Keep the 0.0 fixture and a rejected
+  0.1 arithmetic artifact. Verify deterministic generation and run the hosted
+  Java-free Rust parity workflow after a separately authorized push.
+
+Review covers the admitted operator subset and its observable value semantics.
+Decimal binary arithmetic and the table profile remain separate Rust slices.
+
+### Implementation and verification
+
+The generator accepts the reviewed 0.1 subset and still accepts 0.0. The Java
+fixture exporter checked all nine Boolean input pairs, exact decimal comparison
+and negation across scales, UTF-16 ordering of a supplementary character, mixed
+types and nulls. It also produced a verified wire-only unary-plus case. The
+generated Rust crates for 0.0 and 0.1 built and ran offline, and both generated
+deterministically across separate invocations.
+
+All six outer Rust tests passed on 1.99.1. They include the two generated-crate
+parity runs, dependency and schedule checks, rejected artifacts, recursive wire
+depth, and validation of an unselected branch with unsupported arithmetic. The
+hosted CI rerun for this slice is pending push. No Java, Spark or wire schema code
+changed. The full Spark checkpoint in section 27 still applies to that code.

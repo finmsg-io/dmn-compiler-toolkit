@@ -19,5 +19,3 @@ fn bind(value: &Value, expected: i32) -> Result<Value, &'static str> {
     };
     valid.then(|| value.clone()).ok_or("input type mismatch")
 }
-
-pub fn evaluate(inputs: &BTreeMap<Key<'_>, Value>) -> Result<BTreeMap<Key<'static>, Value>, &'static str> {

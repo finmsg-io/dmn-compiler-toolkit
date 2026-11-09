@@ -44,8 +44,10 @@ reactor passed 654 tests outside the TCK runner, and the full Spark TCK passed
 3,391/3,391 natively with zero fallback. Schema 0.11 was pushed as `a9472d6`.
 The first artifact-only Rust proof is implemented locally in section 28. Rust
 1.99.1 generated and ran a dependency-free crate from a bundled scalar 0.0
-artifact and matched the Java adapter outputs. Broader Rust execution and DSL
-parity remain open.
+artifact and matched the Java adapter outputs. The artifact-only CI passed on
+GitHub at `713f300`. Section 29 adds Rust support for the comparison and
+conditional subset of 0.1, with six Rust tests passing locally. Binary arithmetic,
+tables, other Rust profiles and DSL parity remain open.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome

@@ -1,0 +1,99 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+
+const NS: &str = "urn:rust-proof:expressions";
+const BOOLS: [Option<bool>; 3] = [Some(false), Some(true), None];
+const AND: [[Option<bool>; 3]; 3] = [
+    [Some(false), Some(false), Some(false)],
+    [Some(false), Some(true), None],
+    [Some(false), None, None],
+];
+const OR: [[Option<bool>; 3]; 3] = [
+    [Some(false), Some(true), None],
+    [Some(true), Some(true), Some(true)],
+    [None, Some(true), None],
+];
+
+fn boolean(value: Option<bool>) -> Value {
+    value.map_or(Value::Null, Value::Boolean)
+}
+
+fn number(coefficient: &str, scale: i32) -> Value {
+    Value::Number {
+        coefficient: coefficient.into(),
+        scale,
+    }
+}
+
+#[test]
+fn matches_java_for_exact_comparison_nulls_and_unicode() {
+    let a = number("12345678901234567890100", 3);
+    let b = number("1234567890123456789010", 2);
+    let mut inputs = BTreeMap::from([
+        ((NS, "a"), a.clone()),
+        ((NS, "b"), b.clone()),
+        ((NS, "left"), Value::Text("😀".into())),
+        ((NS, "right"), Value::Text("\u{e000}".into())),
+    ]);
+    for (left, flag) in BOOLS.into_iter().enumerate() {
+        for (right, other) in BOOLS.into_iter().enumerate() {
+            inputs.insert((NS, "flag"), boolean(flag));
+            inputs.insert((NS, "other"), boolean(other));
+            let actual = evaluate(&inputs).unwrap();
+            let expected = BTreeMap::from([
+                ((NS, "both"), boolean(AND[left][right])),
+                ((NS, "either"), boolean(OR[left][right])),
+                ((NS, "opposite"), boolean(flag.map(|value| !value))),
+                (
+                    (NS, "selected"),
+                    if flag == Some(true) {
+                        a.clone()
+                    } else {
+                        b.clone()
+                    },
+                ),
+                (
+                    (NS, "mixed"),
+                    if flag.is_none() {
+                        Value::Boolean(false)
+                    } else {
+                        Value::Null
+                    },
+                ),
+                ((NS, "equal"), Value::Boolean(true)),
+                ((NS, "different"), Value::Boolean(false)),
+                ((NS, "less"), Value::Boolean(false)),
+                ((NS, "less-equal"), Value::Boolean(true)),
+                ((NS, "greater"), Value::Boolean(false)),
+                ((NS, "greater-equal"), Value::Boolean(true)),
+                ((NS, "negated"), number("-12345678901234567890100", 3)),
+                ((NS, "positive"), a.clone()),
+                ((NS, "text-less"), Value::Boolean(true)),
+            ]);
+            assert_eq!(actual, expected);
+        }
+    }
+    inputs.insert((NS, "a"), Value::Null);
+    inputs.insert((NS, "b"), Value::Null);
+    let nulls = evaluate(&inputs).unwrap();
+    for id in ["less", "negated", "positive", "selected"] {
+        assert_eq!(nulls[&(NS, id)], Value::Null);
+    }
+    for id in ["equal", "mixed"] {
+        assert_eq!(nulls[&(NS, id)], Value::Boolean(true));
+    }
+    inputs.insert((NS, "a"), number("-1000", 0));
+    inputs.insert((NS, "b"), number("-9999", 1));
+    let negatives = evaluate(&inputs).unwrap();
+    assert_eq!(negatives[&(NS, "less")], Value::Boolean(true));
+    assert_eq!(negatives[&(NS, "different")], Value::Boolean(true));
+    assert_eq!(negatives[&(NS, "greater-equal")], Value::Boolean(false));
+    inputs.insert((NS, "a"), number("1", -4096));
+    inputs.insert((NS, "b"), number("0", 4096));
+    let extreme = evaluate(&inputs).unwrap();
+    assert_eq!(extreme[&(NS, "greater")], Value::Boolean(true));
+    inputs.insert((NS, "a"), number("0", -4096));
+    let zero = evaluate(&inputs).unwrap();
+    assert_eq!(zero[&(NS, "equal")], Value::Boolean(true));
+    assert_eq!(zero[&(NS, "negated")], number("0", -4096));
+}

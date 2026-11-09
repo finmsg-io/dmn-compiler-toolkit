@@ -1,8 +1,9 @@
 # DMNIR Rust generator
 
-This prototype consumes DMNIR 0.0 scalar artifacts. It verifies the wire and model
-graph, then writes a standalone Rust library crate. The artifact is the only model
-input to the generator.
+This prototype consumes DMNIR 0.0 scalar artifacts and the comparison and
+conditional subset of DMNIR 0.1. It verifies the wire and model graph, then
+writes a standalone Rust library crate. The artifact is the only model input
+to the generator.
 
 From this directory, use the pinned Rust 1.99.1 toolchain.
 
@@ -22,15 +23,18 @@ element ID. Provide every declared input, including explicit `Value::Null`. Deci
 results use the same namespace and element ID convention. Numeric values preserve
 the decimal coefficient string and signed scale, with no floating-point conversion.
 
-The parity test runs the generator twice on the checked-in Java-produced artifact,
-compares the generated files, and builds and executes one generated crate offline.
-`tests/fixtures/ExportFixture.java` regenerates the artifact and checks the expected
-values against the Java adapter. Run it in Java source-file mode with the
-`dmn-compiler` Maven test classpath and the fixture output path as its only argument.
+The parity tests run the generator twice on each checked-in Java-produced artifact,
+compare the generated files, and build and execute the generated crates offline.
+`tests/fixtures/ExportFixture.java` and `tests/fixtures/ExportExpressionFixture.java`
+regenerate the artifacts and check the expected values against the Java adapter.
+Run each in Java source-file mode with the `dmn-compiler` Maven test classpath and
+the fixture output path as its only argument.
 
 The `Rust artifact parity` GitHub Actions workflow runs this test in a pinned
 Rust container. It checks out the generator, fixture and schema, checks that
 Java is absent, and runs Cargo offline after fetching the locked dependencies.
 
 The verifier accepts scalar literals and resolved scalar references in bundled models.
-Later DMNIR profiles and their additional operations are outside this first slice.
+Schema 0.1 additionally admits unary plus, negation, `not`, equality and inequality,
+numeric and string ordering, `and`, `or`, and conditionals. Binary arithmetic and
+later DMNIR profiles remain outside the supported subset.
