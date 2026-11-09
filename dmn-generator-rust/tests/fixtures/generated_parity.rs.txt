@@ -1,0 +1,23 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+
+#[test]
+fn matches_java_adapter_outputs() {
+    const ROOT: &str = "urn:rust-proof:root";
+    const LIB: &str = "urn:rust-proof:lib";
+    let text = Value::Text("Grüezi 🌍\n\"FEEL\"".into());
+    let mut inputs = BTreeMap::from([((ROOT, "text"), text.clone()), ((ROOT, "amount"), Value::Null)]);
+    let exact = Value::Number {
+        coefficient: concat!("12345678901234567890", "000012500").into(),
+        scale: 9,
+    };
+    assert_eq!(evaluate(&inputs).unwrap(), BTreeMap::from([
+        ((LIB, "rate"), exact.clone()),
+        ((ROOT, "rate"), exact),
+        ((ROOT, "echo"), text),
+        ((ROOT, "nullable"), Value::Null),
+        ((ROOT, "flag"), Value::Boolean(false)),
+    ]));
+    inputs.remove(&(ROOT, "amount"));
+    assert_eq!(evaluate(&inputs), Err("missing input"));
+}

@@ -2791,3 +2791,44 @@ The separate Spark regression suites recorded 3,034 native actions (96.23%),
 Sixty failed SQL actions were counted separately. Spotless, 73 tooling tests,
 strict MkDocs and maintained documentation checks passed. This implementation
 remains local.
+
+## 28. Rust artifact-only proof (R12-09a)
+
+The user selected Rust as the next implementation target. Start with the smallest
+complete artifact-to-generated-code path, using schema 0.0. The broader Rust v0
+profile in R12-00 remains a follow-up to this proof.
+
+- Accept major 0, minor 0, semantics `finmsg-dmnir-scalar/0` and exactly
+  `dmnir.scalar`. Admit bundled models, direct imports, typed scalar literals
+  and resolved scalar references. Use namespace and element ID as public input
+  and result keys. Keep the declared decision evaluation order.
+- Preserve null, boolean, string and exact decimal coefficient and scale. This
+  slice carries decimal values and performs no arithmetic. Reject unsupported
+  profiles, malformed wire data, unresolved or undeclared references, type
+  mismatches and invalid schedules before creating generated output.
+- Use the checked-in schema as the binding source and apply wire budgets before
+  decode. Pin the Rust toolchain and any decoder or build dependencies before
+  implementation. Keep the generated crate free of protobuf and JVM dependencies.
+- Prove the path using a Java-produced 0.0 artifact and a separate Rust process
+  whose only model input is that artifact. Generate a crate, build it offline
+  and invoke its evaluator with typed inputs. Compare named outputs with the
+  existing Java artifact adapter for a bundled import, exact decimal, Unicode
+  string and explicit null. Run the generation twice and compare output bytes.
+  Include malformed, oversized and unsupported artifacts, plus a saved 0.1
+  artifact as a deliberate rejection. Keep input and result vectors reusable by
+  the DSL parity suite.
+
+The initial Rust 1.95.0 toolchain probe passed. The user then requested the latest
+stable Rust and directed implementation to continue below the usage checkpoint.
+The prototype pins Rust 1.99.1, Prost 0.14.4 and vendored Protobuf compiler package
+3.2.0, with a Cargo lockfile. [Rust 1.99.1 release announcement](https://blog.rust-lang.org/2026/10/15/Rust-1.99.1/)
+
+The Java fixture exporter produced a bundled 0.0 artifact and checked the expected
+decimal, Unicode, boolean and null outputs against the Java artifact adapter. A
+separate Rust process generated the same source twice. The generated crate compiled
+and executed offline and matched those outputs, including coefficient and scale.
+Negative tests cover duplicate and truncated wire fields, the byte budget, 0.1
+rejection, dependency order and undeclared references. See the
+[`dmn-generator-rust` README](../../dmn-generator-rust/README.md) for the build and
+fixture entry points. The broader R12-09 profile remains open. The latest full
+Spark checkpoint remains the 0.11 run in section 27.
