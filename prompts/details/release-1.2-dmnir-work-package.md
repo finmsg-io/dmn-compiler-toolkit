@@ -2832,3 +2832,10 @@ rejection, dependency order and undeclared references. See the
 [`dmn-generator-rust` README](../../dmn-generator-rust/README.md) for the build and
 fixture entry points. The broader R12-09 profile remains open. The latest full
 Spark checkpoint remains the 0.11 run in section 27.
+
+The prototype is committed in the toolkit repository as `f381e0d`. The separate
+Rust artifact parity workflow checks out only the generator and schema trees, uses
+the matching Rust 1.99.1 container, checks that Java is absent, and runs the locked
+tests offline after fetching dependencies. The same sparse layout passed all three
+Rust tests locally on Windows with Java removed from PATH. The hosted Linux
+workflow awaits its first GitHub Actions run.

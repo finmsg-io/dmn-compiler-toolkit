@@ -1,0 +1,52 @@
+name: Rust artifact parity
+
+on:
+  push:
+    paths:
+      - ".github/workflows/rust-ci.yml"
+      - "dmn-generator-rust/**"
+      - "dmn-ir-protobuf/src/main/proto/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/rust-ci.yml"
+      - "dmn-generator-rust/**"
+      - "dmn-ir-protobuf/src/main/proto/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  artifact-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: rust:1.99.1-bookworm
+    defaults:
+      run:
+        working-directory: dmn-generator-rust
+    steps:
+      - name: Check out the generator and schema
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            dmn-generator-rust
+            dmn-ir-protobuf/src/main/proto
+
+      - name: Fetch locked generator dependencies
+        run: cargo fetch --locked
+
+      - name: Verify artifact-only generation and offline execution
+        env:
+          CARGO_NET_OFFLINE: "true"
+        run: |
+          if command -v java >/dev/null 2>&1; then
+            echo "The artifact parity job requires an environment without Java." >&2
+            exit 1
+          fi
+          cargo test --locked --offline

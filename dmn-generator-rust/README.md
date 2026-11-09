@@ -28,5 +28,9 @@ compares the generated files, and builds and executes one generated crate offlin
 values against the Java adapter. Run it in Java source-file mode with the
 `dmn-compiler` Maven test classpath and the fixture output path as its only argument.
 
+The `Rust artifact parity` GitHub Actions workflow runs this test in a pinned
+Rust container. It checks out the generator, fixture and schema, checks that
+Java is absent, and runs Cargo offline after fetching the locked dependencies.
+
 The verifier accepts scalar literals and resolved scalar references in bundled models.
 Later DMNIR profiles and their additional operations are outside this first slice.
