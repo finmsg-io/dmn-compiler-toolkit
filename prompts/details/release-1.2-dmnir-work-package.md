@@ -2890,5 +2890,48 @@ deterministically across separate invocations.
 All six outer Rust tests passed on 1.99.1. They include the two generated-crate
 parity runs, dependency and schedule checks, rejected artifacts, recursive wire
 depth, and validation of an unselected branch with unsupported arithmetic. The
-hosted CI rerun for this slice is pending push. No Java, Spark or wire schema code
-changed. The full Spark checkpoint in section 27 still applies to that code.
+hosted Java-free Rust parity run passed on `a781815`. No Java, Spark or wire schema
+code changed. The full Spark checkpoint in section 27 still applies to that code.
+[GitHub Actions run](https://github.com/finmsg-io/dmn-compiler-toolkit/actions/runs/42706711804)
+
+## 30. Rust exact decimal addition and subtraction (R12-09c)
+
+Extend the admitted DMNIR 0.1 subset with `ADD` and `SUBTRACT`. Both operands and
+the result must be statically numeric. Keep the existing header, tags, input and
+result types, and dependency-free generated crate.
+
+- Evaluate operands once in source order. Return null if either value is null.
+  Compute signed decimal coefficients exactly at the greater operand scale.
+  Preserve that scale through cancellation, including a canonical zero coefficient.
+  This matches the existing Java artifact evaluator's numeric operations.
+- Validate the whole graph before generation. Track the longest chain of numeric
+  additions and subtractions through expressions and resolved decision references.
+  Take the maximum across the condition and both branches. Admit chains of at most 128
+  operations, counting only these two operators. The existing limits of 4,096
+  coefficient digits and absolute scale 4,096 bound each accepted result to
+  12,416 coefficient digits. Reject an artifact whose longest chain exceeds the
+  limit before creating output. This is a Rust admission limit.
+- Use signed digit arithmetic in the generated crate. Scale alignment, carry,
+  borrow and sign handling must avoid binary floating point. Generated conditionals
+  and Boolean operators retain their existing lazy evaluation.
+- Produce a Java-backed 0.1 fixture for chained arithmetic and a conditional that
+  compares a computed amount. Verify exact coefficient and scale for mixed scales
+  and signs, carry, borrow, cancellation, negative scales, maximum scale difference,
+  and nullable inputs. Include a dependency chain at the admission limit and one
+  beyond it. Keep the previous fixtures and an artifact with a still-unsupported
+  operator. Compare generated output bytes across invocations and run the Java-free
+  parity workflow after an authorized push.
+
+Review covers the exact arithmetic and the 128-operation chain limit.
+Multiplication, division, powers and decision tables remain separate slices.
+
+### Implementation and verification
+
+The Java exporter checked nine input pairs against its artifact adapter. The
+generated Rust crate matched all results and preserved scale, including
+cancellation and an 8,192-place scale difference. It builds and runs offline,
+with deterministic source across separate generator invocations. All nine Rust
+tests passed. The verifier accepts a 128-operation dependency chain, rejects 129,
+and rejects a separate Java-produced multiplication fixture before writing output.
+The prior addition/subtraction rejection fixture is now an acceptance case.
+The Rust changes are local.

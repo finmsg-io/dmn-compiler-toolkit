@@ -1,0 +1,105 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+
+const NS: &str = "urn:rust-proof:arithmetic";
+
+fn number(coefficient: &str, scale: i32) -> Value {
+    Value::Number {
+        coefficient: coefficient.into(),
+        scale,
+    }
+}
+
+#[test]
+fn matches_java_exactly() {
+    let wide_sum = number(&format!("1{}1", "0".repeat(8191)), 4096);
+    let wide_difference = number(&"9".repeat(8192), 4096);
+    for (a, b, sum, difference, net, select_sum) in [
+        (
+            number("99999", 2),
+            number("1", 2),
+            number("100000", 2),
+            number("99998", 2),
+            number("2", 2),
+            true,
+        ),
+        (
+            number("-120", 2),
+            number("3", 1),
+            number("-90", 2),
+            number("-150", 2),
+            number("60", 2),
+            true,
+        ),
+        (
+            number("1", 0),
+            number("-1000", 0),
+            number("-999", 0),
+            number("1001", 0),
+            number("-2000", 0),
+            false,
+        ),
+        (
+            number("12", 1),
+            number("-120", 2),
+            number("0", 2),
+            number("240", 2),
+            number("-240", 2),
+            false,
+        ),
+        (
+            number("1", -4096),
+            number("1", 4096),
+            wide_sum,
+            wide_difference,
+            number("2", 4096),
+            true,
+        ),
+        (
+            number("1", -3),
+            number("2", -2),
+            number("12", -2),
+            number("8", -2),
+            number("4", -2),
+            true,
+        ),
+        (
+            number("0", 3),
+            number("0", -2),
+            number("0", 3),
+            number("0", 3),
+            number("0", 3),
+            true,
+        ),
+        (
+            Value::Null,
+            number("12", 1),
+            Value::Null,
+            Value::Null,
+            Value::Null,
+            false,
+        ),
+        (
+            number("12", 1),
+            Value::Null,
+            Value::Null,
+            Value::Null,
+            Value::Null,
+            false,
+        ),
+    ] {
+        let input = BTreeMap::from([((NS, "a"), a), ((NS, "b"), b)]);
+        let selected = if select_sum {
+            sum.clone()
+        } else {
+            difference.clone()
+        };
+        let expected = BTreeMap::from([
+            ((NS, "sum"), sum),
+            ((NS, "difference"), difference),
+            ((NS, "net"), net),
+            ((NS, "selected"), selected),
+        ]);
+        assert_eq!(evaluate(&input).unwrap(), expected);
+    }
+}

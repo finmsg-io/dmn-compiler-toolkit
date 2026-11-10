@@ -24,6 +24,15 @@ fn java_expression_artifact_generates_deterministic_offline_rust() {
     );
 }
 
+#[test]
+fn java_arithmetic_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "arithmetic",
+        include_bytes!("fixtures/arithmetic-0.1.dmnir"),
+        include_str!("fixtures/arithmetic_parity.rs.txt"),
+    );
+}
+
 fn verify_parity(label: &str, fixture: &[u8], test: &str) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");
@@ -67,12 +76,12 @@ fn rejects_bad_and_unsupported_artifacts_before_writing() {
     let mut duplicate = FIXTURE.to_vec();
     duplicate.extend(FIXTURE);
     let oversized = vec![0; 4 * 1024 * 1024 + 1];
-    let higher = include_bytes!("fixtures/expressions-0.1.dmnir");
+    let multiplication = include_bytes!("fixtures/unsupported-multiplication-0.1.dmnir");
     for (label, bytes) in [
         ("truncated", [0x0a, 0x10].as_slice()),
         ("duplicate", duplicate.as_slice()),
         ("oversized", oversized.as_slice()),
-        ("arithmetic", higher.as_slice()),
+        ("multiplication", multiplication.as_slice()),
     ] {
         let artifact = directory.join(format!("{label}.dmnir"));
         let output = directory.join(label);

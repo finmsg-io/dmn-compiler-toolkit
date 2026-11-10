@@ -46,8 +46,10 @@ The first artifact-only Rust proof is implemented locally in section 28. Rust
 1.99.1 generated and ran a dependency-free crate from a bundled scalar 0.0
 artifact and matched the Java adapter outputs. The artifact-only CI passed on
 GitHub at `713f300`. Section 29 adds Rust support for the comparison and
-conditional subset of 0.1, with six Rust tests passing locally. Binary arithmetic,
-tables, other Rust profiles and DSL parity remain open.
+conditional subset of 0.1, pushed as `a781815` with hosted Rust parity passing.
+Section 30 adds exact Rust addition and subtraction with nine Rust tests passing
+locally. Multiplication, division, powers, tables, other Rust profiles and DSL
+parity remain open.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome
