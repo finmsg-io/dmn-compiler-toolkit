@@ -1,4 +1,4 @@
-use crate::bounds::{MAX_LIMB_PRODUCTS, NumericBounds};
+use crate::bounds::{MAX_DIVISION_LIMB_VISITS, MAX_LIMB_PRODUCTS, NumericBounds};
 use crate::decimal;
 use crate::proto::*;
 use dmn_ir_expression::Node;
@@ -67,7 +67,7 @@ mod tests {
         conditional.else_expression = Some(Box::new(DmnIrExpression {
             r#type: DmnIrScalarType::ScalarTypeNumber as i32,
             node: Some(Node::Binary(Box::new(DmnIrBinaryExpression {
-                operator: DmnIrBinaryOperator::BinaryOperatorDivide as i32,
+                operator: DmnIrBinaryOperator::BinaryOperatorPower as i32,
                 left: original.clone(),
                 right: original,
             }))),
@@ -166,6 +166,7 @@ mod tests {
         for bytes in [
             include_bytes!("../tests/fixtures/expressions-0.1.dmnir").as_slice(),
             include_bytes!("../tests/fixtures/unsupported-multiplication-0.1.dmnir").as_slice(),
+            include_bytes!("../tests/fixtures/unsupported-division-0.1.dmnir").as_slice(),
         ] {
             crate::wire::verify(bytes).unwrap();
             let artifact = DmnIrArtifact::decode(bytes).unwrap();
@@ -227,19 +228,77 @@ mod tests {
     #[test]
     fn bounds_total_multiplication_work_across_decisions() {
         let bytes = include_bytes!("../tests/fixtures/multiplication-0.1.dmnir");
-        let mut artifact = DmnIrArtifact::decode(bytes.as_slice()).unwrap();
+        let mut artifact = repeated_decisions(bytes, "product", 41);
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("decimal multiplication work bound exceeds 8388608 limb products")
+        );
+        artifact.models[0].decisions.pop();
+        artifact.evaluation_order.pop();
+        assert!(verify_and_generate(&artifact).is_ok());
+    }
+
+    #[test]
+    fn bounds_total_division_work_across_decisions() {
+        let bytes = include_bytes!("../tests/fixtures/division-0.1.dmnir");
+        let mut artifact = repeated_decisions(bytes, "quotient", 26);
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("decimal division work bound exceeds 8388608 limb visits")
+        );
+        artifact.models[0].decisions.pop();
+        artifact.evaluation_order.pop();
+        assert!(verify_and_generate(&artifact).is_ok());
+    }
+
+    #[test]
+    fn bounds_division_scale_in_unselected_branch() {
+        let mut artifact = expressions();
+        let conditional = selected(&mut artifact);
+        let a = conditional
+            .then_expression
+            .as_ref()
+            .unwrap()
+            .as_ref()
+            .clone();
+        let b = conditional
+            .else_expression
+            .as_ref()
+            .unwrap()
+            .as_ref()
+            .clone();
+        let divide = |left, right| binary(DmnIrBinaryOperator::BinaryOperatorDivide, left, right);
+        conditional.condition = Some(Box::new(DmnIrExpression {
+            r#type: DmnIrScalarType::ScalarTypeBoolean as i32,
+            node: Some(Node::Literal(DmnIrLiteral {
+                value: Some(Value::BooleanValue(true)),
+            })),
+            ..Default::default()
+        }));
+        let quotient = divide(a, b);
+        let second = divide(quotient.clone(), quotient);
+        conditional.else_expression = Some(Box::new(second.clone()));
+        assert!(verify_and_generate(&artifact).is_ok());
+        selected(&mut artifact).else_expression = Some(Box::new(divide(second.clone(), second)));
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("decimal division scale bound exceeds 32768")
+        );
+    }
+
+    fn repeated_decisions(bytes: &[u8], template: &str, count: usize) -> DmnIrArtifact {
+        let mut artifact = DmnIrArtifact::decode(bytes).unwrap();
         let model = &mut artifact.models[0];
         let product = model
             .decisions
             .iter()
-            .find(|decision| decision.identity.as_ref().unwrap().id == "product")
+            .find(|decision| decision.identity.as_ref().unwrap().id == template)
             .unwrap()
             .clone();
         model.decisions.clear();
         artifact.evaluation_order.clear();
-        // Each input can require ceil(4096 / 9) limbs. Forty products fit the work budget.
-        for index in 0..41 {
-            let id = format!("product-{index}");
+        for index in 0..count {
+            let id = format!("{template}-{index}");
             let mut decision = product.clone();
             let identity = decision.identity.as_mut().unwrap();
             identity.id = id.clone();
@@ -251,13 +310,7 @@ mod tests {
                 element_id: id,
             });
         }
-        assert_eq!(
-            verify_and_generate(&artifact),
-            Err("decimal multiplication work bound exceeds 8388608 limb products")
-        );
-        artifact.models[0].decisions.pop();
-        artifact.evaluation_order.pop();
-        assert!(verify_and_generate(&artifact).is_ok());
+        artifact
     }
 
     fn decimal_literal(coefficient: String) -> DmnIrExpression {
@@ -274,10 +327,18 @@ mod tests {
     }
 
     fn multiply(left: DmnIrExpression, right: DmnIrExpression) -> DmnIrExpression {
+        binary(DmnIrBinaryOperator::BinaryOperatorMultiply, left, right)
+    }
+
+    fn binary(
+        operator: DmnIrBinaryOperator,
+        left: DmnIrExpression,
+        right: DmnIrExpression,
+    ) -> DmnIrExpression {
         DmnIrExpression {
             r#type: DmnIrScalarType::ScalarTypeNumber as i32,
             node: Some(Node::Binary(Box::new(DmnIrBinaryExpression {
-                operator: DmnIrBinaryOperator::BinaryOperatorMultiply as i32,
+                operator: operator as i32,
                 left: Some(Box::new(left)),
                 right: Some(Box::new(right)),
             }))),
@@ -402,12 +463,14 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     source.push_str(include_str!("generated_prelude.rs.txt"));
     if structured {
         source.push_str(include_str!("generated_expressions.rs.txt"));
+        source.push_str(include_str!("generated_division.rs.txt"));
     }
     source.push_str("pub fn evaluate(inputs: &BTreeMap<Key<'_>, Value>) -> Result<BTreeMap<Key<'static>, Value>, &'static str> {\n");
     let mut ready = BTreeSet::new();
     let mut numeric_bounds = BTreeMap::new();
     let mut arithmetic_depths = BTreeMap::new();
     let mut limb_products = 0;
+    let mut division_limb_visits = 0;
     for (&key, declaration) in &declarations {
         if declaration.decision.is_none() {
             ready.insert(key);
@@ -459,6 +522,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             arithmetic_depths: &arithmetic_depths,
             numeric_bounds: &numeric_bounds,
             limb_products: &mut limb_products,
+            division_limb_visits: &mut division_limb_visits,
         };
         let Emitted {
             ty,
@@ -496,6 +560,7 @@ struct ExpressionEmitter<'a, 'model> {
     arithmetic_depths: &'a BTreeMap<Key<'model>, usize>,
     numeric_bounds: &'a BTreeMap<Key<'model>, NumericBounds>,
     limb_products: &'a mut usize,
+    division_limb_visits: &'a mut usize,
 }
 
 struct Emitted {
@@ -595,6 +660,18 @@ impl ExpressionEmitter<'_, '_> {
                             }
                         }
                         format!("multiply({left}, {right})")
+                    }
+                    Ok(BinaryOperatorDivide) if numeric => {
+                        if let Some((a, b)) = left_bounds.zip(right_bounds) {
+                            bounds = a.quotient(b);
+                            *self.division_limb_visits += a.division_limb_visits(b);
+                            if *self.division_limb_visits > MAX_DIVISION_LIMB_VISITS {
+                                return Err(
+                                    "decimal division work bound exceeds 8388608 limb visits",
+                                );
+                            }
+                        }
+                        format!("divide({left}, {right})")
                     }
                     _ if ty != Boolean => return Err("unsupported binary signature"),
                     Ok(BinaryOperatorEqual) => format!("equal({left}, {right})"),

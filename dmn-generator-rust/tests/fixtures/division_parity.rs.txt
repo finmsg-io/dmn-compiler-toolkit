@@ -1,0 +1,29 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+
+fn value(text: &str) -> Value {
+    if text == "null" {
+        return Value::Null;
+    }
+    let (coefficient, scale) = text.split_once('@').unwrap();
+    Value::Number {
+        coefficient: coefficient.into(),
+        scale: scale.parse().unwrap(),
+    }
+}
+
+#[test]
+fn matches_java_decimal128_quotients_and_scales() {
+    const NS: &str = "urn:rust-proof:division";
+    for (index, line) in include_str!("division_vectors.tsv").lines().enumerate() {
+        let fields: Vec<_> = line.split('\t').map(value).collect();
+        let [a, b, quotient, adjusted, mixed] = fields.try_into().unwrap();
+        let actual = evaluate(&BTreeMap::from([((NS, "a"), a), ((NS, "b"), b)])).unwrap();
+        let expected = BTreeMap::from([
+            ((NS, "quotient"), quotient),
+            ((NS, "adjusted"), adjusted),
+            ((NS, "mixed"), mixed),
+        ]);
+        assert_eq!(actual, expected, "Java fixture vector {}", index + 1);
+    }
+}

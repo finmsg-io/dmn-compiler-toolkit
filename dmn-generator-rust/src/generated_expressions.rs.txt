@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 
+const DECIMAL_LIMB_BASE: u64 = 1_000_000_000;
+
 fn decimal_arithmetic(left: Value, right: Value, subtract: bool) -> Value {
     let (
         Value::Number {
@@ -75,8 +77,6 @@ fn aligned_digits(digits: &str, padding: usize) -> impl Iterator<Item = i8> + '_
 
 fn multiply(left: Value, right: Value) -> Value {
     use std::fmt::Write as _;
-    const BASE: u64 = 1_000_000_000;
-
     let (
         Value::Number {
             coefficient: left,
@@ -105,8 +105,8 @@ fn multiply(left: Value, right: Value) -> Value {
         let mut carry = 0;
         for (j, b) in right.iter().enumerate() {
             let value = a * b + product[i + j] + carry;
-            product[i + j] = value % BASE;
-            carry = value / BASE;
+            product[i + j] = value % DECIMAL_LIMB_BASE;
+            carry = value / DECIMAL_LIMB_BASE;
         }
         product[i + right.len()] = carry;
     }

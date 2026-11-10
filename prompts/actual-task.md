@@ -49,8 +49,10 @@ GitHub at `713f300`. Section 29 adds Rust support for the comparison and
 conditional subset of 0.1, pushed as `a781815` with hosted Rust parity passing.
 Section 30 adds exact Rust addition and subtraction, pushed as `5872c59`.
 All nine Rust tests and hosted Rust parity passed. Section 31 adds exact Rust
-multiplication, verified locally with 13 Rust tests passing. Division, powers,
-tables, other Rust profiles and DSL parity remain open.
+multiplication, pushed as `d21c51a` with 13 Rust tests and hosted parity passing.
+Section 32 adds Rust DECIMAL128 division, verified locally with 16 tests and
+118 Java parity vectors. Powers, tables, other Rust profiles and DSL parity
+remain open.
 Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
 
 ## Requested outcome

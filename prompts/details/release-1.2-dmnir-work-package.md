@@ -2992,5 +2992,60 @@ Separate tests verify the accepted edges and rejection beyond all three
 multiplication limits, including a product in an unselected branch. A
 Java-produced division artifact remains rejected before output is created.
 All 13 Rust tests passed locally, including deterministic generation and offline
-execution. Hosted parity awaits a push. Spark production code is unchanged from
-the full checkpoint in section 30.
+execution. The multiplication slice was pushed as `d21c51a` and hosted parity passed.
+Spark production code is unchanged from the full checkpoint in section 30.
+[GitHub Actions run](https://github.com/finmsg-io/dmn-compiler-toolkit/actions/runs/42893434594)
+
+## 32. Rust DECIMAL128 division (R12-09e)
+
+Admit numeric `DIVIDE` in the Rust subset of schema 0.1. Keep the wire header,
+tags, typed input and result API, and dependency-free generated crate. Evaluate
+both operands once in order. A null operand or a zero divisor yields null.
+
+- Match the Java artifact evaluator's `BigDecimal.divide` with
+  `MathContext.DECIMAL128`. Round inexact results to 34 significant digits using
+  half-even rounding. For an exact quotient, preserve the scale closest to the
+  dividend scale minus the divisor scale that represents the value within the
+  precision. A zero dividend uses the preferred scale. Compare results by
+  coefficient and scale. [BigDecimal](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/math/BigDecimal.html)
+  [MathContext](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/math/MathContext.html)
+- Use unsigned decimal limb long division. Align coefficient lengths with
+  virtual decimal zeros and track the signed scale separately. Produce at most
+  34 significant digits and one guard digit. Use the final remainder to distinguish
+  a tie from a discarded nonzero tail. Handle a rounding carry that adds a leading
+  digit and retain preferred-scale trailing zeros when precision permits.
+- Bound division before generation. For operand coefficient bounds `L` and `R`,
+  extend the preferred-scale interval downward by `L` and upward by `33 + R`
+  to cover the possible quotient scale. Admit a quotient only when that interval
+  fits absolute scale 32,768. Track its at-most-34-digit coefficient and conservative
+  magnitude through references and conditional branches. Additive expressions
+  and conditionals receiving a division result may carry scales through 32,768
+  within the existing 32,768-digit coefficient and 128-operation additive limits.
+  Multiplication retains its 8,192-scale and existing work limits.
+- Charge each division `720 × ceil((max(L, R) + 2) / 9)` limb visits, based on the
+  aligned remainder width and at most 35 quotient digits. Reject before output
+  if the artifact-wide sum exceeds 8,388,608 visits. Include division nodes in
+  unselected branches. Keep this budget separate from multiplication work.
+- Verify Java and offline generated Rust parity on terminating quotients,
+  preferred-scale examples, repeating quotients, half-even ties with even and
+  odd retained digits, sticky remainders, leading carry, extreme scales, zero,
+  null, signs, and division mixed with prior operations. Include generated
+  boundary vectors and a power artifact as the next rejection fixture.
+
+Review covers DECIMAL128 scale and rounding semantics and the new division
+admission limits. Powers and decision tables remain separate slices.
+
+### Implementation and verification
+
+The Rust generator emits dependency-free decimal long division. It tracks a
+guard digit and sticky remainder, preserves preferred scale for exact quotients
+where precision permits, and returns null for a null operand or zero divisor.
+The verifier checks scale and total division work before writing output.
+
+The Java fixture exporter checked 118 vectors against the artifact adapter and
+wrote exact coefficient and scale expectations. Offline generated Rust matched
+them all. The vectors include half-even ties, leading carry, repeating and
+terminating quotients, mixed arithmetic, nulls, and extreme scales. The generator
+produced identical output across separate invocations. All 16 Rust tests passed,
+including division work and scale rejection and the unsupported power fixture.
+The implementation is local.

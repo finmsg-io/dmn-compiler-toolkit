@@ -26,13 +26,15 @@ the decimal coefficient string and signed scale, with no floating-point conversi
 The parity tests run the generator twice on each checked-in Java-produced artifact,
 compare the generated files, and build and execute the generated crates offline.
 `tests/fixtures/ExportFixture.java`, `tests/fixtures/ExportExpressionFixture.java`,
-`tests/fixtures/ExportArithmeticFixture.java`, and
-`tests/fixtures/ExportMultiplicationFixture.java` regenerate the artifacts and check
+`tests/fixtures/ExportArithmeticFixture.java`, `tests/fixtures/ExportMultiplicationFixture.java`,
+and `tests/fixtures/ExportDivisionFixture.java` regenerate the artifacts and check
 the expected values against the Java adapter.
 Run each in Java source-file mode with the `dmn-compiler` Maven test classpath and
 the fixture output path as the first argument. The arithmetic exporter accepts
 a second output path for the historical multiplication fixture. The multiplication
-exporter requires a second output path for the unsupported division fixture.
+exporter requires a second output path for the historical division fixture. The
+division exporter takes the artifact path, a TSV path for the expected Java
+vectors, and a path for the unsupported power artifact.
 
 The `Rust artifact parity` GitHub Actions workflow runs this test in a pinned
 Rust container. It checks out the generator, fixture and schema, checks that
@@ -41,9 +43,11 @@ Java is absent, and runs Cargo offline after fetching the locked dependencies.
 The verifier accepts scalar literals and resolved scalar references in bundled models.
 Schema 0.1 additionally admits unary plus, negation, `not`, equality and inequality,
 numeric and string ordering, `and`, `or`, conditionals, and numeric addition,
-subtraction, and multiplication. Addition and subtraction use the greater
-operand scale. Multiplication adds the operand scales. All three propagate nulls.
+subtraction, multiplication, and division. Addition and subtraction use the greater
+operand scale. Multiplication adds the operand scales. Division uses DECIMAL128
+rounding and returns null for a zero divisor. All four propagate nulls.
 The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient
-digits, absolute scale 8,192, or 8,388,608 base-10⁹ limb products.
-Division, powers, and later DMNIR profiles remain outside the supported subset.
+digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
+Division has a separate 8,388,608-limb-visit budget and permits division-derived
+scales through 32,768. Powers and later DMNIR profiles remain outside the subset.

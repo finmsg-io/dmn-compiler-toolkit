@@ -12,6 +12,7 @@ fn java_artifact_generates_deterministic_offline_rust() {
         "scalar",
         FIXTURE,
         include_str!("fixtures/generated_parity.rs.txt"),
+        &[],
     );
 }
 
@@ -21,6 +22,7 @@ fn java_expression_artifact_generates_deterministic_offline_rust() {
         "expressions",
         include_bytes!("fixtures/comparisons-0.1.dmnir"),
         include_str!("fixtures/expression_parity.rs.txt"),
+        &[],
     );
 }
 
@@ -30,6 +32,7 @@ fn java_arithmetic_artifact_generates_deterministic_offline_rust() {
         "arithmetic",
         include_bytes!("fixtures/arithmetic-0.1.dmnir"),
         include_str!("fixtures/arithmetic_parity.rs.txt"),
+        &[],
     );
 }
 
@@ -39,10 +42,24 @@ fn java_multiplication_artifact_generates_deterministic_offline_rust() {
         "multiplication",
         include_bytes!("fixtures/multiplication-0.1.dmnir"),
         include_str!("fixtures/multiplication_parity.rs.txt"),
+        &[],
     );
 }
 
-fn verify_parity(label: &str, fixture: &[u8], test: &str) {
+#[test]
+fn java_division_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "division",
+        include_bytes!("fixtures/division-0.1.dmnir"),
+        include_str!("fixtures/division_parity.rs.txt"),
+        &[(
+            "division_vectors.tsv",
+            include_str!("fixtures/division_vectors.tsv"),
+        )],
+    );
+}
+
+fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");
     fs::write(&artifact, fixture).unwrap();
@@ -67,6 +84,9 @@ fn verify_parity(label: &str, fixture: &[u8], test: &str) {
     }
     fs::create_dir(first.join("tests")).unwrap();
     fs::write(first.join("tests/parity.rs"), test).unwrap();
+    for (name, content) in data {
+        fs::write(first.join("tests").join(name), content).unwrap();
+    }
     let result = Command::new(env!("CARGO"))
         .args(["test", "--offline", "--quiet"])
         .current_dir(&first)
@@ -85,12 +105,12 @@ fn rejects_bad_and_unsupported_artifacts_before_writing() {
     let mut duplicate = FIXTURE.to_vec();
     duplicate.extend(FIXTURE);
     let oversized = vec![0; 4 * 1024 * 1024 + 1];
-    let division = include_bytes!("fixtures/unsupported-division-0.1.dmnir");
+    let power = include_bytes!("fixtures/unsupported-power-0.1.dmnir");
     for (label, bytes) in [
         ("truncated", [0x0a, 0x10].as_slice()),
         ("duplicate", duplicate.as_slice()),
         ("oversized", oversized.as_slice()),
-        ("division", division.as_slice()),
+        ("power", power.as_slice()),
     ] {
         let artifact = directory.join(format!("{label}.dmnir"));
         let output = directory.join(label);
