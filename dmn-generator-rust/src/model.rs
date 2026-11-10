@@ -1,3 +1,4 @@
+use crate::bounds::{MAX_LIMB_PRODUCTS, NumericBounds};
 use crate::decimal;
 use crate::proto::*;
 use dmn_ir_expression::Node;
@@ -66,7 +67,7 @@ mod tests {
         conditional.else_expression = Some(Box::new(DmnIrExpression {
             r#type: DmnIrScalarType::ScalarTypeNumber as i32,
             node: Some(Node::Binary(Box::new(DmnIrBinaryExpression {
-                operator: DmnIrBinaryOperator::BinaryOperatorMultiply as i32,
+                operator: DmnIrBinaryOperator::BinaryOperatorDivide as i32,
                 left: original.clone(),
                 right: original,
             }))),
@@ -162,10 +163,126 @@ mod tests {
 
     #[test]
     fn admits_the_previous_arithmetic_rejection_fixture() {
-        let bytes = include_bytes!("../tests/fixtures/expressions-0.1.dmnir");
-        crate::wire::verify(bytes).unwrap();
-        let artifact = DmnIrArtifact::decode(bytes.as_slice()).unwrap();
+        for bytes in [
+            include_bytes!("../tests/fixtures/expressions-0.1.dmnir").as_slice(),
+            include_bytes!("../tests/fixtures/unsupported-multiplication-0.1.dmnir").as_slice(),
+        ] {
+            crate::wire::verify(bytes).unwrap();
+            let artifact = DmnIrArtifact::decode(bytes).unwrap();
+            assert!(verify_and_generate(&artifact).is_ok());
+        }
+    }
+
+    #[test]
+    fn bounds_product_scale_in_an_unselected_branch() {
+        let mut artifact = expressions();
+        let conditional = selected(&mut artifact);
+        let a = conditional
+            .then_expression
+            .as_ref()
+            .unwrap()
+            .as_ref()
+            .clone();
+        let b = conditional
+            .else_expression
+            .as_ref()
+            .unwrap()
+            .as_ref()
+            .clone();
+        conditional.condition = Some(Box::new(DmnIrExpression {
+            r#type: DmnIrScalarType::ScalarTypeBoolean as i32,
+            node: Some(Node::Literal(DmnIrLiteral {
+                value: Some(Value::BooleanValue(true)),
+            })),
+            ..Default::default()
+        }));
+        let product = multiply(a.clone(), b);
+        conditional.else_expression = Some(Box::new(product.clone()));
         assert!(verify_and_generate(&artifact).is_ok());
+        selected(&mut artifact).else_expression = Some(Box::new(multiply(product, a)));
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("decimal scale bound exceeds 8192")
+        );
+    }
+
+    #[test]
+    fn bounds_product_coefficient_digits() {
+        let mut artifact = expressions();
+        let mut expression = decimal_literal("9".repeat(4096));
+        for _ in 0..3 {
+            expression = multiply(expression.clone(), expression);
+        }
+        selected(&mut artifact).then_expression = Some(Box::new(expression.clone()));
+        assert!(crate::wire::verify(&artifact.encode_to_vec()).is_ok());
+        assert!(verify_and_generate(&artifact).is_ok());
+        selected(&mut artifact).then_expression =
+            Some(Box::new(multiply(expression, decimal_literal("9".into()))));
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("decimal coefficient bound exceeds 32768 digits")
+        );
+    }
+
+    #[test]
+    fn bounds_total_multiplication_work_across_decisions() {
+        let bytes = include_bytes!("../tests/fixtures/multiplication-0.1.dmnir");
+        let mut artifact = DmnIrArtifact::decode(bytes.as_slice()).unwrap();
+        let model = &mut artifact.models[0];
+        let product = model
+            .decisions
+            .iter()
+            .find(|decision| decision.identity.as_ref().unwrap().id == "product")
+            .unwrap()
+            .clone();
+        model.decisions.clear();
+        artifact.evaluation_order.clear();
+        // Each input can require ceil(4096 / 9) limbs. Forty products fit the work budget.
+        for index in 0..41 {
+            let id = format!("product-{index}");
+            let mut decision = product.clone();
+            let identity = decision.identity.as_mut().unwrap();
+            identity.id = id.clone();
+            identity.name = id.clone();
+            decision.variable.as_mut().unwrap().name = id.clone();
+            model.decisions.push(decision);
+            artifact.evaluation_order.push(DmnIrReference {
+                model_namespace: model.namespace.clone(),
+                element_id: id,
+            });
+        }
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("decimal multiplication work bound exceeds 8388608 limb products")
+        );
+        artifact.models[0].decisions.pop();
+        artifact.evaluation_order.pop();
+        assert!(verify_and_generate(&artifact).is_ok());
+    }
+
+    fn decimal_literal(coefficient: String) -> DmnIrExpression {
+        DmnIrExpression {
+            r#type: DmnIrScalarType::ScalarTypeNumber as i32,
+            node: Some(Node::Literal(DmnIrLiteral {
+                value: Some(Value::NumberValue(DmnIrDecimal {
+                    unscaled_value: coefficient,
+                    scale: Some(0),
+                })),
+            })),
+            ..Default::default()
+        }
+    }
+
+    fn multiply(left: DmnIrExpression, right: DmnIrExpression) -> DmnIrExpression {
+        DmnIrExpression {
+            r#type: DmnIrScalarType::ScalarTypeNumber as i32,
+            node: Some(Node::Binary(Box::new(DmnIrBinaryExpression {
+                operator: DmnIrBinaryOperator::BinaryOperatorMultiply as i32,
+                left: Some(Box::new(left)),
+                right: Some(Box::new(right)),
+            }))),
+            ..Default::default()
+        }
     }
 
     fn expressions() -> DmnIrArtifact {
@@ -288,10 +405,15 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     }
     source.push_str("pub fn evaluate(inputs: &BTreeMap<Key<'_>, Value>) -> Result<BTreeMap<Key<'static>, Value>, &'static str> {\n");
     let mut ready = BTreeSet::new();
+    let mut numeric_bounds = BTreeMap::new();
     let mut arithmetic_depths = BTreeMap::new();
+    let mut limb_products = 0;
     for (&key, declaration) in &declarations {
         if declaration.decision.is_none() {
             ready.insert(key);
+            if declaration.ty == DmnIrScalarType::ScalarTypeNumber {
+                numeric_bounds.insert(key, NumericBounds::INPUT);
+            }
             writeln!(
                 source,
                 "    let v{} = bind(inputs.get(&{key:?}).ok_or(\"missing input\")?, {})?;",
@@ -329,18 +451,28 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             .expression
             .as_ref()
             .ok_or("missing decision expression")?;
-        let emitter = ExpressionEmitter {
+        let mut emitter = ExpressionEmitter {
             structured,
             dependencies: &dependencies,
             declarations: &declarations,
             slots: &slots,
             arithmetic_depths: &arithmetic_depths,
+            numeric_bounds: &numeric_bounds,
+            limb_products: &mut limb_products,
         };
-        let (ty, value, depth) = emitter.expression(expression)?;
+        let Emitted {
+            ty,
+            value,
+            depth,
+            bounds,
+        } = emitter.expression(expression)?;
         if !assignable(ty, declaration.ty) {
             return Err("decision expression type mismatch");
         }
         arithmetic_depths.insert(key, depth);
+        if let Some(bounds) = bounds {
+            numeric_bounds.insert(key, bounds);
+        }
         writeln!(source, "    let v{} = {value};", slots[&key]).unwrap();
         writeln!(
             source,
@@ -362,10 +494,19 @@ struct ExpressionEmitter<'a, 'model> {
     declarations: &'a BTreeMap<Key<'model>, Declaration<'model>>,
     slots: &'a BTreeMap<Key<'model>, usize>,
     arithmetic_depths: &'a BTreeMap<Key<'model>, usize>,
+    numeric_bounds: &'a BTreeMap<Key<'model>, NumericBounds>,
+    limb_products: &'a mut usize,
+}
+
+struct Emitted {
+    ty: DmnIrScalarType,
+    value: String,
+    depth: usize,
+    bounds: Option<NumericBounds>,
 }
 
 impl ExpressionEmitter<'_, '_> {
-    fn expression(&self, expression: &DmnIrExpression) -> Check<(DmnIrScalarType, String, usize)> {
+    fn expression(&mut self, expression: &DmnIrExpression) -> Check<Emitted> {
         use DmnIrScalarType::{
             ScalarTypeBoolean as Boolean, ScalarTypeNumber as Number, ScalarTypeString as Text,
         };
@@ -373,8 +514,13 @@ impl ExpressionEmitter<'_, '_> {
 
         let ty = scalar(expression.r#type)?;
         let mut depth = 0;
+        let mut bounds = None;
         let value = match expression.node.as_ref().ok_or("missing expression node")? {
-            Node::Literal(literal) => literal_source(literal, ty)?,
+            Node::Literal(literal) => {
+                let (source, literal_bounds) = literal_source(literal, ty)?;
+                bounds = literal_bounds;
+                source
+            }
             Node::GlobalReference(reference) => {
                 let target = key(reference);
                 if !self.dependencies.contains(&target) {
@@ -384,15 +530,24 @@ impl ExpressionEmitter<'_, '_> {
                     return Err("reference type mismatch");
                 }
                 depth = self.arithmetic_depths.get(&target).copied().unwrap_or(0);
+                bounds = self.numeric_bounds.get(&target).copied();
                 format!("v{}.clone()", self.slots[&target])
             }
             Node::Unary(unary) if self.structured => {
-                let (operand_type, operand, operand_depth) =
-                    self.expression(unary.operand.as_deref().ok_or("missing unary operand")?)?;
+                let Emitted {
+                    ty: operand_type,
+                    value: operand,
+                    depth: operand_depth,
+                    bounds: operand_bounds,
+                } = self.expression(unary.operand.as_deref().ok_or("missing unary operand")?)?;
                 depth = operand_depth;
                 match DmnIrUnaryOperator::try_from(unary.operator) {
-                    Ok(UnaryOperatorPositive) if ty == Number && operand_type == Number => operand,
+                    Ok(UnaryOperatorPositive) if ty == Number && operand_type == Number => {
+                        bounds = operand_bounds;
+                        operand
+                    }
                     Ok(UnaryOperatorNegate) if ty == Number && operand_type == Number => {
+                        bounds = operand_bounds;
                         format!("negate({operand})")
                     }
                     Ok(UnaryOperatorNot) if ty == Boolean && assignable(operand_type, Boolean) => {
@@ -403,23 +558,43 @@ impl ExpressionEmitter<'_, '_> {
             }
             Node::Binary(binary) if self.structured => {
                 use DmnIrBinaryOperator::*;
-                let (left_type, left, left_depth) =
-                    self.expression(binary.left.as_deref().ok_or("missing left operand")?)?;
-                let (right_type, right, right_depth) =
-                    self.expression(binary.right.as_deref().ok_or("missing right operand")?)?;
+                let Emitted {
+                    ty: left_type,
+                    value: left,
+                    depth: left_depth,
+                    bounds: left_bounds,
+                } = self.expression(binary.left.as_deref().ok_or("missing left operand")?)?;
+                let Emitted {
+                    ty: right_type,
+                    value: right,
+                    depth: right_depth,
+                    bounds: right_bounds,
+                } = self.expression(binary.right.as_deref().ok_or("missing right operand")?)?;
                 depth = left_depth.max(right_depth);
                 let logical = assignable(left_type, Boolean) && assignable(right_type, Boolean);
                 let ordered = left_type == right_type && matches!(left_type, Number | Text);
+                let numeric = ty == Number && left_type == Number && right_type == Number;
                 match DmnIrBinaryOperator::try_from(binary.operator) {
-                    Ok(op @ (BinaryOperatorAdd | BinaryOperatorSubtract))
-                        if ty == Number && left_type == Number && right_type == Number =>
-                    {
+                    Ok(op @ (BinaryOperatorAdd | BinaryOperatorSubtract)) if numeric => {
                         depth += 1;
                         if depth > MAX_ARITHMETIC_CHAIN {
                             return Err("decimal arithmetic chain exceeds 128 operations");
                         }
+                        bounds = left_bounds.zip(right_bounds).map(|(a, b)| a.sum(b));
                         let subtract = op == BinaryOperatorSubtract;
                         format!("decimal_arithmetic({left}, {right}, {subtract})")
+                    }
+                    Ok(BinaryOperatorMultiply) if numeric => {
+                        if let Some((a, b)) = left_bounds.zip(right_bounds) {
+                            bounds = Some(a.product(b));
+                            *self.limb_products += a.limb_products(b);
+                            if *self.limb_products > MAX_LIMB_PRODUCTS {
+                                return Err(
+                                    "decimal multiplication work bound exceeds 8388608 limb products",
+                                );
+                            }
+                        }
+                        format!("multiply({left}, {right})")
                     }
                     _ if ty != Boolean => return Err("unsupported binary signature"),
                     Ok(BinaryOperatorEqual) => format!("equal({left}, {right})"),
@@ -442,19 +617,34 @@ impl ExpressionEmitter<'_, '_> {
                 }
             }
             Node::Conditional(conditional) if self.structured => {
-                let (condition_type, condition, condition_depth) = self.expression(
+                let Emitted {
+                    ty: condition_type,
+                    value: condition,
+                    depth: condition_depth,
+                    ..
+                } = self.expression(
                     conditional
                         .condition
                         .as_deref()
                         .ok_or("missing condition")?,
                 )?;
-                let (then_type, then_value, then_depth) = self.expression(
+                let Emitted {
+                    ty: then_type,
+                    value: then_value,
+                    depth: then_depth,
+                    bounds: then_bounds,
+                } = self.expression(
                     conditional
                         .then_expression
                         .as_deref()
                         .ok_or("missing then expression")?,
                 )?;
-                let (else_type, else_value, else_depth) = self.expression(
+                let Emitted {
+                    ty: else_type,
+                    value: else_value,
+                    depth: else_depth,
+                    bounds: else_bounds,
+                } = self.expression(
                     conditional
                         .else_expression
                         .as_deref()
@@ -467,13 +657,25 @@ impl ExpressionEmitter<'_, '_> {
                     return Err("conditional type mismatch");
                 }
                 depth = condition_depth.max(then_depth).max(else_depth);
+                bounds = match (then_bounds, else_bounds) {
+                    (Some(a), Some(b)) => Some(a.join(b)),
+                    (a, b) => a.or(b),
+                };
                 format!(
                     "if matches!({condition}, Value::Boolean(true)) {{ {then_value} }} else {{ {else_value} }}"
                 )
             }
             _ => return Err("expression outside scalar profile"),
         };
-        Ok((ty, value, depth))
+        if let Some(bounds) = bounds {
+            bounds.verify()?;
+        }
+        Ok(Emitted {
+            ty,
+            value,
+            depth,
+            bounds,
+        })
     }
 }
 
@@ -514,8 +716,12 @@ fn assignable(actual: DmnIrScalarType, expected: DmnIrScalarType) -> bool {
     actual == expected || actual == DmnIrScalarType::ScalarTypeNull
 }
 
-fn literal_source(literal: &DmnIrLiteral, expected: DmnIrScalarType) -> Check<String> {
+fn literal_source(
+    literal: &DmnIrLiteral,
+    expected: DmnIrScalarType,
+) -> Check<(String, Option<NumericBounds>)> {
     use DmnIrScalarType::*;
+    let mut bounds = None;
     let (actual, source) = match literal.value.as_ref().ok_or("missing literal value")? {
         Value::NullValue(0) => (ScalarTypeNull, "Value::Null".into()),
         Value::BooleanValue(value) => (ScalarTypeBoolean, format!("Value::Boolean({value})")),
@@ -526,6 +732,7 @@ fn literal_source(literal: &DmnIrLiteral, expected: DmnIrScalarType) -> Check<St
             if !decimal::valid_decimal(coefficient, scale) {
                 return Err("invalid decimal");
             }
+            bounds = Some(NumericBounds::literal(coefficient, scale));
             (
                 ScalarTypeNumber,
                 format!("Value::Number {{ coefficient: {coefficient:?}.into(), scale: {scale} }}"),
@@ -536,5 +743,5 @@ fn literal_source(literal: &DmnIrLiteral, expected: DmnIrScalarType) -> Check<St
     if !assignable(actual, expected) {
         return Err("literal type mismatch");
     }
-    Ok(source)
+    Ok((source, bounds))
 }

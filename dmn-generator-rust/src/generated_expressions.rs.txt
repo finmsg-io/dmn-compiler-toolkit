@@ -73,6 +73,71 @@ fn aligned_digits(digits: &str, padding: usize) -> impl Iterator<Item = i8> + '_
     std::iter::repeat_n(0, padding).chain(digits.bytes().rev().map(|digit| (digit - b'0') as i8))
 }
 
+fn multiply(left: Value, right: Value) -> Value {
+    use std::fmt::Write as _;
+    const BASE: u64 = 1_000_000_000;
+
+    let (
+        Value::Number {
+            coefficient: left,
+            scale: left_scale,
+        },
+        Value::Number {
+            coefficient: right,
+            scale: right_scale,
+        },
+    ) = (left, right)
+    else {
+        return Value::Null;
+    };
+    let scale = left_scale + right_scale;
+    if left == "0" || right == "0" {
+        return Value::Number {
+            coefficient: "0".into(),
+            scale,
+        };
+    }
+    let negative = left.starts_with('-') ^ right.starts_with('-');
+    let left = decimal_limbs(&left);
+    let right = decimal_limbs(&right);
+    let mut product = vec![0; left.len() + right.len()];
+    for (i, a) in left.into_iter().enumerate() {
+        let mut carry = 0;
+        for (j, b) in right.iter().enumerate() {
+            let value = a * b + product[i + j] + carry;
+            product[i + j] = value % BASE;
+            carry = value / BASE;
+        }
+        product[i + right.len()] = carry;
+    }
+    let mut digits = product.into_iter().rev().skip_while(|limb| *limb == 0);
+    let leading = digits
+        .next()
+        .expect("nonzero factors yield a nonzero product");
+    let mut coefficient = String::new();
+    if negative {
+        coefficient.push('-');
+    }
+    write!(coefficient, "{leading}").unwrap();
+    for limb in digits {
+        write!(coefficient, "{limb:09}").unwrap();
+    }
+    Value::Number { coefficient, scale }
+}
+
+fn decimal_limbs(coefficient: &str) -> Vec<u64> {
+    coefficient
+        .trim_start_matches('-')
+        .as_bytes()
+        .rchunks(9)
+        .map(|digits| {
+            digits
+                .iter()
+                .fold(0, |limb, digit| limb * 10 + u64::from(digit - b'0'))
+        })
+        .collect()
+}
+
 fn negate(value: Value) -> Value {
     if let Value::Number {
         mut coefficient,

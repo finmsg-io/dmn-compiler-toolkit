@@ -1,3 +1,4 @@
+mod bounds;
 mod decimal;
 mod model;
 mod wire;

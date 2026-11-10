@@ -2934,4 +2934,63 @@ with deterministic source across separate generator invocations. All nine Rust
 tests passed. The verifier accepts a 128-operation dependency chain, rejects 129,
 and rejects a separate Java-produced multiplication fixture before writing output.
 The prior addition/subtraction rejection fixture is now an acceptance case.
-The Rust changes are local.
+The Rust changes were pushed as `5872c59` and hosted parity passed.
+[GitHub Actions run](https://github.com/finmsg-io/dmn-compiler-toolkit/actions/runs/42892134159)
+The usage checkpoint reran the full
+pinned Spark TCK with **3,391/3,391 native passes (100%)** and zero fallback,
+failures, execution or compilation errors, expected rejections or unknown routes.
+See `target/release-1.2-rust-arithmetic-spark-checkpoint.log` and
+`target/release-1.2-rust-arithmetic-spark-checkpoint-accounting.json`.
+
+## 31. Rust exact decimal multiplication (R12-09d)
+
+Extend the Rust subset of schema 0.1 with numeric `MULTIPLY`. Evaluate operands
+once in order, propagate null, multiply their signed coefficients exactly, and
+set the result scale to the sum of the operand scales. Keep zero canonical while
+preserving that scale. This matches the Java artifact evaluator's numeric
+multiplication. Retain the existing input limits, wire profile and crate API.
+
+- Compute conservative numeric bounds before emitting output. An input can have
+  up to 4,096 coefficient digits and scale between −4,096 and 4,096. A literal
+  contributes its exact bounds, and a resolved decision reference uses the bound
+  already derived for its producer. Unary signs preserve bounds. Conditionals
+  join the possible numeric branch bounds. Track coefficient digits, the scale
+  interval, and an upper bound for `digits - scale` for nonzero values.
+- For a product, add both digit bounds, the scale intervals and the magnitude
+  bounds. For addition or subtraction, use the larger possible operand scale and
+  account for scale alignment and at most one additional carry digit. Preserve
+  the 128-operation additive chain limit. When multiplication occurs in the
+  graph, reject numeric expressions that could exceed 32,768 coefficient digits
+  or absolute scale 8,192. This admits a product of two maximum-sized inputs and
+  their addition, while rejecting some chained products at the default input limits.
+- Use dependency-free base-10⁹ coefficient limbs and bounded carry propagation.
+  Before writing output, reject graphs whose worst-case total exceeds 8,388,608
+  limb products. Charge each multiplication by the product of its operand limb
+  bounds, including nodes in unselected branches. Accepted graphs require no
+  new runtime error or output type.
+- Verify exact coefficient and scale with a Java-produced fixture and offline
+  generated Rust. Cover mixed signs, cancellation after a product, zero, null,
+  extreme input scales, limb boundaries, a sum of products, and arithmetic
+  across decision references. Exercise rejection for each bound, including a
+  rejected product hidden in an unselected branch. Keep a Java-produced division
+  or power artifact as the unsupported-operation case.
+
+Review covers the three admission limits and the exact multiplication contract.
+Division, powers and decision tables remain separate slices.
+
+### Implementation and verification
+
+The generator derives conservative coefficient, scale and work bounds from
+the verified graph. It keeps the existing additive chain limit and generates
+exact decimal multiplication without adding a dependency or changing the
+generated crate API.
+
+The Java and generated Rust results agree for signed products, zero and null,
+limb boundaries, extreme scales and two 4,096-digit inputs. The composed fixture
+includes a sum of products, cancellation and a conditional over the product.
+Separate tests verify the accepted edges and rejection beyond all three
+multiplication limits, including a product in an unselected branch. A
+Java-produced division artifact remains rejected before output is created.
+All 13 Rust tests passed locally, including deterministic generation and offline
+execution. Hosted parity awaits a push. Spark production code is unchanged from
+the full checkpoint in section 30.
