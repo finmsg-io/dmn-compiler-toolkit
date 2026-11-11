@@ -212,3 +212,11 @@ through imported types, record fields, local bindings and conditionals. A full
 Java collection vectors. See work-package section 39. The known independent
 README/index link-validation failures remain unchanged. Native/fallback routing
 is not applicable to these Rust tests. Next is schema 0.8 filters and builtins.
+
+Rust schema 0.8 scalar filters are implemented. Filters retain only true predicate
+results, preserve order/null sources, capture outer locals and enforce item scope.
+Runtime visit and repeated arithmetic budgets are checked before iteration.
+All 40 Rust tests passed, including 24 Java filter vectors and budget boundaries.
+See work-package section 40. Known unrelated README/index link failures remain.
+Collections were pushed as `a5ab42c`; hosted CI was still queued at the last check.
+Next is schema 0.9 builtins, correcting the earlier combined 0.8 wording.

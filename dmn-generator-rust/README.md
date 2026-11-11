@@ -4,7 +4,7 @@ This prototype consumes DMNIR 0.0 scalar artifacts, scalar expressions from
 DMNIR 0.1, named records and field access from DMNIR 0.2, local contexts
 from DMNIR 0.3, civil dates from DMNIR 0.4, decision tables from DMNIR 0.5,
 scalar record field constraints from DMNIR 0.6, and named scalar collections
-from DMNIR 0.7. It verifies the wire
+from DMNIR 0.7, and scalar filters from DMNIR 0.8. It verifies the wire
 and model graph, then writes a standalone Rust library crate. The artifact is
 the only model input to the generator.
 
@@ -54,7 +54,7 @@ The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient
 digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
 Division has a separate 8,388,608-limb-visit budget and permits division-derived
-scales through 32,768. Powers and profiles above 0.7 remain outside the subset.
+scales through 32,768. Powers and profiles above 0.8 remain outside the subset.
 
 Schema 0.2 adds `Value::Record(BTreeMap<String, Value>)` for nested record inputs
 and results. All declared fields must be present with the expected types.
@@ -114,3 +114,19 @@ Nested collections, record elements, filters and builtins are outside this profi
 Collections contribute two levels/nodes to the existing type-depth/expansion budgets.
 `tests/fixtures/ExportCollectionFixture.java` produces the collection artifact and
 Java expected-vector TSV using those two output paths as arguments.
+
+Schema 0.8 adds scalar collection filters with resolved item IDs and boolean
+predicates. Only a true result retains an element; false or null drops it.
+Null sources return null, empty sources remain empty, and order and duplicates
+are preserved. Predicates may capture outer locals and declared dependencies.
+Chained filters are supported. Filters and boxed contexts inside predicates are
+rejected, and each item binding is visible only in its predicate.
+Numeric element bounds propagate through list construction, references and
+filter items. Generated evaluation permits at most 50,000 total filter element
+visits. It charges repeated predicate multiplication/division against the existing
+8,388,608-unit budgets, reserving the static graph cost and charging additional
+iterations using the verifier's conservative operand bounds. A limit violation
+returns `filter evaluation budget exceeded` before predicate iteration.
+Builtins belong to DMNIR 0.9 and remain pending.
+`tests/fixtures/ExportFilterFixture.java` writes the filter artifact, Java-vector
+TSV and constant-predicate visit-budget artifact to its three argument paths.

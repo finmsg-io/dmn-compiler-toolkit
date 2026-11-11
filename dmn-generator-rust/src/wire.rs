@@ -36,6 +36,7 @@ enum Message {
     Reference,
     Collection,
     List,
+    Filter,
     Table,
     TableInput,
     TableOutput,
@@ -79,6 +80,9 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Collection, 2) => (Integer, false, false),
         (Variable, 5) | (Expression, 11) => (Nested(Reference), false, false),
         (TypeReference, 3) => (Nested(Reference), false, true),
+        (Expression, 13) => (Nested(Filter), false, true),
+        (Filter, 1 | 3) => (Nested(Expression), false, false),
+        (Filter, 2) => (Text, false, false),
         (Expression, 12) => (Nested(List), false, true),
         (List, 1) => (Nested(Expression), true, false),
         (Model, 6) => (Nested(Record), true, false),
@@ -165,6 +169,7 @@ fn message(
         | Message::Decision
         | Message::Record
         | Message::RecordField
+        | Message::Filter
         | Message::Collection
         | Message::LocalBinding
         | Message::TableInput

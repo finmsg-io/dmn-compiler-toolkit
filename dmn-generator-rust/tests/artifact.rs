@@ -157,6 +157,28 @@ fn java_collection_artifact_generates_deterministic_offline_rust() {
     );
 }
 
+#[test]
+fn java_filter_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "filters",
+        include_bytes!("fixtures/filters-0.8.dmnir"),
+        include_str!("fixtures/filter_parity.rs.txt"),
+        &[(
+            "filter_vectors.tsv",
+            include_str!("fixtures/filter_vectors.tsv"),
+        )],
+    );
+}
+#[test]
+fn filter_visits_are_bounded_in_generated_rust() {
+    verify_parity(
+        "filter-visits",
+        include_bytes!("fixtures/filter-visits-0.8.dmnir"),
+        include_str!("fixtures/filter_visit_parity.rs.txt"),
+        &[],
+    );
+}
+
 fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");

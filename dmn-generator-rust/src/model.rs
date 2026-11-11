@@ -486,6 +486,157 @@ mod tests {
         );
     }
 
+    #[test]
+    fn rejects_invalid_filter_scopes_and_signatures() {
+        let valid =
+            DmnIrArtifact::decode(include_bytes!("../tests/fixtures/filters-0.8.dmnir").as_slice())
+                .unwrap();
+        for (edit, expected) in [
+            (
+                (|f: &mut DmnIrFilterExpression| f.source = None) as fn(&mut DmnIrFilterExpression),
+                "missing filter source",
+            ),
+            (|f| f.predicate = None, "missing filter predicate"),
+            (
+                |f| f.item_binding_id = "".into(),
+                "blank declaration or reference",
+            ),
+            (
+                |f| {
+                    let e = f.predicate.as_mut().unwrap();
+                    e.r#type = 3;
+                    e.node = decimal_literal("1".into()).node;
+                },
+                "filter predicate must be boolean",
+            ),
+            (
+                |f| {
+                    f.predicate.as_mut().unwrap().node =
+                        Some(Node::Context(Box::new(DmnIrContextExpression::default())));
+                },
+                "contexts are unsupported in filter predicates",
+            ),
+            (
+                |f| {
+                    f.predicate.as_mut().unwrap().node = Some(Node::Filter(Box::new(f.clone())));
+                },
+                "filters inside predicates are unsupported",
+            ),
+            (
+                |f| {
+                    f.source.as_mut().unwrap().node =
+                        Some(Node::LocalReference(DmnIrLocalReference {
+                            binding_id: f.item_binding_id.clone(),
+                        }));
+                },
+                "local binding is not visible",
+            ),
+            (
+                |f| {
+                    let nested = f.clone();
+                    f.source.as_mut().unwrap().node = Some(Node::Filter(Box::new(nested)));
+                },
+                "duplicate filter binding ID",
+            ),
+            (
+                |f| {
+                    let e = f.source.as_mut().unwrap();
+                    e.collection_type.as_mut().unwrap().element_id = "dates".into();
+                    e.node = Some(Node::List(DmnIrListExpression::default()));
+                },
+                "filter source type mismatch",
+            ),
+        ] {
+            let mut artifact = valid.clone();
+            let root = artifact
+                .models
+                .iter_mut()
+                .find(|m| m.namespace == "urn:collections:policy")
+                .unwrap();
+            let e = root
+                .decisions
+                .iter_mut()
+                .find(|d| d.identity.as_ref().unwrap().id == "echo")
+                .unwrap()
+                .expression
+                .as_mut()
+                .unwrap();
+            let Some(Node::Filter(f)) = &mut e.node else {
+                panic!()
+            };
+            edit(f);
+            assert_eq!(verify_and_generate(&artifact), Err(expected));
+        }
+        let mut old = valid;
+        old.schema_version.as_mut().unwrap().minor = Some(7);
+        old.semantics_version = "finmsg-dmnir-scalar-collections/0".into();
+        old.required_capabilities.pop();
+        assert_eq!(
+            verify_and_generate(&old),
+            Err("expression outside scalar profile")
+        );
+    }
+
+    #[test]
+    fn filter_items_retain_computed_list_numeric_bounds() {
+        let mut artifact =
+            DmnIrArtifact::decode(include_bytes!("../tests/fixtures/filters-0.8.dmnir").as_slice())
+                .unwrap();
+        let root = artifact
+            .models
+            .iter_mut()
+            .find(|m| m.namespace == "urn:collections:policy")
+            .unwrap();
+        let e = root
+            .decisions
+            .iter_mut()
+            .find(|d| d.identity.as_ref().unwrap().id == "echo")
+            .unwrap()
+            .expression
+            .as_mut()
+            .unwrap();
+        let Some(Node::Filter(f)) = &mut e.node else {
+            panic!()
+        };
+        let mut tiny = decimal_literal("1".into());
+        let Some(Node::Literal(literal)) = &mut tiny.node else {
+            panic!()
+        };
+        let Some(Value::NumberValue(value)) = &mut literal.value else {
+            panic!()
+        };
+        value.scale = Some(4096);
+        f.source.as_mut().unwrap().node = Some(Node::List(DmnIrListExpression {
+            elements: vec![multiply(tiny.clone(), tiny)],
+        }));
+        let item = DmnIrExpression {
+            r#type: 3,
+            node: Some(Node::LocalReference(DmnIrLocalReference {
+                binding_id: f.item_binding_id.clone(),
+            })),
+            ..Default::default()
+        };
+        let mut tenth = decimal_literal("1".into());
+        let Some(Node::Literal(literal)) = &mut tenth.node else {
+            panic!()
+        };
+        let Some(Value::NumberValue(value)) = &mut literal.value else {
+            panic!()
+        };
+        value.scale = Some(1);
+        let mut comparison = binary(
+            DmnIrBinaryOperator::BinaryOperatorGreater,
+            multiply(item, tenth),
+            decimal_literal("0".into()),
+        );
+        comparison.r#type = 2;
+        f.predicate = Some(Box::new(comparison));
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("decimal scale bound exceeds 8192")
+        );
+    }
+
     fn repeated_decisions(bytes: &[u8], template: &str, count: usize) -> DmnIrArtifact {
         let mut artifact = DmnIrArtifact::decode(bytes).unwrap();
         let model = &mut artifact.models[0];
@@ -661,6 +812,22 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         {
             true
         }
+        (Some(0), Some(8), "finmsg-dmnir-scalar-filters/0")
+            if artifact.required_capabilities
+                == [
+                    "dmnir.scalar",
+                    "dmnir.scalar-expressions",
+                    "dmnir.records",
+                    "dmnir.local-bindings",
+                    "dmnir.date",
+                    "dmnir.tables",
+                    "dmnir.field-constraints",
+                    "dmnir.scalar-collections",
+                    "dmnir.scalar-filters",
+                ] =>
+        {
+            true
+        }
         _ => return Err("unsupported DMNIR profile"),
     };
     let mut model_ids = BTreeMap::new();
@@ -795,8 +962,12 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         writeln!(source, "{index} => Type::Scalar({}),", *scalar as i32).unwrap();
     }
     source.push_str("_ => unreachable!(\"verified collection index\"), } }\n");
+    if version.minor >= Some(8) {
+        source.push_str(include_str!("generated_filters.rs.txt"));
+    }
     source.push_str(&constraint_source);
     source.push_str("pub fn evaluate(inputs: &BTreeMap<Key<'_>, Value>) -> Result<BTreeMap<Key<'static>, Value>, &'static str> {\n");
+    let filter_budget_position = source.len();
     let mut ready = BTreeSet::new();
     let mut numeric_bounds = BTreeMap::new();
     let mut arithmetic_depths = BTreeMap::new();
@@ -805,7 +976,9 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     for (&key, declaration) in &declarations {
         if declaration.decision.is_none() {
             ready.insert(key);
-            if declaration.ty == DmnIrScalarType::ScalarTypeNumber {
+            if declaration.ty == DmnIrScalarType::ScalarTypeNumber
+                || matches!(declaration.ty, Type::Collection(index) if types.collections[index] == DmnIrScalarType::ScalarTypeNumber)
+            {
                 numeric_bounds.insert(key, NumericBounds::INPUT);
             }
             writeln!(
@@ -860,6 +1033,8 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         let mut emitter = ExpressionEmitter {
             structured,
             table_cell: false,
+            filters_enabled: version.minor >= Some(8),
+            filter_predicate: false,
             collections_enabled: version.minor >= Some(7),
             dates: version.minor >= Some(4),
             locals_enabled: version.minor >= Some(3),
@@ -914,6 +1089,9 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     if ready.len() != declarations.len() {
         return Err("evaluation order omits a decision");
     }
+    if version.minor >= Some(8) {
+        source.insert_str(filter_budget_position, &format!("let mut filter_budget = FilterBudget {{ visits: 0, products: {limb_products}, divisions: {division_limb_visits} }};\n"));
+    }
     source.push_str("    Ok(results)\n}\n");
     Ok(source)
 }
@@ -921,6 +1099,8 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
 struct ExpressionEmitter<'a, 'model> {
     structured: bool,
     table_cell: bool,
+    filters_enabled: bool,
+    filter_predicate: bool,
     dates: bool,
     collections_enabled: bool,
     locals_enabled: bool,
@@ -960,11 +1140,63 @@ impl ExpressionEmitter<'_, '_> {
         {
             return Err("contexts are unsupported in table cells");
         }
+        if self.filter_predicate && matches!(expression.node, Some(Node::Context(_))) {
+            return Err("contexts are unsupported in filter predicates");
+        }
         let ty = self.types.expression(expression, self.namespace)?;
         self.types.charge(ty, self.type_expansion)?;
         let mut depth = 0;
         let mut bounds = None;
         let value = match expression.node.as_ref().ok_or("missing expression node")? {
+            Node::Filter(filter) if self.filters_enabled => {
+                if self.filter_predicate {
+                    return Err("filters inside predicates are unsupported");
+                }
+                let Type::Collection(index) = ty else {
+                    return Err("filter requires named collection type");
+                };
+                let source =
+                    self.expression(filter.source.as_deref().ok_or("missing filter source")?)?;
+                if source.ty != ty {
+                    return Err("filter source type mismatch");
+                }
+                let id = nonempty(&filter.item_binding_id)?;
+                if !self.binding_ids.insert(id.to_owned()) {
+                    return Err("duplicate filter binding ID");
+                }
+                let slot = self.binding_ids.len();
+                self.locals.insert(
+                    id.to_owned(),
+                    Emitted {
+                        ty: self.types.collections[index].into(),
+                        value: format!("f{slot}.clone()"),
+                        depth: source.depth,
+                        bounds: source.bounds,
+                    },
+                );
+                let products_before = *self.limb_products;
+                let divisions_before = *self.division_limb_visits;
+                self.filter_predicate = true;
+                let predicate = self.expression(
+                    filter
+                        .predicate
+                        .as_deref()
+                        .ok_or("missing filter predicate")?,
+                )?;
+                self.filter_predicate = false;
+                self.locals.remove(id);
+                if predicate.ty != Boolean {
+                    return Err("filter predicate must be boolean");
+                }
+                let products = *self.limb_products - products_before;
+                let divisions = *self.division_limb_visits - divisions_before;
+                depth = source.depth.max(predicate.depth);
+                bounds = source.bounds;
+                format!(
+                    "match {} {{ Value::List(elements) => {{ filter_budget.charge(elements.len(), {products}, {divisions})?; Value::List(elements.into_iter().filter(|f{slot}| matches!({}, Value::Boolean(true))).collect()) }}, _ => Value::Null }}",
+                    source.value, predicate.value
+                )
+            }
             Node::List(list) if self.collections_enabled => {
                 let Type::Collection(index) = ty else {
                     return Err("list requires a named collection type");
@@ -978,6 +1210,10 @@ impl ExpressionEmitter<'_, '_> {
                         return Err("list element type mismatch");
                     }
                     depth = depth.max(emitted.depth);
+                    bounds = match (bounds, emitted.bounds) {
+                        (Some(a), Some(b)) => Some(a.join(b)),
+                        (a, b) => a.or(b),
+                    };
                     elements.push(emitted.value);
                 }
                 format!("Value::List(vec![{}])", elements.join(","))
@@ -1076,7 +1312,9 @@ impl ExpressionEmitter<'_, '_> {
                     return Err("record field result type mismatch");
                 }
                 depth = source.depth;
-                if ty == Number {
+                if ty == Number
+                    || matches!(ty, Type::Collection(index) if self.types.collections[index] == Number)
+                {
                     bounds = Some(NumericBounds::INPUT);
                 }
                 format!("field({}, {:?})", source.value, access.field_name)

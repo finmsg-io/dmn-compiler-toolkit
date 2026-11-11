@@ -3243,8 +3243,7 @@ with compatible elements and retain the existing strict scalar validation.
 Nested lists and records as elements are rejected. Existing wire message,
 reference, declaration, depth and expansion budgets include collection nodes;
 collection layouts have depth/cost two. Lists and contexts remain forbidden in
-table cells. Collection field constraints remain unsupported. Filters/builtins
-belong to schema 0.8 and are not admitted here.
+table cells. Collection field constraints remain unsupported. Filters belong to schema 0.8 and builtins to schema 0.9; neither is admitted here.
 
 A Java producer/adapter fixture checks 24 input combinations across imported
 named collections, constrained nested records, table decisions, local values,
@@ -3265,3 +3264,39 @@ subsequent focused import/depth tests. Generated Rust matched all 24 Java
 collection vectors. Whitespace checks passed. Documentation verification was
 attempted and still fails only on the independent README/index links leaving
 the repository recorded in section 38; those edits were preserved.
+
+## 40. Rust scalar collection filters (R12-09l)
+
+Accept the exact schema 0.8 scalar-filters profile alongside earlier profiles.
+Builtins are schema 0.9, correcting the earlier combined next-step wording.
+Filter source and result must share the same named collection identity. Evaluate
+the source once, expose the unique decision-local item ID only inside a statically
+Boolean predicate, and retain only true results. Null sources yield null; empty
+sources yield empty lists. Preserve order, duplicates and nullable elements.
+Allow chained filters and outer-local/global dependency captures. Reject filters
+or boxed contexts inside predicates, escaped items, duplicate binding IDs,
+missing operands, non-Boolean predicates and mismatched nominal types.
+
+Propagate numeric element bounds through lists, references, locals and filter
+items, including computed elements exceeding typed-input coefficient/scale bounds.
+Generated evaluation limits total element visits across filters to 50,000.
+Reserve the static graph's multiplication/division costs, then charge the extra
+predicate repetitions using conservative verifier bounds against each existing
+8,388,608-unit budget. Saturating arithmetic prevents budget-counter overflow.
+Exceeding any limit returns `filter evaluation budget exceeded` before looping.
+
+The Java fixture verifies schema 0.8 and writes 24 expected evaluation vectors
+covering numeric, date, string and Boolean predicates, captured locals, chaining,
+conditional null predicates, nullable/empty sources and constrained inputs.
+The generated-crate checks include offline compilation, deterministic generation,
+25/26 repeated-division admission and aggregate 50,000/50,001 visit boundaries.
+Unit checks cover invalid scope/signatures and a computed-list scale violation
+that would be missed by treating each item as an ordinary typed input.
+No Spark production sources changed. Rust tests do not measure native/fallback
+routing; those counts and rates are not applicable.
+
+All 40 Rust tests passed locally with zero failures, including all 24 Java filter
+vectors. Whitespace checks passed. Documentation validation still fails only on
+the independent README/index links leaving the repository listed in section 38;
+those edits remain untouched. Hosted CI for collection commit `a5ab42c` was still
+queued at the final check, so no hosted success is claimed for that commit.
