@@ -441,6 +441,47 @@ mod tests {
         assert!(verify_and_generate(&artifact).is_ok());
     }
 
+    #[test]
+    fn validates_calendar_literals_and_profile() {
+        let valid =
+            DmnIrArtifact::decode(include_bytes!("../tests/fixtures/dates-0.4.dmnir").as_slice())
+                .unwrap();
+        for (year, month, day, expected) in [
+            (None, Some(1), Some(1), "missing date year"),
+            (Some(2024), None, Some(1), "missing date month"),
+            (Some(2024), Some(1), None, "missing date day"),
+            (Some(0), Some(1), Some(1), "invalid civil date"),
+            (Some(1900), Some(2), Some(29), "invalid civil date"),
+            (Some(-100), Some(2), Some(29), "invalid civil date"),
+            (Some(1_000_000_000), Some(1), Some(1), "invalid civil date"),
+            (Some(2024), Some(13), Some(1), "invalid civil date"),
+            (Some(2024), Some(1), Some(0), "invalid civil date"),
+        ] {
+            let mut artifact = valid.clone();
+            let expression = artifact.models[0]
+                .decisions
+                .iter_mut()
+                .find(|d| d.identity.as_ref().unwrap().id == "literal0")
+                .unwrap()
+                .expression
+                .as_mut()
+                .unwrap();
+            expression.node = Some(Node::Literal(DmnIrLiteral {
+                value: Some(Value::DateValue(DmnIrDate { year, month, day })),
+            }));
+            assert!(crate::wire::verify(&artifact.encode_to_vec()).is_ok());
+            assert_eq!(verify_and_generate(&artifact), Err(expected));
+        }
+        let mut old = valid;
+        old.schema_version.as_mut().unwrap().minor = Some(3);
+        old.semantics_version = "finmsg-dmnir-local-bindings/0".into();
+        old.required_capabilities.pop();
+        assert_eq!(
+            verify_and_generate(&old),
+            Err("type outside scalar profile")
+        );
+    }
+
     fn repeated_decisions(bytes: &[u8], template: &str, count: usize) -> DmnIrArtifact {
         let mut artifact = DmnIrArtifact::decode(bytes).unwrap();
         let model = &mut artifact.models[0];
@@ -562,12 +603,28 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         {
             true
         }
+        (Some(0), Some(4), "finmsg-dmnir-dates/0")
+            if artifact.required_capabilities
+                == [
+                    "dmnir.scalar",
+                    "dmnir.scalar-expressions",
+                    "dmnir.records",
+                    "dmnir.local-bindings",
+                    "dmnir.date",
+                ] =>
+        {
+            true
+        }
         _ => return Err("unsupported DMNIR profile"),
     };
     let mut model_ids = BTreeMap::new();
     let mut models = BTreeMap::new();
     let mut declarations = BTreeMap::new();
-    let types = Types::new(&artifact.models, version.minor >= Some(2))?;
+    let types = Types::new(
+        &artifact.models,
+        version.minor >= Some(2),
+        version.minor >= Some(4),
+    )?;
     let mut type_expansion = types.expansion;
     for model in &artifact.models {
         let ns = nonempty(&model.namespace)?;
@@ -650,6 +707,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         .collect();
     let mut source = String::from(include_str!("decimal.rs"));
     source.push('\n');
+    source.push_str(include_str!("date.rs"));
     source.push_str(include_str!("generated_prelude.rs.txt"));
     if version.minor >= Some(2) {
         source.push_str(include_str!("generated_records.rs.txt"));
@@ -723,7 +781,8 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             .ok_or("missing decision expression")?;
         let mut emitter = ExpressionEmitter {
             structured,
-            locals_enabled: version.minor == Some(3),
+            dates: version.minor >= Some(4),
+            locals_enabled: version.minor >= Some(3),
             locals: BTreeMap::new(),
             binding_ids: BTreeSet::new(),
             source_ids: model_ids.get_mut(key.0).unwrap(),
@@ -768,6 +827,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
 
 struct ExpressionEmitter<'a, 'model> {
     structured: bool,
+    dates: bool,
     locals_enabled: bool,
     locals: BTreeMap<String, Emitted>,
     binding_ids: BTreeSet<String>,
@@ -805,7 +865,7 @@ impl ExpressionEmitter<'_, '_> {
         let mut bounds = None;
         let value = match expression.node.as_ref().ok_or("missing expression node")? {
             Node::Literal(literal) => {
-                let (source, literal_bounds) = literal_source(literal, ty)?;
+                let (source, literal_bounds) = literal_source(literal, ty, self.dates)?;
                 bounds = literal_bounds;
                 source
             }
@@ -935,7 +995,10 @@ impl ExpressionEmitter<'_, '_> {
                 } = self.expression(binary.right.as_deref().ok_or("missing right operand")?)?;
                 depth = left_depth.max(right_depth);
                 let logical = assignable(left_type, Boolean) && assignable(right_type, Boolean);
-                let ordered = left_type == right_type && (left_type == Number || left_type == Text);
+                let ordered = left_type == right_type
+                    && (left_type == Number
+                        || left_type == Text
+                        || self.dates && left_type == DmnIrScalarType::ScalarTypeDate);
                 let numeric = ty == Number && left_type == Number && right_type == Number;
                 match DmnIrBinaryOperator::try_from(binary.operator) {
                     Ok(op @ (BinaryOperatorAdd | BinaryOperatorSubtract)) if numeric => {
@@ -1095,6 +1158,7 @@ fn assignable(actual: impl Into<Type>, expected: impl Into<Type>) -> bool {
 fn literal_source(
     literal: &DmnIrLiteral,
     expected: Type,
+    dates: bool,
 ) -> Check<(String, Option<NumericBounds>)> {
     use DmnIrScalarType::*;
     let mut bounds = None;
@@ -1102,6 +1166,18 @@ fn literal_source(
         Value::NullValue(0) => (ScalarTypeNull, "Value::Null".into()),
         Value::BooleanValue(value) => (ScalarTypeBoolean, format!("Value::Boolean({value})")),
         Value::StringValue(value) => (ScalarTypeString, format!("Value::Text({value:?}.into())")),
+        Value::DateValue(value) if dates => {
+            let year = value.year.ok_or("missing date year")?;
+            let month = value.month.ok_or("missing date month")?;
+            let day = value.day.ok_or("missing date day")?;
+            if !crate::date::valid_date(year, month, day) {
+                return Err("invalid civil date");
+            }
+            (
+                ScalarTypeDate,
+                format!("Value::Date {{ year: {year}, month: {month}, day: {day} }}"),
+            )
+        }
         Value::NumberValue(value) => {
             let scale = value.scale.ok_or("missing decimal scale")?;
             let coefficient = &value.unscaled_value;

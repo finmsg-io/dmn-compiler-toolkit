@@ -79,6 +79,19 @@ fn java_context_artifact_generates_deterministic_offline_rust() {
     );
 }
 
+#[test]
+fn java_date_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "dates",
+        include_bytes!("fixtures/dates-0.4.dmnir"),
+        include_str!("fixtures/date_parity.rs.txt"),
+        &[(
+            "date_vectors.tsv",
+            include_str!("fixtures/date_vectors.tsv"),
+        )],
+    );
+}
+
 fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");

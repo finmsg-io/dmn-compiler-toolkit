@@ -10,6 +10,7 @@ pub enum Value {
     Text(String),
     Number { coefficient: String, scale: i32 },
     Record(BTreeMap<String, Value>),
+    Date { year: i32, month: u32, day: u32 },
 }
 
 #[derive(Clone, Copy)]
@@ -30,6 +31,7 @@ fn bind(value: &Value, expected: Type) -> Result<Value, &'static str> {
         (Value::Number { coefficient, scale }, Type::Scalar(3)) => {
             valid_decimal(coefficient, *scale)
         }
+        (Value::Date { year, month, day }, Type::Scalar(5)) => valid_date(*year, *month, *day),
         _ => false,
     };
     valid.then(|| value.clone()).ok_or("input type mismatch")

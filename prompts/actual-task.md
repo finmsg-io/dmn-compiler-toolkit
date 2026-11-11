@@ -176,3 +176,9 @@ Rust named records were committed and pushed as `3b7f1e4`. Rust local contexts
 (DMNIR 0.3) are implemented with sequential identity-based bindings, nested scope,
 nominal record typing and propagated arithmetic bounds. All 23 Rust tests passed
 locally. See work-package section 34 for the contract and verification scope.
+
+Rust DMNIR 0.4 civil dates are implemented, including calendar validation, typed
+date inputs, literals, ordering/equality and dates in records and local contexts.
+All 25 Rust tests passed locally and generated Rust matched 494 Java results.
+See work-package section 35. Time-of-day, offsets and durations remain outside
+this profile. The preceding contexts slice was pushed as `9f26b85`.

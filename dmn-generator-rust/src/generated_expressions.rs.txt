@@ -199,6 +199,18 @@ fn ordered(left: Value, right: Value, predicate: fn(Ordering) -> bool) -> Value 
 
 fn compare(left: &Value, right: &Value) -> Option<Ordering> {
     match (left, right) {
+        (
+            Value::Date {
+                year: a,
+                month: b,
+                day: c,
+            },
+            Value::Date {
+                year: x,
+                month: y,
+                day: z,
+            },
+        ) => Some((a, b, c).cmp(&(x, y, z))),
         (Value::Text(a), Value::Text(b)) => Some(a.encode_utf16().cmp(b.encode_utf16())),
         (
             Value::Number {

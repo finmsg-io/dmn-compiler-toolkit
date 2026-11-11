@@ -36,6 +36,7 @@ pub struct Record<'a> {
 
 pub struct Types<'a> {
     enabled: bool,
+    dates: bool,
     indices: BTreeMap<(&'a str, &'a str), usize>,
     pub records: Vec<Record<'a>>,
     costs: Vec<usize>,
@@ -44,7 +45,7 @@ pub struct Types<'a> {
 }
 
 impl<'a> Types<'a> {
-    pub fn new(models: &'a [DmnIrModel], enabled: bool) -> Check<Self> {
+    pub fn new(models: &'a [DmnIrModel], enabled: bool, dates: bool) -> Check<Self> {
         let mut indices = BTreeMap::new();
         for model in models {
             if !enabled && !model.record_definitions.is_empty() {
@@ -63,6 +64,7 @@ impl<'a> Types<'a> {
         }
         let mut types = Self {
             enabled,
+            dates,
             records: (0..indices.len())
                 .map(|_| Record { fields: Vec::new() })
                 .collect(),
@@ -164,14 +166,14 @@ impl<'a> Types<'a> {
             }
             self.record(record, namespace)
         } else {
-            Ok(Type::Scalar(scalar_type(scalar)?))
+            Ok(Type::Scalar(scalar_type(scalar, self.dates)?))
         }
     }
 
     fn reference(&self, value: &DmnIrTypeReference, namespace: &str) -> Check<Type> {
         match value.kind.as_ref() {
             Some(dmn_ir_type_reference::Kind::ScalarType(scalar)) => {
-                Ok(Type::Scalar(scalar_type(*scalar)?))
+                Ok(Type::Scalar(scalar_type(*scalar, self.dates)?))
             }
             Some(dmn_ir_type_reference::Kind::RecordType(record)) => self.record(record, namespace),
             _ => Err("unsupported record field type"),
@@ -212,12 +214,13 @@ impl<'a> Types<'a> {
     }
 }
 
-pub fn scalar_type(value: i32) -> Check<DmnIrScalarType> {
+pub fn scalar_type(value: i32, dates: bool) -> Check<DmnIrScalarType> {
     use DmnIrScalarType::*;
     match DmnIrScalarType::try_from(value) {
         Ok(value @ (ScalarTypeNull | ScalarTypeBoolean | ScalarTypeNumber | ScalarTypeString)) => {
             Ok(value)
         }
+        Ok(ScalarTypeDate) if dates => Ok(ScalarTypeDate),
         _ => Err("type outside scalar profile"),
     }
 }

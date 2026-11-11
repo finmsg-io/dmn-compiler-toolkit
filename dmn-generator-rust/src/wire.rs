@@ -32,6 +32,7 @@ enum Message {
     LocalBinding,
     Literal,
     Decimal,
+    Date,
     Reference,
 }
 
@@ -91,6 +92,8 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Literal, 1) => (Integer, false, true),
         (Literal, 2) => (Boolean, false, true),
         (Literal, 3) => (Text, false, true),
+        (Literal, 5) => (Nested(Date), false, true),
+        (Date, 1..=3) => (Integer, false, false),
         (Literal, 4) => (Nested(Decimal), false, true),
         _ => return None,
     };

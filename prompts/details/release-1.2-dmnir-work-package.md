@@ -3105,3 +3105,28 @@ reference rejection, duplicate IDs/names, type mismatch, missing result,
 old-profile rejection and the 128-operation arithmetic-chain boundary.
 Rust tests do not measure Spark native/fallback routing, so counts and rates
 are not applicable. No Spark production sources changed in this slice.
+
+## 35. Rust civil dates (R12-09h)
+
+Accept the exact DMNIR 0.4 dates profile alongside earlier admitted profiles.
+Add `Value::Date { year: i32, month: u32, day: u32 }` to the generated typed API.
+Require all three wire components and valid proleptic Gregorian calendar dates
+with years -999,999,999 through 999,999,999 excluding zero. Validate literals
+before generation and typed inputs recursively through records. Compare dates
+by civil year, month and day. Preserve date values through local references,
+record fields and conditionals. Match existing scalar null and mixed-type
+equality behavior. No timezone, parsing dependency or clock conversion is used.
+Time-of-day, offsets and durations are outside the schema 0.4 contract.
+
+Java source fixture production and adapter execution write 494 expected results
+across 26 nullable date/record-field input combinations. Cases include leap days,
+negative and extreme years, all six comparison operators, mixed-type equality,
+nulls, date literals and local date values. Rust verification includes deterministic
+generation, offline generated-crate compilation/execution, malformed component
+presence, invalid calendar dates, year bounds and old-profile rejection.
+The preceding local-context implementation was pushed as `9f26b85`.
+Spark production sources are unchanged. Rust tests do not measure native/fallback
+routing, so those counts and rates are not applicable.
+
+All 25 Rust tests passed locally with zero failures. Generated Rust matched all
+494 Java date results. Native/fallback routing was not measured by these tests.

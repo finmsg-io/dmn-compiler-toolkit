@@ -1,4 +1,5 @@
 mod bounds;
+mod date;
 mod decimal;
 mod model;
 mod types;
