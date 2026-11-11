@@ -1,3 +1,5 @@
+#[path = "constraints.rs"]
+mod constraints;
 #[path = "tables.rs"]
 mod tables;
 use crate::bounds::{MAX_DIVISION_LIMB_VISITS, MAX_LIMB_PRODUCTS, NumericBounds};
@@ -630,6 +632,20 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         {
             true
         }
+        (Some(0), Some(6), "finmsg-dmnir-field-constraints/0")
+            if artifact.required_capabilities
+                == [
+                    "dmnir.scalar",
+                    "dmnir.scalar-expressions",
+                    "dmnir.records",
+                    "dmnir.local-bindings",
+                    "dmnir.date",
+                    "dmnir.tables",
+                    "dmnir.field-constraints",
+                ] =>
+        {
+            true
+        }
         _ => return Err("unsupported DMNIR profile"),
     };
     let mut model_ids = BTreeMap::new();
@@ -640,6 +656,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         version.minor >= Some(2),
         version.minor >= Some(4),
     )?;
+    let constraint_source = constraints::generate(&types, version.minor >= Some(6))?;
     let mut type_expansion = types.expansion;
     for model in &artifact.models {
         let ns = nonempty(&model.namespace)?;
@@ -744,9 +761,10 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         source.push_str(include_str!("generated_expressions.rs.txt"));
         source.push_str(include_str!("generated_division.rs.txt"));
     }
-    if version.minor == Some(5) {
+    if version.minor >= Some(5) {
         source.push_str(include_str!("generated_tables.rs.txt"));
     }
+    source.push_str(&constraint_source);
     source.push_str("pub fn evaluate(inputs: &BTreeMap<Key<'_>, Value>) -> Result<BTreeMap<Key<'static>, Value>, &'static str> {\n");
     let mut ready = BTreeSet::new();
     let mut numeric_bounds = BTreeMap::new();
@@ -766,6 +784,15 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
                 declaration.ty.source()
             )
             .unwrap();
+            if version.minor >= Some(6) {
+                writeln!(
+                    source,
+                    "check_constraints(&v{}, {})?;",
+                    slots[&key],
+                    declaration.ty.source()
+                )
+                .unwrap();
+            }
         }
     }
     writeln!(
@@ -796,7 +823,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         if decision.expression.is_some() == decision.decision_table.is_some() {
             return Err("decision requires exactly one logic body");
         }
-        if decision.decision_table.is_some() && version.minor != Some(5) {
+        if decision.decision_table.is_some() && version.minor < Some(5) {
             return Err("decision tables require profile 0.5");
         }
         let mut emitter = ExpressionEmitter {
@@ -836,6 +863,15 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             numeric_bounds.insert(key, bounds);
         }
         writeln!(source, "    let v{} = {value};", slots[&key]).unwrap();
+        if version.minor >= Some(6) {
+            writeln!(
+                source,
+                "check_constraints(&v{}, {})?;",
+                slots[&key],
+                declaration.ty.source()
+            )
+            .unwrap();
+        }
         writeln!(
             source,
             "    results.insert({key:?}, v{}.clone());",

@@ -189,3 +189,9 @@ All 29 Rust tests and documentation validation passed. Generated Rust matched
 36 Java table evaluation vectors, including UNIQUE and ANY conflict errors.
 See work-package section 36. The preceding date commit `0387552` passed hosted
 Rust parity and Maven CI. Rust tests do not measure Spark native/fallback routing.
+
+Rust schema 0.6 scalar record field constraints are implemented. Constant domains
+are checked recursively at input and decision-result binding, including table
+outputs/defaults. All 31 Rust tests passed and generated Rust matched 63 Java
+constraint vectors. See work-package section 37. The preceding table commit
+`4526649` passed hosted Rust parity. Rust native/fallback routing is not measured.

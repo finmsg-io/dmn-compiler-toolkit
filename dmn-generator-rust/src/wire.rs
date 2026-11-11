@@ -77,6 +77,7 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Record, 1) => (Nested(Identity), false, false),
         (Record, 2) => (Nested(RecordField), true, false),
         (RecordField, 1 | 2) | (FieldAccess, 2) => (Text, false, false),
+        (RecordField, 4) => (Nested(Tests), false, false),
         (RecordField, 3) => (Nested(TypeReference), false, false),
         (TypeReference, 1) => (Integer, false, true),
         (TypeReference, 2) => (Nested(Reference), false, true),

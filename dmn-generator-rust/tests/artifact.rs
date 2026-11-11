@@ -131,6 +131,19 @@ fn java_tables_any_conflict_artifact_generates_deterministic_offline_rust() {
     );
 }
 
+#[test]
+fn java_constraint_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "constraints",
+        include_bytes!("fixtures/constraints-0.6.dmnir"),
+        include_str!("fixtures/constraint_parity.rs.txt"),
+        &[(
+            "constraint_vectors.tsv",
+            include_str!("fixtures/constraint_vectors.tsv"),
+        )],
+    );
+}
+
 fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");

@@ -3163,3 +3163,28 @@ The preceding date implementation was pushed as `0387552`.
 All 29 Rust tests passed locally with zero failures, including all 36 Java table
 evaluation vectors. Documentation validation passed. Date commit `0387552`
 passed hosted Rust parity and Maven CI.
+
+## 37. Rust scalar record field constraints (R12-09j)
+
+Accept the exact schema 0.6 field-constraints profile. Reuse admitted unary-test
+semantics for scalar record fields. Require non-null scalar base types and
+constant literal endpoints compatible with the declared field type. Reject
+constraints in older profiles, malformed tests and nonconstant endpoints.
+Check constraints when binding typed inputs and decision results, recursively
+through nested records. Null scalar fields are tested against their domain.
+A null record skips its nested fields. Generated Rust retains its existing
+strict typed-input API and returns `field constraint violated` on domain failure.
+Java's dynamic field-path error strings are not part of this Rust static-error API.
+Local values are checked at the enclosing input/decision binding boundaries.
+
+The Java fixture exporter verifies a 0.6 artifact derived from the table fixture.
+Its 63 evaluation vectors combine scalar input boundaries with nested constrained
+number, string, Boolean and date fields, explicit null alternatives, null records
+and constrained table results/defaults. Rust checks deterministic generation,
+offline compilation/execution and malformed declaration rejection.
+No Spark production sources changed. These Rust tests do not measure routing,
+so native/fallback counts and rates are not applicable.
+The preceding table slice was pushed as `4526649`.
+
+All 31 Rust tests passed locally with zero failures. Generated Rust matched all
+63 Java constraint vectors. Hosted Rust parity for `4526649` passed.

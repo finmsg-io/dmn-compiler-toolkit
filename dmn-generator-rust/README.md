@@ -2,7 +2,8 @@
 
 This prototype consumes DMNIR 0.0 scalar artifacts, scalar expressions from
 DMNIR 0.1, named records and field access from DMNIR 0.2, local contexts
-from DMNIR 0.3, civil dates from DMNIR 0.4, and decision tables from DMNIR 0.5. It verifies the wire
+from DMNIR 0.3, civil dates from DMNIR 0.4, decision tables from DMNIR 0.5,
+and scalar record field constraints from DMNIR 0.6. It verifies the wire
 and model graph, then writes a standalone Rust library crate. The artifact is
 the only model input to the generator.
 
@@ -52,7 +53,7 @@ The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient
 digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
 Division has a separate 8,388,608-limb-visit budget and permits division-derived
-scales through 32,768. Powers and profiles above 0.5 remain outside the subset.
+scales through 32,768. Powers and profiles above 0.6 remain outside the subset.
 
 Schema 0.2 adds `Value::Record(BTreeMap<String, Value>)` for nested record inputs
 and results. All declared fields must be present with the expected types.
@@ -92,3 +93,11 @@ all cells, including inactive rules and defaults. Context expressions are reject
 inside table cells. Scalar output bounds propagate to later decisions.
 `tests/fixtures/ExportTableFixture.java` writes table artifacts and Java vectors
 to the directory supplied as its argument.
+
+Schema 0.6 validates scalar record field constraints at input and decision-result
+binding, recursively through nested records. Endpoints must be constant literals
+compatible with the field type. Null scalar fields must satisfy their constraint,
+while a null record skips its nested fields. Violations return the static error
+`field constraint violated`. Typed input structure and scalar checks still apply.
+`tests/fixtures/ExportConstraintFixture.java` takes the table artifact, constrained
+artifact output path and Java expected-vector TSV output path as arguments.

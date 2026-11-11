@@ -32,6 +32,7 @@ impl Type {
 
 pub struct Record<'a> {
     pub fields: Vec<(&'a str, Type)>,
+    pub constraints: Vec<Option<&'a DmnIrUnaryTests>>,
 }
 
 pub struct Types<'a> {
@@ -66,7 +67,10 @@ impl<'a> Types<'a> {
             enabled,
             dates,
             records: (0..indices.len())
-                .map(|_| Record { fields: Vec::new() })
+                .map(|_| Record {
+                    fields: Vec::new(),
+                    constraints: Vec::new(),
+                })
                 .collect(),
             costs: vec![0; indices.len()],
             indices,
@@ -92,6 +96,9 @@ impl<'a> Types<'a> {
                         &model.namespace,
                     )?;
                     types.records[index].fields.push((&field.name, ty));
+                    types.records[index]
+                        .constraints
+                        .push(field.constraint.as_ref());
                 }
             }
         }
