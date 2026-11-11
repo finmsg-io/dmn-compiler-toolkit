@@ -7,6 +7,7 @@ type Check<T> = Result<T, &'static str>;
 pub enum Type {
     Scalar(DmnIrScalarType),
     Record(usize),
+    Collection(usize),
 }
 
 impl From<DmnIrScalarType> for Type {
@@ -25,6 +26,7 @@ impl Type {
     pub fn source(self) -> String {
         match self {
             Self::Scalar(scalar) => format!("Type::Scalar({})", scalar as i32),
+            Self::Collection(index) => format!("Type::Collection({index})"),
             Self::Record(index) => format!("Type::Record({index})"),
         }
     }
@@ -39,6 +41,9 @@ pub struct Types<'a> {
     enabled: bool,
     dates: bool,
     indices: BTreeMap<(&'a str, &'a str), usize>,
+    collections_enabled: bool,
+    collection_indices: BTreeMap<(&'a str, &'a str), usize>,
+    pub collections: Vec<DmnIrScalarType>,
     pub records: Vec<Record<'a>>,
     costs: Vec<usize>,
     pub expansion: usize,
@@ -46,7 +51,12 @@ pub struct Types<'a> {
 }
 
 impl<'a> Types<'a> {
-    pub fn new(models: &'a [DmnIrModel], enabled: bool, dates: bool) -> Check<Self> {
+    pub fn new(
+        models: &'a [DmnIrModel],
+        enabled: bool,
+        dates: bool,
+        collections_enabled: bool,
+    ) -> Check<Self> {
         let mut indices = BTreeMap::new();
         for model in models {
             if !enabled && !model.record_definitions.is_empty() {
@@ -63,8 +73,46 @@ impl<'a> Types<'a> {
         for (index, value) in indices.values_mut().enumerate() {
             *value = index;
         }
+        let mut collection_indices = BTreeMap::new();
+        for model in models {
+            if !collections_enabled && !model.collection_definitions.is_empty() {
+                return Err("collections require profile 0.7");
+            }
+            for collection in &model.collection_definitions {
+                let identity = collection
+                    .identity
+                    .as_ref()
+                    .ok_or("missing collection identity")?;
+                if collection_indices
+                    .insert((model.namespace.as_str(), identity.id.as_str()), 0)
+                    .is_some()
+                {
+                    return Err("duplicate collection identity");
+                }
+            }
+        }
+        for (index, value) in collection_indices.values_mut().enumerate() {
+            *value = index;
+        }
+        let mut collections = vec![DmnIrScalarType::ScalarTypeNull; collection_indices.len()];
+        for model in models {
+            for collection in &model.collection_definitions {
+                let scalar = scalar_type(collection.element_type, dates)?;
+                if scalar == DmnIrScalarType::ScalarTypeNull {
+                    return Err("collection needs non-null scalar element type");
+                }
+                collections[collection_indices[&(
+                    model.namespace.as_str(),
+                    collection.identity.as_ref().unwrap().id.as_str(),
+                )]] = scalar;
+            }
+        }
+        let collections_expansion = collections.len() * 2;
         let mut types = Self {
             enabled,
+            collections_enabled,
+            collection_indices,
+            collections,
             dates,
             records: (0..indices.len())
                 .map(|_| Record {
@@ -74,7 +122,7 @@ impl<'a> Types<'a> {
                 .collect(),
             costs: vec![0; indices.len()],
             indices,
-            expansion: 0,
+            expansion: collections_expansion,
             models,
         };
         for model in models {
@@ -140,6 +188,8 @@ impl<'a> Types<'a> {
             let (field_cost, field_height) = if let Type::Record(child) = ty {
                 self.cost(child, heights, active, depth + 1)?;
                 (self.costs[child], heights[child])
+            } else if matches!(ty, Type::Collection(_)) {
+                (2, 2)
             } else {
                 (1, 1)
             };
@@ -159,14 +209,36 @@ impl<'a> Types<'a> {
     }
 
     pub fn variable(&self, value: &DmnIrVariable, namespace: &str) -> Check<Type> {
-        self.select(value.r#type, value.record_type.as_ref(), namespace)
+        self.select(
+            value.r#type,
+            value.record_type.as_ref(),
+            value.collection_type.as_ref(),
+            namespace,
+        )
     }
 
     pub fn expression(&self, value: &DmnIrExpression, namespace: &str) -> Check<Type> {
-        self.select(value.r#type, value.record_type.as_ref(), namespace)
+        self.select(
+            value.r#type,
+            value.record_type.as_ref(),
+            value.collection_type.as_ref(),
+            namespace,
+        )
     }
 
-    fn select(&self, scalar: i32, record: Option<&DmnIrReference>, namespace: &str) -> Check<Type> {
+    fn select(
+        &self,
+        scalar: i32,
+        record: Option<&DmnIrReference>,
+        collection: Option<&DmnIrReference>,
+        namespace: &str,
+    ) -> Check<Type> {
+        if let Some(collection) = collection {
+            if scalar != 0 || record.is_some() {
+                return Err("scalar record and collection types are mutually exclusive");
+            }
+            return self.collection(collection, namespace);
+        }
         if let Some(record) = record {
             if scalar != 0 {
                 return Err("scalar and record types are mutually exclusive");
@@ -183,6 +255,9 @@ impl<'a> Types<'a> {
                 Ok(Type::Scalar(scalar_type(*scalar, self.dates)?))
             }
             Some(dmn_ir_type_reference::Kind::RecordType(record)) => self.record(record, namespace),
+            Some(dmn_ir_type_reference::Kind::CollectionType(collection)) => {
+                self.collection(collection, namespace)
+            }
             _ => Err("unsupported record field type"),
         }
     }
@@ -210,9 +285,36 @@ impl<'a> Types<'a> {
         Ok(Type::Record(index))
     }
 
+    fn collection(&self, value: &DmnIrReference, namespace: &str) -> Check<Type> {
+        if !self.collections_enabled {
+            return Err("collections require profile 0.7");
+        }
+        let index = self
+            .collection_indices
+            .get(&(value.model_namespace.as_str(), value.element_id.as_str()))
+            .copied()
+            .ok_or("unresolved collection type")?;
+        if value.model_namespace != namespace
+            && !self.models.iter().any(|m| {
+                m.namespace == namespace
+                    && m.imports
+                        .iter()
+                        .any(|i| i.model_namespace == value.model_namespace)
+            })
+        {
+            return Err("collection type requires a direct import");
+        }
+        Ok(Type::Collection(index))
+    }
+
     pub fn charge(&self, ty: Type, total: &mut usize) -> Check<()> {
-        if let Type::Record(index) = ty {
-            *total += self.costs[index];
+        let cost = match ty {
+            Type::Record(index) => self.costs[index],
+            Type::Collection(_) => 2,
+            _ => 0,
+        };
+        if cost != 0 {
+            *total += cost;
             if *total > 50_000 {
                 return Err("expanded record type budget exceeded");
             }
@@ -374,6 +476,225 @@ mod tests {
             }
             assert_eq!(crate::model::verify_and_generate(&value), Err(error));
         }
+    }
+
+    fn collections() -> DmnIrArtifact {
+        DmnIrArtifact::decode(include_bytes!("../tests/fixtures/collections-0.7.dmnir").as_slice())
+            .unwrap()
+    }
+
+    #[test]
+    fn validates_collection_identity_elements_and_profiles() {
+        let valid = collections();
+        for (edit, expected) in [
+            (
+                (|a: &mut DmnIrArtifact| {
+                    a.models
+                        .iter_mut()
+                        .find(|m| !m.collection_definitions.is_empty())
+                        .unwrap()
+                        .collection_definitions[0]
+                        .element_type = 1;
+                }) as fn(&mut DmnIrArtifact),
+                "collection needs non-null scalar element type",
+            ),
+            (
+                |a| {
+                    let m = a
+                        .models
+                        .iter_mut()
+                        .find(|m| !m.collection_definitions.is_empty())
+                        .unwrap();
+                    m.collection_definitions
+                        .push(m.collection_definitions[0].clone());
+                },
+                "duplicate collection identity",
+            ),
+            (
+                |a| {
+                    let m = a
+                        .models
+                        .iter_mut()
+                        .find(|m| m.namespace == "urn:collections:policy")
+                        .unwrap();
+                    m.inputs
+                        .iter_mut()
+                        .find(|i| i.identity.as_ref().unwrap().id == "external")
+                        .unwrap()
+                        .variable
+                        .as_mut()
+                        .unwrap()
+                        .r#type = 3;
+                },
+                "scalar record and collection types are mutually exclusive",
+            ),
+            (
+                |a| {
+                    let m = a
+                        .models
+                        .iter_mut()
+                        .find(|m| m.namespace == "urn:collections:policy")
+                        .unwrap();
+                    m.inputs
+                        .iter_mut()
+                        .find(|i| i.identity.as_ref().unwrap().id == "external")
+                        .unwrap()
+                        .variable
+                        .as_mut()
+                        .unwrap()
+                        .collection_type
+                        .as_mut()
+                        .unwrap()
+                        .element_id = "missing".into();
+                },
+                "unresolved collection type",
+            ),
+            (
+                |a| {
+                    let m = a
+                        .models
+                        .iter_mut()
+                        .find(|m| m.namespace == "urn:collections:policy")
+                        .unwrap();
+                    let e = m
+                        .decisions
+                        .iter_mut()
+                        .find(|d| d.identity.as_ref().unwrap().id == "flags")
+                        .unwrap()
+                        .expression
+                        .as_mut()
+                        .unwrap();
+                    let Some(dmn_ir_expression::Node::List(list)) = &mut e.node else {
+                        panic!()
+                    };
+                    list.elements[0] = DmnIrExpression {
+                        r#type: 4,
+                        node: Some(dmn_ir_expression::Node::Literal(DmnIrLiteral {
+                            value: Some(dmn_ir_literal::Value::StringValue("true".into())),
+                        })),
+                        ..Default::default()
+                    };
+                },
+                "list element type mismatch",
+            ),
+        ] {
+            let mut artifact = valid.clone();
+            edit(&mut artifact);
+            assert_eq!(crate::model::verify_and_generate(&artifact), Err(expected));
+        }
+        let mut old = valid;
+        old.schema_version.as_mut().unwrap().minor = Some(6);
+        old.semantics_version = "finmsg-dmnir-field-constraints/0".into();
+        old.required_capabilities.pop();
+        assert_eq!(
+            crate::model::verify_and_generate(&old),
+            Err("collections require profile 0.7")
+        );
+    }
+
+    #[test]
+    fn preserves_nominal_collection_identity() {
+        let mut artifact = collections();
+        let catalog = artifact
+            .models
+            .iter_mut()
+            .find(|m| m.namespace == "urn:collections:catalog")
+            .unwrap();
+        let mut other = catalog
+            .collection_definitions
+            .iter()
+            .find(|c| c.identity.as_ref().unwrap().id == "fees")
+            .unwrap()
+            .clone();
+        other.identity.as_mut().unwrap().id = "other-fees".into();
+        other.identity.as_mut().unwrap().name = "OtherFees".into();
+        catalog.collection_definitions.push(other);
+        let root = artifact
+            .models
+            .iter_mut()
+            .find(|m| m.namespace == "urn:collections:policy")
+            .unwrap();
+        let echo = root
+            .decisions
+            .iter_mut()
+            .find(|d| d.identity.as_ref().unwrap().id == "echo")
+            .unwrap();
+        echo.expression
+            .as_mut()
+            .unwrap()
+            .collection_type
+            .as_mut()
+            .unwrap()
+            .element_id = "other-fees".into();
+        assert_eq!(
+            crate::model::verify_and_generate(&artifact),
+            Err("reference type mismatch")
+        );
+    }
+
+    #[test]
+    fn collection_fields_count_toward_record_depth() {
+        for count in [30, 31] {
+            let mut artifact = collections();
+            let catalog = artifact
+                .models
+                .iter_mut()
+                .find(|m| m.namespace == "urn:collections:catalog")
+                .unwrap();
+            let ns = catalog.namespace.clone();
+            let mut previous = DmnIrTypeReference {
+                kind: Some(dmn_ir_type_reference::Kind::CollectionType(
+                    DmnIrReference {
+                        model_namespace: ns.clone(),
+                        element_id: "fees".into(),
+                    },
+                )),
+            };
+            for index in 0..count {
+                let id = format!("depth-{index}");
+                catalog.record_definitions.push(DmnIrRecordDefinition {
+                    identity: Some(DmnIrElementIdentity {
+                        id: id.clone(),
+                        name: id.clone(),
+                    }),
+                    fields: vec![DmnIrRecordField {
+                        name: "Next".into(),
+                        r#type: Some(previous),
+                        ..Default::default()
+                    }],
+                });
+                previous = record_type(&ns, &id);
+            }
+            let result = crate::model::verify_and_generate(&artifact);
+            if count == 30 {
+                assert!(result.is_ok());
+            } else {
+                assert_eq!(result, Err("record depth budget exceeded"));
+            }
+        }
+    }
+
+    #[test]
+    fn collection_references_require_direct_imports() {
+        let mut artifact = collections();
+        let root = artifact
+            .models
+            .iter_mut()
+            .find(|m| m.namespace == "urn:collections:policy")
+            .unwrap();
+        root.imports.clear();
+        root.record_definitions.clear();
+        root.inputs
+            .retain(|i| i.identity.as_ref().unwrap().id == "external");
+        root.decisions
+            .retain(|d| d.identity.as_ref().unwrap().id == "echo");
+        artifact
+            .evaluation_order
+            .retain(|r| r.model_namespace == "urn:collections:policy" && r.element_id == "echo");
+        assert_eq!(
+            crate::model::verify_and_generate(&artifact),
+            Err("collection type requires a direct import")
+        );
     }
 
     fn record_type(namespace: &str, id: &str) -> DmnIrTypeReference {

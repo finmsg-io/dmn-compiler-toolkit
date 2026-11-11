@@ -34,6 +34,8 @@ enum Message {
     Decimal,
     Date,
     Reference,
+    Collection,
+    List,
     Table,
     TableInput,
     TableOutput,
@@ -72,6 +74,13 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Model, 3) => (Nested(Import), true, false),
         (Model, 4) => (Nested(Input), true, false),
         (Model, 5) => (Nested(Decision), true, false),
+        (Model, 7) => (Nested(Collection), true, false),
+        (Collection, 1) => (Nested(Identity), false, false),
+        (Collection, 2) => (Integer, false, false),
+        (Variable, 5) | (Expression, 11) => (Nested(Reference), false, false),
+        (TypeReference, 3) => (Nested(Reference), false, true),
+        (Expression, 12) => (Nested(List), false, true),
+        (List, 1) => (Nested(Expression), true, false),
         (Model, 6) => (Nested(Record), true, false),
         (Variable, 4) | (Expression, 7) => (Nested(Reference), false, false),
         (Record, 1) => (Nested(Identity), false, false),
@@ -156,6 +165,7 @@ fn message(
         | Message::Decision
         | Message::Record
         | Message::RecordField
+        | Message::Collection
         | Message::LocalBinding
         | Message::TableInput
         | Message::TableOutput

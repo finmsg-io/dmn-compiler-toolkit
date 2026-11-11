@@ -10,6 +10,7 @@ pub enum Value {
     Text(String),
     Number { coefficient: String, scale: i32 },
     Record(BTreeMap<String, Value>),
+    List(Vec<Value>),
     Date { year: i32, month: u32, day: u32 },
 }
 
@@ -17,6 +18,7 @@ pub enum Value {
 enum Type {
     Scalar(i32),
     Record(usize),
+    Collection(usize),
 }
 
 fn bind(value: &Value, expected: Type) -> Result<Value, &'static str> {
@@ -25,6 +27,16 @@ fn bind(value: &Value, expected: Type) -> Result<Value, &'static str> {
     }
     if let Type::Record(index) = expected {
         return bind_record(value, index);
+    }
+    if let Type::Collection(index) = expected {
+        let Value::List(elements) = value else {
+            return Err("collection input type mismatch");
+        };
+        return elements
+            .iter()
+            .map(|element| bind(element, collection_element(index)))
+            .collect::<Result<Vec<_>, _>>()
+            .map(Value::List);
     }
     let valid = match (value, expected) {
         (Value::Boolean(_), Type::Scalar(2)) | (Value::Text(_), Type::Scalar(4)) => true,

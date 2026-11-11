@@ -45,6 +45,7 @@ fn endpoint(value: Option<&DmnIrExpression>, ty: Type, ordered: bool) -> Check<S
     };
     let actual = Type::Scalar(crate::types::scalar_type(value.r#type, true)?);
     if value.record_type.is_some()
+        || value.collection_type.is_some()
         || !assignable(actual, ty)
         || ordered && actual != ty
         || matches!(literal.value, Some(Value::NullValue(_)))

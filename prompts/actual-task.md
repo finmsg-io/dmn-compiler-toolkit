@@ -204,3 +204,11 @@ section 38 and the retained constraints checkpoint log/accounting in `target/`.
 Rust 0.7 collections have not been started because the usage checkpoint rule
 stopped new implementation at 19% remaining. Next work is named scalar
 collections and ordered lists; schema 0.8 filters/builtins remain later scope.
+
+The usage window reset and Rust schema 0.7 named scalar collections are now
+implemented. Ordered lists preserve duplicates, nulls and exact scalar values
+through imported types, record fields, local bindings and conditionals. A full
+34-test Rust run and two later focused import/depth tests passed, matching 24
+Java collection vectors. See work-package section 39. The known independent
+README/index link-validation failures remain unchanged. Native/fallback routing
+is not applicable to these Rust tests. Next is schema 0.8 filters and builtins.

@@ -3227,3 +3227,41 @@ Checkpoint documentation validation was attempted. It currently fails on existin
 working-tree links in `README.md:251` and `docs/index.md:18` that leave the
 repository for the business-model-canvas/ideation siblings. Those independent
 edits were left untouched. The checkpoint document diff passes whitespace checks.
+
+## 39. Rust named scalar collections (R12-09k)
+
+After the usage window reset, implement the existing schema 0.7 scalar-collection
+contract. Add named, namespace-qualified collection identities with Boolean,
+number, string or date element types. Scalar, record and collection type selectors
+are exclusive. Preserve nominal collection identity through references, locals,
+record fields and conditionals. Admit ordered list constructors with compatible
+scalar elements and explicit nulls. Preserve order, duplicates, exact decimals
+and dates, and distinguish an empty list from a null collection.
+
+The generated API adds `Value::List(Vec<Value>)`. Typed inputs require list values
+with compatible elements and retain the existing strict scalar validation.
+Nested lists and records as elements are rejected. Existing wire message,
+reference, declaration, depth and expansion budgets include collection nodes;
+collection layouts have depth/cost two. Lists and contexts remain forbidden in
+table cells. Collection field constraints remain unsupported. Filters/builtins
+belong to schema 0.8 and are not admitted here.
+
+A Java producer/adapter fixture checks 24 input combinations across imported
+named collections, constrained nested records, table decisions, local values,
+list constructors, duplicates, nullable and empty lists, nullable elements, and
+all four element types. Expected results are retained in the collection TSV.
+Generated Rust is built/executed offline and generation is checked for determinism.
+Negative tests cover invalid typed shapes/elements, missing/wrong nominal types,
+non-scalar elements, selector conflicts and old-profile rejection. The record
+layout boundary admits depth 32 and rejects depth 33 with a collection leaf.
+An initial regression run hit a sandbox directory-permission error in the date
+fixture build. The permitted rerun passed that test and the remaining suite.
+Spark production sources are unchanged. Native/fallback routing is not measured
+by these Rust tests and is not applicable. The full 3,391-case Spark checkpoint
+is separately recorded in section 38.
+
+Verification passed for 36 Rust tests across the full 34-test suite and two
+subsequent focused import/depth tests. Generated Rust matched all 24 Java
+collection vectors. Whitespace checks passed. Documentation verification was
+attempted and still fails only on the independent README/index links leaving
+the repository recorded in section 38; those edits were preserved.

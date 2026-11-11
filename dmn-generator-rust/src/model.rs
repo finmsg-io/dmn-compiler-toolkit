@@ -646,6 +646,21 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         {
             true
         }
+        (Some(0), Some(7), "finmsg-dmnir-scalar-collections/0")
+            if artifact.required_capabilities
+                == [
+                    "dmnir.scalar",
+                    "dmnir.scalar-expressions",
+                    "dmnir.records",
+                    "dmnir.local-bindings",
+                    "dmnir.date",
+                    "dmnir.tables",
+                    "dmnir.field-constraints",
+                    "dmnir.scalar-collections",
+                ] =>
+        {
+            true
+        }
         _ => return Err("unsupported DMNIR profile"),
     };
     let mut model_ids = BTreeMap::new();
@@ -655,6 +670,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         &artifact.models,
         version.minor >= Some(2),
         version.minor >= Some(4),
+        version.minor >= Some(7),
     )?;
     let constraint_source = constraints::generate(&types, version.minor >= Some(6))?;
     let mut type_expansion = types.expansion;
@@ -681,6 +697,16 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
                 {
                     return Err("duplicate record field ID");
                 }
+            }
+        }
+        for collection in &model.collection_definitions {
+            let identity = collection
+                .identity
+                .as_ref()
+                .ok_or("missing collection identity")?;
+            identity_fields(identity, &mut ids)?;
+            if !type_names.insert(identity.name.as_str()) {
+                return Err("duplicate collection name");
             }
         }
         let inputs = model
@@ -764,6 +790,11 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     if version.minor >= Some(5) {
         source.push_str(include_str!("generated_tables.rs.txt"));
     }
+    source.push_str("fn collection_element(index: usize) -> Type { match index {\n");
+    for (index, scalar) in types.collections.iter().enumerate() {
+        writeln!(source, "{index} => Type::Scalar({}),", *scalar as i32).unwrap();
+    }
+    source.push_str("_ => unreachable!(\"verified collection index\"), } }\n");
     source.push_str(&constraint_source);
     source.push_str("pub fn evaluate(inputs: &BTreeMap<Key<'_>, Value>) -> Result<BTreeMap<Key<'static>, Value>, &'static str> {\n");
     let mut ready = BTreeSet::new();
@@ -829,6 +860,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         let mut emitter = ExpressionEmitter {
             structured,
             table_cell: false,
+            collections_enabled: version.minor >= Some(7),
             dates: version.minor >= Some(4),
             locals_enabled: version.minor >= Some(3),
             locals: BTreeMap::new(),
@@ -890,6 +922,7 @@ struct ExpressionEmitter<'a, 'model> {
     structured: bool,
     table_cell: bool,
     dates: bool,
+    collections_enabled: bool,
     locals_enabled: bool,
     locals: BTreeMap<String, Emitted>,
     binding_ids: BTreeSet<String>,
@@ -921,7 +954,10 @@ impl ExpressionEmitter<'_, '_> {
         };
         use DmnIrUnaryOperator::{UnaryOperatorNegate, UnaryOperatorNot, UnaryOperatorPositive};
 
-        if self.table_cell && matches!(expression.node, Some(Node::Context(_))) {
+        if self.table_cell
+            && (expression.collection_type.is_some()
+                || matches!(expression.node, Some(Node::Context(_))))
+        {
             return Err("contexts are unsupported in table cells");
         }
         let ty = self.types.expression(expression, self.namespace)?;
@@ -929,7 +965,27 @@ impl ExpressionEmitter<'_, '_> {
         let mut depth = 0;
         let mut bounds = None;
         let value = match expression.node.as_ref().ok_or("missing expression node")? {
+            Node::List(list) if self.collections_enabled => {
+                let Type::Collection(index) = ty else {
+                    return Err("list requires a named collection type");
+                };
+                let mut elements = Vec::new();
+                for element in &list.elements {
+                    let emitted = self.expression(element)?;
+                    if !matches!(emitted.ty, Type::Scalar(_))
+                        || !assignable(emitted.ty, self.types.collections[index])
+                    {
+                        return Err("list element type mismatch");
+                    }
+                    depth = depth.max(emitted.depth);
+                    elements.push(emitted.value);
+                }
+                format!("Value::List(vec![{}])", elements.join(","))
+            }
             Node::Literal(literal) => {
+                if matches!(ty, Type::Collection(_)) {
+                    return Err("collection literal requires a list constructor or scalar null");
+                }
                 let (source, literal_bounds) = literal_source(literal, ty, self.dates)?;
                 bounds = literal_bounds;
                 source
@@ -939,7 +995,11 @@ impl ExpressionEmitter<'_, '_> {
                 if !self.dependencies.contains(&target) {
                     return Err("expression reference is not a declared dependency");
                 }
-                if !assignable(self.declarations[&target].ty, ty) {
+                if if matches!(ty, Type::Collection(_)) {
+                    self.declarations[&target].ty != ty
+                } else {
+                    !assignable(self.declarations[&target].ty, ty)
+                } {
                     return Err("reference type mismatch");
                 }
                 depth = self.arithmetic_depths.get(&target).copied().unwrap_or(0);

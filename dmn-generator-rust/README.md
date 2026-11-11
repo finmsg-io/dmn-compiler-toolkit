@@ -3,7 +3,8 @@
 This prototype consumes DMNIR 0.0 scalar artifacts, scalar expressions from
 DMNIR 0.1, named records and field access from DMNIR 0.2, local contexts
 from DMNIR 0.3, civil dates from DMNIR 0.4, decision tables from DMNIR 0.5,
-and scalar record field constraints from DMNIR 0.6. It verifies the wire
+scalar record field constraints from DMNIR 0.6, and named scalar collections
+from DMNIR 0.7. It verifies the wire
 and model graph, then writes a standalone Rust library crate. The artifact is
 the only model input to the generator.
 
@@ -53,7 +54,7 @@ The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient
 digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
 Division has a separate 8,388,608-limb-visit budget and permits division-derived
-scales through 32,768. Powers and profiles above 0.6 remain outside the subset.
+scales through 32,768. Powers and profiles above 0.7 remain outside the subset.
 
 Schema 0.2 adds `Value::Record(BTreeMap<String, Value>)` for nested record inputs
 and results. All declared fields must be present with the expected types.
@@ -101,3 +102,15 @@ while a null record skips its nested fields. Violations return the static error
 `field constraint violated`. Typed input structure and scalar checks still apply.
 `tests/fixtures/ExportConstraintFixture.java` takes the table artifact, constrained
 artifact output path and Java expected-vector TSV output path as arguments.
+
+Schema 0.7 adds `Value::List(Vec<Value>)` for ordered scalar collections.
+Named collection types retain their namespace-qualified identities. Elements
+may be Boolean, number, string or date, with explicit null elements allowed.
+List inputs require a list with correctly typed elements. Empty and null lists
+remain distinct, and order and duplicates are preserved. Collections may appear
+in record fields, local bindings, references and conditional results. List
+constructors are checked before generation, including unselected branches.
+Nested collections, record elements, filters and builtins are outside this profile.
+Collections contribute two levels/nodes to the existing type-depth/expansion budgets.
+`tests/fixtures/ExportCollectionFixture.java` produces the collection artifact and
+Java expected-vector TSV using those two output paths as arguments.
