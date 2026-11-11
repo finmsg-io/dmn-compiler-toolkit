@@ -637,6 +637,104 @@ mod tests {
         );
     }
 
+    #[test]
+    fn validates_fixed_builtin_signatures_and_profile() {
+        let valid = DmnIrArtifact::decode(
+            include_bytes!("../tests/fixtures/builtins-0.9.dmnir").as_slice(),
+        )
+        .unwrap();
+        for (edit, expected) in [
+            (
+                (|c: &mut DmnIrBuiltinCall| c.operation = 0) as fn(&mut DmnIrBuiltinCall),
+                "unsupported builtin operation",
+            ),
+            (|c| c.arguments.clear(), "builtin argument count mismatch"),
+            (
+                |c| c.arguments.push(c.arguments[0].clone()),
+                "builtin argument count mismatch",
+            ),
+            (
+                |c| {
+                    c.arguments[0] = DmnIrExpression {
+                        r#type: 1,
+                        node: Some(Node::Literal(DmnIrLiteral {
+                            value: Some(Value::NullValue(0)),
+                        })),
+                        ..Default::default()
+                    }
+                },
+                "builtin argument type mismatch",
+            ),
+            (|c| c.operation = 2, "builtin argument type mismatch"),
+            (|c| c.operation = 3, "builtin result type mismatch"),
+        ] {
+            let mut artifact = valid.clone();
+            let e = artifact.models[0]
+                .decisions
+                .iter_mut()
+                .find(|d| d.identity.as_ref().unwrap().id == "absolute")
+                .unwrap()
+                .expression
+                .as_mut()
+                .unwrap();
+            let Some(Node::BuiltinCall(call)) = &mut e.node else {
+                panic!()
+            };
+            edit(call);
+            assert!(crate::wire::verify(&artifact.encode_to_vec()).is_ok());
+            assert_eq!(verify_and_generate(&artifact), Err(expected));
+        }
+        let mut old = valid;
+        old.schema_version.as_mut().unwrap().minor = Some(8);
+        old.semantics_version = "finmsg-dmnir-scalar-filters/0".into();
+        old.required_capabilities.pop();
+        assert_eq!(
+            verify_and_generate(&old),
+            Err("expression outside scalar profile")
+        );
+    }
+
+    #[test]
+    fn abs_preserves_computed_operand_bounds() {
+        let mut artifact = DmnIrArtifact::decode(
+            include_bytes!("../tests/fixtures/builtins-0.9.dmnir").as_slice(),
+        )
+        .unwrap();
+        let e = artifact.models[0]
+            .decisions
+            .iter_mut()
+            .find(|d| d.identity.as_ref().unwrap().id == "absolute")
+            .unwrap()
+            .expression
+            .as_mut()
+            .unwrap();
+        let mut tiny = decimal_literal("1".into());
+        let Some(Node::Literal(literal)) = &mut tiny.node else {
+            panic!()
+        };
+        let Some(Value::NumberValue(value)) = &mut literal.value else {
+            panic!()
+        };
+        value.scale = Some(4096);
+        let Some(Node::BuiltinCall(call)) = &mut e.node else {
+            panic!()
+        };
+        call.arguments[0] = multiply(tiny.clone(), tiny);
+        let mut tenth = decimal_literal("1".into());
+        let Some(Node::Literal(literal)) = &mut tenth.node else {
+            panic!()
+        };
+        let Some(Value::NumberValue(value)) = &mut literal.value else {
+            panic!()
+        };
+        value.scale = Some(1);
+        *e = multiply(e.clone(), tenth);
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("decimal scale bound exceeds 8192")
+        );
+    }
+
     fn repeated_decisions(bytes: &[u8], template: &str, count: usize) -> DmnIrArtifact {
         let mut artifact = DmnIrArtifact::decode(bytes).unwrap();
         let model = &mut artifact.models[0];
@@ -828,6 +926,23 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         {
             true
         }
+        (Some(0), Some(9), "finmsg-dmnir-builtin-calls/0")
+            if artifact.required_capabilities
+                == [
+                    "dmnir.scalar",
+                    "dmnir.scalar-expressions",
+                    "dmnir.records",
+                    "dmnir.local-bindings",
+                    "dmnir.date",
+                    "dmnir.tables",
+                    "dmnir.field-constraints",
+                    "dmnir.scalar-collections",
+                    "dmnir.scalar-filters",
+                    "dmnir.builtin-calls",
+                ] =>
+        {
+            true
+        }
         _ => return Err("unsupported DMNIR profile"),
     };
     let mut model_ids = BTreeMap::new();
@@ -965,6 +1080,9 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     if version.minor >= Some(8) {
         source.push_str(include_str!("generated_filters.rs.txt"));
     }
+    if version.minor >= Some(9) {
+        source.push_str(include_str!("generated_builtins.rs.txt"));
+    }
     source.push_str(&constraint_source);
     source.push_str("pub fn evaluate(inputs: &BTreeMap<Key<'_>, Value>) -> Result<BTreeMap<Key<'static>, Value>, &'static str> {\n");
     let filter_budget_position = source.len();
@@ -1033,6 +1151,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         let mut emitter = ExpressionEmitter {
             structured,
             table_cell: false,
+            builtins_enabled: version.minor >= Some(9),
             filters_enabled: version.minor >= Some(8),
             filter_predicate: false,
             collections_enabled: version.minor >= Some(7),
@@ -1100,6 +1219,7 @@ struct ExpressionEmitter<'a, 'model> {
     structured: bool,
     table_cell: bool,
     filters_enabled: bool,
+    builtins_enabled: bool,
     filter_predicate: bool,
     dates: bool,
     collections_enabled: bool,
@@ -1148,6 +1268,37 @@ impl ExpressionEmitter<'_, '_> {
         let mut depth = 0;
         let mut bounds = None;
         let value = match expression.node.as_ref().ok_or("missing expression node")? {
+            Node::BuiltinCall(call) if self.builtins_enabled => {
+                let (parameters, result, function): (&[DmnIrScalarType], DmnIrScalarType, &str) =
+                    match call.operation {
+                        1 => (&[Number], Number, "builtin_abs"),
+                        2 => (&[Text], Number, "builtin_string_length"),
+                        3 => (&[Text, Text], Boolean, "builtin_contains"),
+                        _ => return Err("unsupported builtin operation"),
+                    };
+                if ty != result {
+                    return Err("builtin result type mismatch");
+                }
+                if call.arguments.len() != parameters.len() {
+                    return Err("builtin argument count mismatch");
+                }
+                let mut arguments = Vec::new();
+                for (argument, parameter) in call.arguments.iter().zip(parameters) {
+                    let emitted = self.expression(argument)?;
+                    if emitted.ty != *parameter {
+                        return Err("builtin argument type mismatch");
+                    }
+                    depth = depth.max(emitted.depth);
+                    if call.operation == 1 {
+                        bounds = emitted.bounds;
+                    }
+                    arguments.push(emitted.value);
+                }
+                if call.operation == 2 {
+                    bounds = Some(NumericBounds::literal(&u64::MAX.to_string(), 0));
+                }
+                format!("{function}({})", arguments.join(","))
+            }
             Node::Filter(filter) if self.filters_enabled => {
                 if self.filter_predicate {
                     return Err("filters inside predicates are unsupported");

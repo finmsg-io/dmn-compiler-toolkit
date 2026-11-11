@@ -220,3 +220,11 @@ All 40 Rust tests passed, including 24 Java filter vectors and budget boundaries
 See work-package section 40. Known unrelated README/index link failures remain.
 Collections were pushed as `a5ab42c`; hosted CI was still queued at the last check.
 Next is schema 0.9 builtins, correcting the earlier combined 0.8 wording.
+
+Rust schema 0.9 fixed builtins are implemented: abs(number), string length(string)
+and contains(string,string). All 43 Rust tests passed, matching 216 Java input
+combinations across six decisions each. Unicode code points, null propagation,
+exact decimal scales, contexts, filters and table cells are covered. See
+work-package section 41. Known unrelated README/index link failures remain.
+The filter slice was pushed as `a881016` and passed hosted Rust parity. Next is
+schema 0.10 resolved BKMs and knowledge dependencies.

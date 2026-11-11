@@ -3300,3 +3300,38 @@ vectors. Whitespace checks passed. Documentation validation still fails only on
 the independent README/index links leaving the repository listed in section 38;
 those edits remain untouched. Hosted CI for collection commit `a5ab42c` was still
 queued at the final check, so no hosted success is claimed for that commit.
+
+## 41. Rust fixed scalar builtins (R12-09m)
+
+Accept the exact schema 0.9 builtin-calls profile alongside prior profiles.
+Admit the fixed Java signatures: abs(number) -> number, string length(string)
+-> number and contains(string,string) -> Boolean. Require exact static argument
+and result types and arity; dynamically null typed values yield null results.
+Evaluate arguments once in order. Absolute value changes only the sign and
+preserves exact decimal coefficient/scale. String length counts Unicode code
+points, and contains performs a literal substring search with empty-needle
+semantics matching Java. No additional crate dependencies are introduced.
+
+Preserve numeric bounds through abs, including computed operands. Bound string
+length using the maximum u64-sized character count at scale zero, so downstream
+arithmetic remains subject to the existing admission limits. Builtins may appear
+in contexts, filter predicates and decision-table cells. Unknown operations,
+wrong argument counts, incompatible argument/result types and older-profile
+builtin nodes are rejected before generation.
+
+A Java producer/adapter fixture records 216 combinations of nullable numbers,
+strings and search needles. Cases include supplementary Unicode, combining
+marks, empty strings, negative/zero decimals, preferred scales, 4,096-digit
+coefficients and extreme admitted scales. Each evaluates six decisions including
+standalone calls, local contexts, filters and table cells. Generated Rust is
+compiled and executed offline and output determinism is checked. Negative
+verification covers signatures, profiles and preservation of an abs operand's
+computed scale bound. Rust tests do not measure Spark routing, so native/fallback
+counts and rates are not applicable. Spark production sources are unchanged.
+
+All 43 Rust tests passed locally with zero failures. Generated Rust matched all
+216 Java builtin input combinations (six decisions each). Whitespace checks
+passed. Documentation validation still fails on the independent README/index
+links leaving the repository recorded in section 38. Those edits were preserved.
+The preceding filter commit `a881016` passed hosted Rust parity; Maven CI was
+still running at the last check.

@@ -4,7 +4,7 @@ This prototype consumes DMNIR 0.0 scalar artifacts, scalar expressions from
 DMNIR 0.1, named records and field access from DMNIR 0.2, local contexts
 from DMNIR 0.3, civil dates from DMNIR 0.4, decision tables from DMNIR 0.5,
 scalar record field constraints from DMNIR 0.6, and named scalar collections
-from DMNIR 0.7, and scalar filters from DMNIR 0.8. It verifies the wire
+from DMNIR 0.7, scalar filters from DMNIR 0.8, and fixed builtins from DMNIR 0.9. It verifies the wire
 and model graph, then writes a standalone Rust library crate. The artifact is
 the only model input to the generator.
 
@@ -54,7 +54,7 @@ The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient
 digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
 Division has a separate 8,388,608-limb-visit budget and permits division-derived
-scales through 32,768. Powers and profiles above 0.8 remain outside the subset.
+scales through 32,768. Powers and profiles above 0.9 remain outside the subset.
 
 Schema 0.2 adds `Value::Record(BTreeMap<String, Value>)` for nested record inputs
 and results. All declared fields must be present with the expected types.
@@ -127,6 +127,19 @@ visits. It charges repeated predicate multiplication/division against the existi
 8,388,608-unit budgets, reserving the static graph cost and charging additional
 iterations using the verifier's conservative operand bounds. A limit violation
 returns `filter evaluation budget exceeded` before predicate iteration.
-Builtins belong to DMNIR 0.9 and remain pending.
+Builtins belong to DMNIR 0.9, described below.
 `tests/fixtures/ExportFilterFixture.java` writes the filter artifact, Java-vector
 TSV and constant-predicate visit-budget artifact to its three argument paths.
+
+Schema 0.9 supports `abs(number)`, `string length(string)` and
+`contains(string, string)` with exact static signatures. Null input values
+propagate to null results. Absolute value preserves coefficient trailing zeros
+and scale, with no floating-point conversion. String length counts Unicode code
+points, including supplementary characters and separate combining marks.
+Contains uses a literal substring match and accepts an empty needle.
+Calls can appear in admitted expressions, contexts, filters and table cells.
+The verifier preserves operand bounds through abs and bounds string-length
+results before admitting downstream numeric operations. Unknown operations,
+wrong arity and incompatible argument/result types are rejected.
+`tests/fixtures/ExportBuiltinFixture.java` writes the artifact and Java expected
+TSV vectors to its two argument paths.

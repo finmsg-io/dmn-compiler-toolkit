@@ -1,0 +1,24 @@
+fn builtin_abs(value: Value) -> Value {
+    match value {
+        Value::Number { coefficient, scale } => Value::Number {
+            coefficient: coefficient.trim_start_matches('-').into(),
+            scale,
+        },
+        _ => Value::Null,
+    }
+}
+fn builtin_string_length(value: Value) -> Value {
+    match value {
+        Value::Text(text) => Value::Number {
+            coefficient: text.chars().count().to_string(),
+            scale: 0,
+        },
+        _ => Value::Null,
+    }
+}
+fn builtin_contains(text: Value, needle: Value) -> Value {
+    match (text, needle) {
+        (Value::Text(text), Value::Text(needle)) => Value::Boolean(text.contains(&needle)),
+        _ => Value::Null,
+    }
+}
