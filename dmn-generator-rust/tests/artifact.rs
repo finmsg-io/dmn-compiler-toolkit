@@ -92,6 +92,45 @@ fn java_date_artifact_generates_deterministic_offline_rust() {
     );
 }
 
+#[test]
+fn java_tables_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "tables",
+        include_bytes!("fixtures/tables-0.5.dmnir"),
+        include_str!("fixtures/table_parity.rs.txt"),
+        &[(
+            "table_vectors.tsv",
+            include_str!("fixtures/tables_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn java_tables_unique_conflict_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "tables-unique-conflict",
+        include_bytes!("fixtures/tables-unique-conflict-0.5.dmnir"),
+        include_str!("fixtures/table_parity.rs.txt"),
+        &[(
+            "table_vectors.tsv",
+            include_str!("fixtures/tables-unique-conflict_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn java_tables_any_conflict_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "tables-any-conflict",
+        include_bytes!("fixtures/tables-any-conflict-0.5.dmnir"),
+        include_str!("fixtures/table_parity.rs.txt"),
+        &[(
+            "table_vectors.tsv",
+            include_str!("fixtures/tables-any-conflict_vectors.tsv"),
+        )],
+    );
+}
+
 fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");

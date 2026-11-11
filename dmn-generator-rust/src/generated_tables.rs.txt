@@ -1,0 +1,68 @@
+fn table_compare(candidate: &Value, endpoint: Value, op: i32) -> bool {
+    match op {
+        6 => matches!(equal(candidate.clone(), endpoint), Value::Boolean(true)),
+        7 => matches!(equal(candidate.clone(), endpoint), Value::Boolean(false)),
+        _ => compare(candidate, &endpoint).is_some_and(|order| match op {
+            8 => order.is_lt(),
+            9 => order.is_le(),
+            10 => order.is_gt(),
+            11 => order.is_ge(),
+            _ => false,
+        }),
+    }
+}
+fn table_range(
+    candidate: &Value,
+    lower: Value,
+    upper: Value,
+    lower_inclusive: bool,
+    upper_inclusive: bool,
+) -> bool {
+    compare(&lower, &upper).is_some_and(|order| !order.is_gt())
+        && compare(candidate, &lower).is_some_and(|order| {
+            if lower_inclusive {
+                order.is_ge()
+            } else {
+                order.is_gt()
+            }
+        })
+        && compare(candidate, &upper).is_some_and(|order| {
+            if upper_inclusive {
+                order.is_le()
+            } else {
+                order.is_lt()
+            }
+        })
+}
+fn table_result(
+    rows: Vec<Vec<Value>>,
+    policy: i32,
+    names: &[&str],
+    defaults: impl FnOnce() -> Vec<Value>,
+) -> Result<Value, &'static str> {
+    if policy == 1 && rows.len() > 1 {
+        return Err("UNIQUE table matched multiple rules");
+    }
+    if policy == 3
+        && !rows.is_empty()
+        && rows.iter().skip(1).any(|row| {
+            row.iter()
+                .zip(&rows[0])
+                .any(|(a, b)| !matches!(equal(a.clone(), b.clone()), Value::Boolean(true)))
+        })
+    {
+        return Err("ANY table produced different outputs");
+    }
+    let values = rows.into_iter().next().unwrap_or_else(defaults);
+    Ok(if values.len() == 1 {
+        values.into_iter().next().unwrap()
+    } else {
+        Value::Record(
+            names
+                .iter()
+                .zip(values)
+                .map(|(name, value)| ((*name).into(), value))
+                .collect(),
+        )
+    })
+}

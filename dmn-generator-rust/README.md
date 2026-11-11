@@ -2,7 +2,7 @@
 
 This prototype consumes DMNIR 0.0 scalar artifacts, scalar expressions from
 DMNIR 0.1, named records and field access from DMNIR 0.2, local contexts
-from DMNIR 0.3, and civil dates from DMNIR 0.4. It verifies the wire
+from DMNIR 0.3, civil dates from DMNIR 0.4, and decision tables from DMNIR 0.5. It verifies the wire
 and model graph, then writes a standalone Rust library crate. The artifact is
 the only model input to the generator.
 
@@ -52,7 +52,7 @@ The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient
 digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
 Division has a separate 8,388,608-limb-visit budget and permits division-derived
-scales through 32,768. Powers and profiles above 0.4 remain outside the subset.
+scales through 32,768. Powers and profiles above 0.5 remain outside the subset.
 
 Schema 0.2 adds `Value::Record(BTreeMap<String, Value>)` for nested record inputs
 and results. All declared fields must be present with the expected types.
@@ -79,3 +79,16 @@ No timezone or clock conversion occurs. Time-of-day, offsets and durations are
 outside this profile. The generated crate remains dependency-free.
 `tests/fixtures/ExportDateFixture.java` produces the date artifact and Java
 expected TSV vectors. Its arguments are the artifact and TSV output paths.
+
+Schema 0.5 supports UNIQUE, FIRST and ANY decision tables with scalar or named
+record results. Inputs are evaluated once. Rules use scalar comparisons, ranges,
+alternatives, negation and wildcards. All matching rows are evaluated in order,
+as in the Java adapter. UNIQUE rejects multiple matches, and ANY rejects unequal
+results using numeric value equality across decimal scales. FIRST returns the
+first match. No matches use each output's default expression or null, including
+null-valued fields in record results. Policy conflicts return an evaluation error.
+The verifier checks column counts, result shape, IDs, types, dependencies and
+all cells, including inactive rules and defaults. Context expressions are rejected
+inside table cells. Scalar output bounds propagate to later decisions.
+`tests/fixtures/ExportTableFixture.java` writes table artifacts and Java vectors
+to the directory supplied as its argument.

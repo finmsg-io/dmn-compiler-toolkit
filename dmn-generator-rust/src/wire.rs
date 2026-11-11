@@ -34,6 +34,14 @@ enum Message {
     Decimal,
     Date,
     Reference,
+    Table,
+    TableInput,
+    TableOutput,
+    Rule,
+    Tests,
+    Test,
+    Comparison,
+    Range,
 }
 
 #[derive(Clone, Copy)]
@@ -81,6 +89,24 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Expression, 8) => (Nested(FieldAccess), false, true),
         (FieldAccess, 1) => (Nested(Expression), false, false),
         (Input | Decision, 2) => (Nested(Variable), false, false),
+        (Decision, 5) => (Nested(Table), false, false),
+        (Table | TableInput | TableOutput | Rule, 1) => (Text, false, false),
+        (Table, 2) | (TableInput, 4) | (TableOutput, 3) | (Comparison, 1) => {
+            (Integer, false, false)
+        }
+        (Table, 3) => (Nested(TableInput), true, false),
+        (Table, 4) => (Nested(TableOutput), true, false),
+        (Table, 5) => (Nested(Rule), true, false),
+        (TableInput | TableOutput, 2) => (Text, false, false),
+        (TableInput, 3) | (TableOutput, 4) | (Comparison, 2) | (Range, 1 | 2) => {
+            (Nested(Expression), false, false)
+        }
+        (Rule, 2) => (Nested(Tests), true, false),
+        (Rule, 3) => (Nested(Expression), true, false),
+        (Tests, 1 | 2) | (Range, 3 | 4) => (Boolean, false, false),
+        (Tests, 3) => (Nested(Test), true, false),
+        (Test, 1) => (Nested(Comparison), false, true),
+        (Test, 2) => (Nested(Range), false, true),
         (Decision, 4) => (Nested(Expression), false, false),
         (Expression, 2) => (Nested(Literal), false, true),
         (Expression, 3) => (Nested(Reference), false, true),
@@ -129,7 +155,10 @@ fn message(
         | Message::Decision
         | Message::Record
         | Message::RecordField
-        | Message::LocalBinding => budget.declarations += 1,
+        | Message::LocalBinding
+        | Message::TableInput
+        | Message::TableOutput
+        | Message::Rule => budget.declarations += 1,
         Message::Reference | Message::LocalReference => budget.references += 1,
         _ => {}
     }

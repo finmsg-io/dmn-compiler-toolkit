@@ -1,0 +1,66 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+fn encode(value: &Value) -> String {
+    match value {
+        Value::Null => "N".into(),
+        Value::Boolean(true) => "T".into(),
+        Value::Boolean(false) => "F".into(),
+        Value::Text(text) => format!("S{text}"),
+        Value::Number { coefficient, scale } => format!("D{coefficient},{scale}"),
+        Value::Record(fields) => format!(
+            "R{}",
+            fields
+                .iter()
+                .map(|(k, v)| format!("{k}:{}", encode(v)))
+                .collect::<Vec<_>>()
+                .join("|")
+        ),
+        _ => panic!("unexpected date result"),
+    }
+}
+#[test]
+fn tables_match_java_results_and_policy_errors() {
+    let mut count = 0;
+    for line in include_str!("table_vectors.tsv").lines() {
+        let (input, expected) = line.split_once('\t').unwrap();
+        let value = if input == "null" {
+            Value::Null
+        } else {
+            let parts: Vec<_> = input.split('.').collect();
+            let coefficient = parts.concat();
+            Value::Number {
+                coefficient,
+                scale: parts.get(1).map_or(0, |s| s.len() as i32),
+            }
+        };
+        // Canonical coefficient grammar excludes leading zeros.
+        let value = match value {
+            Value::Number { coefficient, scale } if coefficient.starts_with('0') => Value::Number {
+                coefficient: if coefficient.bytes().all(|c| c == b'0') {
+                    "0".into()
+                } else {
+                    coefficient.trim_start_matches('0').into()
+                },
+                scale,
+            },
+            other => other,
+        };
+        let actual = evaluate(&BTreeMap::from([(
+            ("urn:rust-proof:tables", "input"),
+            value,
+        )]));
+        if expected == "ERROR" {
+            assert!(actual.is_err(), "{line}");
+        } else {
+            let results = actual.unwrap();
+            let actual = results
+                .iter()
+                .map(|((_, id), value)| format!("{id}={}", encode(value)))
+                .collect::<Vec<_>>()
+                .join(";");
+            assert_eq!(actual, expected, "{line}");
+        }
+        count += 1;
+    }
+    assert_eq!(count, 12);
+}

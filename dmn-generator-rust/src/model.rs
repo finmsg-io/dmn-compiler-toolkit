@@ -1,3 +1,5 @@
+#[path = "tables.rs"]
+mod tables;
 use crate::bounds::{MAX_DIVISION_LIMB_VISITS, MAX_LIMB_PRODUCTS, NumericBounds};
 use crate::decimal;
 use crate::proto::*;
@@ -615,6 +617,19 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         {
             true
         }
+        (Some(0), Some(5), "finmsg-dmnir-tables/0")
+            if artifact.required_capabilities
+                == [
+                    "dmnir.scalar",
+                    "dmnir.scalar-expressions",
+                    "dmnir.records",
+                    "dmnir.local-bindings",
+                    "dmnir.date",
+                    "dmnir.tables",
+                ] =>
+        {
+            true
+        }
         _ => return Err("unsupported DMNIR profile"),
     };
     let mut model_ids = BTreeMap::new();
@@ -729,6 +744,9 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         source.push_str(include_str!("generated_expressions.rs.txt"));
         source.push_str(include_str!("generated_division.rs.txt"));
     }
+    if version.minor == Some(5) {
+        source.push_str(include_str!("generated_tables.rs.txt"));
+    }
     source.push_str("pub fn evaluate(inputs: &BTreeMap<Key<'_>, Value>) -> Result<BTreeMap<Key<'static>, Value>, &'static str> {\n");
     let mut ready = BTreeSet::new();
     let mut numeric_bounds = BTreeMap::new();
@@ -775,12 +793,15 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
                 return Err("dependency requires a direct import");
             }
         }
-        let expression = decision
-            .expression
-            .as_ref()
-            .ok_or("missing decision expression")?;
+        if decision.expression.is_some() == decision.decision_table.is_some() {
+            return Err("decision requires exactly one logic body");
+        }
+        if decision.decision_table.is_some() && version.minor != Some(5) {
+            return Err("decision tables require profile 0.5");
+        }
         let mut emitter = ExpressionEmitter {
             structured,
+            table_cell: false,
             dates: version.minor >= Some(4),
             locals_enabled: version.minor >= Some(3),
             locals: BTreeMap::new(),
@@ -802,7 +823,11 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             value,
             depth,
             bounds,
-        } = emitter.expression(expression)?;
+        } = if let Some(table) = &decision.decision_table {
+            emitter.table(table, declaration.ty)?
+        } else {
+            emitter.expression(decision.expression.as_ref().unwrap())?
+        };
         if !assignable(ty, declaration.ty) {
             return Err("decision expression type mismatch");
         }
@@ -827,6 +852,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
 
 struct ExpressionEmitter<'a, 'model> {
     structured: bool,
+    table_cell: bool,
     dates: bool,
     locals_enabled: bool,
     locals: BTreeMap<String, Emitted>,
@@ -859,6 +885,9 @@ impl ExpressionEmitter<'_, '_> {
         };
         use DmnIrUnaryOperator::{UnaryOperatorNegate, UnaryOperatorNot, UnaryOperatorPositive};
 
+        if self.table_cell && matches!(expression.node, Some(Node::Context(_))) {
+            return Err("contexts are unsupported in table cells");
+        }
         let ty = self.types.expression(expression, self.namespace)?;
         self.types.charge(ty, self.type_expansion)?;
         let mut depth = 0;

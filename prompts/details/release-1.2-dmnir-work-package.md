@@ -3130,3 +3130,36 @@ routing, so those counts and rates are not applicable.
 
 All 25 Rust tests passed locally with zero failures. Generated Rust matched all
 494 Java date results. Native/fallback routing was not measured by these tests.
+
+## 36. Rust decision tables (R12-09i)
+
+Accept the exact DMNIR 0.5 tables profile and retain earlier admitted profiles.
+Require exactly one decision logic body. Support UNIQUE, FIRST and ANY policies,
+scalar outputs and multiple scalar outputs matching a named record's fields in
+order. Evaluate inputs once and all matching rule outputs in source order like
+the Java adapter. UNIQUE multiple matches and ANY unequal outputs return an
+evaluation error. ANY uses numeric value equality across decimal scales and
+compares every output column. FIRST returns the first matching row. Evaluate
+default expressions only with no matches and use null for absent defaults.
+
+Admit comparison, range, alternative, negated and wildcard unary tests. Match
+null and ordered endpoint behavior to Java. Validate optional source IDs against
+the model scope, input/output column types, result names/shape, rule counts,
+dependencies and every cell, including inactive outputs/defaults. Reject boxed
+contexts in cells. Existing arithmetic budgets apply and scalar output numeric
+bounds propagate to downstream decisions. Existing wire/declaration budgets
+include table columns, rules and unary-test messages.
+
+The Java exporter creates three verified artifacts and 36 evaluation vectors
+covering normal tables and conflicting UNIQUE/ANY matches. Cases cover decimal
+scale equality in record-valued ANY results, nulls, defaults, boundary ranges,
+alternatives, negation, wildcards, Boolean/string/date inputs and scalar outputs.
+Generated Rust compilation, offline execution and deterministic generation are
+checked alongside malformed-table and old-profile rejection. These focused Rust
+tests do not measure Spark routing, so native/fallback counts and rates are not
+applicable. No Spark production sources changed.
+The preceding date implementation was pushed as `0387552`.
+
+All 29 Rust tests passed locally with zero failures, including all 36 Java table
+evaluation vectors. Documentation validation passed. Date commit `0387552`
+passed hosted Rust parity and Maven CI.

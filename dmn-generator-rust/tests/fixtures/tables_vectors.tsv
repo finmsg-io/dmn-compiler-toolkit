@@ -1,0 +1,12 @@
+null	any=RFee:N|Reason:N;first=D9900,2;unique=Snull;wild=T
+-1	any=RFee:N|Reason:N;first=D9900,2;unique=Snegative;wild=T
+0	any=RFee:D100,2|Reason:Ssame;first=D9900,2;unique=Ssmall;wild=T
+0.00	any=RFee:D100,2|Reason:Ssame;first=D9900,2;unique=Ssmall;wild=T
+1	any=RFee:D100,2|Reason:Ssame;first=D100,2;unique=Ssmall;wild=T
+4.999	any=RFee:D100,2|Reason:Ssame;first=D100,2;unique=Ssmall;wild=T
+5	any=RFee:D100,2|Reason:Ssame;first=D100,2;unique=Ssmall;wild=T
+9.999	any=RFee:D100,2|Reason:Ssame;first=D100,2;unique=Ssmall;wild=T
+10	any=RFee:D100,2|Reason:Ssame;first=D100,2;unique=N;wild=T
+10.001	any=RFee:D100,2|Reason:Ssame;first=D20,1;unique=N;wild=T
+20	any=RFee:D100,2|Reason:Ssame;first=D100,2;unique=N;wild=T
+21	any=RFee:D100,2|Reason:Ssame;first=D20,1;unique=N;wild=T

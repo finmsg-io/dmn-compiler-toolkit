@@ -182,3 +182,10 @@ date inputs, literals, ordering/equality and dates in records and local contexts
 All 25 Rust tests passed locally and generated Rust matched 494 Java results.
 See work-package section 35. Time-of-day, offsets and durations remain outside
 this profile. The preceding contexts slice was pushed as `9f26b85`.
+
+Rust DMNIR 0.5 decision tables are implemented with UNIQUE/FIRST/ANY policies,
+scalar/record outputs, defaults and unary comparisons/ranges/negation/wildcards.
+All 29 Rust tests and documentation validation passed. Generated Rust matched
+36 Java table evaluation vectors, including UNIQUE and ANY conflict errors.
+See work-package section 36. The preceding date commit `0387552` passed hosted
+Rust parity and Maven CI. Rust tests do not measure Spark native/fallback routing.
