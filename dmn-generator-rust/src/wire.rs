@@ -23,6 +23,10 @@ enum Message {
     Unary,
     Binary,
     Conditional,
+    Record,
+    RecordField,
+    TypeReference,
+    FieldAccess,
     Literal,
     Decimal,
     Reference,
@@ -56,6 +60,16 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Model, 3) => (Nested(Import), true, false),
         (Model, 4) => (Nested(Input), true, false),
         (Model, 5) => (Nested(Decision), true, false),
+        (Model, 6) => (Nested(Record), true, false),
+        (Variable, 4) | (Expression, 7) => (Nested(Reference), false, false),
+        (Record, 1) => (Nested(Identity), false, false),
+        (Record, 2) => (Nested(RecordField), true, false),
+        (RecordField, 1 | 2) | (FieldAccess, 2) => (Text, false, false),
+        (RecordField, 3) => (Nested(TypeReference), false, false),
+        (TypeReference, 1) => (Integer, false, true),
+        (TypeReference, 2) => (Nested(Reference), false, true),
+        (Expression, 8) => (Nested(FieldAccess), false, true),
+        (FieldAccess, 1) => (Nested(Expression), false, false),
         (Input | Decision, 2) => (Nested(Variable), false, false),
         (Decision, 4) => (Nested(Expression), false, false),
         (Expression, 2) => (Nested(Literal), false, true),
@@ -99,7 +113,9 @@ fn message(
     budget.messages += 1;
     match kind {
         Message::Model => budget.models += 1,
-        Message::Input | Message::Decision => budget.declarations += 1,
+        Message::Input | Message::Decision | Message::Record | Message::RecordField => {
+            budget.declarations += 1
+        }
         Message::Reference => budget.references += 1,
         _ => {}
     }

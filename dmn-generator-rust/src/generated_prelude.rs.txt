@@ -9,12 +9,27 @@ pub enum Value {
     Boolean(bool),
     Text(String),
     Number { coefficient: String, scale: i32 },
+    Record(BTreeMap<String, Value>),
 }
 
-fn bind(value: &Value, expected: i32) -> Result<Value, &'static str> {
+#[derive(Clone, Copy)]
+enum Type {
+    Scalar(i32),
+    Record(usize),
+}
+
+fn bind(value: &Value, expected: Type) -> Result<Value, &'static str> {
+    if matches!(value, Value::Null) {
+        return Ok(Value::Null);
+    }
+    if let Type::Record(index) = expected {
+        return bind_record(value, index);
+    }
     let valid = match (value, expected) {
-        (Value::Null, _) | (Value::Boolean(_), 2) | (Value::Text(_), 4) => true,
-        (Value::Number { coefficient, scale }, 3) => valid_decimal(coefficient, *scale),
+        (Value::Boolean(_), Type::Scalar(2)) | (Value::Text(_), Type::Scalar(4)) => true,
+        (Value::Number { coefficient, scale }, Type::Scalar(3)) => {
+            valid_decimal(coefficient, *scale)
+        }
         _ => false,
     };
     valid.then(|| value.clone()).ok_or("input type mismatch")

@@ -1,7 +1,7 @@
 # DMNIR Rust generator
 
-This prototype consumes DMNIR 0.0 scalar artifacts and the comparison,
-conditional, and exact decimal arithmetic subset of DMNIR 0.1. It verifies the wire
+This prototype consumes DMNIR 0.0 scalar artifacts, scalar expressions from
+DMNIR 0.1, and named records and field access from DMNIR 0.2. It verifies the wire
 and model graph, then writes a standalone Rust library crate. The artifact is
 the only model input to the generator.
 
@@ -27,7 +27,8 @@ The parity tests run the generator twice on each checked-in Java-produced artifa
 compare the generated files, and build and execute the generated crates offline.
 `tests/fixtures/ExportFixture.java`, `tests/fixtures/ExportExpressionFixture.java`,
 `tests/fixtures/ExportArithmeticFixture.java`, `tests/fixtures/ExportMultiplicationFixture.java`,
-and `tests/fixtures/ExportDivisionFixture.java` regenerate the artifacts and check
+`tests/fixtures/ExportDivisionFixture.java`, and `tests/fixtures/ExportRecordFixture.java`
+regenerate the artifacts and check
 the expected values against the Java adapter.
 Run each in Java source-file mode with the `dmn-compiler` Maven test classpath and
 the fixture output path as the first argument. The arithmetic exporter accepts
@@ -50,4 +51,11 @@ The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient
 digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
 Division has a separate 8,388,608-limb-visit budget and permits division-derived
-scales through 32,768. Powers and later DMNIR profiles remain outside the subset.
+scales through 32,768. Powers and profiles above 0.2 remain outside the subset.
+
+Schema 0.2 adds `Value::Record(BTreeMap<String, Value>)` for nested record inputs
+and results. All declared fields must be present with the expected types.
+Explicit nulls are accepted, and additional fields are preserved. Invalid
+typed inputs return an evaluation error. Record types retain their qualified
+identities during verification. Recursive types and expanded layouts above
+50,000 nodes or 32 levels are rejected before generation.

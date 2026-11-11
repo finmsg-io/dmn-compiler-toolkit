@@ -3048,4 +3048,37 @@ them all. The vectors include half-even ties, leading carry, repeating and
 terminating quotients, mixed arithmetic, nulls, and extreme scales. The generator
 produced identical output across separate invocations. All 16 Rust tests passed,
 including division work and scale rejection and the unsupported power fixture.
-The implementation is local.
+The implementation was pushed as `0280cff`. Hosted Rust parity and Maven CI
+passed. The full Spark usage checkpoint passed 3,391/3,391 cases natively (100%)
+with zero fallback (0%), failures, execution or compilation errors, expected
+rejections or unknown routes. See `target/release-1.2-rust-division-spark-checkpoint.log`
+and `target/release-1.2-rust-division-spark-checkpoint-accounting.json`.
+[Rust CI run](https://github.com/finmsg-io/dmn-compiler-toolkit/actions/runs/42895256329)
+
+## 33. Rust named records and resolved field access (R12-09f)
+
+The agreed initial Rust profile includes structured inputs. This slice accepts
+the exact DMNIR 0.2 header, `finmsg-dmnir-records/0`, and its ordered scalar,
+scalar-expression and record capabilities. It retains 0.0 and the admitted 0.1
+operations.
+
+The generated value API adds `Value::Record(BTreeMap<String, Value>)`. Typed
+record inputs require the declared fields, allow explicit nulls at each level,
+and preserve additional fields. Invalid typed input values return an evaluation
+error, consistent with the Rust scalar input contract. A field read evaluates
+its source once and propagates a null source. Record references and conditional
+branches retain their namespace-qualified type identities during verification.
+
+The bounded wire scanner admits the record and field-access fields. The verifier
+checks type identity and imports, duplicate names and IDs, matching field types,
+acyclic declarations and the existing 32-level and 50,000-expanded-type budgets.
+It derives shared type descriptions locally for the generated crate, which
+continues to build without dependencies.
+
+The Java and offline generated Rust outputs agree for imported nested records,
+nullable intermediate fields, conditional record results, Unicode strings,
+extra fields and arithmetic over a scalar field. Negative tests cover invalid
+typed inputs, cycles, imports, field result types, nominal result mismatches,
+duplicate fields, old-profile rejection and depth/expansion budgets. All 20
+Rust tests passed locally, including deterministic generation of the record
+fixture. The record implementation remains local.

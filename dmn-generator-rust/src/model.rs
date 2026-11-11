@@ -1,6 +1,7 @@
 use crate::bounds::{MAX_DIVISION_LIMB_VISITS, MAX_LIMB_PRODUCTS, NumericBounds};
 use crate::decimal;
 use crate::proto::*;
+use crate::types::{Type, Types};
 use dmn_ir_expression::Node;
 use dmn_ir_literal::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -366,7 +367,7 @@ mod tests {
 }
 
 struct Declaration<'a> {
-    ty: DmnIrScalarType,
+    ty: Type,
     decision: Option<&'a DmnIrDecision>,
 }
 
@@ -390,10 +391,18 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         {
             true
         }
+        (Some(0), Some(2), "finmsg-dmnir-records/0")
+            if artifact.required_capabilities
+                == ["dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records"] =>
+        {
+            true
+        }
         _ => return Err("unsupported DMNIR profile"),
     };
     let mut models = BTreeMap::new();
     let mut declarations = BTreeMap::new();
+    let types = Types::new(&artifact.models, version.minor == Some(2))?;
+    let mut type_expansion = types.expansion;
     for model in &artifact.models {
         let ns = nonempty(&model.namespace)?;
         if models.insert(ns, model).is_some() {
@@ -404,6 +413,21 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         let mut variable_names = BTreeSet::new();
         let identity = model.identity.as_ref().ok_or("missing model identity")?;
         identity_fields(identity, &mut ids)?;
+        let mut type_names = BTreeSet::new();
+        for record in &model.record_definitions {
+            let identity = record.identity.as_ref().ok_or("missing record identity")?;
+            identity_fields(identity, &mut ids)?;
+            if !type_names.insert(identity.name.as_str()) {
+                return Err("duplicate record name");
+            }
+            for field in &record.fields {
+                if let Some(id) = &field.id
+                    && !ids.insert(nonempty(id)?)
+                {
+                    return Err("duplicate record field ID");
+                }
+            }
+        }
         let inputs = model
             .inputs
             .iter()
@@ -424,13 +448,9 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             {
                 return Err("duplicate variable ID");
             }
-            declarations.insert(
-                (ns, identity.id.as_str()),
-                Declaration {
-                    ty: scalar(variable.r#type)?,
-                    decision,
-                },
-            );
+            let ty = types.variable(variable, ns)?;
+            types.charge(ty, &mut type_expansion)?;
+            declarations.insert((ns, identity.id.as_str()), Declaration { ty, decision });
         }
     }
     if !models.contains_key(artifact.root_model_namespace.as_str()) {
@@ -461,6 +481,22 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     let mut source = String::from(include_str!("decimal.rs"));
     source.push('\n');
     source.push_str(include_str!("generated_prelude.rs.txt"));
+    if version.minor == Some(2) {
+        source.push_str(include_str!("generated_records.rs.txt"));
+        source.push_str(
+            "fn record_fields(index: usize) -> &'static [(&'static str, Type)] { match index {\n",
+        );
+        for (index, record) in types.records.iter().enumerate() {
+            writeln!(source, "{index} => &[").unwrap();
+            for (name, ty) in &record.fields {
+                writeln!(source, "({name:?}, {}),", ty.source()).unwrap();
+            }
+            source.push_str("],\n");
+        }
+        source.push_str("_ => unreachable!(\"verified record index\"), } }\n");
+    } else {
+        source.push_str("fn bind_record(_: &Value, _: usize) -> Result<Value, &'static str> { Err(\"unsupported record type\") }\n");
+    }
     if structured {
         source.push_str(include_str!("generated_expressions.rs.txt"));
         source.push_str(include_str!("generated_division.rs.txt"));
@@ -480,7 +516,8 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             writeln!(
                 source,
                 "    let v{} = bind(inputs.get(&{key:?}).ok_or(\"missing input\")?, {})?;",
-                slots[&key], declaration.ty as i32
+                slots[&key],
+                declaration.ty.source()
             )
             .unwrap();
         }
@@ -523,6 +560,9 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             numeric_bounds: &numeric_bounds,
             limb_products: &mut limb_products,
             division_limb_visits: &mut division_limb_visits,
+            types: &types,
+            type_expansion: &mut type_expansion,
+            namespace: key.0,
         };
         let Emitted {
             ty,
@@ -561,10 +601,13 @@ struct ExpressionEmitter<'a, 'model> {
     numeric_bounds: &'a BTreeMap<Key<'model>, NumericBounds>,
     limb_products: &'a mut usize,
     division_limb_visits: &'a mut usize,
+    types: &'a Types<'model>,
+    type_expansion: &'a mut usize,
+    namespace: &'a str,
 }
 
 struct Emitted {
-    ty: DmnIrScalarType,
+    ty: Type,
     value: String,
     depth: usize,
     bounds: Option<NumericBounds>,
@@ -577,7 +620,8 @@ impl ExpressionEmitter<'_, '_> {
         };
         use DmnIrUnaryOperator::{UnaryOperatorNegate, UnaryOperatorNot, UnaryOperatorPositive};
 
-        let ty = scalar(expression.r#type)?;
+        let ty = self.types.expression(expression, self.namespace)?;
+        self.types.charge(ty, self.type_expansion)?;
         let mut depth = 0;
         let mut bounds = None;
         let value = match expression.node.as_ref().ok_or("missing expression node")? {
@@ -597,6 +641,26 @@ impl ExpressionEmitter<'_, '_> {
                 depth = self.arithmetic_depths.get(&target).copied().unwrap_or(0);
                 bounds = self.numeric_bounds.get(&target).copied();
                 format!("v{}.clone()", self.slots[&target])
+            }
+            Node::FieldAccess(access) => {
+                let source =
+                    self.expression(access.source.as_deref().ok_or("missing field source")?)?;
+                let Type::Record(index) = source.ty else {
+                    return Err("field access requires a record source");
+                };
+                let (_, field_type) = self.types.records[index]
+                    .fields
+                    .iter()
+                    .find(|(name, _)| *name == access.field_name)
+                    .ok_or("record field does not exist")?;
+                if *field_type != ty {
+                    return Err("record field result type mismatch");
+                }
+                depth = source.depth;
+                if ty == Number {
+                    bounds = Some(NumericBounds::INPUT);
+                }
+                format!("field({}, {:?})", source.value, access.field_name)
             }
             Node::Unary(unary) if self.structured => {
                 let Emitted {
@@ -637,7 +701,7 @@ impl ExpressionEmitter<'_, '_> {
                 } = self.expression(binary.right.as_deref().ok_or("missing right operand")?)?;
                 depth = left_depth.max(right_depth);
                 let logical = assignable(left_type, Boolean) && assignable(right_type, Boolean);
-                let ordered = left_type == right_type && matches!(left_type, Number | Text);
+                let ordered = left_type == right_type && (left_type == Number || left_type == Text);
                 let numeric = ty == Number && left_type == Number && right_type == Number;
                 match DmnIrBinaryOperator::try_from(binary.operator) {
                     Ok(op @ (BinaryOperatorAdd | BinaryOperatorSubtract)) if numeric => {
@@ -674,8 +738,18 @@ impl ExpressionEmitter<'_, '_> {
                         format!("divide({left}, {right})")
                     }
                     _ if ty != Boolean => return Err("unsupported binary signature"),
-                    Ok(BinaryOperatorEqual) => format!("equal({left}, {right})"),
-                    Ok(BinaryOperatorNotEqual) => format!("not(equal({left}, {right}))"),
+                    Ok(BinaryOperatorEqual)
+                        if matches!(left_type, Type::Scalar(_))
+                            && matches!(right_type, Type::Scalar(_)) =>
+                    {
+                        format!("equal({left}, {right})")
+                    }
+                    Ok(BinaryOperatorNotEqual)
+                        if matches!(left_type, Type::Scalar(_))
+                            && matches!(right_type, Type::Scalar(_)) =>
+                    {
+                        format!("not(equal({left}, {right}))")
+                    }
                     Ok(BinaryOperatorAnd) if logical => format!("and({left}, || {right})"),
                     Ok(BinaryOperatorOr) if logical => format!("or({left}, || {right})"),
                     Ok(BinaryOperatorLess) if ordered => {
@@ -779,23 +853,14 @@ fn nonempty(value: &str) -> Check<&str> {
     }
 }
 
-fn scalar(value: i32) -> Check<DmnIrScalarType> {
-    use DmnIrScalarType::*;
-    match DmnIrScalarType::try_from(value) {
-        Ok(value @ (ScalarTypeNull | ScalarTypeBoolean | ScalarTypeNumber | ScalarTypeString)) => {
-            Ok(value)
-        }
-        _ => Err("type outside scalar profile"),
-    }
-}
-
-fn assignable(actual: DmnIrScalarType, expected: DmnIrScalarType) -> bool {
-    actual == expected || actual == DmnIrScalarType::ScalarTypeNull
+fn assignable(actual: impl Into<Type>, expected: impl Into<Type>) -> bool {
+    let actual = actual.into();
+    actual == expected.into() || actual == DmnIrScalarType::ScalarTypeNull
 }
 
 fn literal_source(
     literal: &DmnIrLiteral,
-    expected: DmnIrScalarType,
+    expected: Type,
 ) -> Check<(String, Option<NumericBounds>)> {
     use DmnIrScalarType::*;
     let mut bounds = None;

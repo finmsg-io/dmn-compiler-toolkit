@@ -1,6 +1,7 @@
 mod bounds;
 mod decimal;
 mod model;
+mod types;
 mod wire;
 
 mod proto {

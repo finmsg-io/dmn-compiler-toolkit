@@ -1,0 +1,16 @@
+fn bind_record(value: &Value, index: usize) -> Result<Value, &'static str> {
+    let Value::Record(fields) = value else {
+        return Err("record input type mismatch");
+    };
+    for &(name, ty) in record_fields(index) {
+        bind(fields.get(name).ok_or("missing record input field")?, ty)?;
+    }
+    Ok(value.clone())
+}
+
+fn field(source: Value, name: &str) -> Value {
+    match source {
+        Value::Record(mut fields) => fields.remove(name).unwrap_or(Value::Null),
+        _ => Value::Null,
+    }
+}
