@@ -1,7 +1,8 @@
 # DMNIR Rust generator
 
 This prototype consumes DMNIR 0.0 scalar artifacts, scalar expressions from
-DMNIR 0.1, and named records and field access from DMNIR 0.2. It verifies the wire
+DMNIR 0.1, named records and field access from DMNIR 0.2, and local contexts
+from DMNIR 0.3. It verifies the wire
 and model graph, then writes a standalone Rust library crate. The artifact is
 the only model input to the generator.
 
@@ -51,7 +52,7 @@ The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient
 digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
 Division has a separate 8,388,608-limb-visit budget and permits division-derived
-scales through 32,768. Powers and profiles above 0.2 remain outside the subset.
+scales through 32,768. Powers and profiles above 0.3 remain outside the subset.
 
 Schema 0.2 adds `Value::Record(BTreeMap<String, Value>)` for nested record inputs
 and results. All declared fields must be present with the expected types.
@@ -59,3 +60,13 @@ Explicit nulls are accepted, and additional fields are preserved. Invalid
 typed inputs return an evaluation error. Record types retain their qualified
 identities during verification. Recursive types and expanded layouts above
 50,000 nodes or 32 levels are rejected before generation.
+
+Schema 0.3 adds sequential typed local bindings and a final context result.
+Bindings use decision-local identities and lexical visibility. Nested contexts
+may shadow names while retaining references to visible outer bindings.
+Forward references, escaped locals, duplicate binding IDs and incompatible types
+are rejected. Local numeric values retain arithmetic bounds. Generated contexts
+evaluate each binding once in order using Rust block expressions.
+`tests/fixtures/ExportContextFixture.java` verifies and wraps the record artifact
+in contexts, then checks Java parity. Pass the record artifact and context output
+paths as arguments using the Java test classpath described above.

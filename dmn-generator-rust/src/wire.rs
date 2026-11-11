@@ -27,6 +27,9 @@ enum Message {
     RecordField,
     TypeReference,
     FieldAccess,
+    LocalReference,
+    Context,
+    LocalBinding,
     Literal,
     Decimal,
     Reference,
@@ -68,6 +71,12 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (RecordField, 3) => (Nested(TypeReference), false, false),
         (TypeReference, 1) => (Integer, false, true),
         (TypeReference, 2) => (Nested(Reference), false, true),
+        (Expression, 9) => (Nested(LocalReference), false, true),
+        (Expression, 10) => (Nested(Context), false, true),
+        (LocalReference | LocalBinding, 1) => (Text, false, false),
+        (Context, 1) => (Nested(LocalBinding), true, false),
+        (Context, 2) | (LocalBinding, 3) => (Nested(Expression), false, false),
+        (LocalBinding, 2) => (Nested(Variable), false, false),
         (Expression, 8) => (Nested(FieldAccess), false, true),
         (FieldAccess, 1) => (Nested(Expression), false, false),
         (Input | Decision, 2) => (Nested(Variable), false, false),
@@ -113,10 +122,12 @@ fn message(
     budget.messages += 1;
     match kind {
         Message::Model => budget.models += 1,
-        Message::Input | Message::Decision | Message::Record | Message::RecordField => {
-            budget.declarations += 1
-        }
-        Message::Reference => budget.references += 1,
+        Message::Input
+        | Message::Decision
+        | Message::Record
+        | Message::RecordField
+        | Message::LocalBinding => budget.declarations += 1,
+        Message::Reference | Message::LocalReference => budget.references += 1,
         _ => {}
     }
     if depth > MAX_DEPTH

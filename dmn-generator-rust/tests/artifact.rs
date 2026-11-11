@@ -69,6 +69,16 @@ fn java_record_artifact_generates_deterministic_offline_rust() {
     );
 }
 
+#[test]
+fn java_context_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "contexts",
+        include_bytes!("fixtures/contexts-0.3.dmnir"),
+        include_str!("fixtures/record_parity.rs.txt"),
+        &[],
+    );
+}
+
 fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");

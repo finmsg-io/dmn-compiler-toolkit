@@ -3081,4 +3081,27 @@ extra fields and arithmetic over a scalar field. Negative tests cover invalid
 typed inputs, cycles, imports, field result types, nominal result mismatches,
 duplicate fields, old-profile rejection and depth/expansion budgets. All 20
 Rust tests passed locally, including deterministic generation of the record
-fixture. The record implementation remains local.
+fixture. The record implementation was pushed as `3b7f1e4`.
+
+## 34. Rust sequential local contexts (R12-09g)
+
+Accept the exact DMNIR 0.3 local-bindings profile alongside prior admitted
+profiles. Resolve local references by decision-local binding ID. Evaluate each
+binding once in source order, expose it after its initializer, and restore outer
+visibility after a nested context. Permit nested name shadowing while requiring
+unique names within each context and unique binding IDs per decision. Validate
+source variable IDs against the model ID scope. Preserve nominal record types
+and numeric bounds through locals. Require a final result assignable to the
+context type. Existing wire depth, declaration, reference and expanded-type
+budgets apply. Closures remain outside this profile.
+
+The implementation emits dependency-free Rust block expressions. The Java
+fixture reader verifies a 0.3 artifact derived from the record fixture, then its
+runtime adapter compares ten nullable input vectors against the original model.
+Generated Rust passes the same record assertions, including exact decimals,
+Unicode, extra fields and record-valued locals. All 23 Rust tests passed locally,
+including deterministic generation, offline compilation, forward and escaped
+reference rejection, duplicate IDs/names, type mismatch, missing result,
+old-profile rejection and the 128-operation arithmetic-chain boundary.
+Rust tests do not measure Spark native/fallback routing, so counts and rates
+are not applicable. No Spark production sources changed in this slice.

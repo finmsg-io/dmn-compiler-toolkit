@@ -287,6 +287,160 @@ mod tests {
         );
     }
 
+    #[test]
+    fn validates_local_scope_identity_and_types() {
+        let valid = DmnIrArtifact::decode(
+            include_bytes!("../tests/fixtures/contexts-0.3.dmnir").as_slice(),
+        )
+        .unwrap();
+        let context = |a: &mut DmnIrArtifact, edit: fn(&mut DmnIrContextExpression)| {
+            let Some(Node::Context(c)) = &mut a
+                .models
+                .iter_mut()
+                .find(|m| !m.decisions.is_empty())
+                .unwrap()
+                .decisions[0]
+                .expression
+                .as_mut()
+                .unwrap()
+                .node
+            else {
+                panic!()
+            };
+            edit(c);
+        };
+        for (edit, expected) in [
+            (
+                (|c: &mut DmnIrContextExpression| {
+                    c.result = None;
+                }) as fn(&mut DmnIrContextExpression),
+                "missing context result",
+            ),
+            (
+                |c| {
+                    c.bindings[1].binding_id = "first".into();
+                },
+                "duplicate local binding ID",
+            ),
+            (
+                |c| {
+                    c.bindings[1].variable.as_mut().unwrap().name = "Local".into();
+                },
+                "duplicate context variable name",
+            ),
+            (
+                |c| {
+                    c.bindings[0].value = c.bindings[1].value.clone();
+                },
+                "local binding is not visible",
+            ),
+            (
+                |c| {
+                    c.bindings[1].value.as_mut().unwrap().node =
+                        Some(Node::LocalReference(DmnIrLocalReference {
+                            binding_id: "shadow".into(),
+                        }));
+                },
+                "local binding is not visible",
+            ),
+            (
+                |c| {
+                    let value = c.bindings[1].value.as_mut().unwrap();
+                    value.record_type = None;
+                    value.r#type = DmnIrScalarType::ScalarTypeBoolean as i32;
+                },
+                "local reference type mismatch",
+            ),
+            (
+                |c| {
+                    c.bindings[1].variable.as_mut().unwrap().id = Some("records".into());
+                },
+                "duplicate variable ID",
+            ),
+        ] {
+            let mut artifact = valid.clone();
+            context(&mut artifact, edit);
+            assert_eq!(verify_and_generate(&artifact), Err(expected));
+        }
+        let mut old = valid;
+        old.schema_version.as_mut().unwrap().minor = Some(2);
+        old.semantics_version = "finmsg-dmnir-records/0".into();
+        old.required_capabilities.pop();
+        assert_eq!(
+            verify_and_generate(&old),
+            Err("expression outside scalar profile")
+        );
+    }
+
+    #[test]
+    fn local_references_preserve_arithmetic_limits() {
+        let mut artifact = expressions();
+        artifact.schema_version.as_mut().unwrap().minor = Some(3);
+        artifact.semantics_version = "finmsg-dmnir-local-bindings/0".into();
+        artifact
+            .required_capabilities
+            .extend(["dmnir.records".into(), "dmnir.local-bindings".into()]);
+        let number = DmnIrScalarType::ScalarTypeNumber as i32;
+        let mut context = DmnIrContextExpression::default();
+        let local = |id: String| DmnIrExpression {
+            r#type: number,
+            node: Some(Node::LocalReference(DmnIrLocalReference { binding_id: id })),
+            ..Default::default()
+        };
+        for index in 0..=MAX_ARITHMETIC_CHAIN + 1 {
+            let value = if index == 0 {
+                decimal_literal("1".into())
+            } else {
+                binary(
+                    DmnIrBinaryOperator::BinaryOperatorAdd,
+                    local(format!("local-{}", index - 1)),
+                    decimal_literal("1".into()),
+                )
+            };
+            context.bindings.push(DmnIrLocalBinding {
+                binding_id: format!("local-{index}"),
+                variable: Some(DmnIrVariable {
+                    name: format!("Local{index}"),
+                    r#type: number,
+                    ..Default::default()
+                }),
+                value: Some(value),
+                ..Default::default()
+            });
+        }
+        context.result = Some(Box::new(local(format!(
+            "local-{}",
+            MAX_ARITHMETIC_CHAIN + 1
+        ))));
+        let expression = DmnIrExpression {
+            r#type: number,
+            node: Some(Node::Context(Box::new(context))),
+            ..Default::default()
+        };
+        let decision = artifact.models[0]
+            .decisions
+            .iter_mut()
+            .find(|d| d.identity.as_ref().unwrap().id == "selected")
+            .unwrap();
+        decision.expression = Some(expression);
+        assert!(crate::wire::verify(&artifact.encode_to_vec()).is_ok());
+        assert_eq!(
+            verify_and_generate(&artifact),
+            Err("decimal arithmetic chain exceeds 128 operations")
+        );
+        let decision = artifact.models[0]
+            .decisions
+            .iter_mut()
+            .find(|d| d.identity.as_ref().unwrap().id == "selected")
+            .unwrap();
+        let Some(Node::Context(c)) = &mut decision.expression.as_mut().unwrap().node else {
+            panic!()
+        };
+        c.bindings.pop();
+        c.result = Some(Box::new(local(format!("local-{MAX_ARITHMETIC_CHAIN}"))));
+        assert!(verify_and_generate(&artifact).is_ok());
+    }
+
     fn repeated_decisions(bytes: &[u8], template: &str, count: usize) -> DmnIrArtifact {
         let mut artifact = DmnIrArtifact::decode(bytes).unwrap();
         let model = &mut artifact.models[0];
@@ -397,11 +551,23 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         {
             true
         }
+        (Some(0), Some(3), "finmsg-dmnir-local-bindings/0")
+            if artifact.required_capabilities
+                == [
+                    "dmnir.scalar",
+                    "dmnir.scalar-expressions",
+                    "dmnir.records",
+                    "dmnir.local-bindings",
+                ] =>
+        {
+            true
+        }
         _ => return Err("unsupported DMNIR profile"),
     };
+    let mut model_ids = BTreeMap::new();
     let mut models = BTreeMap::new();
     let mut declarations = BTreeMap::new();
-    let types = Types::new(&artifact.models, version.minor == Some(2))?;
+    let types = Types::new(&artifact.models, version.minor >= Some(2))?;
     let mut type_expansion = types.expansion;
     for model in &artifact.models {
         let ns = nonempty(&model.namespace)?;
@@ -452,6 +618,10 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             types.charge(ty, &mut type_expansion)?;
             declarations.insert((ns, identity.id.as_str()), Declaration { ty, decision });
         }
+        model_ids.insert(
+            ns,
+            ids.into_iter().map(str::to_owned).collect::<BTreeSet<_>>(),
+        );
     }
     if !models.contains_key(artifact.root_model_namespace.as_str()) {
         return Err("root model is absent");
@@ -481,7 +651,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     let mut source = String::from(include_str!("decimal.rs"));
     source.push('\n');
     source.push_str(include_str!("generated_prelude.rs.txt"));
-    if version.minor == Some(2) {
+    if version.minor >= Some(2) {
         source.push_str(include_str!("generated_records.rs.txt"));
         source.push_str(
             "fn record_fields(index: usize) -> &'static [(&'static str, Type)] { match index {\n",
@@ -553,6 +723,10 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             .ok_or("missing decision expression")?;
         let mut emitter = ExpressionEmitter {
             structured,
+            locals_enabled: version.minor == Some(3),
+            locals: BTreeMap::new(),
+            binding_ids: BTreeSet::new(),
+            source_ids: model_ids.get_mut(key.0).unwrap(),
             dependencies: &dependencies,
             declarations: &declarations,
             slots: &slots,
@@ -594,6 +768,10 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
 
 struct ExpressionEmitter<'a, 'model> {
     structured: bool,
+    locals_enabled: bool,
+    locals: BTreeMap<String, Emitted>,
+    binding_ids: BTreeSet<String>,
+    source_ids: &'a mut BTreeSet<String>,
     dependencies: &'a BTreeSet<Key<'model>>,
     declarations: &'a BTreeMap<Key<'model>, Declaration<'model>>,
     slots: &'a BTreeMap<Key<'model>, usize>,
@@ -606,6 +784,7 @@ struct ExpressionEmitter<'a, 'model> {
     namespace: &'a str,
 }
 
+#[derive(Clone)]
 struct Emitted {
     ty: Type,
     value: String,
@@ -641,6 +820,61 @@ impl ExpressionEmitter<'_, '_> {
                 depth = self.arithmetic_depths.get(&target).copied().unwrap_or(0);
                 bounds = self.numeric_bounds.get(&target).copied();
                 format!("v{}.clone()", self.slots[&target])
+            }
+            Node::LocalReference(reference) if self.locals_enabled => {
+                let local = self
+                    .locals
+                    .get(&reference.binding_id)
+                    .ok_or("local binding is not visible")?;
+                if local.ty != ty {
+                    return Err("local reference type mismatch");
+                }
+                depth = local.depth;
+                bounds = local.bounds;
+                local.value.clone()
+            }
+            Node::Context(context) if self.locals_enabled => {
+                let outer = self.locals.clone();
+                let mut block = String::from("{ ");
+                let mut names = BTreeSet::new();
+                for binding in &context.bindings {
+                    let id = nonempty(&binding.binding_id)?;
+                    if !self.binding_ids.insert(id.to_owned()) {
+                        return Err("duplicate local binding ID");
+                    }
+                    let variable = binding.variable.as_ref().ok_or("missing local variable")?;
+                    if !names.insert(nonempty(&variable.name)?) {
+                        return Err("duplicate context variable name");
+                    }
+                    if let Some(id) = &variable.id {
+                        if !self.source_ids.insert(nonempty(id)?.to_owned()) {
+                            return Err("duplicate variable ID");
+                        }
+                    }
+                    let declared = self.types.variable(variable, self.namespace)?;
+                    self.types.charge(declared, self.type_expansion)?;
+                    let slot = self.binding_ids.len();
+                    let mut value =
+                        self.expression(binding.value.as_ref().ok_or("missing local value")?)?;
+                    if !assignable(value.ty, declared) {
+                        return Err("local binding type mismatch");
+                    }
+                    depth = depth.max(value.depth);
+                    write!(block, "let l{slot} = {}; ", value.value).unwrap();
+                    value.value = format!("l{slot}.clone()");
+                    value.ty = declared;
+                    self.locals.insert(id.to_owned(), value);
+                }
+                let result =
+                    self.expression(context.result.as_deref().ok_or("missing context result")?)?;
+                if !assignable(result.ty, ty) {
+                    return Err("context result type mismatch");
+                }
+                depth = depth.max(result.depth);
+                bounds = result.bounds;
+                write!(block, "{} }}", result.value).unwrap();
+                self.locals = outer;
+                block
             }
             Node::FieldAccess(access) => {
                 let source =

@@ -171,3 +171,8 @@ Release readiness requires all mandatory work-package gates, including artifact-
 execution, artifact-only DMN 1.6 export, DSL parity and existing-backend regressions.
 Full Rust DMN conformance, LSP/visual tooling and further native backends are separate scope
 decisions. Publishing requires explicit external-side-effect authorization.
+
+Rust named records were committed and pushed as `3b7f1e4`. Rust local contexts
+(DMNIR 0.3) are implemented with sequential identity-based bindings, nested scope,
+nominal record typing and propagated arithmetic bounds. All 23 Rust tests passed
+locally. See work-package section 34 for the contract and verification scope.
