@@ -195,3 +195,12 @@ are checked recursively at input and decision-result binding, including table
 outputs/defaults. All 31 Rust tests passed and generated Rust matched 63 Java
 constraint vectors. See work-package section 37. The preceding table commit
 `4526649` passed hosted Rust parity. Rust native/fallback routing is not measured.
+
+Constraint implementation `c0748d1` passed hosted Rust parity and Maven CI.
+The 2026-11-11 usage checkpoint completed the full current-source Spark TCK:
+3,391/3,391 native passes (100%), zero fallback (0%), failures, execution errors,
+compilation errors, expected model rejections or unknown routes. See work-package
+section 38 and the retained constraints checkpoint log/accounting in `target/`.
+Rust 0.7 collections have not been started because the usage checkpoint rule
+stopped new implementation at 19% remaining. Next work is named scalar
+collections and ordered lists; schema 0.8 filters/builtins remain later scope.

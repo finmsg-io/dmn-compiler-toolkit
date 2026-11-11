@@ -3188,3 +3188,42 @@ The preceding table slice was pushed as `4526649`.
 
 All 31 Rust tests passed locally with zero failures. Generated Rust matched all
 63 Java constraint vectors. Hosted Rust parity for `4526649` passed.
+
+## 38. Rust constraints usage checkpoint and collection handover
+
+The constraint implementation was committed/pushed as `c0748d1`; hosted Rust
+artifact parity and Maven CI both passed. On continuation, the primary usage
+window had 19% remaining. The repository checkpoint rule required stopping new
+implementation and running the complete pinned Spark suite before handover.
+No Rust 0.7 collection code was added in this checkpoint.
+
+The full current-source Spark run completed successfully on 2026-11-11 using
+`-Ptck -pl dmn-tck-runner -am -Dtest=OfficialTckSuiteTest
+-Dsurefire.failIfNoSpecifiedTests=false -Dtck.backend=spark
+-Dtck.modelVariant=optimized -Dtck.requireFull=true -Dtck.spark.hybrid=true
+-Dtck.timeoutSeconds=120 test`. Executable denominator: 3,391 cases. Passed:
+3,391. Native passes: 3,391 (100%). Fallback passes: 0 (0%). Failures: 0.
+Execution errors: 0. Compilation errors: 0. Expected model rejections: 0.
+Unsupported/excluded/invalid outcomes: 0. Unknown routes: 0. Retained TCK
+revision: `20274cd2ba9cad805db6114f331c743f4b2603a1`.
+
+Evidence is retained in
+`target/release-1.2-rust-constraints-spark-checkpoint.log` and
+`target/release-1.2-rust-constraints-spark-checkpoint-accounting.json`.
+The build completed in 11:43, with the TCK module taking 10:40.
+This is a full Spark checkpoint, distinct from the 31 Rust tests and 63 Java
+constraint parity vectors, whose native/fallback routing is not applicable.
+
+Next implementation is Rust schema 0.7 named scalar collections. Match the
+existing Java contract for qualified collection identities, scalar element
+types, ordered list constructors and null elements, collection inputs/results,
+record fields and locals. Preserve order and exact decimal/date values. Verify
+imports, type exclusivity, nominal identity, element compatibility and resource
+budgets. Keep filters and builtins for schema 0.8. Use checked Java artifacts,
+deterministic generation and offline generated-crate execution as before.
+Leave independent README/index/glossary edits and untracked prompt PDFs untouched.
+
+Checkpoint documentation validation was attempted. It currently fails on existing
+working-tree links in `README.md:251` and `docs/index.md:18` that leave the
+repository for the business-model-canvas/ideation siblings. Those independent
+edits were left untouched. The checkpoint document diff passes whitespace checks.
