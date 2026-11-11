@@ -3335,3 +3335,45 @@ passed. Documentation validation still fails on the independent README/index
 links leaving the repository recorded in section 38. Those edits were preserved.
 The preceding filter commit `a881016` passed hosted Rust parity; Maven CI was
 still running at the last check.
+
+## 42. Rust resolved named FEEL BKMs (R12-09n)
+
+Accept the exact schema 0.10 named-feel-bkms profile. Register BKM declarations
+and formal identities in the model's existing name/ID scopes. Require explicit,
+unique knowledge dependencies on directly imported or same-model BKMs. Check the
+complete knowledge graph for cycles and a maximum depth of 32. Validate every
+BKM body, including unused declarations, against its formal types and own scope.
+Global input/decision references are unavailable inside BKM bodies.
+
+Calls require one argument per formal, unique one-based positions, compatible
+argument types and the exact nominal result type. Evaluate arguments once in
+artifact order before binding their formal positions. Parameters and BKM locals
+use independent lexical scopes. Support scalar, record and collection values,
+existing expressions, builtins, filters and contexts. Constraints remain checked
+at the existing input/decision boundaries, consistent with Java function coercion.
+
+Emit bounded call blocks with numeric bounds propagated from actual arguments.
+Separate declaration validation checks source IDs once while expanded calls reuse
+the verified source identities. Limit expanded expressions to 50,000 nodes and
+32 expression levels across declaration checks and decisions. Runtime filter work
+budgets remain shared across calls. Fallible lazy logical helpers, explicit filter
+loops and fallible table defaults propagate callee errors while preserving lazy
+execution. Existing scalar/profile fixtures remain regression checks.
+
+The expanded source fixture was rejected by the Java source producer. The final
+fixture instead derives explicit BKM nodes from the collection artifact, passes
+the strict Java reader, and obtains expected values from the Java runtime adapter.
+It covers 24 nullable/empty input combinations, imported/chained calls, reordered
+formal positions, null arguments, record and collection parameters, BKM locals,
+calls in predicates and table defaults. Separate generated-crate tests exercise
+50,001-visit errors through calls and verify that a skipped lazy call stays skipped.
+Negative tests cover malformed calls, duplicate parameters, missing/unused bodies,
+old-profile rejection, knowledge cycles and adversarial acyclic expansion.
+Spark production sources are unchanged. Native/fallback routing is not measured
+by these Rust tests and is not applicable.
+
+All 48 Rust tests passed locally with zero failures. Generated Rust matched all
+24 Java BKM input combinations. The Java fixture was regenerated after cleanup
+and its BKM artifact hash was unchanged. Whitespace checks passed. Documentation
+validation still fails on the independent README/index links leaving the
+repository recorded in section 38; those edits were left untouched.

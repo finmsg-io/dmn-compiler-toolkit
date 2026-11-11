@@ -162,26 +162,31 @@ fn not(value: Value) -> Value {
     }
 }
 
-fn and(left: Value, right: impl FnOnce() -> Value) -> Value {
-    match left {
+fn and(
+    left: Value,
+    right: impl FnOnce() -> Result<Value, &'static str>,
+) -> Result<Value, &'static str> {
+    Ok(match left {
         Value::Boolean(false) => Value::Boolean(false),
-        Value::Boolean(true) => right(),
-        _ => match right() {
+        Value::Boolean(true) => right()?,
+        _ => match right()? {
             Value::Boolean(false) => Value::Boolean(false),
             _ => Value::Null,
         },
-    }
+    })
 }
-
-fn or(left: Value, right: impl FnOnce() -> Value) -> Value {
-    match left {
+fn or(
+    left: Value,
+    right: impl FnOnce() -> Result<Value, &'static str>,
+) -> Result<Value, &'static str> {
+    Ok(match left {
         Value::Boolean(true) => Value::Boolean(true),
-        Value::Boolean(false) => right(),
-        _ => match right() {
+        Value::Boolean(false) => right()?,
+        _ => match right()? {
             Value::Boolean(true) => Value::Boolean(true),
             _ => Value::Null,
         },
-    }
+    })
 }
 
 fn equal(left: Value, right: Value) -> Value {

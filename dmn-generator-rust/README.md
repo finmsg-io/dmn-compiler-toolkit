@@ -4,7 +4,7 @@ This prototype consumes DMNIR 0.0 scalar artifacts, scalar expressions from
 DMNIR 0.1, named records and field access from DMNIR 0.2, local contexts
 from DMNIR 0.3, civil dates from DMNIR 0.4, decision tables from DMNIR 0.5,
 scalar record field constraints from DMNIR 0.6, and named scalar collections
-from DMNIR 0.7, scalar filters from DMNIR 0.8, and fixed builtins from DMNIR 0.9. It verifies the wire
+from DMNIR 0.7, scalar filters from DMNIR 0.8, fixed builtins from DMNIR 0.9, and named FEEL BKMs from DMNIR 0.10. It verifies the wire
 and model graph, then writes a standalone Rust library crate. The artifact is
 the only model input to the generator.
 
@@ -54,7 +54,7 @@ The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient
 digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
 Division has a separate 8,388,608-limb-visit budget and permits division-derived
-scales through 32,768. Powers and profiles above 0.9 remain outside the subset.
+scales through 32,768. Powers and profiles above 0.10 remain outside the subset.
 
 Schema 0.2 adds `Value::Record(BTreeMap<String, Value>)` for nested record inputs
 and results. All declared fields must be present with the expected types.
@@ -143,3 +143,20 @@ results before admitting downstream numeric operations. Unknown operations,
 wrong arity and incompatible argument/result types are rejected.
 `tests/fixtures/ExportBuiltinFixture.java` writes the artifact and Java expected
 TSV vectors to its two argument paths.
+
+Schema 0.10 adds resolved named FEEL BKMs with explicit knowledge dependencies.
+Calls evaluate each argument once in source order, then map values to their
+one-based formal positions. Imports, formal types and nominal result types are
+verified. BKM scopes contain only parameters and their own locals; caller locals
+and undeclared global values are unavailable. Scalar, record and collection
+parameters/results are supported within the admitted expression subset.
+Knowledge graphs must be acyclic with depth at most 32. Unused BKM bodies are
+verified too. Calls are emitted as Rust blocks with propagated numeric bounds.
+Verification limits expanded expressions to 50,000 nodes and 32 expression levels,
+including declaration validation and call expansion. Existing arithmetic and
+filter budgets apply inside calls. Lazy expressions and table defaults propagate
+called-function errors while retaining their lazy behavior. Closures are pending.
+`tests/fixtures/ExportBkmFixture.java` derives Java-verified artifacts from the
+collection artifact and writes Java expected vectors. Arguments are the BKM
+artifact path, TSV output path, directory for lazy/default fixtures, and original
+collection artifact path.

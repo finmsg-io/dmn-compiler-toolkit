@@ -38,6 +38,10 @@ enum Message {
     List,
     Filter,
     Builtin,
+    Bkm,
+    Parameter,
+    BkmCall,
+    Argument,
     Table,
     TableInput,
     TableOutput,
@@ -76,6 +80,17 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Model, 3) => (Nested(Import), true, false),
         (Model, 4) => (Nested(Input), true, false),
         (Model, 5) => (Nested(Decision), true, false),
+        (Model, 8) => (Nested(Bkm), true, false),
+        (Bkm, 1) => (Nested(Identity), false, false),
+        (Bkm, 2) => (Nested(Parameter), true, false),
+        (Bkm, 3) | (Parameter, 2) => (Nested(Variable), false, false),
+        (Bkm, 4) | (Argument, 2) => (Nested(Expression), false, false),
+        (Bkm, 5) | (Decision, 6) => (Nested(Reference), true, false),
+        (Parameter, 1) => (Text, false, false),
+        (Expression, 15) => (Nested(BkmCall), false, true),
+        (BkmCall, 1) => (Nested(Reference), false, false),
+        (BkmCall, 2) => (Nested(Argument), true, false),
+        (Argument, 1) => (Integer, false, false),
         (Model, 7) => (Nested(Collection), true, false),
         (Collection, 1) => (Nested(Identity), false, false),
         (Collection, 2) => (Integer, false, false),
@@ -174,6 +189,8 @@ fn message(
         | Message::Record
         | Message::RecordField
         | Message::Filter
+        | Message::Bkm
+        | Message::Parameter
         | Message::Collection
         | Message::LocalBinding
         | Message::TableInput

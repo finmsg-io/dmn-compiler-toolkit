@@ -1,0 +1,84 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+const NS: &str = "urn:collections:policy";
+fn number(coefficient: &str, scale: i32) -> Value {
+    Value::Number {
+        coefficient: coefficient.into(),
+        scale,
+    }
+}
+fn record(fields: impl IntoIterator<Item = (&'static str, Value)>) -> Value {
+    Value::Record(fields.into_iter().map(|(k, v)| (k.into(), v)).collect())
+}
+fn inputs(scenario: usize, include: Value) -> BTreeMap<(&'static str, &'static str), Value> {
+    let fees = match scenario {
+        1 => Value::List(vec![]),
+        2 => Value::Null,
+        _ => Value::List(vec![number("1000", 2), Value::Null, number("-25", 1)]),
+    };
+    let dates = match scenario {
+        1 => Value::List(vec![]),
+        2 => Value::Null,
+        _ => Value::List(vec![
+            Value::Date {
+                year: -400,
+                month: 2,
+                day: 29,
+            },
+            Value::Null,
+            Value::Date {
+                year: 10000,
+                month: 1,
+                day: 1,
+            },
+        ]),
+    };
+    let permit = if scenario == 3 {
+        Value::Null
+    } else {
+        record([
+            (
+                "Expiry",
+                Value::Date {
+                    year: if scenario == 5 { 2023 } else { 2024 },
+                    month: 2,
+                    day: if scenario == 5 { 28 } else { 29 },
+                },
+            ),
+            ("Previous Dates", dates),
+            ("Previous Fees", fees),
+        ])
+    };
+    let external = match scenario {
+        6 => Value::Null,
+        7 => Value::List(vec![]),
+        _ => Value::List(vec![number("1250", 3), Value::Null, number("1250", 3)]),
+    };
+    BTreeMap::from([
+        (
+            (NS, "applicant"),
+            if scenario == 4 {
+                Value::Null
+            } else {
+                record([("Permit", permit)])
+            },
+        ),
+        ((NS, "include"), include),
+        ((NS, "external"), external),
+    ])
+}
+#[test]
+fn bkm_filter_errors_propagate_through_lazy_contexts() {
+    let mut values = inputs(0, Value::Boolean(true));
+    let Value::Record(applicant) = values.get_mut(&(NS, "applicant")).unwrap() else {
+        panic!()
+    };
+    let Value::Record(permit) = applicant.get_mut("Permit").unwrap() else {
+        panic!()
+    };
+    permit.insert(
+        "Previous Fees".into(),
+        Value::List(vec![number("1", 0); 50_001]),
+    );
+    assert_eq!(evaluate(&values), Err("filter evaluation budget exceeded"));
+}

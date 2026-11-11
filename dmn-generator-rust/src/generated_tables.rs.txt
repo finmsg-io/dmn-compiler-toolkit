@@ -38,7 +38,7 @@ fn table_result(
     rows: Vec<Vec<Value>>,
     policy: i32,
     names: &[&str],
-    defaults: impl FnOnce() -> Vec<Value>,
+    defaults: impl FnOnce() -> Result<Vec<Value>, &'static str>,
 ) -> Result<Value, &'static str> {
     if policy == 1 && rows.len() > 1 {
         return Err("UNIQUE table matched multiple rules");
@@ -53,7 +53,10 @@ fn table_result(
     {
         return Err("ANY table produced different outputs");
     }
-    let values = rows.into_iter().next().unwrap_or_else(defaults);
+    let values = match rows.into_iter().next() {
+        Some(values) => values,
+        None => defaults()?,
+    };
     Ok(if values.len() == 1 {
         values.into_iter().next().unwrap()
     } else {

@@ -1,3 +1,5 @@
+#[path = "bkms.rs"]
+mod bkms;
 #[path = "constraints.rs"]
 mod constraints;
 #[path = "tables.rs"]
@@ -943,8 +945,27 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         {
             true
         }
+        (Some(0), Some(10), "finmsg-dmnir-named-feel-bkms/0")
+            if artifact.required_capabilities
+                == [
+                    "dmnir.scalar",
+                    "dmnir.scalar-expressions",
+                    "dmnir.records",
+                    "dmnir.local-bindings",
+                    "dmnir.date",
+                    "dmnir.tables",
+                    "dmnir.field-constraints",
+                    "dmnir.scalar-collections",
+                    "dmnir.scalar-filters",
+                    "dmnir.builtin-calls",
+                    "dmnir.named-feel-bkms",
+                ] =>
+        {
+            true
+        }
         _ => return Err("unsupported DMNIR profile"),
     };
+    let mut bkm_declarations = BTreeMap::new();
     let mut model_ids = BTreeMap::new();
     let mut models = BTreeMap::new();
     let mut declarations = BTreeMap::new();
@@ -1015,6 +1036,16 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             types.charge(ty, &mut type_expansion)?;
             declarations.insert((ns, identity.id.as_str()), Declaration { ty, decision });
         }
+        bkms::register(
+            model,
+            &types,
+            version.minor >= Some(10),
+            &mut ids,
+            &mut names,
+            &mut variable_names,
+            &mut type_expansion,
+            &mut bkm_declarations,
+        )?;
         model_ids.insert(
             ns,
             ids.into_iter().map(str::to_owned).collect::<BTreeSet<_>>(),
@@ -1039,6 +1070,9 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         }
         imports.insert(ns, direct);
     }
+    let knowledge_graph = bkms::graph(&bkm_declarations, &imports)?;
+    let mut expanded_nodes = 0;
+    let mut call_serial = 0;
     let slots: BTreeMap<_, _> = declarations
         .keys()
         .copied()
@@ -1091,6 +1125,57 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     let mut arithmetic_depths = BTreeMap::new();
     let mut limb_products = 0;
     let mut division_limb_visits = 0;
+    for (&owner, bkm) in &bkm_declarations {
+        let mut products = 0;
+        let mut divisions = 0;
+        let mut emitter = ExpressionEmitter {
+            structured,
+            bkms_enabled: true,
+            table_cell: false,
+            filters_enabled: true,
+            builtins_enabled: true,
+            collections_enabled: true,
+            dates: true,
+            locals_enabled: true,
+            filter_predicate: false,
+            validate_ids: true,
+            expression_depth: 0,
+            bkms: &bkm_declarations,
+            knowledge_graph: &knowledge_graph,
+            knowledge: knowledge_graph[&owner].clone(),
+            call_serial: &mut call_serial,
+            expanded_nodes: &mut expanded_nodes,
+            locals: BTreeMap::new(),
+            binding_ids: BTreeSet::new(),
+            source_ids: model_ids.get_mut(owner.0).unwrap(),
+            dependencies: BTreeSet::new(),
+            declarations: &declarations,
+            slots: &slots,
+            arithmetic_depths: &arithmetic_depths,
+            numeric_bounds: &numeric_bounds,
+            limb_products: &mut products,
+            division_limb_visits: &mut divisions,
+            types: &types,
+            type_expansion: &mut type_expansion,
+            namespace: owner.0,
+        };
+        for (parameter, ty) in bkm.source.parameters.iter().zip(&bkm.parameters) {
+            emitter.binding_ids.insert(parameter.binding_id.clone());
+            emitter.locals.insert(
+                parameter.binding_id.clone(),
+                Emitted {
+                    ty: *ty,
+                    value: "Value::Null".into(),
+                    depth: 0,
+                    bounds: bkms::input_bounds(*ty, &types),
+                },
+            );
+        }
+        let result = emitter.expression(bkm.source.body.as_ref().ok_or("missing BKM body")?)?;
+        if !assignable(result.ty, bkm.ty) {
+            return Err("BKM body type mismatch");
+        }
+    }
     for (&key, declaration) in &declarations {
         if declaration.decision.is_none() {
             ready.insert(key);
@@ -1151,6 +1236,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         let mut emitter = ExpressionEmitter {
             structured,
             table_cell: false,
+            bkms_enabled: version.minor >= Some(10),
             builtins_enabled: version.minor >= Some(9),
             filters_enabled: version.minor >= Some(8),
             filter_predicate: false,
@@ -1160,7 +1246,20 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             locals: BTreeMap::new(),
             binding_ids: BTreeSet::new(),
             source_ids: model_ids.get_mut(key.0).unwrap(),
-            dependencies: &dependencies,
+            validate_ids: true,
+            expression_depth: 0,
+            bkms: &bkm_declarations,
+            knowledge_graph: &knowledge_graph,
+            knowledge: bkms::knowledge(
+                key,
+                &decision.knowledge_dependencies,
+                &bkm_declarations,
+                &imports,
+                version.minor >= Some(10),
+            )?,
+            call_serial: &mut call_serial,
+            expanded_nodes: &mut expanded_nodes,
+            dependencies: dependencies.clone(),
             declarations: &declarations,
             slots: &slots,
             arithmetic_depths: &arithmetic_depths,
@@ -1220,6 +1319,7 @@ struct ExpressionEmitter<'a, 'model> {
     table_cell: bool,
     filters_enabled: bool,
     builtins_enabled: bool,
+    bkms_enabled: bool,
     filter_predicate: bool,
     dates: bool,
     collections_enabled: bool,
@@ -1227,7 +1327,14 @@ struct ExpressionEmitter<'a, 'model> {
     locals: BTreeMap<String, Emitted>,
     binding_ids: BTreeSet<String>,
     source_ids: &'a mut BTreeSet<String>,
-    dependencies: &'a BTreeSet<Key<'model>>,
+    dependencies: BTreeSet<Key<'model>>,
+    bkms: &'a BTreeMap<Key<'model>, bkms::Bkm<'model>>,
+    knowledge_graph: &'a BTreeMap<Key<'model>, BTreeSet<Key<'model>>>,
+    knowledge: BTreeSet<Key<'model>>,
+    call_serial: &'a mut usize,
+    expanded_nodes: &'a mut usize,
+    expression_depth: usize,
+    validate_ids: bool,
     declarations: &'a BTreeMap<Key<'model>, Declaration<'model>>,
     slots: &'a BTreeMap<Key<'model>, usize>,
     arithmetic_depths: &'a BTreeMap<Key<'model>, usize>,
@@ -1236,7 +1343,7 @@ struct ExpressionEmitter<'a, 'model> {
     division_limb_visits: &'a mut usize,
     types: &'a Types<'model>,
     type_expansion: &'a mut usize,
-    namespace: &'a str,
+    namespace: &'model str,
 }
 
 #[derive(Clone)]
@@ -1263,11 +1370,25 @@ impl ExpressionEmitter<'_, '_> {
         if self.filter_predicate && matches!(expression.node, Some(Node::Context(_))) {
             return Err("contexts are unsupported in filter predicates");
         }
+        *self.expanded_nodes += 1;
+        if *self.expanded_nodes > 50_000 {
+            return Err("expanded expression budget exceeded");
+        }
+        self.expression_depth += 1;
+        if self.expression_depth > 32 {
+            return Err("expanded expression depth exceeded");
+        }
         let ty = self.types.expression(expression, self.namespace)?;
         self.types.charge(ty, self.type_expansion)?;
         let mut depth = 0;
         let mut bounds = None;
         let value = match expression.node.as_ref().ok_or("missing expression node")? {
+            Node::BkmCall(call) if self.bkms_enabled => {
+                let result = self.bkm_call(call, ty)?;
+                depth = result.depth;
+                bounds = result.bounds;
+                result.value
+            }
             Node::BuiltinCall(call) if self.builtins_enabled => {
                 let (parameters, result, function): (&[DmnIrScalarType], DmnIrScalarType, &str) =
                     match call.operation {
@@ -1344,7 +1465,7 @@ impl ExpressionEmitter<'_, '_> {
                 depth = source.depth.max(predicate.depth);
                 bounds = source.bounds;
                 format!(
-                    "match {} {{ Value::List(elements) => {{ filter_budget.charge(elements.len(), {products}, {divisions})?; Value::List(elements.into_iter().filter(|f{slot}| matches!({}, Value::Boolean(true))).collect()) }}, _ => Value::Null }}",
+                    "match {} {{ Value::List(elements) => {{ filter_budget.charge(elements.len(), {products}, {divisions})?; {{ let mut retained = Vec::new(); for f{slot} in elements {{ let f{slot} = &f{slot}; if matches!({}, Value::Boolean(true)) {{ retained.push(f{slot}.clone()); }} }} Value::List(retained) }} }}, _ => Value::Null }}",
                     source.value, predicate.value
                 )
             }
@@ -1419,7 +1540,7 @@ impl ExpressionEmitter<'_, '_> {
                         return Err("duplicate context variable name");
                     }
                     if let Some(id) = &variable.id {
-                        if !self.source_ids.insert(nonempty(id)?.to_owned()) {
+                        if self.validate_ids && !self.source_ids.insert(nonempty(id)?.to_owned()) {
                             return Err("duplicate variable ID");
                         }
                     }
@@ -1561,8 +1682,8 @@ impl ExpressionEmitter<'_, '_> {
                     {
                         format!("not(equal({left}, {right}))")
                     }
-                    Ok(BinaryOperatorAnd) if logical => format!("and({left}, || {right})"),
-                    Ok(BinaryOperatorOr) if logical => format!("or({left}, || {right})"),
+                    Ok(BinaryOperatorAnd) if logical => format!("and({left}, || Ok({right}))?"),
+                    Ok(BinaryOperatorOr) if logical => format!("or({left}, || Ok({right}))?"),
                     Ok(BinaryOperatorLess) if ordered => {
                         format!("ordered({left}, {right}, Ordering::is_lt)")
                     }
@@ -1632,6 +1753,7 @@ impl ExpressionEmitter<'_, '_> {
         if let Some(bounds) = bounds {
             bounds.verify()?;
         }
+        self.expression_depth -= 1;
         Ok(Emitted {
             ty,
             value,

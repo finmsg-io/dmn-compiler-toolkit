@@ -1,0 +1,141 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+const NS: &str = "urn:collections:policy";
+fn number(coefficient: &str, scale: i32) -> Value {
+    Value::Number {
+        coefficient: coefficient.into(),
+        scale,
+    }
+}
+fn record(fields: impl IntoIterator<Item = (&'static str, Value)>) -> Value {
+    Value::Record(fields.into_iter().map(|(k, v)| (k.into(), v)).collect())
+}
+fn inputs(scenario: usize, include: Value) -> BTreeMap<(&'static str, &'static str), Value> {
+    let fees = match scenario {
+        1 => Value::List(vec![]),
+        2 => Value::Null,
+        _ => Value::List(vec![number("1000", 2), Value::Null, number("-25", 1)]),
+    };
+    let dates = match scenario {
+        1 => Value::List(vec![]),
+        2 => Value::Null,
+        _ => Value::List(vec![
+            Value::Date {
+                year: -400,
+                month: 2,
+                day: 29,
+            },
+            Value::Null,
+            Value::Date {
+                year: 10000,
+                month: 1,
+                day: 1,
+            },
+        ]),
+    };
+    let permit = if scenario == 3 {
+        Value::Null
+    } else {
+        record([
+            (
+                "Expiry",
+                Value::Date {
+                    year: if scenario == 5 { 2023 } else { 2024 },
+                    month: 2,
+                    day: if scenario == 5 { 28 } else { 29 },
+                },
+            ),
+            ("Previous Dates", dates),
+            ("Previous Fees", fees),
+        ])
+    };
+    let external = match scenario {
+        6 => Value::Null,
+        7 => Value::List(vec![]),
+        _ => Value::List(vec![number("1250", 3), Value::Null, number("1250", 3)]),
+    };
+    BTreeMap::from([
+        (
+            (NS, "applicant"),
+            if scenario == 4 {
+                Value::Null
+            } else {
+                record([("Permit", permit)])
+            },
+        ),
+        ((NS, "include"), include),
+        ((NS, "external"), external),
+    ])
+}
+fn encode(value: &Value) -> String {
+    match value {
+        Value::Null => "N".into(),
+        Value::Boolean(true) => "T".into(),
+        Value::Boolean(false) => "F".into(),
+        Value::Text(text) => format!("S{text}"),
+        Value::Number { coefficient, scale } => format!("D{coefficient},{scale}"),
+        Value::Date { year, month, day } => format!("A{year},{month},{day}"),
+        Value::List(values) => format!(
+            "[{}]",
+            values.iter().map(encode).collect::<Vec<_>>().join("|")
+        ),
+        _ => panic!("unexpected record result"),
+    }
+}
+#[test]
+fn bkms_match_java_for_imports_formal_positions_and_captures() {
+    let mut count = 0;
+    for line in include_str!("bkm_vectors.tsv").lines() {
+        let columns: Vec<_> = line.split('\t').collect();
+        let include = match columns[1] {
+            "T" => Value::Boolean(true),
+            "F" => Value::Boolean(false),
+            _ => Value::Null,
+        };
+        let result = evaluate(&inputs(columns[0].parse().unwrap(), include));
+        if columns[2] == "ERROR" {
+            assert!(result.is_err(), "{line}");
+        } else {
+            let actual = result
+                .unwrap()
+                .iter()
+                .map(|((_, id), v)| format!("{id}={}", encode(v)))
+                .collect::<Vec<_>>()
+                .join(";");
+            assert_eq!(actual, columns[2], "{line}");
+        }
+        count += 1;
+    }
+    assert_eq!(count, 24);
+}
+#[test]
+fn typed_collections_reject_invalid_shapes_and_elements() {
+    for invalid in [
+        number("1", 0),
+        Value::List(vec![Value::Text("1".into())]),
+        Value::List(vec![Value::List(vec![])]),
+        Value::List(vec![number("01", 0)]),
+    ] {
+        let mut values = inputs(0, Value::Boolean(true));
+        values.insert((NS, "external"), invalid);
+        assert!(evaluate(&values).is_err());
+    }
+    for invalid in [
+        Value::List(vec![Value::Date {
+            year: 0,
+            month: 1,
+            day: 1,
+        }]),
+        Value::List(vec![number("1", 0)]),
+    ] {
+        let mut values = inputs(0, Value::Boolean(true));
+        let Value::Record(applicant) = values.get_mut(&(NS, "applicant")).unwrap() else {
+            panic!()
+        };
+        let Value::Record(permit) = applicant.get_mut("Permit").unwrap() else {
+            panic!()
+        };
+        permit.insert("Previous Dates".into(), invalid);
+        assert!(evaluate(&values).is_err());
+    }
+}

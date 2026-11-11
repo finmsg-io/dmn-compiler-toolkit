@@ -192,6 +192,34 @@ fn java_builtin_artifact_generates_deterministic_offline_rust() {
     );
 }
 
+#[test]
+fn java_bkm_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "bkms",
+        include_bytes!("fixtures/bkms-0.10.dmnir"),
+        include_str!("fixtures/bkm_parity.rs.txt"),
+        &[("bkm_vectors.tsv", include_str!("fixtures/bkm_vectors.tsv"))],
+    );
+}
+#[test]
+fn bkm_lazy_errors_propagate_in_generated_rust() {
+    verify_parity(
+        "bkm-lazy",
+        include_bytes!("fixtures/bkms-lazy-0.10.dmnir"),
+        include_str!("fixtures/bkm_lazy_parity.rs.txt"),
+        &[],
+    );
+}
+#[test]
+fn bkm_default_errors_propagate_in_generated_rust() {
+    verify_parity(
+        "bkm-default",
+        include_bytes!("fixtures/bkms-default-0.10.dmnir"),
+        include_str!("fixtures/bkm_default_parity.rs.txt"),
+        &[],
+    );
+}
+
 fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");

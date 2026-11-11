@@ -117,7 +117,7 @@ impl ExpressionEmitter<'_, '_> {
             .join(",");
         write!(
             source,
-            "table_result(rows, {}, &[{names}], || vec![{}])? }}",
+            "table_result(rows, {}, &[{names}], || Ok(vec![{}]))? }}",
             table.hit_policy,
             defaults.join(",")
         )

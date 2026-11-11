@@ -228,3 +228,11 @@ exact decimal scales, contexts, filters and table cells are covered. See
 work-package section 41. Known unrelated README/index link failures remain.
 The filter slice was pushed as `a881016` and passed hosted Rust parity. Next is
 schema 0.10 resolved BKMs and knowledge dependencies.
+
+Rust schema 0.10 named FEEL BKMs are implemented with resolved knowledge graphs,
+imports, formal positions and independent scopes. Bounded call blocks propagate
+numeric bounds and errors through lazy logic, filter predicates and table defaults.
+All 48 Rust tests passed, matching 24 Java BKM input combinations. Regenerated
+Java artifact bytes were stable. See work-package section 42. Known independent
+README/index link failures remain. The builtin slice was pushed as `bec28fc`.
+Next is schema 0.11 inline closures and captured local values.
