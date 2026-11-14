@@ -182,3 +182,9 @@ model, including its allowed-values constraint. Java and generated Rust compare
 parity, not a whole-TCK Rust conformance result.
 `tests/fixtures/ExportTrafficViolationFixture.java` takes the original DMN path,
 artifact output path and TSV output path as arguments.
+
+The closure/BKM interoperability fixture checks used numeric, record and collection
+parameters, multiple captures, BKM calls inside closure bodies and a dynamic
+numeric caller. Java and generated Rust agree for 24 nullable/empty input vectors.
+`tests/fixtures/ExportClosureInteropFixture.java` takes artifact and TSV output
+paths followed by the original BKM artifact path.

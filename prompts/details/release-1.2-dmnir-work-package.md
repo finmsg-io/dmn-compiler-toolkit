@@ -3445,3 +3445,20 @@ full-model fixture parity, not whole-suite Rust TCK conformance. Native/fallback
 routing is not measured and is not applicable. The closure implementation and
 full Spark checkpoint were pushed as `5bbb451`. A subsequent hosted CI query was
 declined, so hosted status was not obtained.
+
+## 46. Closure/BKM parameter and capture interoperability
+
+Extend the verified BKM fixture with closures inside BKMs. The adjusting BKM
+uses a numeric formal and two captures, calling an imported BKM from its closure
+body. The date accessor uses both a record parameter and record capture, and the
+collection echo uses a collection parameter and collection capture. A dynamic
+caller exercises the numeric closure with table-derived decimal values rather
+than only constants. Null and empty values remain in the input matrix.
+
+The strict Java reader accepts the schema 0.11 fixture and its adapter supplies
+24 expected input vectors. The focused generated-Rust integration test passed,
+including deterministic generation and offline crate compilation/execution.
+No production changes were needed. Together with section 45, these are two
+passing focused integrations following the full 51-test closure suite. Rust
+native/fallback routing is not measured and is not applicable. The complete
+Traffic Violation proof was pushed as `3adc3a6`.

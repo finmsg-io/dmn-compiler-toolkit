@@ -250,3 +250,13 @@ Traffic Violation model now matches generated Rust across 321 Java vectors:
 195 result cases and 126 expected constraint errors. The focused integration
 test passed, following the complete 51-test closure suite. See work-package
 section 45. Next is broader closure/BKM parameter-and-capture interoperability.
+
+Full Traffic Violation parity was pushed as `3adc3a6`. Closure/BKM interoperability
+also passed a focused generated-Rust integration against 24 Java input vectors,
+covering used numeric/record/collection parameters, multiple captures, BKM calls
+from closure bodies and dynamic decimal callers. No production changes were
+needed. See section 46. These two follow-ups passed after the full 51-test suite.
+Remaining readiness work includes hosted CI confirmation, broader conformance
+coverage and explicit accounting for the still-rejected power operator. Do not
+claim whole-TCK Rust conformance from these fixtures. Preserve the independent
+README/index/glossary edits and untracked prompt PDFs.
