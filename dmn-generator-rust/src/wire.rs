@@ -42,6 +42,9 @@ enum Message {
     Parameter,
     BkmCall,
     Argument,
+    Closure,
+    ClosureBinding,
+    ClosureCall,
     Table,
     TableInput,
     TableOutput,
@@ -80,6 +83,17 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Model, 3) => (Nested(Import), true, false),
         (Model, 4) => (Nested(Input), true, false),
         (Model, 5) => (Nested(Decision), true, false),
+        (LocalBinding, 4) => (Nested(ClosureBinding), false, false),
+        (ClosureBinding, 1 | 2) => (Text, false, false),
+        (ClosureBinding, 3) => (Nested(Closure), false, false),
+        (Closure, 1) => (Nested(Parameter), true, false),
+        (Closure, 2) => (Nested(TypeReference), false, false),
+        (Closure, 3) => (Text, true, false),
+        (Closure, 4) => (Nested(Expression), false, false),
+        (Expression, 16) => (Nested(ClosureCall), false, true),
+        (ClosureCall, 1) => (Text, false, true),
+        (ClosureCall, 2) => (Nested(Closure), false, true),
+        (ClosureCall, 3) => (Nested(Expression), true, false),
         (Model, 8) => (Nested(Bkm), true, false),
         (Bkm, 1) => (Nested(Identity), false, false),
         (Bkm, 2) => (Nested(Parameter), true, false),
@@ -189,6 +203,7 @@ fn message(
         | Message::Record
         | Message::RecordField
         | Message::Filter
+        | Message::Closure
         | Message::Bkm
         | Message::Parameter
         | Message::Collection
@@ -220,6 +235,15 @@ fn message(
         let bit = 1 << tag;
         if (!repeated && seen & bit != 0) || (choice && oneof) {
             return Err("duplicate field or oneof choice");
+        }
+        if matches!(
+            (kind, tag),
+            (Message::Closure, 3) | (Message::ClosureCall, 1)
+        ) {
+            budget.references += 1;
+            if budget.references > MAX_REFERENCES {
+                return Err("artifact exceeds message budget");
+            }
         }
         seen |= bit;
         oneof |= choice;

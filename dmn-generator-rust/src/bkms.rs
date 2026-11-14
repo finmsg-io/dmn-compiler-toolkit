@@ -196,6 +196,9 @@ impl ExpressionEmitter<'_, '_> {
                 value,
             );
         }
+        let outer_closures = std::mem::take(&mut self.closures);
+        let outer_in_closure = std::mem::replace(&mut self.in_closure, false);
+        let outer_unused = self.unused_captures.take();
         let outer_locals = std::mem::replace(&mut self.locals, locals);
         let outer_bindings = std::mem::replace(
             &mut self.binding_ids,
@@ -213,6 +216,9 @@ impl ExpressionEmitter<'_, '_> {
         let outer_table = std::mem::replace(&mut self.table_cell, false);
         let outer_filter = std::mem::replace(&mut self.filter_predicate, false);
         let mut result = self.expression(bkm.source.body.as_ref().ok_or("missing BKM body")?)?;
+        self.closures = outer_closures;
+        self.in_closure = outer_in_closure;
+        self.unused_captures = outer_unused;
         self.locals = outer_locals;
         self.binding_ids = outer_bindings;
         self.dependencies = outer_dependencies;

@@ -236,3 +236,11 @@ All 48 Rust tests passed, matching 24 Java BKM input combinations. Regenerated
 Java artifact bytes were stable. See work-package section 42. Known independent
 README/index link failures remain. The builtin slice was pushed as `bec28fc`.
 Next is schema 0.11 inline closures and captured local values.
+
+The BKM usage checkpoint passed the full Spark suite with 3,391/3,391 native
+passes (100%), zero fallback (0%), failures, execution/compilation errors,
+expected rejections or unknown routes. See work-package section 43 and retained
+BKM checkpoint log/accounting in `target/`. After usage reset, Rust schema 0.11
+closures were implemented and all 51 Rust tests passed, matching 24 Java closure
+input combinations. See section 44. Known independent README/index link failures
+remain. Next is full Traffic Violation model parity in generated Rust.

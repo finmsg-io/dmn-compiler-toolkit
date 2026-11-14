@@ -4,7 +4,7 @@ This prototype consumes DMNIR 0.0 scalar artifacts, scalar expressions from
 DMNIR 0.1, named records and field access from DMNIR 0.2, local contexts
 from DMNIR 0.3, civil dates from DMNIR 0.4, decision tables from DMNIR 0.5,
 scalar record field constraints from DMNIR 0.6, and named scalar collections
-from DMNIR 0.7, scalar filters from DMNIR 0.8, fixed builtins from DMNIR 0.9, and named FEEL BKMs from DMNIR 0.10. It verifies the wire
+from DMNIR 0.7, scalar filters from DMNIR 0.8, fixed builtins from DMNIR 0.9, named FEEL BKMs from DMNIR 0.10, and captured FEEL closures from DMNIR 0.11. It verifies the wire
 and model graph, then writes a standalone Rust library crate. The artifact is
 the only model input to the generator.
 
@@ -54,7 +54,7 @@ The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient
 digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
 Division has a separate 8,388,608-limb-visit budget and permits division-derived
-scales through 32,768. Powers and profiles above 0.10 remain outside the subset.
+scales through 32,768. Powers and profiles above 0.11 remain outside the subset.
 
 Schema 0.2 adds `Value::Record(BTreeMap<String, Value>)` for nested record inputs
 and results. All declared fields must be present with the expected types.
@@ -155,8 +155,22 @@ verified too. Calls are emitted as Rust blocks with propagated numeric bounds.
 Verification limits expanded expressions to 50,000 nodes and 32 expression levels,
 including declaration validation and call expansion. Existing arithmetic and
 filter budgets apply inside calls. Lazy expressions and table defaults propagate
-called-function errors while retaining their lazy behavior. Closures are pending.
+called-function errors while retaining their lazy behavior. Closures are described below.
 `tests/fixtures/ExportBkmFixture.java` derives Java-verified artifacts from the
 collection artifact and writes Java expected vectors. Arguments are the BKM
 artifact path, TSV output path, directory for lazy/default fixtures, and original
 collection artifact path.
+
+Schema 0.11 supports context-local closure bindings and inline closure calls.
+Capture lists must contain visible value-binding IDs in strict UTF-8 byte order,
+and every declared capture must be used. Calls see only their captures and typed
+parameters, with declared BKM knowledge retained. Captured values keep their
+identities when names are shadowed. Arguments evaluate once in order, and exact
+numeric bounds propagate through captures, parameters and results.
+Nested closure definitions/calls are rejected within closure bodies, matching
+the Java profile. Calls remain bounded by the existing expanded-node/depth and
+runtime filter-work limits. Closures are emitted as private Rust blocks, so the
+public generated Value API is unchanged.
+`tests/fixtures/ExportClosureFixture.java` derives Java-verified closure artifacts
+from the BKM fixture. Arguments are the closure artifact, TSV vectors and
+original BKM artifact paths.

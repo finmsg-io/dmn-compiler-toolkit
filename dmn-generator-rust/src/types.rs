@@ -249,7 +249,7 @@ impl<'a> Types<'a> {
         }
     }
 
-    fn reference(&self, value: &DmnIrTypeReference, namespace: &str) -> Check<Type> {
+    pub fn reference(&self, value: &DmnIrTypeReference, namespace: &str) -> Check<Type> {
         match value.kind.as_ref() {
             Some(dmn_ir_type_reference::Kind::ScalarType(scalar)) => {
                 Ok(Type::Scalar(scalar_type(*scalar, self.dates)?))

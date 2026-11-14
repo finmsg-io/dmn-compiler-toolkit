@@ -3377,3 +3377,53 @@ All 48 Rust tests passed locally with zero failures. Generated Rust matched all
 and its BKM artifact hash was unchanged. Whitespace checks passed. Documentation
 validation still fails on the independent README/index links leaving the
 repository recorded in section 38; those edits were left untouched.
+
+## 43. BKM usage checkpoint
+
+The full current-source Spark checkpoint completed with BUILD SUCCESS. The log
+finished on 2026-11-11 at 22:36 local time and was collected on continuation.
+Executable denominator: 3,391. Passed total/native: 3,391 (100%). Fallback:
+0 (0%). Failures: 0. Execution errors: 0. Compilation errors: 0. Expected model
+rejections: 0. Unsupported/excluded/invalid outcomes: 0. Unknown routes: 0.
+Pinned TCK revision remains `20274cd2ba9cad805db6114f331c743f4b2603a1`.
+Build duration was 09:16, with the TCK module taking 08:20. Evidence is retained
+in `target/release-1.2-rust-bkms-spark-checkpoint.log` and
+`target/release-1.2-rust-bkms-spark-checkpoint-accounting.json`.
+The usage window reset before closure implementation resumed. This full Spark
+result is separate from Rust fixture parity and does not measure Rust conformance.
+
+## 44. Rust inline and captured FEEL closures (R12-09o)
+
+Accept the exact schema 0.11 inline-feel profile alongside earlier admitted
+profiles. Support context-local closure bindings and inline closure invocation.
+A closure binding has a name, optional unique source ID and a definition, without
+a simultaneous value variable. Validate formal names, binding IDs, types, body
+and result type. Captures must reference visible value bindings in strict UTF-8
+byte order, with no duplicates or unused captures. Closure bodies cannot access
+uncaptured caller locals or global input/decision dependencies. Declared BKM
+knowledge remains available. Nested closure definitions and direct closure calls
+inside closure bodies are unsupported, matching the Java profile.
+
+Calls require exact result identity and compatible positional argument types.
+Evaluate arguments once in order and bind only captured values and parameters.
+Retain captured identities through name shadowing. Validate definitions before
+admission and carry actual numeric bounds through calls. Reuse bounded Rust call
+blocks, expanded-expression limits and shared runtime filter-work limits. BKM
+calls isolate their own closure scopes and capture-use tracking. The generated
+Value API gains no function-valued variant.
+
+The strict Java reader verifies a fixture derived from the BKM artifact. Contexts
+wrap expression decisions with a capture, a named closure, a shadowed variable,
+a call and a final inline closure. Java adapter outputs cover 24 nullable/empty
+input combinations. Generated Rust compilation/execution is offline and generation
+is deterministic. Negative cases cover capture visibility/order/usage, parameter
+IDs, invalid bindings, missing body/result/target, nested calls, global-reference
+leaks, wrong argument counts/types and older-profile rejection.
+Spark production sources are unchanged. Native/fallback routing is not measured
+by these Rust tests and is not applicable.
+
+All 51 Rust tests passed locally with zero failures, including 24 Java closure
+input combinations. Whitespace checks passed. Documentation validation retains
+the known independent README/index links leaving the repository from section 38;
+those edits remain untouched. The next readiness slice is full-model Traffic
+Violation execution through generated Rust.

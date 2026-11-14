@@ -220,6 +220,19 @@ fn bkm_default_errors_propagate_in_generated_rust() {
     );
 }
 
+#[test]
+fn java_closure_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "closures",
+        include_bytes!("fixtures/closures-0.11.dmnir"),
+        include_str!("fixtures/closure_parity.rs.txt"),
+        &[(
+            "closure_vectors.tsv",
+            include_str!("fixtures/closure_vectors.tsv"),
+        )],
+    );
+}
+
 fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");

@@ -1,5 +1,7 @@
 #[path = "bkms.rs"]
 mod bkms;
+#[path = "closures.rs"]
+mod closures;
 #[path = "constraints.rs"]
 mod constraints;
 #[path = "tables.rs"]
@@ -963,6 +965,25 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         {
             true
         }
+        (Some(0), Some(11), "finmsg-dmnir-inline-feel/0")
+            if artifact.required_capabilities
+                == [
+                    "dmnir.scalar",
+                    "dmnir.scalar-expressions",
+                    "dmnir.records",
+                    "dmnir.local-bindings",
+                    "dmnir.date",
+                    "dmnir.tables",
+                    "dmnir.field-constraints",
+                    "dmnir.scalar-collections",
+                    "dmnir.scalar-filters",
+                    "dmnir.builtin-calls",
+                    "dmnir.named-feel-bkms",
+                    "dmnir.inline-feel",
+                ] =>
+        {
+            true
+        }
         _ => return Err("unsupported DMNIR profile"),
     };
     let mut bkm_declarations = BTreeMap::new();
@@ -1130,6 +1151,10 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         let mut divisions = 0;
         let mut emitter = ExpressionEmitter {
             structured,
+            closures_enabled: version.minor >= Some(11),
+            closures: BTreeMap::new(),
+            in_closure: false,
+            unused_captures: None,
             bkms_enabled: true,
             table_cell: false,
             filters_enabled: true,
@@ -1235,6 +1260,10 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         }
         let mut emitter = ExpressionEmitter {
             structured,
+            closures_enabled: version.minor >= Some(11),
+            closures: BTreeMap::new(),
+            in_closure: false,
+            unused_captures: None,
             table_cell: false,
             bkms_enabled: version.minor >= Some(10),
             builtins_enabled: version.minor >= Some(9),
@@ -1316,6 +1345,10 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
 
 struct ExpressionEmitter<'a, 'model> {
     structured: bool,
+    closures_enabled: bool,
+    closures: BTreeMap<String, closures::Closure>,
+    in_closure: bool,
+    unused_captures: Option<BTreeSet<String>>,
     table_cell: bool,
     filters_enabled: bool,
     builtins_enabled: bool,
@@ -1383,6 +1416,12 @@ impl ExpressionEmitter<'_, '_> {
         let mut depth = 0;
         let mut bounds = None;
         let value = match expression.node.as_ref().ok_or("missing expression node")? {
+            Node::ClosureInvocation(call) if self.closures_enabled => {
+                let result = self.closure_call(call, ty)?;
+                depth = result.depth;
+                bounds = result.bounds;
+                result.value
+            }
             Node::BkmCall(call) if self.bkms_enabled => {
                 let result = self.bkm_call(call, ty)?;
                 depth = result.depth;
@@ -1515,6 +1554,9 @@ impl ExpressionEmitter<'_, '_> {
                 format!("v{}.clone()", self.slots[&target])
             }
             Node::LocalReference(reference) if self.locals_enabled => {
+                if let Some(unused) = &mut self.unused_captures {
+                    unused.remove(&reference.binding_id);
+                }
                 let local = self
                     .locals
                     .get(&reference.binding_id)
@@ -1528,12 +1570,39 @@ impl ExpressionEmitter<'_, '_> {
             }
             Node::Context(context) if self.locals_enabled => {
                 let outer = self.locals.clone();
+                let outer_closures = self.closures.clone();
                 let mut block = String::from("{ ");
                 let mut names = BTreeSet::new();
                 for binding in &context.bindings {
                     let id = nonempty(&binding.binding_id)?;
                     if !self.binding_ids.insert(id.to_owned()) {
                         return Err("duplicate local binding ID");
+                    }
+                    if let Some(closure) = &binding.closure {
+                        if !self.closures_enabled {
+                            return Err("closures require profile 0.11");
+                        }
+                        if binding.variable.is_some() || binding.value.is_some() {
+                            return Err("closure binding cannot contain a value variable");
+                        }
+                        if !names.insert(nonempty(&closure.name)?) {
+                            return Err("duplicate context variable name");
+                        }
+                        if let Some(id) = &closure.id {
+                            if self.validate_ids
+                                && !self.source_ids.insert(nonempty(id)?.to_owned())
+                            {
+                                return Err("duplicate variable ID");
+                            }
+                        }
+                        let definition = self.validate_closure(
+                            closure
+                                .definition
+                                .as_ref()
+                                .ok_or("missing closure definition")?,
+                        )?;
+                        self.closures.insert(id.to_owned(), definition);
+                        continue;
                     }
                     let variable = binding.variable.as_ref().ok_or("missing local variable")?;
                     if !names.insert(nonempty(&variable.name)?) {
@@ -1567,6 +1636,7 @@ impl ExpressionEmitter<'_, '_> {
                 bounds = result.bounds;
                 write!(block, "{} }}", result.value).unwrap();
                 self.locals = outer;
+                self.closures = outer_closures;
                 block
             }
             Node::FieldAccess(access) => {
