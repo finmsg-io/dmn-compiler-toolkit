@@ -1,6 +1,6 @@
 # DMNIR Rust generator
 
-This prototype consumes DMNIR 0.0 scalar artifacts, scalar expressions from
+This initial-profile generator consumes DMNIR 0.0 scalar artifacts, scalar expressions from
 DMNIR 0.1, named records and field access from DMNIR 0.2, local contexts
 from DMNIR 0.3, civil dates from DMNIR 0.4, decision tables from DMNIR 0.5,
 scalar record field constraints from DMNIR 0.6, and named scalar collections
@@ -54,7 +54,7 @@ The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient
 digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
 Division has a separate 8,388,608-limb-visit budget and permits division-derived
-scales through 32,768. Powers and profiles above 0.11 remain outside the subset.
+scales through 32,768. General floating-point powers and profiles above 0.11 remain outside the subset.
 
 Schema 0.2 adds `Value::Record(BTreeMap<String, Value>)` for nested record inputs
 and results. All declared fields must be present with the expected types.
@@ -188,3 +188,23 @@ parameters, multiple captures, BKM calls inside closure bodies and a dynamic
 numeric caller. Java and generated Rust agree for 24 nullable/empty input vectors.
 `tests/fixtures/ExportClosureInteropFixture.java` takes artifact and TSV output
 paths followed by the original BKM artifact path.
+
+The declared initial Rust profile is implemented. Constant integer powers are
+admitted when both operands are exact integers, the base magnitude is at most
+2^53, the exponent is 0 through 53, and the result magnitude is at most 2^53.
+The generator evaluates them with checked integer arithmetic and preserves the
+Java `BigDecimal.valueOf(Math.pow(...))` coefficient/scale representation. Java
+specifies exact results for exactly representable integer powers.
+[Java Math.pow contract](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Math.html#pow(double,double))
+Dynamic, fractional, negative-exponent and out-of-domain powers are rejected
+before output is created. `ExportPowerFixture.java` writes the admitted artifact
+and Java expected vectors to its two output arguments.
+
+The release boundary is the explicitly admitted DMNIR 0.0–0.11 subset. General
+FEEL/DMN conformance, time-of-day/durations, additional table policies, more
+builtins, higher-order/nested closures and newer wire profiles remain separate
+scope. Unsupported inputs are rejected before generation. The test suite checks
+Java value/error parity, deterministic output, offline generated-crate builds,
+wire/model rejection limits and preservation of existing output directories.
+A complete Traffic Violation fixture is included. Whole-TCK Rust coverage has
+not been measured; the Spark TCK result is reported separately.

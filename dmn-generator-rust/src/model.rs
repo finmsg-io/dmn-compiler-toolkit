@@ -84,7 +84,7 @@ mod tests {
         }));
         assert_eq!(
             verify_and_generate(&artifact),
-            Err("unsupported binary signature")
+            Err("power requires bounded constant integer operands")
         );
 
         let conditional = selected(&mut artifact);
@@ -1738,6 +1738,16 @@ impl ExpressionEmitter<'_, '_> {
                             }
                         }
                         format!("divide({left}, {right})")
+                    }
+                    Ok(BinaryOperatorPower) if numeric => {
+                        let (coefficient, scale) = crate::power::constant_power(
+                            binary.left.as_deref().unwrap(),
+                            binary.right.as_deref().unwrap(),
+                        )?;
+                        bounds = Some(NumericBounds::literal(&coefficient, scale));
+                        format!(
+                            "Value::Number {{ coefficient: {coefficient:?}.into(), scale: {scale} }}"
+                        )
                     }
                     _ if ty != Boolean => return Err("unsupported binary signature"),
                     Ok(BinaryOperatorEqual)

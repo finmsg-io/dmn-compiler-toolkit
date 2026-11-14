@@ -278,7 +278,7 @@ mod tests {
                     let endpoint = t.rules[0].output_entries[0].clone();
                     t.rules[1].output_entries[0].node =
                         Some(Node::Binary(Box::new(DmnIrBinaryExpression {
-                            operator: 5,
+                            operator: 999,
                             left: Some(Box::new(endpoint.clone())),
                             right: Some(Box::new(endpoint)),
                         })));

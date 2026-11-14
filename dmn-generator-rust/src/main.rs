@@ -2,6 +2,7 @@ mod bounds;
 mod date;
 mod decimal;
 mod model;
+mod power;
 mod types;
 mod wire;
 

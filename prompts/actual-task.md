@@ -260,3 +260,11 @@ Remaining readiness work includes hosted CI confirmation, broader conformance
 coverage and explicit accounting for the still-rejected power operator. Do not
 claim whole-TCK Rust conformance from these fixtures. Preserve the independent
 README/index/glossary edits and untracked prompt PDFs.
+
+The initial R12-09 Rust profile is implemented through admitted DMNIR 0.0–0.11
+features. Exact bounded constant-integer powers now match 152 Java results.
+The full 55-test Rust run and one additional CLI-hardening test passed, along
+with formatting/whitespace checks. See work-package section 47 for completion
+scope and explicit exclusions. Hosted final validation remains pending. Full
+Rust FEEL/DMN or whole-TCK conformance is not claimed. DSL and broader release
+1.2 work remain independent tasks. Preserve unrelated working-tree edits.

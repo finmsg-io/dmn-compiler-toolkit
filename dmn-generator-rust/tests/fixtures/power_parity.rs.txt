@@ -1,0 +1,21 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+#[test]
+fn powers_match_java_coefficients_and_scales() {
+    let results = evaluate(&BTreeMap::new()).unwrap();
+    let mut count = 0;
+    for line in include_str!("power_vectors.tsv").lines() {
+        let c: Vec<_> = line.split('\t').collect();
+        assert_eq!(
+            results[&("urn:rust-proof:powers", c[0])],
+            Value::Number {
+                coefficient: c[1].into(),
+                scale: c[2].parse().unwrap()
+            },
+            "{}",
+            c[0]
+        );
+        count += 1;
+    }
+    assert_eq!(count, 152);
+}

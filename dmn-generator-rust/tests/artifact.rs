@@ -259,6 +259,19 @@ fn closure_bkm_interoperability_generates_deterministic_offline_rust() {
     );
 }
 
+#[test]
+fn exact_integer_powers_match_java() {
+    verify_parity(
+        "powers",
+        include_bytes!("fixtures/powers-0.1.dmnir"),
+        include_str!("fixtures/power_parity.rs.txt"),
+        &[(
+            "power_vectors.tsv",
+            include_str!("fixtures/power_vectors.tsv"),
+        )],
+    );
+}
+
 fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");
@@ -322,6 +335,52 @@ fn rejects_bad_and_unsupported_artifacts_before_writing() {
         assert!(!result.status.success(), "{label} was accepted");
         assert!(!output.exists(), "{label} produced output");
     }
+}
+
+#[test]
+fn rejects_adversarial_wire_and_preserves_existing_output() {
+    let directory = scratch("adversarial");
+    let mut unknown = FIXTURE.to_vec();
+    unknown.extend([0x78, 0]);
+    let mut models = Vec::new();
+    for _ in 0..129 {
+        models.extend([0x2a, 0]);
+    }
+    let mut text = vec![0x12, 0x81, 0x80, 0x01];
+    text.extend(vec![b'a'; 16_385]);
+    for (name, bytes) in [
+        ("unknown", unknown),
+        ("invalid-utf8", vec![0x12, 1, 0xff]),
+        ("varint", vec![0x80; 11]),
+        ("models", models),
+        ("string", text),
+    ] {
+        let artifact = directory.join(format!("{name}.dmnir"));
+        let output = directory.join(name);
+        fs::write(&artifact, bytes).unwrap();
+        let result = Command::new(GENERATOR)
+            .args([&artifact, &output])
+            .output()
+            .unwrap();
+        assert!(!result.status.success(), "{name}");
+        assert!(!output.exists(), "{name}");
+    }
+    let artifact = directory.join("valid.dmnir");
+    fs::write(&artifact, FIXTURE).unwrap();
+    let output = directory.join("existing");
+    fs::create_dir(&output).unwrap();
+    fs::write(output.join("lib.rs"), "preserve").unwrap();
+    let result = Command::new(GENERATOR)
+        .args([&artifact, &output])
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    assert_eq!(
+        fs::read_to_string(output.join("lib.rs")).unwrap(),
+        "preserve"
+    );
+    assert!(!output.join("Cargo.toml").exists());
+    assert!(!Command::new(GENERATOR).output().unwrap().status.success());
 }
 
 fn scratch(label: &str) -> std::path::PathBuf {

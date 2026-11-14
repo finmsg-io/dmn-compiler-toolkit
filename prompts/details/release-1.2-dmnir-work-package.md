@@ -3462,3 +3462,32 @@ No production changes were needed. Together with section 45, these are two
 passing focused integrations following the full 51-test closure suite. Rust
 native/fallback routing is not measured and is not applicable. The complete
 Traffic Violation proof was pushed as `3adc3a6`.
+
+## 47. Initial Rust profile completion and exact power admission
+
+The R12-09 acceptance boundary is an independent artifact validator/generator,
+exact named value/error parity for a declared initial profile, deterministic
+compilable output and explicit rejection of unsupported features. Full Rust
+FEEL/DMN conformance remains separate scope. Profiles 0.0 through 0.11 now have
+implemented admitted subsets, including structured inputs, tables, constraints,
+collections, filters, fixed builtins, named BKMs and captured closures.
+
+The Java runtime's POWER implementation is BigDecimal.valueOf(Math.pow(...)).
+Admit constant integer operands with base magnitude at most 2^53, exponent 0–53
+and result magnitude at most 2^53. Checked integer evaluation preserves exact
+Java semantics within this domain, including zero/negative bases, zero exponents,
+integer-valued scaled decimals and Java decimal coefficient/scale conventions.
+General floating-point powers, dynamic operands, fractional/negative exponents
+and larger results remain explicitly rejected before output. This follows the
+integer-exactness guarantee in the
+[Java Math.pow contract](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Math.html#pow(double,double)).
+
+The Java reader/adapter fixture supplies 152 power results. Generated Rust matches
+all coefficients/scales. Negative tests cover dynamic/general powers, bounds and
+i128-minimum parsing without panic. A formerly unsupported constant-power table
+case was updated to an unknown operator so inactive-cell rejection remains valid.
+The full Rust run passed 55 tests, followed by one passing focused CLI-hardening
+test for unknown fields, invalid UTF-8, overlong varints, model/string budgets,
+missing arguments and preservation of an existing output directory. Formatting
+and whitespace checks passed. These tests do not measure Spark routing; native/
+fallback counts and rates are not applicable. Hosted validation is pending.
