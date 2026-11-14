@@ -3427,3 +3427,21 @@ input combinations. Whitespace checks passed. Documentation validation retains
 the known independent README/index links leaving the repository from section 38;
 those edits remain untouched. The next readiness slice is full-model Traffic
 Violation execution through generated Rust.
+
+## 45. Full Traffic Violation generated-Rust parity
+
+The complete original Traffic Violation model at
+`dmn-frontend-xml/src/main/resources/TrafficViolation.dmn` is produced as a verified
+schema 0.6 artifact. Retain the fine table, suspension context, named records,
+date input and allowed-values constraint. The Java adapter records 321 vectors
+across violation types, speed margins, prior points and explicit null fields or
+whole records. Generated Rust matches all 195 result cases and 126 expected
+constraint-error cases, including both sides of speed and suspension thresholds.
+
+The focused integration check passed with deterministic generation and offline
+compilation/execution of the generated crate. It adds one passing integration
+test after the complete 51-test closure run. No production code changed. This is
+full-model fixture parity, not whole-suite Rust TCK conformance. Native/fallback
+routing is not measured and is not applicable. The closure implementation and
+full Spark checkpoint were pushed as `5bbb451`. A subsequent hosted CI query was
+declined, so hosted status was not obtained.

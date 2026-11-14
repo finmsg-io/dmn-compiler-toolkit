@@ -174,3 +174,11 @@ public generated Value API is unchanged.
 `tests/fixtures/ExportClosureFixture.java` derives Java-verified closure artifacts
 from the BKM fixture. Arguments are the closure artifact, TSV vectors and
 original BKM artifact paths.
+
+The full Traffic Violation fixture is produced from the repository's original DMN
+model, including its allowed-values constraint. Java and generated Rust compare
+321 input vectors covering the complete fine table and suspension context,
+195 result cases and 126 expected domain failures. This is full-model fixture
+parity, not a whole-TCK Rust conformance result.
+`tests/fixtures/ExportTrafficViolationFixture.java` takes the original DMN path,
+artifact output path and TSV output path as arguments.

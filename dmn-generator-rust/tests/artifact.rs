@@ -233,6 +233,19 @@ fn java_closure_artifact_generates_deterministic_offline_rust() {
     );
 }
 
+#[test]
+fn full_traffic_violation_generates_deterministic_offline_rust() {
+    verify_parity(
+        "traffic-violation",
+        include_bytes!("fixtures/traffic-violation-0.6.dmnir"),
+        include_str!("fixtures/traffic_violation_parity.rs.txt"),
+        &[(
+            "traffic_violation_vectors.tsv",
+            include_str!("fixtures/traffic_violation_vectors.tsv"),
+        )],
+    );
+}
+
 fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");

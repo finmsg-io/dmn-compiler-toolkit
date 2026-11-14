@@ -244,3 +244,9 @@ BKM checkpoint log/accounting in `target/`. After usage reset, Rust schema 0.11
 closures were implemented and all 51 Rust tests passed, matching 24 Java closure
 input combinations. See section 44. Known independent README/index link failures
 remain. Next is full Traffic Violation model parity in generated Rust.
+
+Closures and the full Spark checkpoint were pushed as `5bbb451`. The complete
+Traffic Violation model now matches generated Rust across 321 Java vectors:
+195 result cases and 126 expected constraint errors. The focused integration
+test passed, following the complete 51-test closure suite. See work-package
+section 45. Next is broader closure/BKM parameter-and-capture interoperability.
