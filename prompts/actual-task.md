@@ -268,3 +268,12 @@ with formatting/whitespace checks. See work-package section 47 for completion
 scope and explicit exclusions. Hosted final validation remains pending. Full
 Rust FEEL/DMN or whole-TCK conformance is not claimed. DSL and broader release
 1.2 work remain independent tasks. Preserve unrelated working-tree edits.
+
+R12-09 initial Rust profile is complete within the explicit scope in work-package
+section 47. Implementation `a562303` is committed/pushed and passed hosted
+Java-free Rust CI with all 56 tests. General floating-point powers and whole-DMN/
+FEEL/TCK Rust conformance remain outside that profile. Maven CI was last running;
+the final status check was declined and completion is not claimed. The known
+independent README/index documentation-link failures remain. Broader release 1.2
+and DSL work are not marked complete. No further Rust implementation is pending
+within the declared initial-profile boundary.

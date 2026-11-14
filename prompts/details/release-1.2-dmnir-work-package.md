@@ -3491,3 +3491,21 @@ test for unknown fields, invalid UTF-8, overlong varints, model/string budgets,
 missing arguments and preservation of an existing output directory. Formatting
 and whitespace checks passed. These tests do not measure Spark routing; native/
 fallback counts and rates are not applicable. Hosted validation is pending.
+
+### R12-09 completion evidence
+
+Implementation `a562303` was committed and pushed. Hosted artifact-only Rust
+parity passed for that exact revision in a Java-free Rust container, including
+the complete 56-test suite and offline generated-crate execution:
+[Rust CI](https://github.com/finmsg-io/dmn-compiler-toolkit/actions/runs/43633052038).
+Maven CI was last observed running its reactor/formatting stage. The final status
+query was declined, so no successful Maven result is claimed for this revision.
+Repository documentation verification still reports the independent README/index
+links leaving the repository from section 38; those changes were preserved.
+
+R12-09 is complete for the declared initial Rust profile: independent bounded
+artifact validation, deterministic generation, standalone compilation/execution,
+exact named value/error fixture parity, clean-consumer hosted proof, explicit
+unsupported-feature rejection and documented limits. General floating-point
+powers and whole-DMN/FEEL/TCK Rust conformance are outside this completed profile.
+The surrounding release 1.2 work, including DSL authoring, is not marked complete.
