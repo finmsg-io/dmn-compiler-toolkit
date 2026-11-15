@@ -204,12 +204,12 @@ Milestone: <plan item>
 
 Current usage rule (2026-11-15): stop new implementation at weekly remaining <=7%
 OR five-hour remaining <=20%, then finish the verification, full Spark TCK and
-handover checkpoint in [general instructions](../../prompts/generall-prompt.md).
+handover checkpoint in `prompts/generall-prompt.md` in the repository.
 Also run the full pinned end-to-end Rust TCK at least at the end of each five-hour
 usage session and at usage checkpoints, before handover. Report current whole-suite
 counts and the delta against the preceding full run; focused results are insufficient.
 Historical usage thresholds below do not override this rule. Current Rust work
-and evidence are in [actual task](../../prompts/actual-task.md).
+and evidence are in `prompts/actual-task.md` in the repository.
 
 ### Spark SQL continuation handover — 2026-10-04 continuation
 
