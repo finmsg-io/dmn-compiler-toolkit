@@ -48,7 +48,9 @@ The verifier accepts scalar literals and resolved scalar references in bundled m
 Schema 0.1 additionally admits unary plus, negation, `not`, equality and inequality,
 numeric and string ordering, `and`, `or`, conditionals, and numeric addition,
 subtraction, multiplication, and division. Addition and subtraction use the greater
-operand scale. Multiplication adds the operand scales. Division uses DECIMAL128
+operand scale. Logical operators also accept non-boolean scalar operands and treat
+them as null using FEEL three-valued logic; short-circuit behavior is preserved.
+Older consumers can reject these newly admitted signatures. Multiplication adds the operand scales. Division uses DECIMAL128
 rounding and returns null for a zero divisor. All four propagate nulls.
 The verifier limits additive chains to 128 operations across expressions and
 decision dependencies. It rejects graphs that could exceed 32,768 coefficient

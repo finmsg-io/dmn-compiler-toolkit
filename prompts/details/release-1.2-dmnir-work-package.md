@@ -1,5 +1,13 @@
 # Release 1.2.0 work package — DMNIR and decision authoring
 
+Current continuation: [section 48](#48-current-rust-tck-handover-2026-11-15) and
+[actual task](../actual-task.md). The current goal includes full pinned-TCK Rust
+compliance; historical initial-profile completion statements do not satisfy it.
+Usage barriers: weekly remaining <=7% OR five-hour remaining <=20% (2026-11-15).
+Session handover requires a current full pinned end-to-end Rust TCK run and
+whole-suite counts/delta at least at the end of each five-hour usage session and
+at usage checkpoints. Focused tests do not satisfy this reporting requirement.
+
 Date: 2026-11-03; updated 2026-11-04. Status: active — bounded scalar and schema 0.1 expression slices complete and verified; broader release work remains.
 Delivery owner: unassigned. Protobuf and **Option A** were approved on 2026-11-03.
 Accepted representation architecture: [ADR-0026](../../docs/architecture/adr/adr-0026-structured-portable-dmnir.md).
@@ -3509,3 +3517,165 @@ exact named value/error fixture parity, clean-consumer hosted proof, explicit
 unsupported-feature rejection and documented limits. General floating-point
 powers and whole-DMN/FEEL/TCK Rust conformance are outside this completed profile.
 The surrounding release 1.2 work, including DSL authoring, is not marked complete.
+
+## 48. Current Rust TCK handover: 2026-11-15
+
+Read this section and [actual task](../actual-task.md) before continuing. The user
+requires full pinned-TCK compliance through Java DMN-to-DMNIR export and standalone
+generated Rust, honest whole-suite accounting, and resource-conscious implementation.
+The former initial Rust profile is no longer the acceptance boundary. Release 1.2
+DMN export, DSL and compatibility obligations remain; none is declared complete here.
+
+### Latest full Rust TCK result
+
+Full post-change run on 2026-11-15: **99/3,391 passed (2.92%)**, compared with
+79/3,391 before the logical-operand change. Case-by-case comparison confirms
+20 newly passing cases and zero regressions; all 3,391 case identities match,
+with no duplicates or omissions. Remaining: 3,280 export/harness rejections
+(3,269 UNSUPPORTED_PROFILE, 11 harness invocation limitations), 12 Rust generator
+rejections, zero build errors, execution errors or assertion failures.
+
+Evidence directory: `target/rust-tck-full-post-logical-2026-11-15/` contains
+`summary.json` (source hashes and pinned revision), `rust-tck-accounting.tsv`,
+`delta-from-baseline.tsv` and `manifest.tsv`. Full logs:
+`target/rust-tck-full-post-logical-export-2026-11-15.log` and
+`target/rust-tck-full-post-logical-run-2026-11-15.log`. Exact Java arguments:
+`target/rust-tck-full-post-logical-2026-11-15.args`. Current Rust binaries were
+built with `cargo build --locked --offline --manifest-path dmn-generator-rust/Cargo.toml --bins`,
+then the runner was invoked with the evidence directory as its argument.
+Results remain subject to the harness limitations below. No feature code changed
+during this full run. The full run, not the earlier focused result, is the current
+coverage checkpoint. Session handover must report fresh full TCK numbers at least
+at the end of each five-hour usage session and at usage checkpoints.
+
+### Repository and environment
+
+- Workspace: `C:/00-finmsg.io/dmn-compiler-toolkit`, branch `feature/release-1.2-dmnir`; uncommitted changes based on
+  `7220498bb533808afe28422ebfdb0ffc601179c1`. No commit or push in this continuation.
+- TCK submodule HEAD verified: `20274cd2ba9cad805db6114f331c743f4b2603a1`;
+  roots `compliance-level-2` and `compliance-level-3`, 3,391 decoded cases.
+- Java 25; Maven `C:/10-tools/apache-maven-3.9.12/bin/mvn.cmd`.
+- Working Rust toolchain: `1.99.1-x86_64-pc-windows-msvc`. Set
+  `$env:RUSTUP_TOOLCHAIN='1.99.1-x86_64-pc-windows-msvc'` in PowerShell so generated
+  child crates use it too. The installed GNU toolchain fails with missing `dlltool.exe`.
+  Pinned MSVC lacks rustfmt; installed stable MSVC supplies `rustfmt.exe`.
+- Sandboxed Maven compilation failed accessing cached JARs. Approved unsandboxed
+  runs work. Use `-am` when testing the codec: installed project JARs were stale.
+- Usage rule changed by the user: weekly remaining <=7% OR five-hour remaining
+  <=20% triggers the checkpoint in [general instructions](../generall-prompt.md).
+  The earlier 20%-weekly rule is superseded. Last observed remaining: weekly 15%,
+  five-hour 74%; these are historical measurements, not current values. A full
+  Spark checkpoint was not started before the threshold change; none is claimed.
+
+### Verified evidence and limits
+
+Before the logical-operand change, re-export and the corrected runner accounted
+for all 3,391 cases: 79 PASS, 3,300 EXPORT_REJECTION, 12 RUST_REJECTION, zero build,
+execution or result failures. Of the export bucket, 11 are unsupported direct
+BKM/service invocations in the harness, not demonstrated Java lowering failures.
+The other 3,289 report UNSUPPORTED_PROFILE. All 12 Rust rejections cite bounded
+constant integer power admission. Evidence:
+
+- `target/rust-tck-audit-2026-11-15/manifest.tsv`
+- `target/rust-tck-audit-2026-11-15/rust-tck-accounting.tsv`
+- `target/rust-tck-export-2026-11-15.log`, `target/rust-tck-run-2026-11-15.log`
+
+The TSV is the corrected runner's output; it does not regenerate accounting JSON.
+Do not reuse the old JSON as new evidence. This audit runs pruned decision models,
+as constructed by `ExportTckCorpus.java`, rather than every entire original model.
+The harness compares official expected values recursively, normalizing decimals.
+Expected-error handling remains coarse: it substitutes null for expected error
+outputs and admits any evaluation error when all outputs expect errors. Audit this
+before claiming complete negative-case correctness. Direct invocation and some
+temporal values remain unsupported in the harness.
+
+After the logical change, the two official suites `0064-feel-conjunction` and
+`0065-feel-disjunction` pass 38/38 cases in generated Rust: 18 had passed the
+baseline, 20 had been export-rejected. The focused verification compiles each
+artifact into a separate Rust module inside one test crate and runs each named
+case against the original expected values. Evidence:
+
+- `target/rust-tck-logical-2026-11-15/manifest.tsv`
+- `target/rust-tck-logical-2026-11-15/combined/`
+- `target/rust-tck-logical-export-2026-11-15.log`
+- `target/rust-tck-logical-tests-2026-11-15.log` (38 passed, none failed/ignored)
+
+The later full run above confirms these 20 gains across the pinned inventory.
+Rust native/fallback routing is
+not applicable; do not substitute Spark coverage for Rust coverage.
+
+### Changes to preserve
+
+- `dmn-ir-codec/.../DmnIrArtifactReader.java`: admit scalar operands of AND/OR
+  with boolean result typing; added acceptance/rejection regression test.
+- `dmn-generator-rust/src/model.rs`: same admitted signatures.
+- `dmn-generator-rust/src/generated_expressions.rs.txt`: normalize non-boolean
+  right operands to null for `true and x` / `false or x`, retaining short circuiting.
+- `tests/fixtures/ExportLogicalScalarFixture.java`, `logical-scalars-0.1.dmnir`,
+  `logical_scalar_parity.rs.txt`, and `tests/artifact.rs`: 50 combinations over
+  false/true/null/number/string for both operators; Java, DMN export/recompilation
+  and generated Rust parity passed. No schema fields/version changed. Older
+  consumers may reject these newly admitted signatures; document that limitation.
+- Untracked `dmn-generator-rust/src/bin/dmn-rust-tck-runner.rs`: explicit named-test
+  evidence required for PASS, per-case failure classification, malformed-row
+  rejection, execution logs, no deletion of pre-existing generated crates. Two
+  regression tests pass. These are useful fixes, not a complete runner audit.
+- Untracked `dmn-generator-rust/tools/ExportTckCorpus.java`: add producer source
+  locations/causes to rejection diagnostics. Preserve it with the runner.
+- Preserve unrelated pre-existing README, glossary and index edits and untracked
+  prompt PDFs. PDFs have not been regenerated and are not current handovers.
+
+### Verification and continuation commands
+
+Run from the workspace root unless specified. Evidence logs live under `target/`
+and are local artifacts, not guaranteed to exist in a fresh clone.
+
+```powershell
+$env:RUSTUP_TOOLCHAIN='1.99.1-x86_64-pc-windows-msvc'
+& C:/10-tools/apache-maven-3.9.12/bin/mvn.cmd -o -B -ntp '-Dmaven.repo.local=C:/Users/lik/.m2/repository' -Pformat -pl dmn-ir-codec -am test
+cargo test --locked --offline --manifest-path dmn-generator-rust/Cargo.toml
+& C:/10-tools/apache-maven-3.9.12/bin/mvn.cmd -o -B -ntp '-Dmaven.repo.local=C:/Users/lik/.m2/repository' -Pformat test
+```
+
+Codec reactor passed (`target/logical-scalar-codec-reactor-2026-11-15-final.log`).
+Full Rust run passed 59 tests (`target/logical-scalar-rust-all-2026-11-15.log`), including
+the 50-result parity fixture and runner tests. Full Maven reactor passed 655 tests
+with zero failures/errors/skips (`target/logical-scalar-full-reactor-2026-11-15.log`,
+BUILD SUCCESS). Completed Spark regression actions across all four instrumented
+suites: native 3,034/3,153 (96.23%), fallback 119/3,153 (3.77%), unknown zero;
+60 failed SQL actions counted separately. These are not official TCK case results.
+There is no pending verification process from this continuation.
+Earlier failed exploratory build/test logs are retained; use the final evidence.
+
+For a fresh full TCK audit, build the Rust binaries, create a Java classpath from
+current module `target/classes` directories plus `dmn-tck-runner/target/cp.txt`,
+then run `dmn-generator-rust/tools/ExportTckCorpus.java` in Java source-file mode
+with arguments: the pinned `TestCases` directory and a NEW audit directory.
+`target/rust-tck-export-2026-11-15.args` records the earlier exact Java invocation;
+use forward slashes inside Java argument-file classpaths. Regenerate the classpath
+if dependencies change. Then run:
+
+```powershell
+cargo build --locked --offline --manifest-path dmn-generator-rust/Cargo.toml --bins
+& dmn-generator-rust/target/debug/dmn-rust-tck-runner.exe target/NEW-AUDIT-DIRECTORY
+```
+
+The generator and runner require new output directories. Preserve old evidence.
+Do not repeat the baseline run merely to rediscover known rejections.
+
+Documentation checks (`python tools/verify_documentation.py`,
+`python tools/documentation_links.py`, `python -m mkdocs build --strict`) fail on
+pre-existing cross-repository README/index links. See
+`target/logical-scalar-docs-2026-11-15.log`. Whitespace validation and Rust formatting
+checks passed. Hosted CI was not run.
+
+### Next implementation choice
+
+Choose the next change using the following evidence. First-rejection
+locations, counted from the refreshed full manifest: expression-node admission
+1,251; null-type admission 482; non-builtin/named type resolution 428; scalar-alias
+declarations 410; constrained/missing-ID item definitions 310; unsupported scalar
+types 254. These are first barriers, not mutually independent feature gains.
+Trace representative cases before proposing support; scalar aliases and builtins
+can block the same case. Preserve declared types/constraints and artifact-only
+DMN regeneration rather than stripping model declarations to increase coverage.

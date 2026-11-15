@@ -62,7 +62,8 @@ Original XML and FEEL source text are not embedded in the artifact.
 
 Schema 0.1 adds recursive unary, binary and conditional nodes, using explicit portable operator
 numbers. Arithmetic admits numeric operands; ordered comparisons admit numeric pairs or string
-pairs; equality admits scalar pairs. Logical operators accept boolean/null operands. Conditional
+pairs; equality admits scalar pairs. Logical operators accept scalar operands and interpret
+non-boolean values as null using FEEL three-valued logic, with short-circuit evaluation. Conditional
 branches must match the declared result type or be null. String concatenation, temporal arithmetic,
 collections and dynamic types remain outside this profile. Runtime null values of a declared
 numeric/boolean/string input remain supported.

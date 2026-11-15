@@ -13,6 +13,37 @@ import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 class DmnIrArtifactReaderTest {
+	@Test
+	void logicalScalarOperandsRetainBooleanResultContract() {
+		var operands = List.of(
+				DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+						.setLiteral(DmnIrLiteral.newBuilder().setBooleanValue(true)).build(),
+				DmnIrExpression.newBuilder().setType(NUMBER)
+						.setLiteral(DmnIrLiteral.newBuilder().setNumberValue(decimal("123", 0))).build(),
+				DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_STRING)
+						.setLiteral(DmnIrLiteral.newBuilder().setStringValue("true")).build(),
+				DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL)
+						.setLiteral(DmnIrLiteral.newBuilder().setNullValue(DmnIrNull.NULL_VALUE)).build());
+		for (var operator : List.of(DmnIrBinaryOperator.BINARY_OPERATOR_AND, DmnIrBinaryOperator.BINARY_OPERATOR_OR)) {
+			for (var left : operands) {
+				for (var right : operands) {
+					var artifact = scalar(DmnIrLiteral.newBuilder().setBooleanValue(true).build(),
+							DmnIrScalarType.SCALAR_TYPE_BOOLEAN).toBuilder();
+					artifact.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(1))
+							.setSemanticsVersion("finmsg-dmnir-scalar-expressions/0")
+							.addRequiredCapabilities("dmnir.scalar-expressions");
+					artifact.getModelsBuilder(0).getDecisionsBuilder(0)
+							.setExpression(DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+									.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(operator).setLeft(left)
+											.setRight(right)));
+					read(artifact.build());
+					artifact.getModelsBuilder(0).getDecisionsBuilder(0).getExpressionBuilder().setType(NUMBER);
+					artifact.getModelsBuilder(0).getDecisionsBuilder(0).getVariableBuilder().setType(NUMBER);
+					reject(artifact.build(), INVALID_TYPE, ".binary");
+				}
+			}
+		}
+	}
 	private static final String ROOT = "urn:example:root";
 	private static final String RATES = "urn:example:rates";
 	private static final DmnIrScalarType NUMBER = DmnIrScalarType.SCALAR_TYPE_NUMBER;

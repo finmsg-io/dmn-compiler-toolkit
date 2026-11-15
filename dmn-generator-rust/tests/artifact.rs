@@ -7,6 +7,16 @@ const FIXTURE: &[u8] = include_bytes!("fixtures/scalar-0.0.dmnir");
 const GENERATOR: &str = env!("CARGO_BIN_EXE_dmn-generator-rust");
 
 #[test]
+fn java_logical_scalar_artifact_generates_offline_rust() {
+    verify_parity(
+        "logical-scalars",
+        include_bytes!("fixtures/logical-scalars-0.1.dmnir"),
+        include_str!("fixtures/logical_scalar_parity.rs.txt"),
+        &[],
+    );
+}
+
+#[test]
 fn java_artifact_generates_deterministic_offline_rust() {
     verify_parity(
         "scalar",

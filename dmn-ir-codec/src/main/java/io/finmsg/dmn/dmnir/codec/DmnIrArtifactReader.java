@@ -849,7 +849,8 @@ public final class DmnIrArtifactReader {
 							(numberPair || (left == DmnIrScalarType.SCALAR_TYPE_STRING
 									|| datesProfile && left == DmnIrScalarType.SCALAR_TYPE_DATE) && right == left)
 									&& booleanResult;
-						case BINARY_OPERATOR_AND, BINARY_OPERATOR_OR -> bool(left) && bool(right) && booleanResult;
+						case BINARY_OPERATOR_AND, BINARY_OPERATOR_OR -> left != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED
+								&& right != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED && booleanResult;
 						default -> false;
 					};
 					check(valid, INVALID_TYPE, path + ".binary", "Unsupported binary operator signature.");

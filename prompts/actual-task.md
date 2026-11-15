@@ -1,279 +1,58 @@
-# Actual task — Release 1.2.0: DMNIR, DMN export and authoring DSL
+# Actual task: full pinned-TCK compliance through DMNIR and generated Rust
 
-Created: 2026-11-03. Status: active — structured expressions and named records/field access
-committed/pushed in `bcbbc00`; schema 0.2 is implemented and verified: 74 focused tests,
-590 full-reactor tests, 73 tooling tests, strict documentation and link checks passed
-(work-package sections 17–18). Feature CI configuration and Linux test-launcher fixes were
-pushed through `aceec3c`; its GitHub build passed. The current slice is boxed contexts
-and resolved local bindings; schema 0.3 is implemented and verified: 11 focused tests,
-601 full-reactor tests and 73 tooling tests passed. Strict documentation and link checks passed
-(section 19). Schema 0.3 was pushed as `1b128cf` and its feature CI passed.
-Schema 0.4 and its civil-date amendment are implemented and verified in section 20. Fourteen
-focused tests, 615 reactor tests and 73 tooling tests passed. The optimizer formatting fix
-passed the rerun of all 52 official date cases on each backend. Spark recorded 52 native passes
-and zero fallback in that focused run. Strict documentation and link checks passed.
-The date profile was pushed as `ac09016` and its feature CI passed. Schema 0.5 is implemented
-and verified in section 21. The composed policy and Fine fixture passed portable execution,
-generated Java and DMN 1.6 round-trip checks. The full reactor passed 623 tests, and 73 tooling
-tests, strict documentation and maintained-link checks passed. Constraints, collections/functions,
-the DSL/CLI and independent Rust execution remain open. Schema 0.5 was pushed as `1bae5dc`.
-The 2026-11-07 usage checkpoint passed the full Spark TCK with 3,391/3,391 native passes
-(100%), zero fallback and zero failures, errors or compilation blocks. Schema 0.6 is implemented
-and verified locally in section 22. Scalar record field constraints survive portable execution,
-generated Java and DMN 1.6 export on the full Traffic Violation model and a separate composed
-policy. The full reactor passed 630 tests. Schema 0.6 was pushed as `abedbb7`. The official
-Spark TCK rerun at a 120-second limit passed 3,391/3,391 cases natively with zero fallback.
-Schema 0.7 is implemented and verified locally in section 23. Named scalar collections and
-ordered list values survive portable execution, generated Java and DMN 1.6 export. The full
-reactor passed 635 tests. The implementation was pushed as `bd5f509`.
-The full official Spark TCK passed 3,391/3,391 cases natively for `bd5f509` with zero
-fallback. Schema 0.8 was pushed as `7c51dfd` and is verified in section 24. It adds boolean
-filters over named scalar collections with resolved item bindings. The reactor passed 640
-tests and the focused official list/filter run passed 41 cases per backend, all native on
-Spark. Broader collections, built-in calls, FEEL BKMs and inline functions remain open.
-DSL design and a bounded artifact-only Rust prototype can start from the implemented profiles.
-Section 25 implements schema 0.9 for fixed-signature FEEL calls to `abs(number)`,
-`string length(string)` and `contains(string, string)`. The full reactor passed 645
-tests outside the TCK runner. The selected official suites passed 33 cases per backend,
-all native on Spark. Schema 0.9 was pushed as `a9e84b8`. Section 26 implements schema
-0.10 for resolved named FEEL BKMs. The final reactor passed 650 tests outside the TCK
-runner. The full pinned Spark TCK passed 3,391/3,391 cases natively with zero fallback.
-Schema 0.10 was pushed as `ceb52d5`. Section 27 implements and verifies schema 0.11
-for inline FEEL functions with lexical capture and positional invocation. The final
-reactor passed 654 tests outside the TCK runner, and the full Spark TCK passed
-3,391/3,391 natively with zero fallback. Schema 0.11 was pushed as `a9472d6`.
-The first artifact-only Rust proof is implemented locally in section 28. Rust
-1.99.1 generated and ran a dependency-free crate from a bundled scalar 0.0
-artifact and matched the Java adapter outputs. The artifact-only CI passed on
-GitHub at `713f300`. Section 29 adds Rust support for the comparison and
-conditional subset of 0.1, pushed as `a781815` with hosted Rust parity passing.
-Section 30 adds exact Rust addition and subtraction, pushed as `5872c59`.
-All nine Rust tests and hosted Rust parity passed. Section 31 adds exact Rust
-multiplication, pushed as `d21c51a` with 13 Rust tests and hosted parity passing.
-Section 32 adds Rust DECIMAL128 division, pushed as `0280cff` with 16 tests,
-118 Java parity vectors and hosted Rust parity passing. Section 33 adds Rust
-named records and field access, verified locally with 20 Rust tests passing.
-Powers, contexts, tables, other Rust profiles and DSL parity remain open.
-Target: **1.2.0**. Supersedes the completed 1.1.0 release/CI task.
+Updated: 2026-11-15. Status: incomplete.
 
-## Requested outcome
+## Goal and acceptance
 
-Create **DMNIR**, a distilled, portable intermediate format containing all information needed
-by an independent generator to generate code executing a DMN model. Prove consumption with
-Rust. The DMNIR artifact must also generate standards-conforming DMN XML, defaulting to
-**DMN 1.6**, with explicit supported-version selection. Provide a pleasant, concise DSL for
-authoring the same decision semantics.
+Pass every case in the pinned official TCK through DMN compilation, portable DMNIR export, standalone Rust generation, compilation and execution. The recorded denominator is 3,391 cases; verify the suite revision and runner completeness before treating it as authoritative. Count export rejections, generator rejections, skips and unexecuted cases as unmet coverage. Do not shrink the denominator or weaken expected results to improve the rate.
 
-The user requested starting this task on 2026-11-03 and approved **Option A**: one authoritative,
-typed, resolved, structured Protobuf DMNIR with declaration/interchange metadata. The decision
-is recorded in [ADR-0026](../docs/architecture/adr/adr-0026-structured-portable-dmnir.md).
-Current branch: `feature/release-1.2-dmnir`. Field layout and remaining contract decisions still
-require the work-package gates. Version changes and publication remain separate actions.
+Completion requires a reproducible full-suite run on the delivered revision with all cases passing and no unexplained omissions. Passing the pinned suite establishes pinned-suite compliance, not proof of every DMN/FEEL behavior.
 
-## Required context
+## Latest full TCK result: 2026-11-15
 
-Read [general instructions](generall-prompt.md), [guardrails](details/guardrails.md), the
-[evidence-backed development method](../docs/dev/evidence-backed-spec-driven-development.md),
-and the [release 1.2 work package](details/release-1.2-dmnir-work-package.md).
-The work package defines scope, architecture gates, dependencies and acceptance evidence.
+Full post-change run: [summary](../target/rust-tck-full-post-logical-2026-11-15/summary.json), [case outcomes](../target/rust-tck-full-post-logical-2026-11-15/rust-tck-accounting.tsv), [case delta](../target/rust-tck-full-post-logical-2026-11-15/delta-from-baseline.tsv), [export manifest](../target/rust-tck-full-post-logical-2026-11-15/manifest.tsv).
 
-Local paths:
+| Recorded outcome | Cases |
+| --- | ---: |
+| Passed | 99 |
+| Export/harness rejection | 3,280 |
+| Rust generator rejection | 12 |
+| Rust build error | 0 |
+| Rust execution error | 0 |
+| Result failure | 0 |
+| Total | 3,391 |
 
-- Toolkit: `C:\00-finmsg.io\dmn-compiler-toolkit`
-- Ideation: `C:\00-finmsg.io\dmn-compiler-toolkit-ideation`
-- Maven: `C:\10-tools\apache-maven-3.9.12\bin\mvn.cmd`
-- Prompts: `prompts/generall-prompt.md` and `prompts/details/guardrails.md`
+Pass rate: 2.92%, versus 79/3,391 (2.33%) before the logical-operand fix: 20 newly passing cases, zero regressions. All 3,391 case identities matched the baseline with no duplicates or omissions. Export diagnostics: 3,269 UNSUPPORTED_PROFILE and 11 INVOCATION_UNSUPPORTED. The latter are direct-invocation harness limitations, not demonstrated Java lowering failures. The zero Rust error counts apply only to cases reaching those stages.
 
-Review IDEA-003, IDEA-004, IDEA-010, SPEC-001, SPEC-002, `proto/dmn_ir_v1.proto` and
-`examples/credit_risk.decision` in ideation. They are proposal inputs, not accepted production
-contracts. The user's DMN 1.6 default supersedes SPEC-002's DMN 1.5 default.
+Measured on the current uncommitted working tree; source hashes and pinned revision are in the summary. Logs: `target/rust-tck-full-post-logical-export-2026-11-15.log` and `target/rust-tck-full-post-logical-run-2026-11-15.log`; Java arguments: `target/rust-tck-full-post-logical-2026-11-15.args`. The runner and exporter remain untracked. Decision pruning and coarse expected-error handling remain harness limitations documented in the handover. These counts do not establish complete compliance.
 
-## Architecture constraints
+## Work method
 
-Follow the normative architecture principles and accepted ADRs, particularly ADR-0025/0026.
-ADR-0020–0024 are reserved future topics in the ADR index; preserve those IDs and inspect
-both accepted decisions and reservations before allocating any new ADR number.
-Keep the source semantic model, authoritative portable DMNIR and process-local Runtime IR
-contracts distinct. The artifact stores decision logic once; code generators and DMN export
-consume that same resolved structured graph. Retain stable identities and declarations needed
-for self-contained export. Derive optimized execution graphs locally. Do not introduce separate
-stored export/execution policies or rely on original source files for DMN regeneration.
+1. Inspect existing reports, runner, source and working-tree changes before running expensive checks. Establish suite revision, code revision, commands and trustworthy case accounting; report unavailable evidence explicitly.
+2. Trace representative rejected cases to concrete causes. Rank blocker groups by affected case count, dependencies, implementation cost and uncertainty. A case may have several blockers; potential coverage is not a measured gain.
+3. Implement a tractable, high-impact group across the complete pipeline. Preserve expected semantics. Verify generated Rust against official expected outcomes, using Java parity as additional evidence.
+4. Run focused tests during development. Reuse artifacts and builds. Run the full pinned end-to-end Rust TCK at meaningful integration checkpoints, before claiming completion, and at least at the end of every five-hour usage session before handover. Usage checkpoints also require current full-run numbers. Report the full denominator and delta against the previous full run; focused results or historical totals do not satisfy this requirement. Reserve capacity for these runs; reassess approaches that produce no demonstrated coverage gain.
+5. After each increment report changed behavior, command/report paths, newly passing cases, regressions and remaining blockers. Distinguish focused results from full-suite results, historical from current evidence, and facts from hypotheses. Do not project a full-suite pass rate from a subset.
+6. Keep this file concise: current goal, sourced baseline, next action and blockers. Store detailed evidence in existing canonical records. Remove superseded status prose; preserve unrelated user edits.
 
-Reuse FEEL parsing, semantic analysis and lowering. Rust consumes a verified artifact without
-DMN XML, FEEL parsing or JVM compiler services. Preserve exact numeric/temporal semantics,
-stable external identities, deterministic output, bounded validation and explicit compatibility.
+## Architecture and retained release requirements
 
-## Work sequence
+Use the accepted typed, resolved, structured Protobuf DMNIR architecture in [ADR-0026](../docs/architecture/adr/adr-0026-structured-portable-dmnir.md) and the persistence boundary in [ADR-0025](../docs/architecture/adr/adr-0025-runtime-ir-persistence-and-compatibility-boundary.md). Reuse parsing and semantic analysis. Keep portable DMNIR distinct from process-local Runtime IR. Preserve exact numeric/temporal semantics, lexical scope, deterministic output, compatibility and bounded validation. Standalone Rust consumes the artifact without JVM services, DMN XML or FEEL parsing at runtime.
 
-1. R12-00: inventory and agree feature, semantics, version and consumer profiles.
-2. R12-01: review architecture, export-retention strategy and module boundaries.
-3. R12-02–04: wire contract, bounded verifier and Java artifact round-trip/parity.
-4. R12-05: artifact-only DMN export, default 1.6, with validation and behavioral parity.
-5. R12-06–08: DSL readability, parser/formatter, CLI workflows and inline tests.
-6. R12-09: independent Rust generation, compilation and execution proof.
-7. R12-10–11: compatibility/security hardening and release readiness.
+Release 1.2 also retains artifact-only DMN export (default DMN 1.6), DSL authoring/parity, compatibility and existing-backend regression requirements. Their completion is not established here. See the [work package](details/release-1.2-dmnir-work-package.md) for specifications and historical evidence. Its earlier limited Rust profile does not limit this current full pinned-TCK goal; historical profile completion is not task completion.
 
-R12-02a/R12-03a/R12-04a are complete. R12-04a adds a compiler-layer adapter from verified
-scalar DMNIR to process-local Runtime IR and evaluation by namespace-qualified element ID.
-The initial eight adapter tests and final nine adapter/generated-Java parity tests passed with
-zero failures/errors/skips. Focused tests do not measure native/fallback routing. Full reactor
-verification passed: 542 tests, zero failures/errors/skips. Current-run Spark routing across four
-instrumented suites: native 3,034/3,153 (96.23%), fallback 119/3,153 (3.77%), unknown zero;
-60 failed SQL actions are counted separately, not JUnit failures or official TCK results.
-See work-package section 14 and `docs/dmnir.md` for contracts, scope and per-run evidence.
-R12-04b now implements scalar DMN-to-artifact emission; its 11 final focused producer/generated-Java
-tests passed, including a separate-JVM artifact consumer. Full-reactor verification passed:
-553 tests, zero failures/errors/skips (`target/release-1.2-r12-04b-reactor.log`). Current-run Spark
-SQL-action totals: native 3,034/3,153 (96.23%), fallback 119/3,153 (3.77%), unknown zero;
-60 failed SQL actions are separate from that completed-action denominator and JUnit failures.
-This is regression evidence, not official TCK coverage. Its initial
-table-rejection test failure was fixed before the final focused pass. Tooling tests (73), strict
-docs and documentation validation passed. See work-package section 15 for the approved API and
-per-run evidence. Broader expression production remains pending.
-R12-05a now implements artifact-only DMN 1.6 synthesis for an explicitly admitted scalar subset.
-Ten final focused exporter/generated-Java tests passed, including offline official-XSD validation
-and recompiled execution parity. Full reactor passed: 562 tests, zero failures/errors/skips;
-73 tooling tests, strict docs and documentation validation passed. See work-package section 16 and
-`target/release-1.2-r12-05a-reactor.log`. Current-run Spark regression actions: native 3,034/3,153
-(96.23%), fallback 119/3,153 (3.77%), unknown zero; 60 failed SQL actions counted separately.
-This does not replace the official TCK checkpoint. Broader DMN export, independent DMN
-engine validation, richer wire expressions, DSL and Rust remain pending.
-The established official Spark TCK checkpoint remains **3,391/3,391 native passes (100%),
-zero fallback (0%)**, as recorded in `docs/tck-conformance.md`. The mixed regression-action
-fallback percentage above includes fallback-path tests and must not be described as a TCK
-regression or evidence that the pinned-suite zero-fallback goal is incomplete. No new full TCK
-run was performed for R12-04b; the default reactor does not replace that checkpoint.
-R12-02b/03b/04c/05b now adds schema 0.1 unary/binary/conditional expressions while retaining
-0.0 artifacts. Wire/operator validation, source admission, runtime adaptation, generated Java and
-artifact-only DMN 1.6 export are implemented for the reviewed scalar signatures. Final reactor:
-576 tests, zero failures/errors/skips; 73 tooling tests and strict docs passed. Current-run mixed
-Spark regression actions: native 3,034/3,153 (96.23%), fallback 119/3,153 (3.77%), unknown zero,
-60 failed SQL actions separate. This is not a TCK result. Actual saved 0.0 binaries accepted 0.0
-and rejected a new 0.1 artifact. See work-package section 17 for per-run evidence and the isolated
-Traffic Violation expression example. Complete Traffic Violation still requires records, fields,
-local contexts and tables. At the 0.1 checkpoint these changes were uncommitted; the preceding pushed baseline was `92d975c`.
-Schema 0.2 now retains named record identity, supports nested/imported records and resolved field
-access, and proves runtime/generated-Java/DMN 1.6 round-trip parity. Full reactor passed 590 tests
-with zero failures/errors/skips (`target/release-1.2-records-reactor.log`). Current-run mixed Spark
-actions: native 3,034/3,153 (96.23%), fallback 119/3,153 (3.77%), unknown zero; 60 failed SQL
-actions counted separately. These include deliberate fallback tests and are not official TCK
-results. The established 3,391/3,391 native, zero-fallback TCK checkpoint is unchanged.
-Temporal fields/constraints, tables and local contexts remain required for complete Traffic
-Violation. The existing facade's null-valued context conversion issue is documented separately;
-the portable runtime and generated-Java parity checks preserve null fields.
-Remaining R12-00 profile review and the broader R12-02/R12-03 contracts are not complete.
-The architecture choice is accepted; do not ask for Option A approval again.
-Do not mark dependent slices ready
-while architecture or public-contract decisions remain open. Record measured evidence per
-slice. Documentation preparation is not implementation or conformance evidence.
+Follow [general instructions](generall-prompt.md), [guardrails](details/guardrails.md) and the [development method](../docs/dev/evidence-backed-spec-driven-development.md), subject to the user's current instructions. Usage barriers, updated 2026-11-15: weekly remaining <=7% OR five-hour remaining <=20%. At either barrier stop new implementation and finish the verification/TCK/handover checkpoint in the general instructions. Missing usage accounting is unavailable, not zero. These thresholds supersede historical rules. Avoid redundant verification and unsupported estimates of cost or completion dates. Do not publish, push or change release versions without authorization.
 
-Release readiness requires all mandatory work-package gates, including artifact-only Rust
-execution, artifact-only DMN 1.6 export, DSL parity and existing-backend regressions.
-Full Rust DMN conformance, LSP/visual tooling and further native backends are separate scope
-decisions. Publishing requires explicit external-side-effect authorization.
+## Handover: 2026-11-15
 
-Rust named records were committed and pushed as `3b7f1e4`. Rust local contexts
-(DMNIR 0.3) are implemented with sequential identity-based bindings, nested scope,
-nominal record typing and propagated arithmetic bounds. All 23 Rust tests passed
-locally. See work-package section 34 for the contract and verification scope.
+- Working tree is uncommitted, based on `7220498bb533808afe28422ebfdb0ffc601179c1`. Pinned TCK checkout verified as `20274cd2ba9cad805db6114f331c743f4b2603a1`.
+- Corrected the untracked Rust runner: a successful process with no explicit case result cannot count as a pass; classify failures per case; retain execution logs; reject malformed rows; preserve existing output directories. Two regression tests pass.
+- Re-exported all 3,391 cases and reran the corrected runner BEFORE the logical change: 79 passes, 3,300 export rejections, 12 Rust rejections, zero build/execution/result errors. Evidence: `target/rust-tck-audit-2026-11-15/` and `target/rust-tck-run-2026-11-15.log`.
+- Implemented scalar non-boolean operands for AND/OR in the Java artifact validator and Rust generator/runtime. FEEL treats these operands as null; preserve short-circuit behavior. Schema fields/versions are unchanged. Older consumers may reject newly admitted signatures.
+- AFTER the change: focused conjunction/disjunction suites passed 38/38, followed by the full pinned run above: 99/3,391 passed, 20 newly passing cases, zero regressions.
+- Additional verification: 50 logical combinations checked in Java, DMN export/recompilation and generated Rust; codec reactor passed; complete Rust run passed 59 tests; full Maven reactor passed 655 tests with zero failures/errors/skips (`target/logical-scalar-full-reactor-2026-11-15.log`). Its completed Spark regression actions: native 3,034/3,153 (96.23%), fallback 119/3,153 (3.77%), unknown zero; 60 failed SQL actions separate. These are regression actions, not TCK cases. No new full Spark TCK result is claimed.
+- Existing README/index cross-repository links fail documentation verification and strict MkDocs. Preserve unrelated README, glossary, index edits and untracked prompt PDFs. Do not reset/clean the working tree.
 
-Rust DMNIR 0.4 civil dates are implemented, including calendar validation, typed
-date inputs, literals, ordering/equality and dates in records and local contexts.
-All 25 Rust tests passed locally and generated Rust matched 494 Java results.
-See work-package section 35. Time-of-day, offsets and durations remain outside
-this profile. The preceding contexts slice was pushed as `9f26b85`.
+Next: target the larger export barriers. First-rejection counts: expression-node admission 1,251; null-type admission 482; type resolution 428; scalar-alias admission 410; constrained/missing-ID item definitions 310. These are failure locations, not proven single-feature coverage opportunities. All 12 Rust rejections cite bounded-constant-power admission. Audit expected-error handling before claiming complete negative-case conformance.
 
-Rust DMNIR 0.5 decision tables are implemented with UNIQUE/FIRST/ANY policies,
-scalar/record outputs, defaults and unary comparisons/ranges/negation/wildcards.
-All 29 Rust tests and documentation validation passed. Generated Rust matched
-36 Java table evaluation vectors, including UNIQUE and ANY conflict errors.
-See work-package section 36. The preceding date commit `0387552` passed hosted
-Rust parity and Maven CI. Rust tests do not measure Spark native/fallback routing.
-
-Rust schema 0.6 scalar record field constraints are implemented. Constant domains
-are checked recursively at input and decision-result binding, including table
-outputs/defaults. All 31 Rust tests passed and generated Rust matched 63 Java
-constraint vectors. See work-package section 37. The preceding table commit
-`4526649` passed hosted Rust parity. Rust native/fallback routing is not measured.
-
-Constraint implementation `c0748d1` passed hosted Rust parity and Maven CI.
-The 2026-11-11 usage checkpoint completed the full current-source Spark TCK:
-3,391/3,391 native passes (100%), zero fallback (0%), failures, execution errors,
-compilation errors, expected model rejections or unknown routes. See work-package
-section 38 and the retained constraints checkpoint log/accounting in `target/`.
-Rust 0.7 collections have not been started because the usage checkpoint rule
-stopped new implementation at 19% remaining. Next work is named scalar
-collections and ordered lists; schema 0.8 filters/builtins remain later scope.
-
-The usage window reset and Rust schema 0.7 named scalar collections are now
-implemented. Ordered lists preserve duplicates, nulls and exact scalar values
-through imported types, record fields, local bindings and conditionals. A full
-34-test Rust run and two later focused import/depth tests passed, matching 24
-Java collection vectors. See work-package section 39. The known independent
-README/index link-validation failures remain unchanged. Native/fallback routing
-is not applicable to these Rust tests. Next is schema 0.8 filters and builtins.
-
-Rust schema 0.8 scalar filters are implemented. Filters retain only true predicate
-results, preserve order/null sources, capture outer locals and enforce item scope.
-Runtime visit and repeated arithmetic budgets are checked before iteration.
-All 40 Rust tests passed, including 24 Java filter vectors and budget boundaries.
-See work-package section 40. Known unrelated README/index link failures remain.
-Collections were pushed as `a5ab42c`; hosted CI was still queued at the last check.
-Next is schema 0.9 builtins, correcting the earlier combined 0.8 wording.
-
-Rust schema 0.9 fixed builtins are implemented: abs(number), string length(string)
-and contains(string,string). All 43 Rust tests passed, matching 216 Java input
-combinations across six decisions each. Unicode code points, null propagation,
-exact decimal scales, contexts, filters and table cells are covered. See
-work-package section 41. Known unrelated README/index link failures remain.
-The filter slice was pushed as `a881016` and passed hosted Rust parity. Next is
-schema 0.10 resolved BKMs and knowledge dependencies.
-
-Rust schema 0.10 named FEEL BKMs are implemented with resolved knowledge graphs,
-imports, formal positions and independent scopes. Bounded call blocks propagate
-numeric bounds and errors through lazy logic, filter predicates and table defaults.
-All 48 Rust tests passed, matching 24 Java BKM input combinations. Regenerated
-Java artifact bytes were stable. See work-package section 42. Known independent
-README/index link failures remain. The builtin slice was pushed as `bec28fc`.
-Next is schema 0.11 inline closures and captured local values.
-
-The BKM usage checkpoint passed the full Spark suite with 3,391/3,391 native
-passes (100%), zero fallback (0%), failures, execution/compilation errors,
-expected rejections or unknown routes. See work-package section 43 and retained
-BKM checkpoint log/accounting in `target/`. After usage reset, Rust schema 0.11
-closures were implemented and all 51 Rust tests passed, matching 24 Java closure
-input combinations. See section 44. Known independent README/index link failures
-remain. Next is full Traffic Violation model parity in generated Rust.
-
-Closures and the full Spark checkpoint were pushed as `5bbb451`. The complete
-Traffic Violation model now matches generated Rust across 321 Java vectors:
-195 result cases and 126 expected constraint errors. The focused integration
-test passed, following the complete 51-test closure suite. See work-package
-section 45. Next is broader closure/BKM parameter-and-capture interoperability.
-
-Full Traffic Violation parity was pushed as `3adc3a6`. Closure/BKM interoperability
-also passed a focused generated-Rust integration against 24 Java input vectors,
-covering used numeric/record/collection parameters, multiple captures, BKM calls
-from closure bodies and dynamic decimal callers. No production changes were
-needed. See section 46. These two follow-ups passed after the full 51-test suite.
-Remaining readiness work includes hosted CI confirmation, broader conformance
-coverage and explicit accounting for the still-rejected power operator. Do not
-claim whole-TCK Rust conformance from these fixtures. Preserve the independent
-README/index/glossary edits and untracked prompt PDFs.
-
-The initial R12-09 Rust profile is implemented through admitted DMNIR 0.0–0.11
-features. Exact bounded constant-integer powers now match 152 Java results.
-The full 55-test Rust run and one additional CLI-hardening test passed, along
-with formatting/whitespace checks. See work-package section 47 for completion
-scope and explicit exclusions. Hosted final validation remains pending. Full
-Rust FEEL/DMN or whole-TCK conformance is not claimed. DSL and broader release
-1.2 work remain independent tasks. Preserve unrelated working-tree edits.
-
-R12-09 initial Rust profile is complete within the explicit scope in work-package
-section 47. Implementation `a562303` is committed/pushed and passed hosted
-Java-free Rust CI with all 56 tests. General floating-point powers and whole-DMN/
-FEEL/TCK Rust conformance remain outside that profile. Maven CI was last running;
-the final status check was declined and completion is not claimed. The known
-independent README/index documentation-link failures remain. Broader release 1.2
-and DSL work are not marked complete. No further Rust implementation is pending
-within the declared initial-profile boundary.
+Exact commands, changed-file responsibilities and remaining caveats: [work-package handover, section 48](details/release-1.2-dmnir-work-package.md#48-current-rust-tck-handover-2026-11-15). Start there; historical initial-profile completion does not mean this task is complete.

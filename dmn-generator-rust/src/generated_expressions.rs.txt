@@ -168,7 +168,7 @@ fn and(
 ) -> Result<Value, &'static str> {
     Ok(match left {
         Value::Boolean(false) => Value::Boolean(false),
-        Value::Boolean(true) => right()?,
+        Value::Boolean(true) => logical_value(right()?),
         _ => match right()? {
             Value::Boolean(false) => Value::Boolean(false),
             _ => Value::Null,
@@ -181,12 +181,19 @@ fn or(
 ) -> Result<Value, &'static str> {
     Ok(match left {
         Value::Boolean(true) => Value::Boolean(true),
-        Value::Boolean(false) => right()?,
+        Value::Boolean(false) => logical_value(right()?),
         _ => match right()? {
             Value::Boolean(true) => Value::Boolean(true),
             _ => Value::Null,
         },
     })
+}
+
+fn logical_value(value: Value) -> Value {
+    match value {
+        Value::Boolean(_) => value,
+        _ => Value::Null,
+    }
 }
 
 fn equal(left: Value, right: Value) -> Value {

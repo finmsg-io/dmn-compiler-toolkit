@@ -1699,7 +1699,8 @@ impl ExpressionEmitter<'_, '_> {
                     bounds: right_bounds,
                 } = self.expression(binary.right.as_deref().ok_or("missing right operand")?)?;
                 depth = left_depth.max(right_depth);
-                let logical = assignable(left_type, Boolean) && assignable(right_type, Boolean);
+                let logical =
+                    matches!(left_type, Type::Scalar(_)) && matches!(right_type, Type::Scalar(_));
                 let ordered = left_type == right_type
                     && (left_type == Number
                         || left_type == Text

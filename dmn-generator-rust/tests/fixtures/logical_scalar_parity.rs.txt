@@ -1,0 +1,26 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+
+#[test]
+fn logical_scalar_truth_table() {
+    let actual = evaluate(&BTreeMap::new()).unwrap();
+    let mut index = 0;
+    for op in 0..2 {
+        for left in 0..5 {
+            for right in 0..5 {
+                let expected = if op == 0 {
+                    if left == 0 || right == 0 { Value::Boolean(false) }
+                    else if left == 1 && right == 1 { Value::Boolean(true) }
+                    else { Value::Null }
+                } else {
+                    if left == 1 || right == 1 { Value::Boolean(true) }
+                    else if left == 0 && right == 0 { Value::Boolean(false) }
+                    else { Value::Null }
+                };
+                let id = format!("c{index}");
+                assert_eq!(actual.get(&("urn:rust-proof:logical-scalars", id.as_str())), Some(&expected), "{op}/{left}/{right}");
+                index += 1;
+            }
+        }
+    }
+}
