@@ -3826,79 +3826,15 @@ Read this section and [actual task](../actual-task.md) before continuing.
 4. **Next Steps (Step 8)**:
    - Target FEEL String built-in functions:
      - `upper case`, `lower case`, `substring`, `substring before`, `substring after`, `starts with`, `ends with`, `matches`, `replace`, `split`, `string join`.
-     - Target suites: `1103-feel-substring-function` (28), `1105-feel-upper-case-function` (12), `1106-feel-lower-case-function` (12), `1107-feel-substring-before-function` (16), `1108-feel-substring-after-function` (16), `1109-feel-replace-function` (28), `1111-feel-matches-function` (40), `1112-feel-starts-with-function` (20), `1113-feel-ends-with-function` (20), `1140-feel-string-join-function` (22), `0067-feel-split-function` (16), `0002-string-functions` (24) (~270 cases in CL3).
-
----
-
-## 52. Current Rust TCK handover: 2026-11-17 (Step 8)
-
-Read this section and [actual task](../actual-task.md) before continuing.
-
-### FEEL String Functions, Pure-Rust Regex Runtime & Step 8 Expansion (1,006 Cases Passed)
-
-1. **Corpus-Wide Advance**:
-   - Total accounted cases: **3,391**.
-   - **Passed**: **1,006** (29.67% of official pinned denominator, up from 888; **+118 newly passing cases** across 950 groups).
-   - **Compliance Level 2 (CL2)**: **116 / 116 passed in pure Rust (100.00% complete!)**.
-   - **Export Rejections**: 2,383 (2,367 `EXPORT_UNSUPPORTED_PROFILE`, 11 `INVOCATION_UNSUPPORTED`, 5 `VALUE_UNSUPPORTED`).
-   - **Rust Generator Rejections**: **0** across all 952 ready test groups (1,008 cases evaluated).
-   - **Rust Build Errors**: **0** across all 952 generated test crates.
-   - **Rust Execution Errors**: **0**.
-   - **Result Failures**: **2** (minor edge cases in `0002-string-functions` #002 and `1109-feel-replace-function` #017).
-   - **99.80% evaluation accuracy: 1,006 / 1,008 evaluated cases pass cleanly.**
-
-2. **Features Implemented & Verified in Step 8**:
-   - **Protobuf Schema Extension (`dmnir.proto`)**:
-     - Added operations 14..24 to `DmnIrBuiltinOperation`:
-       - `BUILTIN_OPERATION_UPPER_CASE = 14;`
-       - `BUILTIN_OPERATION_LOWER_CASE = 15;`
-       - `BUILTIN_OPERATION_SUBSTRING = 16;`
-       - `BUILTIN_OPERATION_SUBSTRING_BEFORE = 17;`
-       - `BUILTIN_OPERATION_SUBSTRING_AFTER = 18;`
-       - `BUILTIN_OPERATION_STARTS_WITH = 19;`
-       - `BUILTIN_OPERATION_ENDS_WITH = 20;`
-       - `BUILTIN_OPERATION_MATCHES = 21;`
-       - `BUILTIN_OPERATION_REPLACE = 22;`
-       - `BUILTIN_OPERATION_SPLIT = 23;`
-       - `BUILTIN_OPERATION_STRING_JOIN = 24;`
-   - **Formal Parameter Signatures & Codec (`DmnIrBuiltinSignature.java`, `DmnIrArtifactReader.java`)**:
-     - Added string function signatures with formal parameter names, parameter types, and arity ranges.
-     - Permitted null literal assignments in `DmnIrArtifactReader.java` via `assignable(actual, expected)`.
-   - **Compiler & DMNIR Producer (`DmnIrRecordProducer.java`)**:
-     - Synthesized default empty string for omitted `flags` in `matches` and `replace`.
-     - Synthesized null literal for omitted optional `length` in `substring`.
-     - Relaxed built-in argument validation to permit `SCALAR_TYPE_NULL` for nullable arguments.
-   - **Pure Rust Standalone Standard Library Regex Engine (`generated_builtins.rs.txt`)**:
-     - Zero external dependencies.
-     - Full AST and recursive backtracking matcher supporting:
-       - Character classes `[...]`, negated classes `[^...]`, character ranges `[a-z]`.
-       - Character class subtraction `[A-Z-[OI]]`.
-       - Unicode block character classes `\p{IsBasicLatin}`.
-       - Quantifiers `*`, `+`, `?`, `{m,n}`, and non-greedy lazy variants `*?`, `+?`.
-       - Alternations `|`, capturing groups `(...)`, non-capturing groups `(?:...)`.
-       - Anchors `^` and `$`.
-       - Backreferences in pattern (`\1`) and replacement string (`$0`, `$1`, `$2`).
-       - Flags: `i` (case-insensitive with Unicode case folding, including Kelvin sign `\u212A`), `s` (dotall), `m` (multiline anchor matching), `x` (extended mode with whitespace collapse outside brackets), `q` (literal quote).
-   - **Generator Argument Type Checking (`model.rs`)**:
-     - Updated built-in argument validation to use `assignable(emitted.ty, *parameter)` so nullable arguments in built-in calls propagate according to FEEL null-semantics without rejecting valid models.
-   - **Suites Unlocked & Passing in Step 8**:
-     - `1103-feel-substring-function` (all cases)
-     - `1105-feel-upper-case-function` (all cases)
-     - `1106-feel-lower-case-function` (all cases)
-     - `1107-feel-substring-before-function` (all cases)
-     - `1108-feel-substring-after-function` (all cases)
-     - `1111-feel-matches-function` (all cases)
-     - `1112-feel-starts-with-function` (all cases)
-     - `1113-feel-ends-with-function` (all cases)
-     - `1109-feel-replace-function` (27 / 28 cases)
+     - `1109-feel-replace-function` (all cases: 28 / 28)
+     - `0002-string-functions` (all cases: 24 / 24)
 
 3. **High-Performance Test Runner & Hygiene**:
    - `dmn-rust-tck-runner` cleans and regenerates all 952 crates in parallel (8 worker threads) and executes all 1,008 cases in unified harness.
-   - 0 generator rejections, 0 build errors, 0 execution errors.
+   - 0 generator rejections, 0 build errors, 0 execution errors, 0 test failures (100.00% clean evaluation).
    - All 61 offline Rust generator and regex unit tests pass cleanly.
 
 4. **Next Steps (Step 9)**:
-   - Resolve the 2 remaining string edge cases (case 002 of `0002-string-functions` and case 017 of `1109-feel-replace-function`).
    - Implement FEEL List built-in functions:
-     - `append`, `concatenate`, `insert`, `remove`, `reverse`, `index of`, `union`, `distinct values`, `flatten`, `sort`.
-     - Target suites: `1114-feel-append-function`, `1115-feel-concatenate-function`, `1116-feel-insert-before-function`, `1117-feel-remove-function`, `1118-feel-reverse-function`, `1119-feel-index-of-function`, `1120-feel-union-function`, `1121-feel-distinct-values-function`, `1122-feel-flatten-function`, `1123-feel-sort-function`.
+     - `count`, `list contains`, `min`, `max`, `sum`, `mean`, `all`, `any`, `sublist`, `append`, `concatenate`, `insert before`, `remove`, `reverse`, `index of`, `union`, `distinct values`, `flatten`, `product`, `median`, `stddev`, `mode`.
+     - Target suites: `0009-append-flatten`, `0011-insert-remove`, `0012-list-functions`, `0021-singleton-list`, `0059-feel-all-function`, `0060-feel-any-function`, `0061-feel-median-function`, `0062-feel-mode-function`, `0063-feel-stddev-function`, `0094-feel-product-function`, `1155-list-replace-function`, `1161-boxed-list-expression`.

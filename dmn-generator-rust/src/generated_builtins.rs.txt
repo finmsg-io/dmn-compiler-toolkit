@@ -496,6 +496,7 @@ impl RegexParser {
                     Ok(RegexAST::Repeat { inner: Box::new(base), min: 0, max: Some(1), greedy })
                 }
                 '{' => {
+                    self.next();
                     let (min, max) = self.parse_range()?;
                     let greedy = self.check_greedy();
                     Ok(RegexAST::Repeat { inner: Box::new(base), min, max, greedy })
