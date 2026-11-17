@@ -30,6 +30,7 @@ final class DmnIrRecordProducer {
 	private Set<DmnIrReference> knowledge = Set.of();
 	private final Map<DmnIrReference, DmnIrRecordDefinition> records = new HashMap<>();
 	private final Map<DmnIrReference, DmnIrCollectionDefinition> collections = new HashMap<>();
+	private final Set<DmnIrReference> collectionTypes = new HashSet<>();
 	private static final Comparator<DmnIrReference> ORDER = Comparator.comparing(DmnIrReference::getModelNamespace)
 			.thenComparing(DmnIrReference::getElementId);
 
@@ -61,6 +62,8 @@ final class DmnIrRecordProducer {
 				String id = itemId(item);
 				var reference = ref(model.identity().namespace(), id);
 				named.put(new TypeName(model.identity().namespace(), item.getNode().getName()), reference);
+				if (item.getIsCollection())
+					collectionTypes.add(reference);
 			}
 		}
 		for (var model : models.values()) {
@@ -614,7 +617,7 @@ final class DmnIrRecordProducer {
 			if (record == null)
 				throw unsupported();
 			var reference = DmnIrTypeReference.newBuilder();
-			return (collections.containsKey(record)
+			return (collectionTypes.contains(record)
 					? reference.setCollectionType(record)
 					: reference.setRecordType(record)).build();
 		}
@@ -1389,7 +1392,7 @@ final class DmnIrRecordProducer {
 				}
 				var ref = named.get(targetTypeName);
 				if (ref != null) {
-					if (collections.containsKey(ref))
+					if (collectionTypes.contains(ref))
 						return DmnIrTypeReference.newBuilder().setCollectionType(ref).build();
 					return DmnIrTypeReference.newBuilder().setRecordType(ref).build();
 				}

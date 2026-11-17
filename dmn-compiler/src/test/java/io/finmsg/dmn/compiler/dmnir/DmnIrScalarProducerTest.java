@@ -89,12 +89,14 @@ class DmnIrScalarProducerTest {
 	}
 
 	@Test
-	void rejectsNamedTypesInsteadOfDroppingTheirDeclarations() {
-		var error = assertThrows(DmnIrProductionException.class,
-				() -> new DmnIrScalarProducer().produce(
-						source("<itemDefinition id=\"type\" name=\"Amount\"><typeRef>number</typeRef></itemDefinition>"
-								+ decision("amount", "AmountValue", "number", "42"))));
-		assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE, error.category());
+	void scalarAliasesResolveToTheirDeclaredTypeAndPreserveValues() {
+		var verified = new DmnIrScalarProducer()
+				.produce(source("<itemDefinition id=\"type\" name=\"Amount\"><typeRef>number</typeRef></itemDefinition>"
+						+ decision("amount", "AmountValue", "Amount", "42")));
+		assertEquals(io.finmsg.dmn.dmnir.proto.v0.DmnIrScalarType.SCALAR_TYPE_NUMBER,
+				verified.artifact().getModels(0).getDecisions(0).getVariable().getType());
+		assertEquals(new BigDecimal("42"),
+				new DmnIrRuntimeAdapter().adapt(verified).evaluate(Map.of()).get(key("amount")));
 	}
 
 	@Test

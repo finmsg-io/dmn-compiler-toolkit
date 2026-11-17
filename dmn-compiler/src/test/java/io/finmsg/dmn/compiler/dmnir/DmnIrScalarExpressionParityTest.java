@@ -68,15 +68,24 @@ class DmnIrScalarExpressionParityTest {
 	}
 
 	@Test
-	void constantsKeepOldProfileAndUnsupportedSignaturesAreRejected() {
+	void constantsKeepOldProfileAndScalarOperationsPreserveSemantics() {
 		var producer = new DmnIrScalarProducer();
 		var old = producer.produce(source("A", "number"));
 		assertEquals(0, old.artifact().getSchemaVersion().getMinor());
 		assertEquals(List.of("dmnir.scalar"), old.artifact().getRequiredCapabilitiesList());
-		for (var example : List.of(new Example("\"a\" + \"b\"", "string"), new Example("null + 1", "number")))
-			assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE,
-					assertThrows(DmnIrProductionException.class,
-							() -> producer.produce(source(example.expression(), example.type()))).category());
+		for (var example : List.of(new Example("\"a\" + \"b\"", "string"), new Example("null + 1", "number"))) {
+			var input = source(example.expression(), example.type());
+			var verified = producer.produce(input);
+			var values = new DmnIrRuntimeAdapter().adapt(verified)
+					.evaluate(Map.of(key("A"), BigDecimal.ONE, key("B"), BigDecimal.ONE, key("Flag"), true));
+			assertTrue(values.containsKey(key("result")));
+			Object expected = example.type().equals("string") ? "ab" : null;
+			assertEquals(expected, values.get(key("result")));
+			var compiled = new DmnCompiler().compile(input);
+			assertTrue(compiled.isSuccess(), compiled.diagnostics().toString());
+			assertEquals(expected, compiled.compiledModel().orElseThrow().evaluateDecision("Result",
+					inputs(BigDecimal.ONE, BigDecimal.ONE, true)));
+		}
 	}
 
 	@Test
