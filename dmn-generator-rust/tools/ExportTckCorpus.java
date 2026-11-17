@@ -14,7 +14,8 @@ class ExportTckCorpus {
     public static void main(String[] args)throws Exception {
         Path root=Path.of(args[0]),output=Path.of(args[1]);Files.createDirectory(output);
         var inventory=new TckCatalogueDiscovery().discover(root,List.of("compliance-level-2","compliance-level-3"));
-        if(inventory.decodedCaseCount()!=3391 && inventory.decodedCaseCount()!=3407)throw new IllegalStateException("Unexpected pinned denominator: "+inventory.decodedCaseCount());
+        if(inventory.decodedCaseCount()!=3407)throw new IllegalStateException("Unexpected pinned denominator: "+inventory.decodedCaseCount());
+        if(inventory.entries().stream().anyMatch(e->!e.executable()))throw new IllegalStateException("Invalid catalogue entries: "+inventory.entries().stream().filter(e->!e.executable()).map(e->e.id()+": "+e.invalidReason()).toList());
         Map<String,Group> groups=new LinkedHashMap<>();
         StringBuilder manifest=new StringBuilder("entryId\tcaseId\tstatus\tgroup\tdiagnostic\n");
         int index=0,ready=0;
@@ -72,7 +73,10 @@ class ExportTckCorpus {
             String prefix=aliases.get(model.getNamespace());
             if(prefix==null&&!model.getInputsList().isEmpty())throw new UnsupportedOperationException("Transitive input alias not mapped");
             for(var declaration:model.getInputsList()) {
-                var value=test.inputs().get(prefix+declaration.getVariable().getName());
+                String inputName=declaration.getVariable().getName();
+                String declaredNamespace=test.inputNamespaces().get(inputName);
+                var value=declaredNamespace==null?test.inputs().get(prefix+inputName):
+                    declaredNamespace.equals(model.getNamespace())?test.inputs().get(inputName):null;
                 input.append("((").append(q(model.getNamespace())).append(',').append(q(declaration.getIdentity().getId())).append("),").append(value==null?"Value::Null":value(value.runtimeValue())).append("),");
             }
             if(prefix!=null)for(var decision:model.getDecisionsList())results.put(prefix+decision.getVariable().getName(),"("+q(model.getNamespace())+","+q(decision.getIdentity().getId())+")");
@@ -83,7 +87,7 @@ class ExportTckCorpus {
             String address=results.get(expected.getKey());
             if(address==null)throw new UnsupportedOperationException("Expected decision not mapped: "+expected.getKey());
             String expectedValue=test.expectedErrorResults().contains(expected.getKey())?"Value::Null":value(expected.getValue().runtimeValue());
-            checks.append("assert!(matches!(actual.get(&").append(address).append("),Some(value) if equivalent(value,&").append(expectedValue).append(")), ").append(q("Expected result differs: "+key+"/"+expected.getKey())).append(");");
+            checks.append("assert!(matches!(actual.get(&").append(address).append("),Some(value) if equivalent(value,&").append(expectedValue).append(")), ").append(q("Expected result differs: "+key+"/"+expected.getKey()+"; actual={:?}")).append(",actual.get(&").append(address).append("));");
         }
         boolean allErrors=!test.expectedErrorResults().isEmpty()&&test.expectedErrorResults().containsAll(test.expectedResults().keySet());
         return "#[test] fn case_"+String.format("%05d",index)+"() { let inputs="+input+"; match std::panic::catch_unwind(|| evaluate(&inputs)) { Ok(Ok(actual))=>{"+checks+"}, Ok(Err(error))=>{if !"+allErrors+" {println!(\"RUST_TCK_EXECUTION_ERROR: {}\",error);panic!(\"unexpected evaluation error\");}},Err(_)=>{println!(\"RUST_TCK_EXECUTION_ERROR: panic\");panic!(\"evaluation panicked\");} } }\n";

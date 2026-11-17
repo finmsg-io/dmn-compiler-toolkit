@@ -7,12 +7,14 @@ import java.util.Set;
 
 /** One input/expected-result combination from a DMN TCK test file. */
 public record TckTestCase(String id, String name, Map<String, TckValue> inputs, Map<String, TckValue> expectedResults,
-		Set<String> expectedErrorResults, Optional<String> invocableName, Optional<String> type) {
+		Set<String> expectedErrorResults, Optional<String> invocableName, Optional<String> type,
+		Map<String, String> inputNamespaces) {
 	public TckTestCase {
 		if (Objects.requireNonNull(id, "id").isBlank())
 			throw new IllegalArgumentException("TCK case ID is blank");
 		Objects.requireNonNull(name, "name");
 		inputs = Map.copyOf(inputs);
+		inputNamespaces = Map.copyOf(inputNamespaces);
 		expectedResults = Map.copyOf(expectedResults);
 		expectedErrorResults = Set.copyOf(expectedErrorResults);
 		invocableName = Objects.requireNonNullElse(invocableName, Optional.empty());
@@ -21,6 +23,11 @@ public record TckTestCase(String id, String name, Map<String, TckValue> inputs, 
 			throw new IllegalArgumentException("TCK case has no expected results");
 		if (!expectedResults.keySet().containsAll(expectedErrorResults))
 			throw new IllegalArgumentException("Expected-error result is not a declared result node");
+	}
+
+	public TckTestCase(String id, String name, Map<String, TckValue> inputs, Map<String, TckValue> expectedResults,
+			Set<String> expectedErrorResults, Optional<String> invocableName, Optional<String> type) {
+		this(id, name, inputs, expectedResults, expectedErrorResults, invocableName, type, Map.of());
 	}
 
 	public TckTestCase(String id, String name, Map<String, TckValue> inputs, Map<String, TckValue> expectedResults,

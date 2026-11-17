@@ -134,7 +134,17 @@ public enum DmnIrBuiltinSignature {
 																																															"pattern",
 																																															"replacement",
 																																															"flags"),
-																																													3);
+																																													3), NUMBER_FROM_STRING(
+																																															BUILTIN_OPERATION_NUMBER_FROM_STRING,
+																																															"number",
+																																															SCALAR_TYPE_NUMBER,
+																																															List.of(SCALAR_TYPE_STRING,
+																																																	SCALAR_TYPE_STRING,
+																																																	SCALAR_TYPE_STRING),
+																																															List.of("from",
+																																																	"grouping separator",
+																																																	"decimal separator"),
+																																															1);
 
 	private final DmnIrBuiltinOperation operation;
 	private final String feelName;

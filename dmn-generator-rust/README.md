@@ -21,6 +21,16 @@ compiles bindings from the toolkit's DMNIR schema using a pinned vendored Protob
 compiler. The generated crate uses only the Rust standard library. Its output directory
 must be new.
 
+The TCK audit discovers all numbered `-test-NN.xml` files and honors their declared
+model names and input namespaces. Numeric comparisons use exact decimal equality
+(including equivalent coefficients/scales), without rounding results to force a pass.
+The runner compiles at most 32 generated groups per batch, disables incremental
+compilation for that harness, and retains each batch log beside the case ledger.
+
+The built-in profile additionally supports exact string-to-number conversion (operation 25),
+including named separator arguments and decimal scientific notation. Parsing uses decimal
+digits directly and bounds coefficient length and absolute scale to 4,096.
+
 Call `generated_dmn::evaluate` with a `BTreeMap` keyed by model namespace and input
 element ID. Provide every declared input, including explicit `Value::Null`. Decision
 results use the same namespace and element ID convention. Numeric values preserve

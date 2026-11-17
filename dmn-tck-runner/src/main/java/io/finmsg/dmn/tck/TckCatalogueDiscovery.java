@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 
 /** Cross-platform, deterministic discovery for an unpacked TCK catalogue. */
 public final class TckCatalogueDiscovery {
-	private static final String TEST_SUFFIX = "-test-01.xml";
+	private static final java.util.regex.Pattern TEST_FILE = java.util.regex.Pattern.compile("(.+)-test-[0-9]+\\.xml");
 
 	public TckCatalogueInventory discover(Path catalogueRoot) throws IOException {
 		return discover(catalogueRoot, List.of(""));
@@ -36,7 +36,7 @@ public final class TckCatalogueDiscovery {
 		int dmnFiles = (int) allPaths.stream().filter(Files::isRegularFile)
 				.filter(path -> path.getFileName().toString().endsWith(".dmn")).count();
 		List<Path> testXmlFiles = allPaths.stream().filter(Files::isRegularFile)
-				.filter(path -> path.getFileName().toString().endsWith(TEST_SUFFIX)).toList();
+				.filter(path -> TEST_FILE.matcher(path.getFileName().toString()).matches()).toList();
 		List<TckCatalogueEntry> entries = new ArrayList<>(testXmlFiles.size());
 		for (Path testXml : testXmlFiles) {
 			entries.add(discoverEntry(root, testXml));
@@ -53,8 +53,19 @@ public final class TckCatalogueDiscovery {
 					.sorted(Comparator.comparing(path -> path.getFileName().toString())).toList();
 		}
 		String testName = testXml.getFileName().toString();
-		String expectedName = testName.substring(0, testName.length() - TEST_SUFFIX.length()) + ".dmn";
-		Optional<Path> exact = models.stream().filter(path -> path.getFileName().toString().equals(expectedName))
+		var matcher = TEST_FILE.matcher(testName);
+		if (!matcher.matches())
+			throw new IOException("Invalid test filename: " + testName);
+		String expectedName = matcher.group(1) + ".dmn";
+		try {
+			var declaredName = new TckTestCaseReader().readModelName(testXml);
+			if (declaredName.isPresent())
+				expectedName = declaredName.get();
+		} catch (IOException exception) {
+			return invalid(id, testXml, models, "Invalid TCK test XML: " + exception.getMessage());
+		}
+		final String rootName = expectedName;
+		Optional<Path> exact = models.stream().filter(path -> path.getFileName().toString().equals(rootName))
 				.findFirst();
 		Optional<Path> rootModel = exact.isPresent()
 				? exact

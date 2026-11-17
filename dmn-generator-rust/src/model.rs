@@ -1453,6 +1453,7 @@ impl ExpressionEmitter<'_, '_> {
                         20 => (&[Text, Text], Boolean, "builtin_ends_with"),
                         21 => (&[Text, Text, Text], Boolean, "builtin_matches"),
                         22 => (&[Text, Text, Text, Text], Text, "builtin_replace"),
+                        25 => (&[Text, Text, Text], Number, "builtin_number_from_string"),
                         _ => return Err("unsupported builtin operation"),
                     };
                 if ty != result {

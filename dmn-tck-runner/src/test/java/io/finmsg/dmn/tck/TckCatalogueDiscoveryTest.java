@@ -30,6 +30,24 @@ class TckCatalogueDiscoveryTest {
 	}
 
 	@Test
+	void discoversAllNumberedFilesAndUsesDeclaredModelName() throws Exception {
+		Path directory = Files.createDirectories(temporaryDirectory.resolve("multi"));
+		writeModel(directory.resolve("A.dmn"));
+		writeModel(directory.resolve("C.dmn"));
+		for (String number : java.util.List.of("01", "02", "03", "04")) {
+			Path xml = directory.resolve("multi-test-" + number + ".xml");
+			writeCases(xml, "case-" + number);
+			Files.writeString(xml,
+					Files.readString(xml).replace("<testCase id=", "<modelName>C.dmn</modelName><testCase id="));
+		}
+		var inventory = new TckCatalogueDiscovery().discover(temporaryDirectory);
+		assertThat(inventory.testXmlCount()).isEqualTo(4);
+		assertThat(inventory.decodedCaseCount()).isEqualTo(4);
+		assertThat(inventory.entries())
+				.allSatisfy(entry -> assertThat(entry.rootDmn()).contains(directory.resolve("C.dmn")));
+	}
+
+	@Test
 	void classifiesMissingAndAmbiguousRootsWithoutDroppingEntries() throws Exception {
 		Path missing = Files.createDirectories(temporaryDirectory.resolve("missing"));
 		writeCases(missing.resolve("missing-test-01.xml"), "missing-case");

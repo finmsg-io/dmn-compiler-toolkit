@@ -18,19 +18,7 @@ fn equivalent(actual: &Value, expected: &Value) -> bool {
             Value::Number { coefficient: a, scale: a_scale },
             Value::Number { coefficient: b, scale: b_scale },
         ) => {
-            if normalize_decimal(a, *a_scale) == normalize_decimal(b, *b_scale) {
-                return true;
-            }
-            if *a_scale > *b_scale {
-                let rounded = round_decimal(a, *a_scale, *b_scale);
-                if normalize_decimal(&rounded, *b_scale) == normalize_decimal(b, *b_scale) {
-                    return true;
-                }
-            }
-            let round_scale = 8.min(*a_scale).min(*b_scale);
-            let a_norm = round_decimal(a, *a_scale, round_scale);
-            let b_norm = round_decimal(b, *b_scale, round_scale);
-            normalize_decimal(&a_norm, round_scale) == normalize_decimal(&b_norm, round_scale)
+            normalize_decimal(a, *a_scale) == normalize_decimal(b, *b_scale)
         }
         (Value::List(a), Value::List(b)) => {
             a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| equivalent(x, y))
@@ -39,60 +27,6 @@ fn equivalent(actual: &Value, expected: &Value) -> bool {
             a.len() == b.len() && a.iter().all(|(k, v)| b.get(k).map_or(false, |bv| equivalent(v, bv)))
         }
         _ => false,
-    }
-}
-
-fn round_decimal(coefficient: &str, cur_scale: i32, target_scale: i32) -> String {
-    if cur_scale <= target_scale {
-        return coefficient.to_string();
-    }
-    let is_neg = coefficient.starts_with('-');
-    let digits = coefficient.trim_start_matches('-');
-    let excess = (cur_scale - target_scale) as usize;
-    if digits.len() <= excess {
-        let first_drop = if digits.len() == excess {
-            digits.as_bytes()[0]
-        } else {
-            b'0'
-        };
-        if first_drop >= b'5' {
-            if is_neg { "-1".to_string() } else { "1".to_string() }
-        } else {
-            "0".to_string()
-        }
-    } else {
-        let keep_len = digits.len() - excess;
-        let keep = &digits[..keep_len];
-        let first_drop = digits.as_bytes()[keep_len];
-        if first_drop >= b'5' {
-            let mut bytes = keep.as_bytes().to_vec();
-            let mut carry = true;
-            for b in bytes.iter_mut().rev() {
-                if *b == b'9' {
-                    *b = b'0';
-                } else {
-                    *b += 1;
-                    carry = false;
-                    break;
-                }
-            }
-            let mut res = String::new();
-            if is_neg {
-                res.push('-');
-            }
-            if carry {
-                res.push('1');
-            }
-            res.push_str(std::str::from_utf8(&bytes).unwrap());
-            res
-        } else {
-            let mut res = String::new();
-            if is_neg {
-                res.push('-');
-            }
-            res.push_str(keep);
-            res
-        }
     }
 }
 
@@ -358,9 +292,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Phase 1 complete: {} groups successfully generated.", generated_groups.len());
 
     // Phase 2: Fast unified test execution
-    let mut fallback_needed = false;
-    if !generated_groups.is_empty() {
-        println!("Phase 2: Compiling and executing unified test harness...");
+    let mut fallback_groups = Vec::new();
+    // Bound compiler memory and temporary disk use for generated runtimes.
+    for (batch_index, batch) in generated_groups.chunks(32).enumerate() {
+        let generated_groups = batch.to_vec();
+        println!("Phase 2: Compiling and executing batch {} ({} groups)...", batch_index + 1, batch.len());
         let harness_dir = audit_dir.join("unified_harness");
         let src_dir = harness_dir.join("src");
         fs::create_dir_all(&src_dir)?;
@@ -406,6 +342,7 @@ opt-level = 0
         let (out_str, err_str, exit_code) = loop {
             attempts += 1;
             let test_out = Command::new(&cargo_bin)
+                .env("CARGO_INCREMENTAL", "0")
                 .args(["test", "--lib", "--offline", "--", "--color", "never"])
                 .current_dir(&harness_dir)
                 .output();
@@ -429,7 +366,8 @@ opt-level = 0
         let full_output = format!("{}\n{}", out_str, err_str);
         let is_build_error = exit_code != 0 && (err_str.contains("error[E") || err_str.contains("could not compile"));
 
-        if !is_build_error && exit_code == 0 {
+        fs::write(audit_dir.join(format!("rust-batch-{:03}.log", batch_index + 1)), &full_output)?;
+        if !is_build_error && full_output.contains("test result:") {
             let elapsed = test_start.elapsed();
             println!("Unified harness executed in {:.2}s. Parsing results...", elapsed.as_secs_f64());
             for (group_id, indices) in &generated_groups {
@@ -476,13 +414,13 @@ opt-level = 0
         } else {
             println!("Unified harness failed with exit_code={}: stdout:\n{}\nstderr:\n{}", exit_code, out_str, err_str);
             println!("Falling back to per-group evaluation...");
-            fallback_needed = true;
+            fallback_groups.extend(generated_groups);
         }
     }
 
-    if fallback_needed {
+    if !fallback_groups.is_empty() {
         // Fallback: per-group execution
-        let fallback_queue = std::sync::Arc::new(std::sync::Mutex::new(generated_groups.into_iter()));
+        let fallback_queue = std::sync::Arc::new(std::sync::Mutex::new(fallback_groups.into_iter()));
         let completed_counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let mut handles = Vec::new();
 
@@ -656,6 +594,57 @@ opt-level = 0
 #[cfg(test)]
 mod tests {
     use super::case_result;
+
+    #[test]
+    fn numeric_comparison_is_exact() {
+        let source = format!(
+            r#"
+#[derive(PartialEq)]
+enum Value {{
+    Number {{ coefficient: String, scale: i32 }},
+    List(Vec<Value>),
+    Record(std::collections::BTreeMap<String, Value>),
+}}
+{}
+fn main() {{
+    let n = |c: &str, scale| Value::Number {{ coefficient: c.into(), scale }};
+    assert!(equivalent(&n("100", 2), &n("1", 0)));
+    assert!(equivalent(&n("1", -1), &n("10", 0)));
+    assert!(!equivalent(&n("14", 1), &n("1", 0)));
+    assert!(!equivalent(&n("1000000001", 9), &n("1", 0)));
+    assert!(!equivalent(&Value::List(vec![n("14", 1)]), &Value::List(vec![n("1", 0)])));
+    assert!(!equivalent(&Value::Record(std::collections::BTreeMap::from([("n".into(), n("14", 1))])),
+        &Value::Record(std::collections::BTreeMap::from([("n".into(), n("1", 0))]))));
+}}
+"#,
+            super::HARNESS_PRELUDE.replace("use generated_dmn::{Value, evaluate};", "")
+        );
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/comparison-regression");
+        std::fs::create_dir_all(&dir).unwrap();
+        let source_path = dir.join("main.rs");
+        let binary = dir.join(if cfg!(windows) {
+            "compare.exe"
+        } else {
+            "compare"
+        });
+        std::fs::write(&source_path, source).unwrap();
+        assert!(
+            std::process::Command::new("rustc")
+                .arg(&source_path)
+                .arg("-o")
+                .arg(&binary)
+                .status()
+                .unwrap()
+                .success()
+        );
+        assert!(
+            std::process::Command::new(binary)
+                .status()
+                .unwrap()
+                .success()
+        );
+    }
 
     #[test]
     fn successful_process_without_case_is_not_a_pass() {

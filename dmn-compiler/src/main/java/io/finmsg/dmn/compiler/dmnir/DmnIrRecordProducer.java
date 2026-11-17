@@ -1121,6 +1121,9 @@ final class DmnIrRecordProducer {
 				return nullLiteral();
 		}
 
+		if (signature == DmnIrBuiltinSignature.NUMBER_FROM_STRING
+				&& (named ? source.getArgumentsCount() : positionalCount) == 2)
+			return nullLiteral();
 		DmnIrExpression[] args = new DmnIrExpression[paramCount];
 		if (named) {
 			for (int i = 0; i < source.getArgumentsCount(); i++) {
@@ -1183,6 +1186,11 @@ final class DmnIrRecordProducer {
 								.setNumberValue(DmnIrDecimal.newBuilder().setUnscaledValue("0").setScale(0)))
 						.build();
 			}
+		} else if (signature == DmnIrBuiltinSignature.NUMBER_FROM_STRING) {
+			if (args[1] == null)
+				args[1] = nullLiteral();
+			if (args[2] == null)
+				args[2] = nullLiteral();
 		} else if (signature == DmnIrBuiltinSignature.SUBSTRING) {
 			if (args[2] == null) {
 				args[2] = nullLiteral();

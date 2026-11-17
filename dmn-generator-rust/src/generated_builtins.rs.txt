@@ -960,21 +960,27 @@ fn feel_matches_impl(input: &str, pattern: &str, flags_str: &str) -> Option<bool
 fn feel_replace_impl(input: &str, pattern: &str, replacement: &str, flags_str: &str) -> Option<String> {
     let flags = parse_regex_flags(flags_str)?;
     if flags.q {
-        if flags.i {
-            let mut res = String::new();
-            let lower_input = input.to_lowercase();
-            let lower_pat = pattern.to_lowercase();
-            let mut last = 0;
-            while let Some(idx) = lower_input[last..].find(&lower_pat) {
-                res.push_str(&input[last..last + idx]);
-                res.push_str(replacement);
-                last += idx + pattern.len();
-            }
-            res.push_str(&input[last..]);
-            return Some(res);
-        } else {
-            return Some(input.replace(pattern, replacement));
+        // Match on characters: Unicode case conversion can change UTF-8 byte lengths.
+        let pattern: Vec<char> = pattern.chars().collect();
+        if pattern.is_empty() {
+            return None;
         }
+        let input: Vec<char> = input.chars().collect();
+        let mut out = String::new();
+        let mut pos = 0;
+        while pos < input.len() {
+            if input.len() - pos >= pattern.len()
+                && input[pos..pos + pattern.len()].iter().zip(&pattern)
+                    .all(|(&a, &b)| regex_char_eq(a, b, flags.i))
+            {
+                out.push_str(replacement);
+                pos += pattern.len();
+            } else {
+                out.push(input[pos]);
+                pos += 1;
+            }
+        }
+        return Some(out);
     }
     let mut parser = RegexParser::new(pattern, flags);
     let ast = parser.parse().ok()?;
@@ -1054,4 +1060,46 @@ fn builtin_replace(input: Value, pattern: Value, replacement: Value, flags: Valu
         Some(res) => Value::Text(res),
         None => Value::Null,
     }
+}
+
+// Parse decimal text directly; binary floating point would lose FEEL precision.
+fn builtin_number_from_string(from: Value, grouping: Value, decimal: Value) -> Value {
+    let Value::Text(from) = from else { return Value::Null; };
+    let grouping = match &grouping {
+        Value::Null => None,
+        Value::Text(s) if matches!(s.as_str(), " " | "." | ",") => Some(s.as_str()),
+        _ => return Value::Null,
+    };
+    let decimal = match &decimal {
+        Value::Null => None,
+        Value::Text(s) if matches!(s.as_str(), "." | ",") => Some(s.as_str()),
+        _ => return Value::Null,
+    };
+    if grouping.is_some() && grouping == decimal { return Value::Null; }
+    let mut text = from.trim().to_string();
+    if let Some(grouping) = grouping { text = text.replace(grouping, ""); }
+    if let Some(decimal) = decimal { text = text.replace(decimal, "."); }
+    let (mantissa, exponent) = if let Some(index) = text.find(['e', 'E']) {
+        let Ok(exponent) = text[index + 1..].parse::<i32>() else { return Value::Null; };
+        (&text[..index], exponent)
+    } else { (text.as_str(), 0) };
+    let negative = mantissa.starts_with('-');
+    let unsigned = mantissa.strip_prefix(['-', '+']).unwrap_or(mantissa);
+    let mut digits = String::new();
+    let mut fractional = None;
+    for c in unsigned.chars() {
+        if c.is_ascii_digit() {
+            digits.push(c);
+            if let Some(count) = fractional.as_mut() { *count += 1; }
+        } else if c == '.' && fractional.is_none() {
+            fractional = Some(0i32);
+        } else { return Value::Null; }
+    }
+    if digits.is_empty() || digits.len() > 4096 { return Value::Null; }
+    let Some(scale) = fractional.unwrap_or(0).checked_sub(exponent) else { return Value::Null; };
+    if !(-4096..=4096).contains(&scale) { return Value::Null; }
+    let digits = digits.trim_start_matches('0');
+    let coefficient = if digits.is_empty() { "0".to_string() }
+        else if negative { format!("-{digits}") } else { digits.to_string() };
+    Value::Number { coefficient, scale }
 }

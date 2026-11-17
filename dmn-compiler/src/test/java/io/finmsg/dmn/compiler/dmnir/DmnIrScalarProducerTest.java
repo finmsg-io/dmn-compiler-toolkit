@@ -12,6 +12,21 @@ class DmnIrScalarProducerTest {
 	private static final String NS = "urn:example:producer";
 
 	@Test
+	void exportsExactNumberTextWithNamedSeparatorsAndInvalidCalls() {
+		var verified = new DmnIrScalarProducer().produce(
+				source(decision("exact", "Exact", "number", "number(\"9.007.199.254.740.993,0001\", \".\", \",\")")
+						+ decision("named", "Named", "number",
+								"number(from: \"1.234,50\", decimal separator: \",\", grouping separator: \".\")")
+						+ decision("invalid", "Invalid", "number", "number(\"12\", \",\")")
+						+ decision("single", "Single", "number", "number(\"1.25e2\")")));
+		var values = new DmnIrRuntimeAdapter().adapt(verified).evaluate(Map.of());
+		assertEquals(0, new BigDecimal("9007199254740993.0001").compareTo((BigDecimal) values.get(key("exact"))));
+		assertEquals(0, new BigDecimal("1234.50").compareTo((BigDecimal) values.get(key("named"))));
+		assertEquals(0, new BigDecimal("125").compareTo((BigDecimal) values.get(key("single"))));
+		assertNull(values.get(key("invalid")));
+	}
+
+	@Test
 	void producesReloadableArtifactWithExactValuesAndSourceIdentities() {
 		var source = source(decision("precise", "Precise", "number", "9007199254740993.0001")
 				+ decision("empty", "Empty", "string", "\"\"") + decision("false", "False", "boolean", "false")

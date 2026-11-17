@@ -6,6 +6,7 @@
 - [Overview](#contents-section-1)
 - [TCK suite version](#contents-section-2)
 - [Test results](#contents-section-3)
+  - [Standalone Rust checkpoint](#standalone-rust-checkpoint-2026-11-17)
   - [Typed gRPC checkpoint](#typed-grpc-checkpoint-2026-10-29)
   - [Original typed baseline (historical)](#typed-grpc-coverage-2026-10-28)
   - [Generic gRPC checkpoint](#generic-grpc-checkpoint-2026-10-27)
@@ -25,6 +26,8 @@ This document pins the exact OMG DMN TCK revision used for conformance
 testing and records per-backend, per-compliance-level results for the
 DMN Compiler Toolkit.
 
+Latest standalone Rust assessment: 2026-11-17, **1,018/3,407 passed (29.88%)** under exact decimal comparison. Full Rust compliance is not established.
+
 Latest typed gRPC assessment: 2026-10-29. Generic gRPC: 2026-10-27. Spark: 2026-10-26.
 Interpreter/Java baseline below: 2026-09-04. These are separately measured runs.
 
@@ -38,9 +41,10 @@ generator JAR SHA-256 is recorded below. The earlier interpreter/Java baseline u
 | Field | Value |
 | --- | --- |
 | **Repository** | [https://github.com/dmn-tck/tck](https://github.com/dmn-tck/tck) |
-| **Pinned commit SHA** | `20274cd2ba9cad805db6114f331c743f4b2603a1` |
-| **Pinned commit date** | 2026-08-03 |
-| **Pinned commit message** | `Add openwerk/dmn 1.0.0 test results (#751)` |
+| **Current working-tree Rust audit commit** | `5cd912f281831bc535e710aba435e16de198028a` |
+| **Historical checkpoint commit SHA** | `20274cd2ba9cad805db6114f331c743f4b2603a1` |
+| **Historical checkpoint commit date** | 2026-08-03 |
+| **Historical checkpoint commit message** | `Add openwerk/dmn 1.0.0 test results (#751)` |
 | **Location in repository** | `dmn-tck-runner/src/test/resources/tck-official` (git submodule) |
 
 The submodule is initialized automatically on CI via `submodules: recursive`
@@ -48,6 +52,30 @@ in the checkout step. Locally: `git submodule update --init --recursive`.
 
 <a id="contents-section-3"></a>
 ## Test results
+
+### Standalone Rust checkpoint - 2026-11-17
+
+Official TCK revision `5cd912f281831bc535e710aba435e16de198028a` contains 3,407 CL2/CL3 cases.
+The full DMN-to-DMNIR-to-generated-Rust audit accounts for all 3,407 unique cases:
+
+| Outcome | Cases |
+| --- | ---: |
+| Passed | 1,018 (29.88%) |
+| Result failure | 13 |
+| Export/harness rejection | 2,376 |
+| Rust generator rejection / build error / execution error | 0 / 0 / 0 |
+
+CL2 passed 110/116 cases; CL3 passed 908/3,291. The 23 new passes against the same-suite
+strict baseline (995 passes) are 21 number-function cases and two namespaced-input cases;
+no baseline passes regressed. Exact decimal equality replaces the previous blanket rounding.
+Thirteen numerical mismatches remain; fixture precision and numerical semantics require further
+investigation. Historical Rust 100% CL2 claims do not describe this strict run.
+
+Local evidence is in `target/rust-tck-number-3407-2026-11-17/`: `manifest.tsv`,
+`rust-tck-accounting.tsv`, `summary.json`, `provenance.json`, and per-batch logs.
+Source is base `e028766` plus working-tree changes; the provenance file records changed-source hashes.
+These results do not revalidate the interpreter, Java, Spark SQL, or gRPC backends on the new suite.
+The separately dated checkpoints below used the historical 3,391-case revision.
 
 ### Typed gRPC checkpoint - 2026-10-29
 

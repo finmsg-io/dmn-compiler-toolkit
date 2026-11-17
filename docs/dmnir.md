@@ -232,7 +232,7 @@ this profile.
 
 `DmnIrExpression.builtin_call` stores a typed operation and its positional arguments in
 source order. Verification checks exact argument and result types and arity. A call
-evaluates each argument once. All three operations yield null if any argument yields null.
+evaluates each argument once. Operations 1–3 yield null if any argument yields null.
 
 | Operation ID | Signature | Expected result example |
 | --- | --- | --- |
@@ -240,9 +240,19 @@ evaluates each argument once. All three operations yield null if any argument yi
 | 2 | `string length(string) → number` | `string length("A😀é")` yields `4`. The final two code points are U+0065 and U+0301. |
 | 3 | `contains(string, string) → boolean` | `contains("é", "é")` yields false. The operation is case sensitive and matches without normalization. An empty search string matches any non-null string. |
 
-The producer admits positional source calls with the declared static argument types.
-DMN 1.6 export renders a positional FEEL call and checks for name capture. Named built-in
-arguments and other overloads remain outside this profile.
+Operation **25**, `NUMBER_FROM_STRING`, converts decimal text to a number without
+binary floating-point conversion. Its wire signature has three string-or-null arguments:
+`from`, `grouping separator`, and `decimal separator`. Source calls accept one or three
+arguments, including named arguments; the one-argument form supplies null separators.
+Grouping separators are space, period, or comma; decimal separators are period or comma.
+Equal non-null separators, malformed numeric text, and invalid arities yield null.
+The Rust implementation bounds coefficient length and absolute scale to 4,096, accepts
+scientific notation, and preserves the exact decimal coefficient and signed scale.
+Existing operation IDs are unchanged; older consumers reject an unknown operation.
+
+The producer resolves positional and named source arguments against the declared signatures.
+DMN 1.6 export renders a positional FEEL call and checks for name capture.
+Overloads absent from the declared signatures remain outside this profile.
 
 ## Named FEEL business knowledge models (schema 0.10)
 

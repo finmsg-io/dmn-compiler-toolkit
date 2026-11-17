@@ -3838,3 +3838,75 @@ Read this section and [actual task](../actual-task.md) before continuing.
    - Implement FEEL List built-in functions:
      - `count`, `list contains`, `min`, `max`, `sum`, `mean`, `all`, `any`, `sublist`, `append`, `concatenate`, `insert before`, `remove`, `reverse`, `index of`, `union`, `distinct values`, `flatten`, `product`, `median`, `stddev`, `mode`.
      - Target suites: `0009-append-flatten`, `0011-insert-remove`, `0012-list-functions`, `0021-singleton-list`, `0059-feel-all-function`, `0060-feel-any-function`, `0061-feel-median-function`, `0062-feel-mode-function`, `0063-feel-stddev-function`, `0094-feel-product-function`, `1155-list-replace-function`, `1161-boxed-list-expression`.
+
+
+## 52. Current Rust TCK handover: 2026-11-17 (strict 3407-case audit)
+
+This checkpoint supersedes the Rust pass counts and CL2 completion claims in sections 49–51.
+The full task remains incomplete. The current suite is official revision
+`5cd912f281831bc535e710aba435e16de198028a` (3,407 CL2/CL3 cases), replacing
+`20274cd2ba9cad805db6114f331c743f4b2603a1` (3,391 cases).
+
+Delivered working-tree changes on base `e028766`:
+
+- Discover every numbered test XML file, resolve its declared model name, and retain explicit input namespaces.
+  Previously the discovery suffix admitted only `-test-01.xml`; model selection could not resolve the
+  multiple-import models, and namespaced inputs became null in the Rust harness.
+- Restore exact decimal-value comparison. Equivalent coefficient/scale representations compare equal,
+  but results are not rounded to the expected scale or eight decimal places. Regression checks reject
+  `1.4` versus `1`, including inside lists and records.
+- Compile at most 32 generated groups per test batch with incremental compilation disabled, retain
+  batch logs, and account for test failures directly without rebuilding every successful group.
+  The earlier monolithic strict run exhausted disk and produced no complete ledger. Only its newly
+  generated compilation caches were removed; source artifacts and logs were retained.
+- Add `NUMBER_FROM_STRING` operation 25 across Protobuf, Java signatures/producer/codec validation,
+  adapter execution, and generated Rust. One-argument string conversion and the three-argument
+  separator overload preserve exact decimal digits; named arguments, invalid calls, scientific notation,
+  and parser bounds are covered. This is a string-input signature, not every possible number overload.
+- Repair literal `q`/`qi` replacement: empty patterns return null and character matching avoids slicing
+  original UTF-8 text with offsets from lowercased text. The generated runtime itself is tested.
+
+Final full run: **1,018/3,407 passed (29.88%)**, **13 result failures**, **2,376 export/harness rejections**,
+zero Rust generator rejections, zero Rust build errors, zero Rust execution errors. All 3,407 unique
+case identities have terminal outcomes. Rejections comprise 2,351 unsupported-profile exports,
+17 unsupported direct invocations, five unsupported values, two invalid artifacts, and one invalid source.
+CL2: 110/116 passed with six failures. CL3: 908/3,291 passed.
+
+Against the strict 3,407-case baseline (995 passes), there are **23 newly passing cases and zero
+regressions**: all 21 cases in `0058-feel-number-function`, plus two cases in `1160-multiple-imports`.
+The earlier 1,008/3,391 result used blanket numeric rounding and is not directly comparable.
+Thirteen mismatches remain in loan/payment calculations (12) and fractional exponentiation (one).
+For example, the loan result is `2778.693549432766768088520383236288` versus expected
+`2778.69354943277`. Determine authoritative TCK numeric comparison rules and the runtime's numerical
+semantics; do not round runtime outputs merely to imitate expected fixture literals.
+
+Evidence (local, not published):
+
+- `target/rust-tck-number-3407-2026-11-17/{manifest.tsv,rust-tck-accounting.tsv,summary.json,provenance.json}`.
+- `target/rust-tck-number-3407-2026-11-17/rust-batch-001.log` through `rust-batch-031.log`.
+- `target/rust-tck-number-3407-{export,run}-2026-11-17.log`.
+- Strict baseline: `target/rust-tck-3407-2026-11-17/rust-tck-accounting.tsv`.
+- `target/dmnir-number-focused-final-2026-11-17.log`: one compiler/adapter test, six discovery tests,
+  and two value-reader tests passed. The malformed-XML diagnostic is expected in a passing rejection test.
+- Three Rust runner tests passed after the final source edit. The generated-runtime artifact regression
+  passed, including two inner tests for number parsing and literal replacement. A preceding 27-test
+  artifact run also passed; the final full run uses the latest generated runtime.
+
+Reproduction commands (reuse the recorded classpath; new audit output directories are required):
+
+```powershell
+java '@target/rust-tck-number-3407-2026-11-17.args'
+& dmn-generator-rust/target/debug/dmn-rust-tck-runner.exe target/rust-tck-number-3407-2026-11-17
+cargo test --locked --offline --manifest-path dmn-generator-rust/Cargo.toml --bin dmn-rust-tck-runner
+cargo test --locked --offline --manifest-path dmn-generator-rust/Cargo.toml --test artifact generated_literal_replacement
+```
+
+The exporter now rejects an unexpected denominator or invalid catalogue entry instead of silently
+producing an incomplete full-suite inventory. The exact Java classpath and changed-source hashes
+are retained with the audit. No release version, remote push, or publication was performed.
+Usage accounting is unavailable. Spark native/fallback routing is not measured by these Rust runs;
+other backend full-suite revalidation remains outstanding.
+
+Next: resolve the numerical comparison/semantics questions and expand rejected expressions/types
+using the current manifest. Arithmetic (794 rejected cases), membership (192), instance-of (142),
+and temporal functions are large remaining suites; these counts are not independent projected gains.

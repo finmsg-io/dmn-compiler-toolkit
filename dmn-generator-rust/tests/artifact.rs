@@ -282,6 +282,59 @@ fn exact_integer_powers_match_java() {
     );
 }
 
+#[test]
+fn generated_literal_replacement_handles_unicode_and_empty_patterns() {
+    let directory = scratch("literal-replacement");
+    let artifact = directory.join("input.dmnir");
+    fs::write(&artifact, include_bytes!("fixtures/builtins-0.9.dmnir")).unwrap();
+    let output = directory.join("crate");
+    assert!(
+        Command::new(GENERATOR)
+            .args([&artifact, &output])
+            .status()
+            .unwrap()
+            .success()
+    );
+    let lib = output.join("lib.rs");
+    let mut source = fs::read_to_string(&lib).unwrap();
+    source.push_str(
+        r#"
+#[cfg(test)] mod replacement_regressions {
+    use super::*;
+
+    #[test] fn number_text_preserves_decimal_precision() {
+        let text = |s: &str| Value::Text(s.into());
+        assert_eq!(builtin_number_from_string(text("9.007.199.254.740.993,0001"), text("."), text(",")),
+            Value::Number { coefficient: "90071992547409930001".into(), scale: 4 });
+        assert_eq!(builtin_number_from_string(text(" -001.25e2 "), Value::Null, Value::Null),
+            Value::Number { coefficient: "-125".into(), scale: 0 });
+        for bad in ["", ".", "1.2.3", "NaN", "Infinity", "1e2147483647"] {
+            assert_eq!(builtin_number_from_string(text(bad), Value::Null, Value::Null), Value::Null);
+        }
+        assert_eq!(builtin_number_from_string(text("1,234"), text(","), text(",")), Value::Null);
+    }
+    #[test] fn literal_case_insensitive_replacement() {
+        assert_eq!(feel_replace_impl("\u{130}x", "x", "!", "qi"), Some("\u{130}!".into()));
+        assert_eq!(feel_replace_impl("aA", "A", "$1", "qi"), Some("$1$1".into()));
+        assert_eq!(feel_replace_impl("abc", "", "!", "qi"), None);
+        assert_eq!(feel_replace_impl("", "", "!", "q"), None);
+    }
+}
+"#,
+    );
+    fs::write(lib, source).unwrap();
+    let result = Command::new(env!("CARGO"))
+        .args(["test", "--offline", "--quiet"])
+        .current_dir(output)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+}
+
 fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
     let directory = scratch(label);
     let artifact = directory.join("input.dmnir");
