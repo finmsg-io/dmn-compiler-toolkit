@@ -273,3 +273,241 @@ fn padded(digits: &str, width: usize) -> impl Iterator<Item = u8> + '_ {
         .bytes()
         .chain(std::iter::repeat_n(b'0', width - digits.len()))
 }
+
+fn string_concat(left: Value, right: Value) -> Value {
+    match (left, right) {
+        (Value::Text(mut a), Value::Text(b)) => {
+            a.push_str(&b);
+            Value::Text(a)
+        }
+        _ => Value::Null,
+    }
+}
+
+fn to_integer(coefficient: &str, scale: i32) -> Option<i64> {
+    if coefficient == "0" || coefficient == "-0" {
+        return Some(0);
+    }
+    let is_neg = coefficient.starts_with('-');
+    let digits = coefficient.trim_start_matches('-');
+    if scale <= 0 {
+        let mut s = String::new();
+        if is_neg {
+            s.push('-');
+        }
+        s.push_str(digits);
+        for _ in 0..(-scale) {
+            s.push('0');
+        }
+        s.parse::<i64>().ok()
+    } else {
+        let places = scale as usize;
+        if digits.len() <= places {
+            if digits.bytes().all(|b| b == b'0') {
+                Some(0)
+            } else {
+                None
+            }
+        } else {
+            let split = digits.len() - places;
+            if digits.as_bytes()[split..].iter().all(|&b| b == b'0') {
+                let mut s = String::new();
+                if is_neg {
+                    s.push('-');
+                }
+                s.push_str(&digits[..split]);
+                s.parse::<i64>().ok()
+            } else {
+                None
+            }
+        }
+    }
+}
+
+fn trim_decimal_precision(val: Value, max_prec: usize) -> Value {
+    let Value::Number {
+        mut coefficient,
+        mut scale,
+    } = val
+    else {
+        return val;
+    };
+    while coefficient.len() > 1 && coefficient.ends_with('0') && scale > 0 {
+        coefficient.pop();
+        scale -= 1;
+    }
+    let is_neg = coefficient.starts_with('-');
+    let digits = coefficient.trim_start_matches('-');
+    if digits.len() <= max_prec {
+        return Value::Number { coefficient, scale };
+    }
+    let excess = digits.len() - max_prec;
+    let keep = &digits[..max_prec];
+    let next_digit = digits.as_bytes()[max_prec];
+    scale -= excess as i32;
+    let round_up = next_digit >= b'5';
+    if round_up {
+        let mut bytes = keep.as_bytes().to_vec();
+        let mut carry = true;
+        for b in bytes.iter_mut().rev() {
+            if *b == b'9' {
+                *b = b'0';
+            } else {
+                *b += 1;
+                carry = false;
+                break;
+            }
+        }
+        let mut res = String::new();
+        if is_neg {
+            res.push('-');
+        }
+        if carry {
+            res.push('1');
+            scale += 1;
+        }
+        res.push_str(std::str::from_utf8(&bytes).unwrap());
+        Value::Number {
+            coefficient: res,
+            scale,
+        }
+    } else {
+        let mut res = String::new();
+        if is_neg {
+            res.push('-');
+        }
+        res.push_str(keep);
+        Value::Number {
+            coefficient: res,
+            scale,
+        }
+    }
+}
+
+fn to_f64(coef: &str, scale: i32) -> Option<f64> {
+    let mut s = String::new();
+    let is_neg = coef.starts_with('-');
+    let digits = coef.trim_start_matches('-');
+    if is_neg {
+        s.push('-');
+    }
+    if scale <= 0 {
+        s.push_str(digits);
+        for _ in 0..(-scale) {
+            s.push('0');
+        }
+    } else {
+        let places = scale as usize;
+        if places >= digits.len() {
+            s.push_str("0.");
+            for _ in 0..(places - digits.len()) {
+                s.push('0');
+            }
+            s.push_str(digits);
+        } else {
+            let split = digits.len() - places;
+            s.push_str(&digits[..split]);
+            s.push('.');
+            s.push_str(&digits[split..]);
+        }
+    }
+    s.parse::<f64>().ok()
+}
+
+fn from_f64(val: f64) -> Value {
+    if !val.is_finite() {
+        return Value::Null;
+    }
+    let s = format!("{val:.15}");
+    let s = s.trim_end_matches('0');
+    let s = if s.ends_with('.') {
+        s.trim_end_matches('.')
+    } else {
+        s
+    };
+    if let Some(dot) = s.find('.') {
+        let scale = (s.len() - dot - 1) as i32;
+        let mut coef = String::with_capacity(s.len() - 1);
+        coef.push_str(&s[..dot]);
+        coef.push_str(&s[dot + 1..]);
+        Value::Number {
+            coefficient: coef,
+            scale,
+        }
+    } else {
+        Value::Number {
+            coefficient: s.to_string(),
+            scale: 0,
+        }
+    }
+}
+
+fn power(left: Value, right: Value) -> Value {
+    let (
+        Value::Number {
+            coefficient: left_coef,
+            scale: left_scale,
+        },
+        Value::Number {
+            coefficient: right_coef,
+            scale: right_scale,
+        },
+    ) = (&left, &right)
+    else {
+        return Value::Null;
+    };
+    if let Some(exp) = to_integer(right_coef, *right_scale) {
+        if exp == 0 {
+            return Value::Number {
+                coefficient: "1".into(),
+                scale: 0,
+            };
+        }
+        let (positive_exp, invert) = if exp < 0 {
+            (exp.unsigned_abs(), true)
+        } else {
+            (exp as u64, false)
+        };
+        let mut base = left.clone();
+        let mut e = positive_exp;
+        let mut acc = Value::Number {
+            coefficient: "1".into(),
+            scale: 0,
+        };
+        while e > 0 {
+            if e % 2 == 1 {
+                acc = multiply(acc, base.clone());
+                acc = trim_decimal_precision(acc, 34);
+            }
+            e /= 2;
+            if e > 0 {
+                base = multiply(base.clone(), base);
+                base = trim_decimal_precision(base, 34);
+            }
+        }
+        if invert {
+            divide(
+                Value::Number {
+                    coefficient: "1".into(),
+                    scale: 0,
+                },
+                acc,
+            )
+        } else {
+            acc
+        }
+    } else {
+        let base_f = to_f64(left_coef, *left_scale);
+        let exp_f = to_f64(right_coef, *right_scale);
+        if let (Some(b), Some(e)) = (base_f, exp_f) {
+            let res = b.powf(e);
+            if res.is_finite() {
+                from_f64(res)
+            } else {
+                Value::Null
+            }
+        } else {
+            Value::Null
+        }
+    }
+}

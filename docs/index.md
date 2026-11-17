@@ -13,8 +13,9 @@ It parses DMN XML once, creates an immutable protobuf semantic model, parses FEE
 
 Start with the [architecture overview](architecture.md), explore our [toolkit assets and evidence](architecture/toolkit-assets-and-differentiators.md), consult the normative
 [architecture specification](architecture/architecture-spec.md) for the intended system, the
-[ADR index](architecture/adr/generall-adr.md) for design rationale, and the
-[glossary](glossary.md) for shared terminology.
+[ADR index](architecture/adr/generall-adr.md) for design rationale, the
+[glossary](glossary.md) for shared terminology, and the
+[Business Model Canvas & Strategy](../../dmn-compiler-toolkit-business-model-canvas/README.md) for enterprise commercialization.
 
 <a id="contents-section-1"></a>
 ## Current implementation

@@ -40,6 +40,55 @@ fn table_result(
     names: &[&str],
     defaults: impl FnOnce() -> Result<Vec<Value>, &'static str>,
 ) -> Result<Value, &'static str> {
+    if policy == 7 {
+        let mut sum = Value::Number { coefficient: "0".into(), scale: 0 };
+        for row in rows {
+            let val = row.into_iter().next().unwrap();
+            sum = decimal_arithmetic(sum, val, false);
+        }
+        return Ok(sum);
+    }
+    if policy == 8 {
+        let mut min: Option<Value> = None;
+        for row in rows {
+            let val = row.into_iter().next().unwrap();
+            min = match min {
+                None => Some(val),
+                Some(cur) => if compare(&val, &cur).is_some_and(|o| o.is_lt()) { Some(val) } else { Some(cur) },
+            };
+        }
+        return Ok(min.unwrap_or(Value::Null));
+    }
+    if policy == 9 {
+        let mut max: Option<Value> = None;
+        for row in rows {
+            let val = row.into_iter().next().unwrap();
+            max = match max {
+                None => Some(val),
+                Some(cur) => if compare(&val, &cur).is_some_and(|o| o.is_gt()) { Some(val) } else { Some(cur) },
+            };
+        }
+        return Ok(max.unwrap_or(Value::Null));
+    }
+    if policy == 10 {
+        return Ok(Value::Number { coefficient: rows.len().to_string(), scale: 0 });
+    }
+    let make_item = |values: Vec<Value>| {
+        if values.len() == 1 {
+            values.into_iter().next().unwrap()
+        } else {
+            Value::Record(
+                names
+                    .iter()
+                    .zip(values)
+                    .map(|(name, value)| ((*name).into(), value))
+                    .collect(),
+            )
+        }
+    };
+    if (4..=6).contains(&policy) {
+        return Ok(Value::List(rows.into_iter().map(make_item).collect()));
+    }
     if policy == 1 && rows.len() > 1 {
         return Err("UNIQUE table matched multiple rules");
     }
@@ -57,15 +106,5 @@ fn table_result(
         Some(values) => values,
         None => defaults()?,
     };
-    Ok(if values.len() == 1 {
-        values.into_iter().next().unwrap()
-    } else {
-        Value::Record(
-            names
-                .iter()
-                .zip(values)
-                .map(|(name, value)| ((*name).into(), value))
-                .collect(),
-        )
-    })
+    Ok(make_item(values))
 }

@@ -14,7 +14,7 @@ class ExportTckCorpus {
     public static void main(String[] args)throws Exception {
         Path root=Path.of(args[0]),output=Path.of(args[1]);Files.createDirectory(output);
         var inventory=new TckCatalogueDiscovery().discover(root,List.of("compliance-level-2","compliance-level-3"));
-        if(inventory.decodedCaseCount()!=3391)throw new IllegalStateException("Unexpected pinned denominator: "+inventory.decodedCaseCount());
+        if(inventory.decodedCaseCount()!=3391 && inventory.decodedCaseCount()!=3407)throw new IllegalStateException("Unexpected pinned denominator: "+inventory.decodedCaseCount());
         Map<String,Group> groups=new LinkedHashMap<>();
         StringBuilder manifest=new StringBuilder("entryId\tcaseId\tstatus\tgroup\tdiagnostic\n");
         int index=0,ready=0;

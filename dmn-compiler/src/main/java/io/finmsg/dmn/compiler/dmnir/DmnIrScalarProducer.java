@@ -105,8 +105,11 @@ public final class DmnIrScalarProducer {
 					var decision = decisions.get(slot);
 					if (decision.decisionTable().isPresent() || decision.expression().isEmpty())
 						throw unsupported(address);
+					var decType = decision.type().kind() != io.finmsg.dmn.ir.RuntimeTypeKind.ANY
+							? decision.type()
+							: decision.expression().orElseThrow().type();
 					var wire = DmnIrDecision.newBuilder().setIdentity(identity(sourceDecision.getNode()))
-							.setVariable(variable(sourceDecision.getVariable(), decision.type(), address))
+							.setVariable(variable(sourceDecision.getVariable(), decType, address))
 							.setExpression(expression(decision.expression().orElseThrow(), addresses, address, 1));
 					decision.dependencies().stream().map(addresses::get).sorted(REFERENCE_ORDER)
 							.forEach(wire::addDependencies);
@@ -173,10 +176,11 @@ public final class DmnIrScalarProducer {
 
 	private static DmnIrScalarType type(RuntimeType type, DmnIrReference address) {
 		return switch (type.kind()) {
-			case NULL -> DmnIrScalarType.SCALAR_TYPE_NULL;
+			case NULL, ANY -> DmnIrScalarType.SCALAR_TYPE_NULL;
 			case BOOLEAN -> DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
 			case NUMBER -> DmnIrScalarType.SCALAR_TYPE_NUMBER;
 			case STRING -> DmnIrScalarType.SCALAR_TYPE_STRING;
+			case DATE -> DmnIrScalarType.SCALAR_TYPE_DATE;
 			default -> throw unsupported(address);
 		};
 	}
@@ -235,6 +239,25 @@ public final class DmnIrScalarProducer {
 							.setElseExpression(expression(conditional.elseExpression(), addresses, address, depth + 1)))
 					.build();
 		}
+		if (expression instanceof io.finmsg.dmn.ir.RuntimeBetweenExpression between) {
+			var left = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+					.setBinary(DmnIrBinaryExpression.newBuilder()
+							.setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_GREATER_EQUAL)
+							.setLeft(expression(between.value(), addresses, address, depth + 1))
+							.setRight(expression(between.lower(), addresses, address, depth + 1)));
+			var right = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+					.setBinary(DmnIrBinaryExpression.newBuilder()
+							.setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_LESS_EQUAL)
+							.setLeft(expression(between.value(), addresses, address, depth + 1))
+							.setRight(expression(between.upper(), addresses, address, depth + 1)));
+			return output
+					.setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN).setBinary(DmnIrBinaryExpression.newBuilder()
+							.setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_AND).setLeft(left).setRight(right))
+					.build();
+		}
+		if (expression instanceof io.finmsg.dmn.ir.RuntimeInExpression in) {
+			return lowerInExpression(in, addresses, address, depth);
+		}
 		if (!(expression instanceof RuntimeConstant constant))
 			throw unsupported(address);
 		var literal = DmnIrLiteral.newBuilder();
@@ -252,15 +275,143 @@ public final class DmnIrScalarProducer {
 		return output.setLiteral(literal).build();
 	}
 
+	private static DmnIrExpression lowerInExpression(io.finmsg.dmn.ir.RuntimeInExpression in,
+			Map<Integer, DmnIrReference> addresses, DmnIrReference address, int depth) {
+		var tests = in.tests();
+		if (tests.wildcard()) {
+			var lit = DmnIrLiteral.newBuilder().setBooleanValue(!tests.negated());
+			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN).setLiteral(lit).build();
+		}
+		if (tests.tests().isEmpty()) {
+			var lit = DmnIrLiteral.newBuilder().setBooleanValue(tests.negated());
+			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN).setLiteral(lit).build();
+		}
+		DmnIrExpression disjunction = null;
+		for (var test : tests.tests()) {
+			DmnIrExpression term = lowerUnaryTest(in.value(), test, addresses, address, depth + 1);
+			if (term == null)
+				continue;
+			if (disjunction == null) {
+				disjunction = term;
+			} else {
+				disjunction = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+						.setBinary(
+								DmnIrBinaryExpression.newBuilder().setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_OR)
+										.setLeft(disjunction).setRight(term))
+						.build();
+			}
+		}
+		if (disjunction == null) {
+			var lit = DmnIrLiteral.newBuilder().setBooleanValue(tests.negated());
+			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN).setLiteral(lit).build();
+		}
+		if (tests.negated()) {
+			return DmnIrExpression
+					.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN).setUnary(DmnIrUnaryExpression
+							.newBuilder().setOperator(DmnIrUnaryOperator.UNARY_OPERATOR_NOT).setOperand(disjunction))
+					.build();
+		}
+		return disjunction;
+	}
+
+	private static DmnIrExpression lowerUnaryTest(io.finmsg.dmn.ir.RuntimeExpression value,
+			io.finmsg.dmn.ir.RuntimeUnaryTest test, Map<Integer, DmnIrReference> addresses, DmnIrReference address,
+			int depth) {
+		if (test instanceof io.finmsg.dmn.ir.RuntimeComparisonUnaryTest comp) {
+			var op = switch (comp.operator()) {
+				case EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL;
+				case NOT_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_NOT_EQUAL;
+				case LESS -> DmnIrBinaryOperator.BINARY_OPERATOR_LESS;
+				case LESS_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_LESS_EQUAL;
+				case GREATER -> DmnIrBinaryOperator.BINARY_OPERATOR_GREATER;
+				case GREATER_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_GREATER_EQUAL;
+			};
+			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+					.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(op)
+							.setLeft(expression(value, addresses, address, depth + 1))
+							.setRight(expression(comp.endpoint(), addresses, address, depth + 1)))
+					.build();
+		}
+		if (test instanceof io.finmsg.dmn.ir.RuntimeExpressionUnaryTest expr) {
+			if (expr.expression() instanceof io.finmsg.dmn.ir.RuntimeRangeExpression range) {
+				return lowerRangeTest(value, range, addresses, address, depth);
+			}
+			if (expr.expression() instanceof io.finmsg.dmn.ir.RuntimeListExpression list) {
+				DmnIrExpression disjunction = null;
+				for (var elem : list.elements()) {
+					var term = lowerUnaryTest(value, new io.finmsg.dmn.ir.RuntimeExpressionUnaryTest(elem), addresses,
+							address, depth);
+					if (term == null)
+						continue;
+					if (disjunction == null) {
+						disjunction = term;
+					} else {
+						disjunction = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+								.setBinary(DmnIrBinaryExpression.newBuilder()
+										.setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_OR).setLeft(disjunction)
+										.setRight(term))
+								.build();
+					}
+				}
+				return disjunction;
+			}
+			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+					.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL)
+							.setLeft(expression(value, addresses, address, depth + 1))
+							.setRight(expression(expr.expression(), addresses, address, depth + 1)))
+					.build();
+		}
+		if (test instanceof io.finmsg.dmn.ir.RuntimeRangeUnaryTest rangeTest) {
+			return lowerRangeTest(value, rangeTest.range(), addresses, address, depth);
+		}
+		throw unsupported(address);
+	}
+
+	private static DmnIrExpression lowerRangeTest(io.finmsg.dmn.ir.RuntimeExpression value,
+			io.finmsg.dmn.ir.RuntimeRangeExpression range, Map<Integer, DmnIrReference> addresses,
+			DmnIrReference address, int depth) {
+		DmnIrExpression lowerCheck = null;
+		if (range.lower().isPresent()) {
+			var lowerOp = range.lowerBoundary() == io.finmsg.dmn.ir.RuntimeRangeBoundary.CLOSED
+					? DmnIrBinaryOperator.BINARY_OPERATOR_GREATER_EQUAL
+					: DmnIrBinaryOperator.BINARY_OPERATOR_GREATER;
+			lowerCheck = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+					.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(lowerOp)
+							.setLeft(expression(value, addresses, address, depth + 1))
+							.setRight(expression(range.lower().get(), addresses, address, depth + 1)))
+					.build();
+		}
+		DmnIrExpression upperCheck = null;
+		if (range.upper().isPresent()) {
+			var upperOp = range.upperBoundary() == io.finmsg.dmn.ir.RuntimeRangeBoundary.CLOSED
+					? DmnIrBinaryOperator.BINARY_OPERATOR_LESS_EQUAL
+					: DmnIrBinaryOperator.BINARY_OPERATOR_LESS;
+			upperCheck = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+					.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(upperOp)
+							.setLeft(expression(value, addresses, address, depth + 1))
+							.setRight(expression(range.upper().get(), addresses, address, depth + 1)))
+					.build();
+		}
+		if (lowerCheck != null && upperCheck != null) {
+			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+					.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_AND)
+							.setLeft(lowerCheck).setRight(upperCheck))
+					.build();
+		}
+		if (lowerCheck != null)
+			return lowerCheck;
+		if (upperCheck != null)
+			return upperCheck;
+		return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+				.setLiteral(DmnIrLiteral.newBuilder().setBooleanValue(true)).build();
+	}
+
 	private static void sourceAdmission(com.google.protobuf.Message message, DmnIrReference address, int depth) {
 		if (depth > 64)
 			throw unsupported(address);
 		if (message instanceof Expression expression) {
-			if (!expression.hasLiteral() && !expression.hasName() && expression.getInferredType().hasBuiltin()
-					&& expression.getInferredType().getBuiltin() == BuiltinType.BUILTIN_TYPE_NULL)
-				throw unsupported(address);
 			boolean admitted = switch (expression.getNodeCase()) {
-				case LITERAL, NAME, PATH, UNARY, BINARY, IF_EXPRESSION -> true;
+				case LITERAL, NAME, PATH, UNARY, BINARY, IF_EXPRESSION, BETWEEN, IN -> true;
 				case INVOCATION -> expression.getInvocation().getTarget().hasName()
 						&& expression.getInvocation().getTarget().getName().getName().equals("not")
 						&& expression.getInvocation().getPositionalArgumentsCount() == 1

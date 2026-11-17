@@ -27,7 +27,7 @@ impl ExpressionEmitter<'_, '_> {
     }
 
     pub(super) fn table(&mut self, table: &DmnIrDecisionTable, ty: Type) -> Check<Emitted> {
-        if !(1..=3).contains(&table.hit_policy) {
+        if !(1..=10).contains(&table.hit_policy) {
             return Err("unsupported table hit policy");
         }
         if table.inputs.is_empty() || table.outputs.is_empty() || table.rules.is_empty() {
@@ -43,15 +43,32 @@ impl ExpressionEmitter<'_, '_> {
             let value = self.cell(input.expression.as_ref(), input_type, &mut cells)?;
             write!(source, "let t{index} = {value}; ").unwrap();
         }
-        let fields = match ty {
-            Type::Scalar(_) if table.outputs.len() == 1 => Vec::new(),
-            Type::Record(index)
-                if table.outputs.len() > 1
-                    && self.types.records[index].fields.len() == table.outputs.len() =>
-            {
-                self.types.records[index].fields.clone()
+        let is_multi_hit = (4..=6).contains(&table.hit_policy);
+        let fields = if is_multi_hit {
+            match ty {
+                Type::Collection(col_index) => match self.types.collections[col_index] {
+                    Type::Scalar(_) if table.outputs.len() == 1 => Vec::new(),
+                    Type::Record(rec_index)
+                        if table.outputs.len() > 1
+                            && self.types.records[rec_index].fields.len() == table.outputs.len() =>
+                    {
+                        self.types.records[rec_index].fields.clone()
+                    }
+                    _ => return Err("multi-hit table item shape mismatch"),
+                },
+                _ => return Err("multi-hit table requires collection type"),
             }
-            _ => return Err("table result shape mismatch"),
+        } else {
+            match ty {
+                Type::Scalar(_) if table.outputs.len() == 1 => Vec::new(),
+                Type::Record(index)
+                    if table.outputs.len() > 1
+                        && self.types.records[index].fields.len() == table.outputs.len() =>
+                {
+                    self.types.records[index].fields.clone()
+                }
+                _ => return Err("table result shape mismatch"),
+            }
         };
         let mut defaults = Vec::new();
         let mut output_cells = Vec::new();
@@ -61,8 +78,16 @@ impl ExpressionEmitter<'_, '_> {
                 nonempty(name)?;
             }
             let output_type = Type::Scalar(crate::types::scalar_type(output.r#type, true)?);
+            let expected_scalar = if is_multi_hit {
+                match ty {
+                    Type::Collection(col_index) => self.types.collections[col_index],
+                    _ => ty,
+                }
+            } else {
+                ty
+            };
             if fields.is_empty() {
-                if output_type != ty {
+                if output_type != expected_scalar {
                     return Err("table output type mismatch");
                 }
             } else if output.name.as_deref() != Some(fields[index].0)

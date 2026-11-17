@@ -108,6 +108,7 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Model, 7) => (Nested(Collection), true, false),
         (Collection, 1) => (Nested(Identity), false, false),
         (Collection, 2) => (Integer, false, false),
+        (Collection, 3) => (Nested(Reference), false, false),
         (Variable, 5) | (Expression, 11) => (Nested(Reference), false, false),
         (TypeReference, 3) => (Nested(Reference), false, true),
         (Expression, 14) => (Nested(Builtin), false, true),

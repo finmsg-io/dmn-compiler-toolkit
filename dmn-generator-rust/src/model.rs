@@ -76,15 +76,15 @@ mod tests {
         conditional.else_expression = Some(Box::new(DmnIrExpression {
             r#type: DmnIrScalarType::ScalarTypeNumber as i32,
             node: Some(Node::Binary(Box::new(DmnIrBinaryExpression {
-                operator: DmnIrBinaryOperator::BinaryOperatorPower as i32,
-                left: original.clone(),
+                operator: DmnIrBinaryOperator::BinaryOperatorMultiply as i32,
+                left: conditional.condition.clone(),
                 right: original,
             }))),
             ..Default::default()
         }));
         assert_eq!(
             verify_and_generate(&artifact),
-            Err("power requires bounded constant integer operands")
+            Err("unsupported binary signature")
         );
 
         let conditional = selected(&mut artifact);
@@ -660,9 +660,9 @@ mod tests {
             (
                 |c| {
                     c.arguments[0] = DmnIrExpression {
-                        r#type: 1,
+                        r#type: 2,
                         node: Some(Node::Literal(DmnIrLiteral {
-                            value: Some(Value::NullValue(0)),
+                            value: Some(Value::BooleanValue(true)),
                         })),
                         ..Default::default()
                     }
@@ -1128,8 +1128,8 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         source.push_str(include_str!("generated_tables.rs.txt"));
     }
     source.push_str("fn collection_element(index: usize) -> Type { match index {\n");
-    for (index, scalar) in types.collections.iter().enumerate() {
-        writeln!(source, "{index} => Type::Scalar({}),", *scalar as i32).unwrap();
+    for (index, item_type) in types.collections.iter().enumerate() {
+        writeln!(source, "{index} => {},", item_type.source()).unwrap();
     }
     source.push_str("_ => unreachable!(\"verified collection index\"), } }\n");
     if version.minor >= Some(8) {
@@ -1434,6 +1434,25 @@ impl ExpressionEmitter<'_, '_> {
                         1 => (&[Number], Number, "builtin_abs"),
                         2 => (&[Text], Number, "builtin_string_length"),
                         3 => (&[Text, Text], Boolean, "builtin_contains"),
+                        4 => (&[Number, Number], Number, "builtin_modulo"),
+                        5 => (&[Number, Number], Number, "builtin_floor"),
+                        6 => (&[Number, Number], Number, "builtin_ceiling"),
+                        7 => (&[Number], Boolean, "builtin_even"),
+                        8 => (&[Number], Boolean, "builtin_odd"),
+                        9 => (&[Number, Number], Number, "builtin_decimal"),
+                        10 => (&[Number, Number], Number, "builtin_round_up"),
+                        11 => (&[Number, Number], Number, "builtin_round_down"),
+                        12 => (&[Number, Number], Number, "builtin_round_half_up"),
+                        13 => (&[Number, Number], Number, "builtin_round_half_down"),
+                        14 => (&[Text], Text, "builtin_upper_case"),
+                        15 => (&[Text], Text, "builtin_lower_case"),
+                        16 => (&[Text, Number, Number], Text, "builtin_substring"),
+                        17 => (&[Text, Text], Text, "builtin_substring_before"),
+                        18 => (&[Text, Text], Text, "builtin_substring_after"),
+                        19 => (&[Text, Text], Boolean, "builtin_starts_with"),
+                        20 => (&[Text, Text], Boolean, "builtin_ends_with"),
+                        21 => (&[Text, Text, Text], Boolean, "builtin_matches"),
+                        22 => (&[Text, Text, Text, Text], Text, "builtin_replace"),
                         _ => return Err("unsupported builtin operation"),
                     };
                 if ty != result {
@@ -1445,7 +1464,7 @@ impl ExpressionEmitter<'_, '_> {
                 let mut arguments = Vec::new();
                 for (argument, parameter) in call.arguments.iter().zip(parameters) {
                     let emitted = self.expression(argument)?;
-                    if emitted.ty != *parameter {
+                    if !assignable(emitted.ty, *parameter) {
                         return Err("builtin argument type mismatch");
                     }
                     depth = depth.max(emitted.depth);
@@ -1479,7 +1498,7 @@ impl ExpressionEmitter<'_, '_> {
                 self.locals.insert(
                     id.to_owned(),
                     Emitted {
-                        ty: self.types.collections[index].into(),
+                        ty: self.types.collections[index],
                         value: format!("f{slot}.clone()"),
                         depth: source.depth,
                         bounds: source.bounds,
@@ -1701,11 +1720,20 @@ impl ExpressionEmitter<'_, '_> {
                 depth = left_depth.max(right_depth);
                 let logical =
                     matches!(left_type, Type::Scalar(_)) && matches!(right_type, Type::Scalar(_));
-                let ordered = left_type == right_type
-                    && (left_type == Number
-                        || left_type == Text
-                        || self.dates && left_type == DmnIrScalarType::ScalarTypeDate);
-                let numeric = ty == Number && left_type == Number && right_type == Number;
+                let null_ty = DmnIrScalarType::ScalarTypeNull;
+                let is_orderable = |t: Type| {
+                    t == Number
+                        || t == Text
+                        || (self.dates && t == DmnIrScalarType::ScalarTypeDate)
+                        || t == null_ty
+                };
+                let ordered = (left_type == right_type && is_orderable(left_type))
+                    || (left_type == null_ty && is_orderable(right_type))
+                    || (right_type == null_ty && is_orderable(left_type));
+                let is_null_arithmetic = (ty == Number || ty == null_ty)
+                    && (left_type == Number || left_type == null_ty)
+                    && (right_type == Number || right_type == null_ty);
+                let numeric = is_null_arithmetic;
                 match DmnIrBinaryOperator::try_from(binary.operator) {
                     Ok(op @ (BinaryOperatorAdd | BinaryOperatorSubtract)) if numeric => {
                         depth += 1;
@@ -1740,15 +1768,23 @@ impl ExpressionEmitter<'_, '_> {
                         }
                         format!("divide({left}, {right})")
                     }
+                    Ok(BinaryOperatorAdd)
+                        if ty == Text && left_type == Text && right_type == Text =>
+                    {
+                        format!("string_concat({left}, {right})")
+                    }
                     Ok(BinaryOperatorPower) if numeric => {
-                        let (coefficient, scale) = crate::power::constant_power(
+                        if let Ok((coefficient, scale)) = crate::power::constant_power(
                             binary.left.as_deref().unwrap(),
                             binary.right.as_deref().unwrap(),
-                        )?;
-                        bounds = Some(NumericBounds::literal(&coefficient, scale));
-                        format!(
-                            "Value::Number {{ coefficient: {coefficient:?}.into(), scale: {scale} }}"
-                        )
+                        ) {
+                            bounds = Some(NumericBounds::literal(&coefficient, scale));
+                            format!(
+                                "Value::Number {{ coefficient: {coefficient:?}.into(), scale: {scale} }}"
+                            )
+                        } else {
+                            format!("power({left}, {right})")
+                        }
                     }
                     _ if ty != Boolean => return Err("unsupported binary signature"),
                     Ok(BinaryOperatorEqual)

@@ -7,6 +7,7 @@ fn builtin_abs(value: Value) -> Value {
         _ => Value::Null,
     }
 }
+
 fn builtin_string_length(value: Value) -> Value {
     match value {
         Value::Text(text) => Value::Number {
@@ -16,9 +17,1040 @@ fn builtin_string_length(value: Value) -> Value {
         _ => Value::Null,
     }
 }
+
 fn builtin_contains(text: Value, needle: Value) -> Value {
     match (text, needle) {
         (Value::Text(text), Value::Text(needle)) => Value::Boolean(text.contains(&needle)),
         _ => Value::Null,
+    }
+}
+
+#[derive(Clone, Copy)]
+enum RoundMode {
+    Floor,
+    Ceiling,
+    Up,
+    Down,
+    HalfUp,
+    HalfDown,
+    HalfEven,
+}
+
+fn round_with_mode(coefficient: &str, scale: i32, target_scale: i32, mode: RoundMode) -> Value {
+    if target_scale < -6111 || target_scale > 6176 {
+        return Value::Null;
+    }
+    let negative = coefficient.starts_with('-');
+    let raw_digits = coefficient.trim_start_matches('-');
+    let d = scale - target_scale;
+    if d <= 0 {
+        let is_zero = raw_digits == "0" || raw_digits.chars().all(|c| c == '0');
+        let coeff = if is_zero {
+            "0".to_string()
+        } else {
+            let mut digits = raw_digits.to_string();
+            for _ in 0..(-d) {
+                digits.push('0');
+            }
+            let mut c = String::new();
+            if negative {
+                c.push('-');
+            }
+            c.push_str(digits.trim_start_matches('0'));
+            c
+        };
+        return Value::Number {
+            coefficient: coeff,
+            scale: target_scale,
+        };
+    }
+
+    let mut digits: Vec<u8> = raw_digits.bytes().collect();
+    let needed_len = if d > 0 { d as usize + 1 } else { 1 };
+    let min_len = if scale >= 0 { (scale as usize + 1).max(needed_len) } else { needed_len };
+    if digits.len() < min_len {
+        let pad = min_len - digits.len();
+        let mut padded = vec![b'0'; pad];
+        padded.extend_from_slice(&digits);
+        digits = padded;
+    }
+
+    let cut = digits.len() - d as usize;
+    let mut retained = digits[..cut].to_vec();
+    let discarded = &digits[cut..];
+    let round_digit = discarded[0] - b'0';
+    let has_trailing = discarded[1..].iter().any(|&b| b != b'0');
+    let last_digit = retained.last().map(|&b| b - b'0').unwrap_or(0);
+
+    let inc = match mode {
+        RoundMode::Floor => negative && (round_digit > 0 || has_trailing),
+        RoundMode::Ceiling => (!negative) && (round_digit > 0 || has_trailing),
+        RoundMode::Up => round_digit > 0 || has_trailing,
+        RoundMode::Down => false,
+        RoundMode::HalfUp => round_digit > 5 || round_digit == 5,
+        RoundMode::HalfDown => round_digit > 5 || (round_digit == 5 && has_trailing),
+        RoundMode::HalfEven => {
+            if round_digit > 5 {
+                true
+            } else if round_digit == 5 {
+                has_trailing || (last_digit % 2 != 0)
+            } else {
+                false
+            }
+        }
+    };
+
+    if inc {
+        let mut carry = true;
+        for byte in retained.iter_mut().rev() {
+            let val = *byte - b'0' + 1;
+            if val < 10 {
+                *byte = b'0' + val;
+                carry = false;
+                break;
+            } else {
+                *byte = b'0';
+            }
+        }
+        if carry {
+            retained.insert(0, b'1');
+        }
+    }
+
+    let non_zero_idx = retained.iter().position(|&b| b != b'0');
+    let trimmed = match non_zero_idx {
+        Some(idx) => &retained[idx..],
+        None => &[b'0'],
+    };
+    let is_zero = trimmed == [b'0'];
+    let mut coeff = String::with_capacity(trimmed.len() + 1);
+    if negative && !is_zero {
+        coeff.push('-');
+    }
+    for &b in trimmed {
+        coeff.push(b as char);
+    }
+    Value::Number {
+        coefficient: coeff,
+        scale: target_scale,
+    }
+}
+
+fn round_builtin_helper(n: Value, scale_val: Value, mode: RoundMode) -> Value {
+    let (
+        Value::Number {
+            coefficient,
+            scale,
+        },
+        Value::Number {
+            coefficient: scale_coeff,
+            scale: scale_s,
+        },
+    ) = (n, scale_val)
+    else {
+        return Value::Null;
+    };
+    let target_scale = if scale_s == 0 {
+        scale_coeff.parse::<i32>().ok()
+    } else {
+        if let Value::Number { coefficient: c, scale: s } = round_with_mode(&scale_coeff, scale_s, 0, RoundMode::HalfEven) {
+            if s == 0 {
+                c.parse::<i32>().ok()
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    };
+    let Some(target_scale) = target_scale else {
+        return Value::Null;
+    };
+    round_with_mode(&coefficient, scale, target_scale, mode)
+}
+
+fn builtin_floor(n: Value, scale_val: Value) -> Value {
+    round_builtin_helper(n, scale_val, RoundMode::Floor)
+}
+
+fn builtin_ceiling(n: Value, scale_val: Value) -> Value {
+    round_builtin_helper(n, scale_val, RoundMode::Ceiling)
+}
+
+fn builtin_decimal(n: Value, scale_val: Value) -> Value {
+    round_builtin_helper(n, scale_val, RoundMode::HalfEven)
+}
+
+fn builtin_round_up(n: Value, scale_val: Value) -> Value {
+    round_builtin_helper(n, scale_val, RoundMode::Up)
+}
+
+fn builtin_round_down(n: Value, scale_val: Value) -> Value {
+    round_builtin_helper(n, scale_val, RoundMode::Down)
+}
+
+fn builtin_round_half_up(n: Value, scale_val: Value) -> Value {
+    round_builtin_helper(n, scale_val, RoundMode::HalfUp)
+}
+
+fn builtin_round_half_down(n: Value, scale_val: Value) -> Value {
+    round_builtin_helper(n, scale_val, RoundMode::HalfDown)
+}
+
+fn builtin_modulo(dividend: Value, divisor: Value) -> Value {
+    let quot = divide(dividend.clone(), divisor.clone());
+    if quot == Value::Null {
+        return Value::Null;
+    }
+    let fl = builtin_floor(quot, Value::Number { coefficient: "0".into(), scale: 0 });
+    if fl == Value::Null {
+        return Value::Null;
+    }
+    let prod = multiply(divisor, fl);
+    if prod == Value::Null {
+        return Value::Null;
+    }
+    decimal_arithmetic(dividend, prod, true)
+}
+
+fn is_even_number(val: Value) -> Option<bool> {
+    let Value::Number { coefficient, scale } = val else {
+        return None;
+    };
+    let raw = coefficient.trim_start_matches('-');
+    if scale > 0 {
+        let s = scale as usize;
+        if raw.len() <= s {
+            if raw.bytes().any(|b| b != b'0') {
+                return None;
+            }
+            return Some(true);
+        } else {
+            let (int_part, frac_part) = raw.split_at(raw.len() - s);
+            if frac_part.bytes().any(|b| b != b'0') {
+                return None;
+            }
+            let last_byte = int_part.bytes().last().unwrap_or(b'0');
+            let digit = last_byte - b'0';
+            return Some(digit % 2 == 0);
+        }
+    } else {
+        if scale < 0 {
+            return Some(true);
+        }
+        let last_byte = raw.bytes().last().unwrap_or(b'0');
+        let digit = last_byte - b'0';
+        return Some(digit % 2 == 0);
+    }
+}
+
+fn builtin_even(value: Value) -> Value {
+    match is_even_number(value) {
+        Some(even) => Value::Boolean(even),
+        None => Value::Null,
+    }
+}
+
+fn builtin_odd(value: Value) -> Value {
+    match is_even_number(value) {
+        Some(even) => Value::Boolean(!even),
+        None => Value::Null,
+    }
+}
+
+fn builtin_upper_case(val: Value) -> Value {
+    match val {
+        Value::Text(s) => Value::Text(s.to_uppercase()),
+        _ => Value::Null,
+    }
+}
+
+fn builtin_lower_case(val: Value) -> Value {
+    match val {
+        Value::Text(s) => Value::Text(s.to_lowercase()),
+        _ => Value::Null,
+    }
+}
+
+fn builtin_substring(string: Value, start: Value, length: Value) -> Value {
+    let Value::Text(s) = string else { return Value::Null; };
+    let Value::Number { coefficient: start_c, scale: start_s } = start else { return Value::Null; };
+    let Some(start_pos) = to_integer(&start_c, start_s).or_else(|| {
+        to_f64(&start_c, start_s).map(|f| f as i64)
+    }) else { return Value::Null; };
+    if start_pos == 0 {
+        return Value::Null;
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let total_len = chars.len() as i64;
+    let actual_start = if start_pos > 0 {
+        start_pos - 1
+    } else {
+        total_len + start_pos
+    };
+    if actual_start < 0 || actual_start >= total_len {
+        return Value::Null;
+    }
+    let start_idx = actual_start as usize;
+
+    let sub_chars = match length {
+        Value::Null => &chars[start_idx..],
+        Value::Number { coefficient: len_c, scale: len_s } => {
+            let Some(len_val) = to_integer(&len_c, len_s).or_else(|| {
+                to_f64(&len_c, len_s).map(|f| f as i64)
+            }) else { return Value::Null; };
+            if len_val <= 0 {
+                return Value::Text(String::new());
+            }
+            let end_idx = (start_idx + len_val as usize).min(chars.len());
+            &chars[start_idx..end_idx]
+        }
+        _ => return Value::Null,
+    };
+    Value::Text(sub_chars.iter().collect())
+}
+
+fn builtin_substring_before(string: Value, match_val: Value) -> Value {
+    let (Value::Text(s), Value::Text(m)) = (string, match_val) else { return Value::Null; };
+    if m.is_empty() {
+        return Value::Text(String::new());
+    }
+    match s.find(&m) {
+        Some(pos) => Value::Text(s[..pos].to_string()),
+        None => Value::Text(String::new()),
+    }
+}
+
+fn builtin_substring_after(string: Value, match_val: Value) -> Value {
+    let (Value::Text(s), Value::Text(m)) = (string, match_val) else { return Value::Null; };
+    if m.is_empty() {
+        return Value::Text(s);
+    }
+    match s.find(&m) {
+        Some(pos) => Value::Text(s[pos + m.len()..].to_string()),
+        None => Value::Text(String::new()),
+    }
+}
+
+fn builtin_starts_with(string: Value, match_val: Value) -> Value {
+    let (Value::Text(s), Value::Text(m)) = (string, match_val) else { return Value::Null; };
+    Value::Boolean(s.starts_with(&m))
+}
+
+fn builtin_ends_with(string: Value, match_val: Value) -> Value {
+    let (Value::Text(s), Value::Text(m)) = (string, match_val) else { return Value::Null; };
+    Value::Boolean(s.ends_with(&m))
+}
+
+#[derive(Clone, Debug)]
+enum RegexAST {
+    Empty,
+    Char(char),
+    Any,
+    Class {
+        negated: bool,
+        ranges: Vec<(char, char)>,
+        chars: Vec<char>,
+        sub: Option<Box<RegexAST>>,
+    },
+    AnchorStart,
+    AnchorEnd,
+    Backref(usize),
+    Group(usize, Box<RegexAST>),
+    NonCapturing(Box<RegexAST>),
+    Concat(Vec<RegexAST>),
+    Alt(Vec<RegexAST>),
+    Repeat {
+        inner: Box<RegexAST>,
+        min: usize,
+        max: Option<usize>,
+        greedy: bool,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct RegexFlags {
+    i: bool,
+    m: bool,
+    s: bool,
+    x: bool,
+    q: bool,
+}
+
+fn parse_regex_flags(f: &str) -> Option<RegexFlags> {
+    let mut flags = RegexFlags::default();
+    for c in f.chars() {
+        match c {
+            'i' => flags.i = true,
+            'm' => flags.m = true,
+            's' => flags.s = true,
+            'x' => flags.x = true,
+            'q' => flags.q = true,
+            _ => return None,
+        }
+    }
+    Some(flags)
+}
+
+struct RegexParser {
+    chars: Vec<char>,
+    pos: usize,
+    flags: RegexFlags,
+    group_count: usize,
+}
+
+impl RegexParser {
+    fn new(pattern: &str, flags: RegexFlags) -> Self {
+        let mut chars = Vec::new();
+        if flags.x {
+            let mut in_class = false;
+            for c in pattern.chars() {
+                if c == '[' {
+                    in_class = true;
+                    chars.push(c);
+                } else if c == ']' {
+                    in_class = false;
+                    chars.push(c);
+                } else if in_class || !c.is_whitespace() {
+                    chars.push(c);
+                }
+            }
+        } else {
+            chars = pattern.chars().collect();
+        }
+        Self {
+            chars,
+            pos: 0,
+            flags,
+            group_count: 0,
+        }
+    }
+
+    fn peek(&self) -> Option<char> {
+        self.chars.get(self.pos).copied()
+    }
+
+    fn next(&mut self) -> Option<char> {
+        let c = self.chars.get(self.pos).copied();
+        if c.is_some() {
+            self.pos += 1;
+        }
+        c
+    }
+
+    fn parse(&mut self) -> Result<RegexAST, ()> {
+        let res = self.parse_alt()?;
+        if self.pos < self.chars.len() {
+            return Err(());
+        }
+        Ok(res)
+    }
+
+    fn parse_alt(&mut self) -> Result<RegexAST, ()> {
+        let mut branches = vec![self.parse_concat()?];
+        while self.peek() == Some('|') {
+            self.next();
+            branches.push(self.parse_concat()?);
+        }
+        if branches.len() == 1 {
+            Ok(branches.pop().unwrap())
+        } else {
+            Ok(RegexAST::Alt(branches))
+        }
+    }
+
+    fn parse_concat(&mut self) -> Result<RegexAST, ()> {
+        let mut pieces = Vec::new();
+        while let Some(c) = self.peek() {
+            if c == '|' || c == ')' {
+                break;
+            }
+            pieces.push(self.parse_quantified()?);
+        }
+        if pieces.is_empty() {
+            Ok(RegexAST::Empty)
+        } else if pieces.len() == 1 {
+            Ok(pieces.pop().unwrap())
+        } else {
+            Ok(RegexAST::Concat(pieces))
+        }
+    }
+
+    fn parse_quantified(&mut self) -> Result<RegexAST, ()> {
+        let base = self.parse_atom()?;
+        if let Some(c) = self.peek() {
+            match c {
+                '*' => {
+                    self.next();
+                    let greedy = self.check_greedy();
+                    Ok(RegexAST::Repeat { inner: Box::new(base), min: 0, max: None, greedy })
+                }
+                '+' => {
+                    self.next();
+                    let greedy = self.check_greedy();
+                    Ok(RegexAST::Repeat { inner: Box::new(base), min: 1, max: None, greedy })
+                }
+                '?' => {
+                    self.next();
+                    let greedy = self.check_greedy();
+                    Ok(RegexAST::Repeat { inner: Box::new(base), min: 0, max: Some(1), greedy })
+                }
+                '{' => {
+                    let (min, max) = self.parse_range()?;
+                    let greedy = self.check_greedy();
+                    Ok(RegexAST::Repeat { inner: Box::new(base), min, max, greedy })
+                }
+                _ => Ok(base),
+            }
+        } else {
+            Ok(base)
+        }
+    }
+
+    fn check_greedy(&mut self) -> bool {
+        if self.peek() == Some('?') {
+            self.next();
+            false
+        } else {
+            true
+        }
+    }
+
+    fn parse_range(&mut self) -> Result<(usize, Option<usize>), ()> {
+        let mut min_str = String::new();
+        while let Some(c) = self.peek() {
+            if c.is_ascii_digit() {
+                min_str.push(c);
+                self.next();
+            } else {
+                break;
+            }
+        }
+        let min: usize = min_str.parse().map_err(|_| ())?;
+        if self.peek() == Some('}') {
+            self.next();
+            return Ok((min, Some(min)));
+        }
+        if self.peek() == Some(',') {
+            self.next();
+            if self.peek() == Some('}') {
+                self.next();
+                return Ok((min, None));
+            }
+            let mut max_str = String::new();
+            while let Some(c) = self.peek() {
+                if c.is_ascii_digit() {
+                    max_str.push(c);
+                    self.next();
+                } else {
+                    break;
+                }
+            }
+            let max: usize = max_str.parse().map_err(|_| ())?;
+            if self.peek() == Some('}') {
+                self.next();
+                return Ok((min, Some(max)));
+            }
+        }
+        Err(())
+    }
+
+    fn parse_atom(&mut self) -> Result<RegexAST, ()> {
+        let c = self.next().ok_or(())?;
+        match c {
+            '.' => Ok(RegexAST::Any),
+            '^' => Ok(RegexAST::AnchorStart),
+            '$' => Ok(RegexAST::AnchorEnd),
+            '(' => {
+                if self.peek() == Some('?') {
+                    self.next();
+                    if self.peek() == Some(':') {
+                        self.next();
+                        let inner = self.parse_alt()?;
+                        if self.next() != Some(')') {
+                            return Err(());
+                        }
+                        Ok(RegexAST::NonCapturing(Box::new(inner)))
+                    } else {
+                        Err(())
+                    }
+                } else {
+                    self.group_count += 1;
+                    let idx = self.group_count;
+                    let inner = self.parse_alt()?;
+                    if self.next() != Some(')') {
+                        return Err(());
+                    }
+                    Ok(RegexAST::Group(idx, Box::new(inner)))
+                }
+            }
+            '[' => self.parse_class(),
+            '\\' => {
+                let esc = self.next().ok_or(())?;
+                match esc {
+                    'd' => Ok(RegexAST::Class {
+                        negated: false,
+                        ranges: vec![('0', '9')],
+                        chars: vec![],
+                        sub: None,
+                    }),
+                    's' => Ok(RegexAST::Class {
+                        negated: false,
+                        ranges: vec![],
+                        chars: vec![' ', '\t', '\n', '\r'],
+                        sub: None,
+                    }),
+                    'w' => Ok(RegexAST::Class {
+                        negated: false,
+                        ranges: vec![('a', 'z'), ('A', 'Z'), ('0', '9')],
+                        chars: vec!['_'],
+                        sub: None,
+                    }),
+                    '0' => Ok(RegexAST::Char('\0')),
+                    'p' => {
+                        if self.next() != Some('{') {
+                            return Err(());
+                        }
+                        let mut prop = String::new();
+                        while let Some(ch) = self.next() {
+                            if ch == '}' {
+                                break;
+                            }
+                            prop.push(ch);
+                        }
+                        let trimmed = prop.trim();
+                        if !self.flags.x && (prop.starts_with(' ') || prop.ends_with(' ')) {
+                            return Err(());
+                        }
+                        let compact: String = trimmed.chars().filter(|c| !c.is_whitespace()).collect();
+                        if compact == "IsBasicLatin" || compact == "BasicLatin" {
+                            Ok(RegexAST::Class {
+                                negated: false,
+                                ranges: vec![('\0', '\u{7f}')],
+                                chars: vec![],
+                                sub: None,
+                            })
+                        } else {
+                            Err(())
+                        }
+                    }
+                    '1'..='9' => {
+                        let idx = (esc as u8 - b'0') as usize;
+                        if idx > self.group_count {
+                            return Err(());
+                        }
+                        Ok(RegexAST::Backref(idx))
+                    }
+                    other => Ok(RegexAST::Char(other)),
+                }
+            }
+            other => Ok(RegexAST::Char(other)),
+        }
+    }
+
+    fn parse_class(&mut self) -> Result<RegexAST, ()> {
+        let negated = if self.peek() == Some('^') {
+            self.next();
+            true
+        } else {
+            false
+        };
+        let mut ranges = Vec::new();
+        let mut chars = Vec::new();
+        let mut sub = None;
+
+        while let Some(c) = self.next() {
+            if c == ']' {
+                return Ok(RegexAST::Class { negated, ranges, chars, sub });
+            }
+            if c == '-' && self.peek() == Some('[') {
+                self.next();
+                let sub_ast = self.parse_class()?;
+                sub = Some(Box::new(sub_ast));
+                if self.next() != Some(']') {
+                    return Err(());
+                }
+                return Ok(RegexAST::Class { negated, ranges, chars, sub });
+            }
+            let ch = if c == '\\' {
+                let esc = self.next().ok_or(())?;
+                match esc {
+                    '0' => return Err(()),
+                    '1'..='9' => return Err(()),
+                    'd' => {
+                        ranges.push(('0', '9'));
+                        continue;
+                    }
+                    's' => {
+                        chars.extend(&[' ', '\t', '\n', '\r']);
+                        continue;
+                    }
+                    other => other,
+                }
+            } else {
+                c
+            };
+
+            if self.peek() == Some('-') {
+                let next_pos = self.pos;
+                if self.chars.get(next_pos + 1) == Some(&']') || self.chars.get(next_pos + 1) == Some(&'[') {
+                    chars.push(ch);
+                } else {
+                    self.next();
+                    let end_c = self.next().ok_or(())?;
+                    let end_ch = if end_c == '\\' {
+                        self.next().ok_or(())?
+                    } else {
+                        end_c
+                    };
+                    ranges.push((ch, end_ch));
+                }
+            } else {
+                chars.push(ch);
+            }
+        }
+        Err(())
+    }
+}
+
+#[derive(Clone, Debug)]
+struct RegexState {
+    groups: Vec<Option<(usize, usize)>>,
+}
+
+fn regex_char_eq(c1: char, c2: char, ignore_case: bool) -> bool {
+    if c1 == c2 {
+        return true;
+    }
+    if ignore_case {
+        c1.to_lowercase().eq(c2.to_lowercase())
+    } else {
+        false
+    }
+}
+
+fn matches_regex_char_class(c: char, ast: &RegexAST, ignore_case: bool) -> bool {
+    let RegexAST::Class { negated, ranges, chars, sub } = ast else { return false };
+    let mut hit = false;
+    for (start, end) in ranges {
+        if ignore_case {
+            let cl = c.to_lowercase().next().unwrap_or(c);
+            let sl = start.to_lowercase().next().unwrap_or(*start);
+            let el = end.to_lowercase().next().unwrap_or(*end);
+            if (c >= *start && c <= *end) || (cl >= sl && cl <= el) {
+                hit = true;
+                break;
+            }
+        } else if c >= *start && c <= *end {
+            hit = true;
+            break;
+        }
+    }
+    if !hit {
+        for &ch in chars {
+            if regex_char_eq(c, ch, ignore_case) {
+                hit = true;
+                break;
+            }
+        }
+    }
+    let in_base = if *negated { !hit } else { hit };
+    if !in_base {
+        return false;
+    }
+    if let Some(sub_class) = sub {
+        if matches_regex_char_class(c, sub_class, ignore_case) {
+            return false;
+        }
+    }
+    true
+}
+
+fn match_regex_node(
+    ast: &RegexAST,
+    input: &[char],
+    pos: usize,
+    state: &mut RegexState,
+    flags: RegexFlags,
+) -> Vec<(usize, RegexState)> {
+    match ast {
+        RegexAST::Empty => vec![(pos, state.clone())],
+        RegexAST::Char(ch) => {
+            if pos < input.len() && regex_char_eq(input[pos], *ch, flags.i) {
+                vec![(pos + 1, state.clone())]
+            } else {
+                vec![]
+            }
+        }
+        RegexAST::Any => {
+            if pos < input.len() {
+                let c = input[pos];
+                if flags.s || (c != '\n' && c != '\r') {
+                    vec![(pos + 1, state.clone())]
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            }
+        }
+        RegexAST::Class { .. } => {
+            if pos < input.len() && matches_regex_char_class(input[pos], ast, flags.i) {
+                vec![(pos + 1, state.clone())]
+            } else {
+                vec![]
+            }
+        }
+        RegexAST::AnchorStart => {
+            let ok = if flags.m {
+                pos == 0 || (pos > 0 && input[pos - 1] == '\n')
+            } else {
+                pos == 0
+            };
+            if ok {
+                vec![(pos, state.clone())]
+            } else {
+                vec![]
+            }
+        }
+        RegexAST::AnchorEnd => {
+            let ok = if flags.m {
+                pos == input.len() || (pos < input.len() && input[pos] == '\n')
+            } else {
+                pos == input.len()
+            };
+            if ok {
+                vec![(pos, state.clone())]
+            } else {
+                vec![]
+            }
+        }
+        RegexAST::Backref(idx) => {
+            if let Some(Some((start, end))) = state.groups.get(*idx) {
+                let ref_slice = &input[*start..*end];
+                if pos + ref_slice.len() <= input.len() {
+                    let mut ok = true;
+                    for i in 0..ref_slice.len() {
+                        if !regex_char_eq(input[pos + i], ref_slice[i], flags.i) {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    if ok {
+                        vec![(pos + ref_slice.len(), state.clone())]
+                    } else {
+                        vec![]
+                    }
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            }
+        }
+        RegexAST::Group(idx, inner) => {
+            let mut results = Vec::new();
+            for (next_pos, mut next_state) in match_regex_node(inner, input, pos, state, flags) {
+                if *idx >= next_state.groups.len() {
+                    next_state.groups.resize(*idx + 1, None);
+                }
+                next_state.groups[*idx] = Some((pos, next_pos));
+                results.push((next_pos, next_state));
+            }
+            results
+        }
+        RegexAST::NonCapturing(inner) => match_regex_node(inner, input, pos, state, flags),
+        RegexAST::Concat(pieces) => {
+            let mut current = vec![(pos, state.clone())];
+            for piece in pieces {
+                let mut next = Vec::new();
+                for (cur_pos, mut cur_state) in current {
+                    next.extend(match_regex_node(piece, input, cur_pos, &mut cur_state, flags));
+                }
+                if next.is_empty() {
+                    return vec![];
+                }
+                current = next;
+            }
+            current
+        }
+        RegexAST::Alt(branches) => {
+            let mut results = Vec::new();
+            for b in branches {
+                let res = match_regex_node(b, input, pos, state, flags);
+                if !res.is_empty() {
+                    results.extend(res);
+                    break;
+                }
+            }
+            results
+        }
+        RegexAST::Repeat { inner, min, max, greedy } => {
+            let mut results = Vec::new();
+            match_regex_repeat(inner, *min, *max, *greedy, input, pos, state, flags, 0, &mut results);
+            results
+        }
+    }
+}
+
+fn match_regex_repeat(
+    inner: &RegexAST,
+    min: usize,
+    max: Option<usize>,
+    greedy: bool,
+    input: &[char],
+    pos: usize,
+    state: &RegexState,
+    flags: RegexFlags,
+    count: usize,
+    results: &mut Vec<(usize, RegexState)>,
+) {
+    if let Some(m) = max {
+        if count > m {
+            return;
+        }
+    }
+    let can_stop = count >= min;
+    if !greedy && can_stop {
+        results.push((pos, state.clone()));
+        if max == Some(count) {
+            return;
+        }
+    }
+
+    let at_limit = max == Some(count);
+    if !at_limit {
+        let next_matches = match_regex_node(inner, input, pos, &mut state.clone(), flags);
+        for (next_pos, next_state) in next_matches {
+            if next_pos == pos {
+                continue;
+            }
+            match_regex_repeat(inner, min, max, greedy, input, next_pos, &next_state, flags, count + 1, results);
+        }
+    }
+
+    if greedy && can_stop {
+        results.push((pos, state.clone()));
+    }
+}
+
+fn feel_matches_impl(input: &str, pattern: &str, flags_str: &str) -> Option<bool> {
+    let flags = parse_regex_flags(flags_str)?;
+    if flags.q {
+        if flags.i {
+            return Some(input.to_lowercase().contains(&pattern.to_lowercase()));
+        } else {
+            return Some(input.contains(pattern));
+        }
+    }
+    let mut parser = RegexParser::new(pattern, flags);
+    let ast = parser.parse().ok()?;
+    let chars: Vec<char> = input.chars().collect();
+    for start in 0..=chars.len() {
+        let mut state = RegexState { groups: vec![None; parser.group_count + 1] };
+        let matches = match_regex_node(&ast, &chars, start, &mut state, flags);
+        if !matches.is_empty() {
+            return Some(true);
+        }
+    }
+    Some(false)
+}
+
+fn feel_replace_impl(input: &str, pattern: &str, replacement: &str, flags_str: &str) -> Option<String> {
+    let flags = parse_regex_flags(flags_str)?;
+    if flags.q {
+        if flags.i {
+            let mut res = String::new();
+            let lower_input = input.to_lowercase();
+            let lower_pat = pattern.to_lowercase();
+            let mut last = 0;
+            while let Some(idx) = lower_input[last..].find(&lower_pat) {
+                res.push_str(&input[last..last + idx]);
+                res.push_str(replacement);
+                last += idx + pattern.len();
+            }
+            res.push_str(&input[last..]);
+            return Some(res);
+        } else {
+            return Some(input.replace(pattern, replacement));
+        }
+    }
+    let mut parser = RegexParser::new(pattern, flags);
+    let ast = parser.parse().ok()?;
+    let chars: Vec<char> = input.chars().collect();
+    let mut pos = 0;
+    let mut out = String::new();
+
+    while pos <= chars.len() {
+        let mut state = RegexState { groups: vec![None; parser.group_count + 1] };
+        let matches = match_regex_node(&ast, &chars, pos, &mut state, flags);
+        if let Some((end_pos, match_state)) = matches.into_iter().next() {
+            let mut rep = String::new();
+            let mut r_chars = replacement.chars().peekable();
+            while let Some(rc) = r_chars.next() {
+                if rc == '$' {
+                    if let Some(&next_c) = r_chars.peek() {
+                        if next_c.is_ascii_digit() {
+                            r_chars.next();
+                            let grp_idx = (next_c as u8 - b'0') as usize;
+                            if grp_idx == 0 {
+                                rep.extend(&chars[pos..end_pos]);
+                            } else if let Some(Some((g_start, g_end))) = match_state.groups.get(grp_idx) {
+                                rep.extend(&chars[*g_start..*g_end]);
+                            }
+                            continue;
+                        }
+                    }
+                    rep.push('$');
+                } else {
+                    rep.push(rc);
+                }
+            }
+            out.push_str(&rep);
+            if end_pos > pos {
+                pos = end_pos;
+            } else {
+                if pos < chars.len() {
+                    out.push(chars[pos]);
+                    pos += 1;
+                } else {
+                    break;
+                }
+            }
+        } else {
+            if pos < chars.len() {
+                out.push(chars[pos]);
+                pos += 1;
+            } else {
+                break;
+            }
+        }
+    }
+    Some(out)
+}
+
+fn builtin_matches(input: Value, pattern: Value, flags: Value) -> Value {
+    let (Value::Text(i), Value::Text(p)) = (input, pattern) else { return Value::Null; };
+    let f = match flags {
+        Value::Text(ref s) => s.as_str(),
+        Value::Null => "",
+        _ => return Value::Null,
+    };
+    match feel_matches_impl(&i, &p, f) {
+        Some(matched) => Value::Boolean(matched),
+        None => Value::Null,
+    }
+}
+
+fn builtin_replace(input: Value, pattern: Value, replacement: Value, flags: Value) -> Value {
+    let (Value::Text(i), Value::Text(p), Value::Text(r)) = (input, pattern, replacement) else { return Value::Null; };
+    let f = match flags {
+        Value::Text(ref s) => s.as_str(),
+        Value::Null => "",
+        _ => return Value::Null,
+    };
+    match feel_replace_impl(&i, &p, &r, f) {
+        Some(res) => Value::Text(res),
+        None => Value::Null,
     }
 }

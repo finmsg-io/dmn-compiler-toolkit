@@ -224,6 +224,11 @@ public final class DmnIrRuntimeAdapter {
 			case TABLE_HIT_POLICY_UNIQUE -> RuntimeHitPolicy.UNIQUE;
 			case TABLE_HIT_POLICY_FIRST -> RuntimeHitPolicy.FIRST;
 			case TABLE_HIT_POLICY_ANY -> RuntimeHitPolicy.ANY;
+			case TABLE_HIT_POLICY_RULE_ORDER -> RuntimeHitPolicy.RULE_ORDER;
+			case TABLE_HIT_POLICY_OUTPUT_ORDER -> RuntimeHitPolicy.OUTPUT_ORDER;
+			case TABLE_HIT_POLICY_COLLECT, TABLE_HIT_POLICY_COLLECT_SUM, TABLE_HIT_POLICY_COLLECT_MIN,
+					TABLE_HIT_POLICY_COLLECT_MAX, TABLE_HIT_POLICY_COLLECT_COUNT ->
+				RuntimeHitPolicy.COLLECT;
 			default -> throw new IllegalArgumentException("Unsupported verified hit policy.");
 		}, Optional.empty(), inputs, outputs, rules, 0);
 	}

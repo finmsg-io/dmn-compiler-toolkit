@@ -328,12 +328,13 @@ fn rejects_bad_and_unsupported_artifacts_before_writing() {
     let mut duplicate = FIXTURE.to_vec();
     duplicate.extend(FIXTURE);
     let oversized = vec![0; 4 * 1024 * 1024 + 1];
-    let power = include_bytes!("fixtures/unsupported-power-0.1.dmnir");
+    let mut unsupported = FIXTURE.to_vec();
+    unsupported[3] = 99;
     for (label, bytes) in [
         ("truncated", [0x0a, 0x10].as_slice()),
         ("duplicate", duplicate.as_slice()),
         ("oversized", oversized.as_slice()),
-        ("power", power.as_slice()),
+        ("unsupported", unsupported.as_slice()),
     ] {
         let artifact = directory.join(format!("{label}.dmnir"));
         let output = directory.join(label);

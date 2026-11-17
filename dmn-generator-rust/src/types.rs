@@ -43,7 +43,7 @@ pub struct Types<'a> {
     indices: BTreeMap<(&'a str, &'a str), usize>,
     collections_enabled: bool,
     collection_indices: BTreeMap<(&'a str, &'a str), usize>,
-    pub collections: Vec<DmnIrScalarType>,
+    pub collections: Vec<Type>,
     pub records: Vec<Record<'a>>,
     costs: Vec<usize>,
     pub expansion: usize,
@@ -94,17 +94,26 @@ impl<'a> Types<'a> {
         for (index, value) in collection_indices.values_mut().enumerate() {
             *value = index;
         }
-        let mut collections = vec![DmnIrScalarType::ScalarTypeNull; collection_indices.len()];
+        let mut collections = vec![Type::Scalar(DmnIrScalarType::ScalarTypeNull); collection_indices.len()];
         for model in models {
             for collection in &model.collection_definitions {
-                let scalar = scalar_type(collection.element_type, dates)?;
-                if scalar == DmnIrScalarType::ScalarTypeNull {
-                    return Err("collection needs non-null scalar element type");
-                }
+                let item_type = if let Some(rec_ref) = &collection.record_type {
+                    let index = indices
+                        .get(&(rec_ref.model_namespace.as_str(), rec_ref.element_id.as_str()))
+                        .copied()
+                        .ok_or("collection record type not found")?;
+                    Type::Record(index)
+                } else {
+                    let scalar = scalar_type(collection.element_type, dates)?;
+                    if scalar == DmnIrScalarType::ScalarTypeNull {
+                        return Err("collection needs non-null scalar element type");
+                    }
+                    Type::Scalar(scalar)
+                };
                 collections[collection_indices[&(
                     model.namespace.as_str(),
                     collection.identity.as_ref().unwrap().id.as_str(),
-                )]] = scalar;
+                )]] = item_type;
             }
         }
         let collections_expansion = collections.len() * 2;

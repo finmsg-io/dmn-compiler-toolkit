@@ -281,6 +281,12 @@ Examples:
 
 ---
 
+#### ISV (Independent Software Vendor)
+
+An organization or third-party company that develops and sells software applications (e.g., Core Banking, payment orchestration, TMS, or AML platforms) that can embed or integrate the DMN engine and compiler toolkit.
+
+---
+
 <a id="contents-section-10"></a>
 ### J
 
@@ -443,12 +449,24 @@ Used for diagnostics.
 
 ---
 
+#### SSI (Standard Settlement Instructions)
+
+Pre-established agreements specifying the counterparty account and routing details (e.g., BIC, depository accounts, clearing channels) used to settle financial transactions automatically and evaluate decision tables or payment routing policies.
+
+---
+
 <a id="contents-section-17"></a>
 ### T
 
 #### TCK (Technology Compatibility Kit) Runner
 
 The conformance test execution harness (`dmn-tck-runner`) that verifies DMN specification compliance against standard OMG DMN TCK test cases.
+
+---
+
+#### TCO (Total Cost of Ownership)
+
+The comprehensive financial metric capturing all direct and indirect expenses associated with acquiring, deploying, operating, licensing, and maintaining a software platform and compute infrastructure over its entire operational lifecycle.
 
 ---
 
@@ -501,12 +519,16 @@ The XML Frontend is not part of the runtime.
 | DRG      | Decision Requirements Graph         |
 | FEEL     | Friendly Enough Expression Language |
 | IR       | Intermediate Representation         |
+| ISV      | Independent Software Vendor         |
 | JVM      | Java Virtual Machine                |
 | JIT      | Just-In-Time Compiler               |
 | LSP      | Language Server Protocol            |
 | OMG      | Object Management Group             |
 | POJO     | Plain Old Java Object               |
 | protobuf | Protocol Buffers                    |
+| SSI      | Standard Settlement Instructions    |
+| TCK      | Technology Compatibility Kit        |
+| TCO      | Total Cost of Ownership             |
 
 ---
 

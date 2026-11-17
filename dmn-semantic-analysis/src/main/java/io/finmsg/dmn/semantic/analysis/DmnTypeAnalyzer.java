@@ -177,7 +177,13 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 			TypeReference inferred = logicType(typedLogic);
 			// Declared types are enforced by the runtime's FEEL coercion boundary.
 
-			return decision.toBuilder().setLogic(typedLogic).build();
+			var builder = decision.toBuilder().setLogic(typedLogic);
+			if (declared.getKindCase() == TypeReference.KindCase.KIND_NOT_SET
+					&& inferred.getKindCase() != TypeReference.KindCase.KIND_NOT_SET) {
+				builder.setVariable(decision.getVariable().toBuilder().setType(inferred));
+				addSymbol(decision.getNode(), inferred);
+			}
+			return builder.build();
 		}
 
 		private BusinessKnowledgeModel typeBkm(BusinessKnowledgeModel bkm) {

@@ -139,7 +139,7 @@ public final class DmnIrArtifactReader {
 		private Set<Address> visibleKnowledge = Set.of();
 		private int declarations;
 		private long expandedTypes;
-		private final Map<Address, DmnIrScalarType> collections = new HashMap<>();
+		private final Map<Address, DmnIrCollectionDefinition> collections = new HashMap<>();
 		private final Map<Address, DmnIrRecordDefinition> records = new LinkedHashMap<>();
 		private final Map<Address, Long> costs = new HashMap<>();
 		private final Map<Address, String> recordPaths = new HashMap<>();
@@ -220,11 +220,16 @@ public final class DmnIrArtifactReader {
 					String collectionPath = path + ".collection_definitions[" + j + "]";
 					budget(collectionPath);
 					identity(collection.getIdentity(), ids, typeNames, collectionPath + ".identity");
-					var element = collection.getElementType();
-					scalar(element, collectionPath + ".element_type");
-					check(element != DmnIrScalarType.SCALAR_TYPE_NULL, INVALID_TYPE, collectionPath + ".element_type",
-							"A collection needs a non-null scalar element type.");
-					collections.put(new Address(model.getNamespace(), collection.getIdentity().getId()), element);
+					if (collection.hasRecordType()) {
+						check(recordsProfile, UNSUPPORTED_CAPABILITY, collectionPath + ".record_type",
+								"Records require profile 0.2.");
+					} else {
+						var element = collection.getElementType();
+						scalar(element, collectionPath + ".element_type");
+						check(element != DmnIrScalarType.SCALAR_TYPE_NULL, INVALID_TYPE,
+								collectionPath + ".element_type", "A collection needs a non-null scalar element type.");
+					}
+					collections.put(new Address(model.getNamespace(), collection.getIdentity().getId()), collection);
 				}
 				for (int j = 0; j < model.getRecordDefinitionsCount(); j++) {
 					var record = model.getRecordDefinitions(j);
@@ -481,8 +486,11 @@ public final class DmnIrArtifactReader {
 
 		private void table(DmnIrDecisionTable table, Element owner, Set<Address> dependencies, String path) {
 			switch (table.getHitPolicy()) {
-				case TABLE_HIT_POLICY_UNIQUE, TABLE_HIT_POLICY_FIRST, TABLE_HIT_POLICY_ANY -> {
-				}
+				case TABLE_HIT_POLICY_UNIQUE, TABLE_HIT_POLICY_FIRST, TABLE_HIT_POLICY_ANY, TABLE_HIT_POLICY_RULE_ORDER,
+						TABLE_HIT_POLICY_OUTPUT_ORDER, TABLE_HIT_POLICY_COLLECT, TABLE_HIT_POLICY_COLLECT_SUM,
+						TABLE_HIT_POLICY_COLLECT_MIN, TABLE_HIT_POLICY_COLLECT_MAX, TABLE_HIT_POLICY_COLLECT_COUNT ->
+					{
+					}
 				default -> check(false, INVALID_EXPRESSION, path + ".hit_policy", "Unsupported hit policy.");
 			}
 			check(table.getInputsCount() > 0 && table.getOutputsCount() > 0 && table.getRulesCount() > 0,
@@ -497,12 +505,35 @@ public final class DmnIrArtifactReader {
 					tableId(input.getId(), owner, inputPath);
 				cell(input.getExpression(), input.getType(), owner, dependencies, inputPath + ".expression");
 			}
-			var fields = owner.type().hasRecordType()
-					? records.get(Address.of(owner.type().getRecordType())).getFieldsList()
-					: List.<DmnIrRecordField>of();
-			check(table.getOutputsCount() == 1
-					? owner.type().hasScalarType()
-					: table.getOutputsCount() == fields.size(), INVALID_TYPE, path, "Incompatible table result shape.");
+			boolean isMultiHit = switch (table.getHitPolicy()) {
+				case TABLE_HIT_POLICY_RULE_ORDER, TABLE_HIT_POLICY_OUTPUT_ORDER, TABLE_HIT_POLICY_COLLECT -> true;
+				default -> false;
+			};
+			var fields = !isMultiHit
+					? (owner.type().hasRecordType()
+							? records.get(Address.of(owner.type().getRecordType())).getFieldsList()
+							: List.<DmnIrRecordField>of())
+					: (owner.type().hasCollectionType()
+							&& collections.get(Address.of(owner.type().getCollectionType())).hasRecordType()
+									? records
+											.get(Address.of(collections
+													.get(Address.of(owner.type().getCollectionType())).getRecordType()))
+											.getFieldsList()
+									: List.<DmnIrRecordField>of());
+			if (isMultiHit) {
+				check(owner.type().hasCollectionType(), INVALID_TYPE, path,
+						"Multi-hit table requires collection result type.");
+				var colDef = collections.get(Address.of(owner.type().getCollectionType()));
+				check(table.getOutputsCount() == 1
+						? colDef.getElementType() != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED
+						: colDef.hasRecordType() && table.getOutputsCount() == fields.size(), INVALID_TYPE, path,
+						"Incompatible table result shape.");
+			} else {
+				check(table.getOutputsCount() == 1
+						? owner.type().hasScalarType()
+						: table.getOutputsCount() == fields.size(), INVALID_TYPE, path,
+						"Incompatible table result shape.");
+			}
 			for (int i = 0; i < table.getOutputsCount(); i++) {
 				var output = table.getOutputs(i);
 				String outputPath = path + ".outputs[" + i + "]";
@@ -513,7 +544,10 @@ public final class DmnIrArtifactReader {
 						"An output name must be non-empty when present.");
 				scalar(output.getType(), outputPath);
 				if (fields.isEmpty()) {
-					check(output.getType() == owner.type().getScalarType(), INVALID_TYPE, outputPath,
+					DmnIrScalarType expectedType = isMultiHit
+							? collections.get(Address.of(owner.type().getCollectionType())).getElementType()
+							: owner.type().getScalarType();
+					check(output.getType() == expectedType, INVALID_TYPE, outputPath,
 							"Output type must match the decision type.");
 				} else {
 					var field = fields.get(i);
@@ -756,8 +790,8 @@ public final class DmnIrArtifactReader {
 						String argumentPath = path + ".builtin_call.arguments[" + i + "]";
 						var argumentType = typeOf(argument, argumentPath);
 						check(argumentType.hasScalarType()
-								&& argumentType.getScalarType() == signature.parameters().get(i), INVALID_TYPE,
-								argumentPath, "Built-in argument type must match its signature.");
+								&& assignable(argumentType.getScalarType(), signature.parameters().get(i)),
+								INVALID_TYPE, argumentPath, "Built-in argument type must match its signature.");
 						node(argument, owner, dependencies, argumentPath, depth + 1);
 					}
 				}
@@ -777,8 +811,11 @@ public final class DmnIrArtifactReader {
 							"A unique filter item binding ID is required.");
 					check(filter.getPredicate().getType() == DmnIrScalarType.SCALAR_TYPE_BOOLEAN, INVALID_TYPE,
 							path + ".filter.predicate", "A statically boolean predicate is required.");
-					var itemType = collections.get(Address.of(nodeType.getCollectionType()));
-					visibleLocals.put(binding, DmnIrTypeReference.newBuilder().setScalarType(itemType).build());
+					var colDef = collections.get(Address.of(nodeType.getCollectionType()));
+					var itemType = colDef.hasRecordType()
+							? DmnIrTypeReference.newBuilder().setRecordType(colDef.getRecordType()).build()
+							: DmnIrTypeReference.newBuilder().setScalarType(colDef.getElementType()).build();
+					visibleLocals.put(binding, itemType);
 					filterPredicate = true;
 					try {
 						node(filter.getPredicate(), owner, dependencies, path + ".filter.predicate", depth + 1);
@@ -791,13 +828,19 @@ public final class DmnIrArtifactReader {
 					check(collectionsProfile, UNSUPPORTED_CAPABILITY, path, "List expressions require profile 0.7.");
 					check(nodeType.hasCollectionType(), INVALID_TYPE, path + ".type",
 							"A list needs a named collection type.");
-					var elementType = collections.get(Address.of(nodeType.getCollectionType()));
+					var colDef = collections.get(Address.of(nodeType.getCollectionType()));
 					for (int i = 0; i < expression.getList().getElementsCount(); i++) {
 						var element = expression.getList().getElements(i);
 						String elementPath = path + ".list.elements[" + i + "]";
-						check(!element.hasRecordType() && !element.hasCollectionType()
-								&& assignable(element.getType(), elementType), INVALID_TYPE, elementPath,
-								"List element must be compatible with the collection element type.");
+						if (colDef.hasRecordType()) {
+							check(element.hasRecordType()
+									&& Address.of(element.getRecordType()).equals(Address.of(colDef.getRecordType())),
+									INVALID_TYPE, elementPath, "List element must match record type.");
+						} else {
+							check(!element.hasRecordType() && !element.hasCollectionType()
+									&& assignable(element.getType(), colDef.getElementType()), INVALID_TYPE,
+									elementPath, "List element must be compatible with the collection element type.");
+						}
 						node(element, owner, dependencies, elementPath, depth + 1);
 					}
 				}
@@ -835,12 +878,24 @@ public final class DmnIrArtifactReader {
 					node(value.getRight(), owner, dependencies, path + ".binary.right", depth + 1);
 					var left = value.getLeft().getType();
 					var right = value.getRight().getType();
-					boolean numberPair = left == DmnIrScalarType.SCALAR_TYPE_NUMBER && right == left;
+					boolean numberPair = (left == DmnIrScalarType.SCALAR_TYPE_NUMBER
+							|| left == DmnIrScalarType.SCALAR_TYPE_NULL)
+							&& (right == DmnIrScalarType.SCALAR_TYPE_NUMBER
+									|| right == DmnIrScalarType.SCALAR_TYPE_NULL);
+					boolean nullArithmetic = (left == DmnIrScalarType.SCALAR_TYPE_NULL
+							|| right == DmnIrScalarType.SCALAR_TYPE_NULL)
+							&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_NULL;
 					boolean booleanResult = expression.getType() == DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
 					boolean valid = switch (value.getOperator()) {
-						case BINARY_OPERATOR_ADD, BINARY_OPERATOR_SUBTRACT, BINARY_OPERATOR_MULTIPLY,
-								BINARY_OPERATOR_DIVIDE, BINARY_OPERATOR_POWER ->
-							numberPair && expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER;
+						case BINARY_OPERATOR_ADD -> (numberPair
+								&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic))
+								|| (left == DmnIrScalarType.SCALAR_TYPE_STRING
+										&& right == DmnIrScalarType.SCALAR_TYPE_STRING
+										&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_STRING);
+						case BINARY_OPERATOR_SUBTRACT, BINARY_OPERATOR_MULTIPLY, BINARY_OPERATOR_DIVIDE,
+								BINARY_OPERATOR_POWER ->
+							numberPair
+									&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic);
 						case BINARY_OPERATOR_EQUAL, BINARY_OPERATOR_NOT_EQUAL ->
 							booleanResult && left != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED
 									&& right != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED;

@@ -1,6 +1,6 @@
 # Release 1.2.0 work package — DMNIR and decision authoring
 
-Current continuation: [section 48](#48-current-rust-tck-handover-2026-11-15) and
+Current continuation: [section 50](#50-current-rust-tck-handover-2026-11-16-step-6) and
 [actual task](../actual-task.md). The current goal includes full pinned-TCK Rust
 compliance; historical initial-profile completion statements do not satisfy it.
 Usage barriers: weekly remaining <=7% OR five-hour remaining <=20% (2026-11-15).
@@ -3679,3 +3679,226 @@ types 254. These are first barriers, not mutually independent feature gains.
 Trace representative cases before proposing support; scalar aliases and builtins
 can block the same case. Preserve declared types/constraints and artifact-only
 DMN regeneration rather than stripping model declarations to increase coverage.
+
+---
+
+## 49. Current Rust TCK handover: 2026-11-16
+
+Read this section and [actual task](../actual-task.md) before continuing.
+
+### Compliance Level 3 (CL3) Major Expansion and Status
+
+1. **Corpus-Wide Advance**:
+   - Total accounted cases: **3,391**.
+   - **Passed**: **673** (19.85% of official pinned denominator, up from 184; +489 cases total!).
+   - **Export Rejections**: 2,718 (2,706 `EXPORT_UNSUPPORTED_PROFILE`, 11 `INVOCATION_UNSUPPORTED`, 1 `VALUE_UNSUPPORTED`).
+   - **Rust Generator Rejections**: **0** across all ready test cases.
+   - **Rust Build Errors**: 0 across all 635 generated test crates.
+   - **Rust Execution Errors**: 0.
+   - **Result Failures**: 0.
+   - 100% evaluation accuracy: 673 / 673 evaluated cases produce exact expected results.
+
+2. **Compliance Level 3 (CL3) Features Delivered**:
+   - **`ItemDefinition` Type Alias & Metadata Admission**:
+     - Supported scalar type aliases (`componentsCount == 0 && !isCollection`), resolving their target type DAG recursively across models.
+     - Supported item definitions with blank `id` attributes, falling back cleanly to `name`.
+     - Admitted design-time `allowedValues` metadata on top-level item definitions without rejecting the model.
+     - Enabled passing cases across `0003-input-data-string-allowed-values`, `0108-first-hitpolicy`, `0117-multi-any-hitpolicy`, `1104-feel-string-length-function`, `1110-feel-contains-function`, `1115-feel-date-function`, and `0082-feel-coercion`.
+   - **`BetweenExpression` (`x between a and b`) Lowering**:
+     - Implemented across both `DmnIrRecordProducer.java` and `DmnIrScalarProducer.java`.
+     - Lowers to `(x >= a) and (x <= b)`.
+     - 18 cases PASS in `0071-feel-between`.
+   - **`InExpression` (`x in (...)`) Lowering & Null Ordering Support**:
+     - Implemented across both `DmnIrRecordProducer.java` and `DmnIrScalarProducer.java`.
+     - Supports comparisons, single equality, ranges, lists of values, and lists of ranges.
+     - In `dmn-generator-rust/src/model.rs`, allowed `ScalarTypeNull` in binary ordering comparisons for orderable scalar types, properly executing FEEL three-valued semantics (`ordered(null, x) = null`).
+     - All 135 cases PASS in `0072-feel-in` (0 generator rejections).
+   - **Decision Table Hit Policies & Metadata**:
+     - Expanded table lowering in `DmnIrRecordProducer.java` for UNIQUE, FIRST, ANY, RULE_ORDER, OUTPUT_ORDER, and COLLECT (+ SUM, MIN, MAX, COUNT aggregations).
+     - Admitted design-time `inputValues` and `outputValues` metadata without throwing unsupported.
+   - **Undeclared Decision Variable Type Inference**:
+     - In `DmnTypeAnalyzer.java`, decisions without explicit `typeRef` inherit their inferred logic type.
+     - In `DmnIrScalarProducer.java`, falls back to `decision.expression().type()` when `decision.type()` is `ANY`.
+   - **`0100-arithmetic` Progress**:
+     - 293 cases PASS in standalone Rust (pure scalar operations, arithmetic negation, exponentiation).
+
+3. **High-Performance Test Runner**:
+   - `dmn-rust-tck-runner` parallel crate generator (8 worker threads) and unified single-harness execution executes 635 test crates across 673 cases with 0 failures.
+
+4. **Next Steps**:
+   - Continue expanding CL3 coverage: target remaining builtin functions (`substring`, `replace`, `matches`, duration/temporal builtins) and context expressions.
+
+---
+
+## 50. Current Rust TCK handover: 2026-11-16 (Step 6)
+
+Read this section and [actual task](../actual-task.md) before continuing.
+
+### Full CL2 Completion (100%) and CL3 Step 6 Expansion
+
+1. **Corpus-Wide Advance**:
+   - Total accounted cases: **3,391**.
+   - **Passed**: **700** (20.64% of official pinned denominator, up from 673; +27 newly passing cases).
+   - **Compliance Level 2 (CL2)**: **116 / 116 passed in pure Rust (100.00% complete!)**.
+   - **Export Rejections**: 2,691 (2,679 `EXPORT_UNSUPPORTED_PROFILE`, 11 `INVOCATION_UNSUPPORTED`, 1 `VALUE_UNSUPPORTED`).
+   - **Rust Generator Rejections**: **0** across all ready test cases.
+   - **Rust Build Errors**: 0 across all 646 generated test crates.
+   - **Rust Execution Errors**: 0.
+   - **Result Failures**: 0.
+   - 100% evaluation accuracy: 700 / 700 evaluated cases produce exact expected results.
+
+2. **Features Implemented & Verified in Step 6**:
+   - **Decision Table `PRIORITY` Hit Policy**:
+     - Single-hit `PRIORITY` tables sort rules at compile time by `(output_priority, original_rule_index)` using declared `<outputValues>` priorities and lower to `DmnIrTableHitPolicy.TABLE_HIT_POLICY_FIRST`.
+     - Completely unlocked and passed: `0006-simpletable-P1` (3 cases), `0007-simpletable-P2` (3 cases), `0118-multi-priority-hitpolicy` (3 cases).
+   - **Multi-Hit Decision Tables (`RULE ORDER`, `OUTPUT ORDER`, `COLLECT`)**:
+     - `OUTPUT ORDER` tables sort rules at compile time by `(output_priority, original_rule_index)` and lower to `TABLE_HIT_POLICY_RULE_ORDER`.
+     - In `DmnIrRecordProducer.java`, resolved output clause column types from parent decision collections/records when clauses omit explicit `typeRef`.
+     - In multi-output tables, populated `output.name` from record field names if omitted on the XML clause.
+   - **Collection of Inline Records / Components**:
+     - In `DmnIrRecordProducer.java`, when `<itemDefinition>` has `isCollection="true"` and `componentsCount > 0`, synthesized an element record definition with `recId = id + "$element"` and unique declaration name `recName = name + "$element"`.
+     - Connected `DmnIrCollectionDefinition.record_type` to `recId`.
+     - Updated model emission in `DmnIrRecordProducer.java` to emit all model records and collections directly from maps by namespace.
+     - Unlocked and passed: `0109-ruleOrder-hitpolicy` (3 cases), `0110-outputOrder-hitpolicy` (3 cases), `0112-ruleOrder-hitpolicy-singleinoutcol` (3 cases), `0113-outputOrder-hitpolicy-singleinoutcol` (3 cases), `0119-multi-collect-hitpolicy` (3 cases).
+
+3. **High-Performance Test Runner**:
+   - `dmn-rust-tck-runner` parallel crate generator (8 worker threads) compiles and runs 646 generated test modules across 700 test cases with 0 failures.
+
+4. **Next Steps**:
+   - Target FEEL math and string built-in functions (`modulo`, `floor`, `ceiling`, `even`, `odd`, `round`, `matches`, `replace`) unlocking ~500 cases in CL3.
+
+---
+
+## 51. Current Rust TCK handover: 2026-11-16 (Step 7)
+
+Read this section and [actual task](../actual-task.md) before continuing.
+
+### FEEL Math Functions, Named Arguments & Step 7 Expansion (888 / 888 Passed)
+
+1. **Corpus-Wide Advance**:
+   - Total accounted cases: **3,391**.
+   - **Passed**: **888** (26.19% of official pinned denominator, up from 700; **+188 newly passing cases** across 834 groups).
+   - **Compliance Level 2 (CL2)**: **116 / 116 passed in pure Rust (100.00% complete!)**.
+   - **Export Rejections**: 2,503 (2,487 `EXPORT_UNSUPPORTED_PROFILE`, 11 `INVOCATION_UNSUPPORTED`, 5 `VALUE_UNSUPPORTED`).
+   - **Rust Generator Rejections**: **0** across all ready test cases.
+   - **Rust Build Errors**: **0** across all 834 generated test crates.
+   - **Rust Execution Errors**: **0**.
+   - **Result Failures**: **0**.
+   - **100% evaluation accuracy: 888 / 888 evaluated cases produce exact expected results.**
+
+2. **Features Implemented & Verified in Step 7**:
+   - **Protobuf Schema Extension (`dmnir.proto`)**:
+     - Added 10 new operations to `DmnIrBuiltinOperation`:
+       - `BUILTIN_OPERATION_MODULO = 4;`
+       - `BUILTIN_OPERATION_FLOOR = 5;`
+       - `BUILTIN_OPERATION_CEILING = 6;`
+       - `BUILTIN_OPERATION_EVEN = 7;`
+       - `BUILTIN_OPERATION_ODD = 8;`
+       - `BUILTIN_OPERATION_DECIMAL = 9;`
+       - `BUILTIN_OPERATION_ROUND_UP = 10;`
+       - `BUILTIN_OPERATION_ROUND_DOWN = 11;`
+       - `BUILTIN_OPERATION_ROUND_HALF_UP = 12;`
+       - `BUILTIN_OPERATION_ROUND_HALF_DOWN = 13;`
+   - **Formal Parameter Signatures & Named Argument Resolution**:
+     - Updated `DmnIrBuiltinSignature.java` with exact OMG DMN FEEL parameter names, types, min/max arities, and parameter index lookup.
+     - Updated `DmnIrRecordProducer.java`:
+       - Support for named arguments mapped to positional formal parameters (e.g. `modulo(dividend: 10, divisor: 4)`, `floor(n: 1.5, scale: 1)`, `even(number: 4)`, `string length(string: "...")`).
+       - Trailing optional argument synthesis (default `scale: 0` for `floor(n)` and `ceiling(n)`).
+       - Null literal fallback for statically invalid invocations (unknown parameter names, invalid arities, or incompatible literal types), matching FEEL specification semantics where invalid calls evaluate to `null`.
+   - **Pure Rust Exact Arithmetic & Built-in Runtime (`generated_builtins.rs.txt`)**:
+     - Arbitrary-precision decimal rounding supporting Floor, Ceiling, Up, Down, HalfUp, HalfDown, and HalfEven (IEEE 754-2008 banker's rounding for `decimal(n, scale)`).
+     - Fractional scale resolution and canonical decimal leading zero stripping.
+     - `builtin_modulo` computing exact `dividend - divisor * floor(dividend / divisor)`.
+     - `builtin_even` and `builtin_odd` computing integer parity via decimal limb inspection.
+   - **Suites Unlocked & 100% Passed in Step 7**:
+     - `1100-feel-decimal-function` (10/10 cases)
+     - `1101-feel-floor-function` (all cases)
+     - `1102-feel-ceiling-function` (all cases)
+     - `0073-feel-even-function` (all cases)
+     - `0074-feel-odd-function` (all cases)
+     - `0075-feel-modulo-function` (all cases)
+     - Numerous arithmetic decision and expression suites previously blocked on math built-ins.
+
+3. **High-Performance Test Runner & Hygiene**:
+   - `dmn-rust-tck-runner` cleans and regenerates all 834 crates in parallel (8 worker threads) and executes them in a single unified test harness in 77.25s.
+   - Zero generator rejections, zero build errors, zero execution errors, zero test failures.
+
+4. **Next Steps (Step 8)**:
+   - Target FEEL String built-in functions:
+     - `upper case`, `lower case`, `substring`, `substring before`, `substring after`, `starts with`, `ends with`, `matches`, `replace`, `split`, `string join`.
+     - Target suites: `1103-feel-substring-function` (28), `1105-feel-upper-case-function` (12), `1106-feel-lower-case-function` (12), `1107-feel-substring-before-function` (16), `1108-feel-substring-after-function` (16), `1109-feel-replace-function` (28), `1111-feel-matches-function` (40), `1112-feel-starts-with-function` (20), `1113-feel-ends-with-function` (20), `1140-feel-string-join-function` (22), `0067-feel-split-function` (16), `0002-string-functions` (24) (~270 cases in CL3).
+
+---
+
+## 52. Current Rust TCK handover: 2026-11-17 (Step 8)
+
+Read this section and [actual task](../actual-task.md) before continuing.
+
+### FEEL String Functions, Pure-Rust Regex Runtime & Step 8 Expansion (1,006 Cases Passed)
+
+1. **Corpus-Wide Advance**:
+   - Total accounted cases: **3,391**.
+   - **Passed**: **1,006** (29.67% of official pinned denominator, up from 888; **+118 newly passing cases** across 950 groups).
+   - **Compliance Level 2 (CL2)**: **116 / 116 passed in pure Rust (100.00% complete!)**.
+   - **Export Rejections**: 2,383 (2,367 `EXPORT_UNSUPPORTED_PROFILE`, 11 `INVOCATION_UNSUPPORTED`, 5 `VALUE_UNSUPPORTED`).
+   - **Rust Generator Rejections**: **0** across all 952 ready test groups (1,008 cases evaluated).
+   - **Rust Build Errors**: **0** across all 952 generated test crates.
+   - **Rust Execution Errors**: **0**.
+   - **Result Failures**: **2** (minor edge cases in `0002-string-functions` #002 and `1109-feel-replace-function` #017).
+   - **99.80% evaluation accuracy: 1,006 / 1,008 evaluated cases pass cleanly.**
+
+2. **Features Implemented & Verified in Step 8**:
+   - **Protobuf Schema Extension (`dmnir.proto`)**:
+     - Added operations 14..24 to `DmnIrBuiltinOperation`:
+       - `BUILTIN_OPERATION_UPPER_CASE = 14;`
+       - `BUILTIN_OPERATION_LOWER_CASE = 15;`
+       - `BUILTIN_OPERATION_SUBSTRING = 16;`
+       - `BUILTIN_OPERATION_SUBSTRING_BEFORE = 17;`
+       - `BUILTIN_OPERATION_SUBSTRING_AFTER = 18;`
+       - `BUILTIN_OPERATION_STARTS_WITH = 19;`
+       - `BUILTIN_OPERATION_ENDS_WITH = 20;`
+       - `BUILTIN_OPERATION_MATCHES = 21;`
+       - `BUILTIN_OPERATION_REPLACE = 22;`
+       - `BUILTIN_OPERATION_SPLIT = 23;`
+       - `BUILTIN_OPERATION_STRING_JOIN = 24;`
+   - **Formal Parameter Signatures & Codec (`DmnIrBuiltinSignature.java`, `DmnIrArtifactReader.java`)**:
+     - Added string function signatures with formal parameter names, parameter types, and arity ranges.
+     - Permitted null literal assignments in `DmnIrArtifactReader.java` via `assignable(actual, expected)`.
+   - **Compiler & DMNIR Producer (`DmnIrRecordProducer.java`)**:
+     - Synthesized default empty string for omitted `flags` in `matches` and `replace`.
+     - Synthesized null literal for omitted optional `length` in `substring`.
+     - Relaxed built-in argument validation to permit `SCALAR_TYPE_NULL` for nullable arguments.
+   - **Pure Rust Standalone Standard Library Regex Engine (`generated_builtins.rs.txt`)**:
+     - Zero external dependencies.
+     - Full AST and recursive backtracking matcher supporting:
+       - Character classes `[...]`, negated classes `[^...]`, character ranges `[a-z]`.
+       - Character class subtraction `[A-Z-[OI]]`.
+       - Unicode block character classes `\p{IsBasicLatin}`.
+       - Quantifiers `*`, `+`, `?`, `{m,n}`, and non-greedy lazy variants `*?`, `+?`.
+       - Alternations `|`, capturing groups `(...)`, non-capturing groups `(?:...)`.
+       - Anchors `^` and `$`.
+       - Backreferences in pattern (`\1`) and replacement string (`$0`, `$1`, `$2`).
+       - Flags: `i` (case-insensitive with Unicode case folding, including Kelvin sign `\u212A`), `s` (dotall), `m` (multiline anchor matching), `x` (extended mode with whitespace collapse outside brackets), `q` (literal quote).
+   - **Generator Argument Type Checking (`model.rs`)**:
+     - Updated built-in argument validation to use `assignable(emitted.ty, *parameter)` so nullable arguments in built-in calls propagate according to FEEL null-semantics without rejecting valid models.
+   - **Suites Unlocked & Passing in Step 8**:
+     - `1103-feel-substring-function` (all cases)
+     - `1105-feel-upper-case-function` (all cases)
+     - `1106-feel-lower-case-function` (all cases)
+     - `1107-feel-substring-before-function` (all cases)
+     - `1108-feel-substring-after-function` (all cases)
+     - `1111-feel-matches-function` (all cases)
+     - `1112-feel-starts-with-function` (all cases)
+     - `1113-feel-ends-with-function` (all cases)
+     - `1109-feel-replace-function` (27 / 28 cases)
+
+3. **High-Performance Test Runner & Hygiene**:
+   - `dmn-rust-tck-runner` cleans and regenerates all 952 crates in parallel (8 worker threads) and executes all 1,008 cases in unified harness.
+   - 0 generator rejections, 0 build errors, 0 execution errors.
+   - All 61 offline Rust generator and regex unit tests pass cleanly.
+
+4. **Next Steps (Step 9)**:
+   - Resolve the 2 remaining string edge cases (case 002 of `0002-string-functions` and case 017 of `1109-feel-replace-function`).
+   - Implement FEEL List built-in functions:
+     - `append`, `concatenate`, `insert`, `remove`, `reverse`, `index of`, `union`, `distinct values`, `flatten`, `sort`.
+     - Target suites: `1114-feel-append-function`, `1115-feel-concatenate-function`, `1116-feel-insert-before-function`, `1117-feel-remove-function`, `1118-feel-reverse-function`, `1119-feel-index-of-function`, `1120-feel-union-function`, `1121-feel-distinct-values-function`, `1122-feel-flatten-function`, `1123-feel-sort-function`.

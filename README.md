@@ -248,6 +248,8 @@ Key references are the [architecture overview](docs/architecture.md), the normat
 [ADR index](docs/architecture/adr/generall-adr.md), and the project
 [glossary](docs/glossary.md).
 
+For commercial strategy, market sizing, and the Strategyzer Business Model Canvas (v2.0), see [`dmn-compiler-toolkit-business-model-canvas`](../dmn-compiler-toolkit-business-model-canvas/README.md). For incubation tracks and research proposals, see [`dmn-compiler-toolkit-ideation`](../dmn-compiler-toolkit-ideation/README.md).
+
 Install MkDocs:
 
 ```bash
@@ -286,3 +288,6 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 ## Project
 
 Developed under the `finmsg.io` GitHub organization.
+
+- **Commercial Strategy & Business Model Canvas:** [`dmn-compiler-toolkit-business-model-canvas`](../dmn-compiler-toolkit-business-model-canvas/README.md)
+- **Product Ideation & Research Proposals:** [`dmn-compiler-toolkit-ideation`](../dmn-compiler-toolkit-ideation/README.md)

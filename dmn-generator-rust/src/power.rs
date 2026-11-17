@@ -79,7 +79,6 @@ fn integer(expression: &DmnIrExpression) -> Option<i128> {
 mod tests {
     use super::*;
     use crate::proto::*;
-    use prost::Message;
     fn literal(coefficient: &str, scale: i32) -> DmnIrExpression {
         DmnIrExpression {
             r#type: 3,
@@ -126,20 +125,7 @@ mod tests {
                 "power result exceeds exact integer domain",
             ),
         ] {
-            let mut artifact = DmnIrArtifact::decode(
-                include_bytes!("../tests/fixtures/powers-0.1.dmnir").as_slice(),
-            )
-            .unwrap();
-            artifact.models[0].decisions[0]
-                .expression
-                .as_mut()
-                .unwrap()
-                .node = Some(Node::Binary(Box::new(DmnIrBinaryExpression {
-                operator: 5,
-                left: Some(Box::new(a)),
-                right: Some(Box::new(b)),
-            })));
-            assert_eq!(crate::model::verify_and_generate(&artifact), Err(error));
+            assert_eq!(constant_power(&a, &b), Err(error));
         }
     }
 }

@@ -296,6 +296,11 @@ public final class DmnIrScalarDmnExporter {
 					case TABLE_HIT_POLICY_UNIQUE -> HitPolicy.HIT_POLICY_UNIQUE;
 					case TABLE_HIT_POLICY_FIRST -> HitPolicy.HIT_POLICY_FIRST;
 					case TABLE_HIT_POLICY_ANY -> HitPolicy.HIT_POLICY_ANY;
+					case TABLE_HIT_POLICY_RULE_ORDER -> HitPolicy.HIT_POLICY_RULE_ORDER;
+					case TABLE_HIT_POLICY_OUTPUT_ORDER -> HitPolicy.HIT_POLICY_OUTPUT_ORDER;
+					case TABLE_HIT_POLICY_COLLECT, TABLE_HIT_POLICY_COLLECT_SUM, TABLE_HIT_POLICY_COLLECT_MIN,
+							TABLE_HIT_POLICY_COLLECT_MAX, TABLE_HIT_POLICY_COLLECT_COUNT ->
+						HitPolicy.HIT_POLICY_COLLECT;
 					default -> throw invalid(address);
 				}));
 		for (var input : source.getInputsList()) {
