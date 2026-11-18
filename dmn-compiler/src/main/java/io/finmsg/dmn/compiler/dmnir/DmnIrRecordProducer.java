@@ -778,7 +778,7 @@ final class DmnIrRecordProducer {
 		}
 		var output = typed(type(source.getInferredType(), model));
 		if (!source.hasLiteral() && source.getInferredType().getBuiltin() == BuiltinType.BUILTIN_TYPE_NULL)
-			throw unsupported();
+			return nullLiteral();
 		switch (source.getNodeCase()) {
 			case LITERAL -> {
 				var literal = DmnIrLiteral.newBuilder();
