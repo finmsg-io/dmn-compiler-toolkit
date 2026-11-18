@@ -319,6 +319,29 @@ fn generated_literal_replacement_handles_unicode_and_empty_patterns() {
         assert_eq!(feel_replace_impl("abc", "", "!", "qi"), None);
         assert_eq!(feel_replace_impl("", "", "!", "q"), None);
     }
+    #[test] fn aggregate_builtins_evaluate_correctly() {
+        let num = |c: &str, scale| Value::Number { coefficient: c.into(), scale };
+        let list = Value::List(vec![num("1", 0), num("2", 0), num("3", 0)]);
+        assert_eq!(builtin_sum(list.clone()), num("6", 0));
+        assert_eq!(builtin_min(list.clone()), num("1", 0));
+        assert_eq!(builtin_max(list.clone()), num("3", 0));
+        assert_eq!(builtin_mean(list.clone()), num("2", 0));
+        assert_eq!(builtin_median(list), num("2", 0));
+        let even = Value::List(vec![num("1", 0), num("2", 0), num("3", 0), num("4", 0)]);
+        assert_eq!(builtin_median(even), num("25", 1));
+        assert_eq!(builtin_sum(Value::List(vec![])), Value::Null);
+        assert_eq!(builtin_sum(Value::List(vec![num("1", 0), Value::Null])), Value::Null);
+        assert_eq!(builtin_all(Value::List(vec![Value::Boolean(true), Value::Boolean(true)])), Value::Boolean(true));
+        assert_eq!(builtin_all(Value::List(vec![Value::Boolean(true), Value::Boolean(false)])), Value::Boolean(false));
+        assert_eq!(builtin_all(Value::List(vec![Value::Boolean(true), Value::Null])), Value::Null);
+        assert_eq!(builtin_all(Value::List(vec![Value::Boolean(false), Value::Null])), Value::Boolean(false));
+        assert_eq!(builtin_all(Value::List(vec![])), Value::Boolean(true));
+        assert_eq!(builtin_any(Value::List(vec![Value::Boolean(false), Value::Boolean(true)])), Value::Boolean(true));
+        assert_eq!(builtin_any(Value::List(vec![Value::Boolean(false), Value::Boolean(false)])), Value::Boolean(false));
+        assert_eq!(builtin_any(Value::List(vec![Value::Boolean(false), Value::Null])), Value::Null);
+        assert_eq!(builtin_any(Value::List(vec![Value::Boolean(true), Value::Null])), Value::Boolean(true));
+        assert_eq!(builtin_any(Value::List(vec![])), Value::Boolean(false));
+    }
 }
 "#,
     );
@@ -330,7 +353,8 @@ fn generated_literal_replacement_handles_unicode_and_empty_patterns() {
         .unwrap();
     assert!(
         result.status.success(),
-        "{}",
+        "STDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&result.stdout),
         String::from_utf8_lossy(&result.stderr)
     );
 }
@@ -370,7 +394,8 @@ fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)])
         .unwrap();
     assert!(
         result.status.success(),
-        "{}",
+        "STDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&result.stdout),
         String::from_utf8_lossy(&result.stderr)
     );
 }

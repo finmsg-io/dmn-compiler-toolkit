@@ -1429,55 +1429,87 @@ impl ExpressionEmitter<'_, '_> {
                 result.value
             }
             Node::BuiltinCall(call) if self.builtins_enabled => {
-                let (parameters, result, function): (&[DmnIrScalarType], DmnIrScalarType, &str) =
-                    match call.operation {
-                        1 => (&[Number], Number, "builtin_abs"),
-                        2 => (&[Text], Number, "builtin_string_length"),
-                        3 => (&[Text, Text], Boolean, "builtin_contains"),
-                        4 => (&[Number, Number], Number, "builtin_modulo"),
-                        5 => (&[Number, Number], Number, "builtin_floor"),
-                        6 => (&[Number, Number], Number, "builtin_ceiling"),
-                        7 => (&[Number], Boolean, "builtin_even"),
-                        8 => (&[Number], Boolean, "builtin_odd"),
-                        9 => (&[Number, Number], Number, "builtin_decimal"),
-                        10 => (&[Number, Number], Number, "builtin_round_up"),
-                        11 => (&[Number, Number], Number, "builtin_round_down"),
-                        12 => (&[Number, Number], Number, "builtin_round_half_up"),
-                        13 => (&[Number, Number], Number, "builtin_round_half_down"),
-                        14 => (&[Text], Text, "builtin_upper_case"),
-                        15 => (&[Text], Text, "builtin_lower_case"),
-                        16 => (&[Text, Number, Number], Text, "builtin_substring"),
-                        17 => (&[Text, Text], Text, "builtin_substring_before"),
-                        18 => (&[Text, Text], Text, "builtin_substring_after"),
-                        19 => (&[Text, Text], Boolean, "builtin_starts_with"),
-                        20 => (&[Text, Text], Boolean, "builtin_ends_with"),
-                        21 => (&[Text, Text, Text], Boolean, "builtin_matches"),
-                        22 => (&[Text, Text, Text, Text], Text, "builtin_replace"),
-                        25 => (&[Text, Text, Text], Number, "builtin_number_from_string"),
-                        _ => return Err("unsupported builtin operation"),
+                if (26..=32).contains(&call.operation) {
+                    if call.arguments.len() != 1 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let (expected_elem, expected_res, function) = match call.operation {
+                        26 => (Number, Number, "builtin_sum"),
+                        27 => (Number, Number, "builtin_min"),
+                        28 => (Number, Number, "builtin_max"),
+                        29 => (Number, Number, "builtin_mean"),
+                        30 => (Number, Number, "builtin_median"),
+                        31 => (Boolean, Boolean, "builtin_all"),
+                        32 => (Boolean, Boolean, "builtin_any"),
+                        _ => unreachable!(),
                     };
-                if ty != result {
-                    return Err("builtin result type mismatch");
-                }
-                if call.arguments.len() != parameters.len() {
-                    return Err("builtin argument count mismatch");
-                }
-                let mut arguments = Vec::new();
-                for (argument, parameter) in call.arguments.iter().zip(parameters) {
-                    let emitted = self.expression(argument)?;
-                    if !assignable(emitted.ty, *parameter) {
+                    if ty != expected_res {
+                        return Err("builtin result type mismatch");
+                    }
+                    let emitted = self.expression(&call.arguments[0])?;
+                    let valid_arg = match emitted.ty {
+                        Type::Collection(idx) => {
+                            assignable(self.types.collections[idx], expected_elem)
+                        }
+                        Type::Scalar(DmnIrScalarType::ScalarTypeNull) => true,
+                        _ => false,
+                    };
+                    if !valid_arg {
                         return Err("builtin argument type mismatch");
                     }
                     depth = depth.max(emitted.depth);
-                    if call.operation == 1 {
-                        bounds = emitted.bounds;
+                    format!("{function}({})", emitted.value)
+                } else {
+                    let (parameters, result, function): (&[DmnIrScalarType], DmnIrScalarType, &str) =
+                        match call.operation {
+                            1 => (&[Number], Number, "builtin_abs"),
+                            2 => (&[Text], Number, "builtin_string_length"),
+                            3 => (&[Text, Text], Boolean, "builtin_contains"),
+                            4 => (&[Number, Number], Number, "builtin_modulo"),
+                            5 => (&[Number, Number], Number, "builtin_floor"),
+                            6 => (&[Number, Number], Number, "builtin_ceiling"),
+                            7 => (&[Number], Boolean, "builtin_even"),
+                            8 => (&[Number], Boolean, "builtin_odd"),
+                            9 => (&[Number, Number], Number, "builtin_decimal"),
+                            10 => (&[Number, Number], Number, "builtin_round_up"),
+                            11 => (&[Number, Number], Number, "builtin_round_down"),
+                            12 => (&[Number, Number], Number, "builtin_round_half_up"),
+                            13 => (&[Number, Number], Number, "builtin_round_half_down"),
+                            14 => (&[Text], Text, "builtin_upper_case"),
+                            15 => (&[Text], Text, "builtin_lower_case"),
+                            16 => (&[Text, Number, Number], Text, "builtin_substring"),
+                            17 => (&[Text, Text], Text, "builtin_substring_before"),
+                            18 => (&[Text, Text], Text, "builtin_substring_after"),
+                            19 => (&[Text, Text], Boolean, "builtin_starts_with"),
+                            20 => (&[Text, Text], Boolean, "builtin_ends_with"),
+                            21 => (&[Text, Text, Text], Boolean, "builtin_matches"),
+                            22 => (&[Text, Text, Text, Text], Text, "builtin_replace"),
+                            25 => (&[Text, Text, Text], Number, "builtin_number_from_string"),
+                            _ => return Err("unsupported builtin operation"),
+                        };
+                    if ty != result {
+                        return Err("builtin result type mismatch");
                     }
-                    arguments.push(emitted.value);
+                    if call.arguments.len() != parameters.len() {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let mut arguments = Vec::new();
+                    for (argument, parameter) in call.arguments.iter().zip(parameters) {
+                        let emitted = self.expression(argument)?;
+                        if !assignable(emitted.ty, *parameter) {
+                            return Err("builtin argument type mismatch");
+                        }
+                        depth = depth.max(emitted.depth);
+                        if call.operation == 1 {
+                            bounds = emitted.bounds;
+                        }
+                        arguments.push(emitted.value);
+                    }
+                    if call.operation == 2 {
+                        bounds = Some(NumericBounds::literal(&u64::MAX.to_string(), 0));
+                    }
+                    format!("{function}({})", arguments.join(","))
                 }
-                if call.operation == 2 {
-                    bounds = Some(NumericBounds::literal(&u64::MAX.to_string(), 0));
-                }
-                format!("{function}({})", arguments.join(","))
             }
             Node::Filter(filter) if self.filters_enabled => {
                 if self.filter_predicate {

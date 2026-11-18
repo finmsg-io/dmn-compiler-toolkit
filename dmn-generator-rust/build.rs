@@ -26,13 +26,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     })();
 
-    if res.is_err() {
+    if let Err(ref e) = res {
+        eprintln!("compile_protos failed: {e:?}");
         if let Ok(entries) = fs::read_dir("target/debug/build") {
             for entry in entries.flatten() {
                 let candidate = entry.path().join("out/io.finmsg.dmn.dmnir.v0.rs");
                 if candidate.exists() && candidate != target_file {
-                    fs::copy(candidate, &target_file)?;
-                    return Ok(());
+                    match fs::copy(&candidate, &target_file) {
+                        Ok(_) => {
+                            eprintln!("Copied cached schema from {}", candidate.display());
+                            return Ok(());
+                        }
+                        Err(copy_err) => {
+                            eprintln!("Failed to copy {}: {copy_err:?}", candidate.display());
+                        }
+                    }
                 }
             }
         }

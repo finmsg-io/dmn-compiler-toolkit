@@ -1103,3 +1103,152 @@ fn builtin_number_from_string(from: Value, grouping: Value, decimal: Value) -> V
         else if negative { format!("-{digits}") } else { digits.to_string() };
     Value::Number { coefficient, scale }
 }
+
+fn builtin_sum(val: Value) -> Value {
+    let Value::List(items) = val else {
+        return Value::Null;
+    };
+    if items.is_empty() {
+        return Value::Null;
+    }
+    let mut sum = Value::Number {
+        coefficient: "0".into(),
+        scale: 0,
+    };
+    for item in items {
+        if !matches!(item, Value::Number { .. }) {
+            return Value::Null;
+        }
+        sum = decimal_arithmetic(sum, item, false);
+    }
+    sum
+}
+
+fn builtin_min(val: Value) -> Value {
+    let Value::List(items) = val else {
+        return Value::Null;
+    };
+    if items.is_empty() {
+        return Value::Null;
+    }
+    let mut min_val: Option<Value> = None;
+    for item in items {
+        if !matches!(item, Value::Number { .. }) {
+            return Value::Null;
+        }
+        match min_val {
+            None => min_val = Some(item),
+            Some(ref cur) => {
+                if let Some(Ordering::Less) = compare(&item, cur) {
+                    min_val = Some(item);
+                }
+            }
+        }
+    }
+    min_val.unwrap_or(Value::Null)
+}
+
+fn builtin_max(val: Value) -> Value {
+    let Value::List(items) = val else {
+        return Value::Null;
+    };
+    if items.is_empty() {
+        return Value::Null;
+    }
+    let mut max_val: Option<Value> = None;
+    for item in items {
+        if !matches!(item, Value::Number { .. }) {
+            return Value::Null;
+        }
+        match max_val {
+            None => max_val = Some(item),
+            Some(ref cur) => {
+                if let Some(Ordering::Greater) = compare(&item, cur) {
+                    max_val = Some(item);
+                }
+            }
+        }
+    }
+    max_val.unwrap_or(Value::Null)
+}
+
+fn builtin_mean(val: Value) -> Value {
+    let Value::List(ref items) = val else {
+        return Value::Null;
+    };
+    if items.is_empty() {
+        return Value::Null;
+    }
+    let len = items.len();
+    let sum = builtin_sum(val);
+    if sum == Value::Null {
+        return Value::Null;
+    }
+    let count = Value::Number {
+        coefficient: len.to_string(),
+        scale: 0,
+    };
+    divide(sum, count)
+}
+
+fn builtin_median(val: Value) -> Value {
+    let Value::List(mut items) = val else {
+        return Value::Null;
+    };
+    if items.is_empty() {
+        return Value::Null;
+    }
+    for item in &items {
+        if !matches!(item, Value::Number { .. }) {
+            return Value::Null;
+        }
+    }
+    items.sort_by(|a, b| compare(a, b).unwrap_or(Ordering::Equal));
+    let n = items.len();
+    if n % 2 == 1 {
+        items[n / 2].clone()
+    } else {
+        let left = items[n / 2 - 1].clone();
+        let right = items[n / 2].clone();
+        let sum = decimal_arithmetic(left, right, false);
+        divide(sum, Value::Number { coefficient: "2".into(), scale: 0 })
+    }
+}
+
+fn builtin_all(val: Value) -> Value {
+    let Value::List(items) = val else {
+        return Value::Null;
+    };
+    let mut has_null = false;
+    for item in items {
+        match item {
+            Value::Boolean(false) => return Value::Boolean(false),
+            Value::Boolean(true) => {}
+            _ => has_null = true,
+        }
+    }
+    if has_null {
+        Value::Null
+    } else {
+        Value::Boolean(true)
+    }
+}
+
+fn builtin_any(val: Value) -> Value {
+    let Value::List(items) = val else {
+        return Value::Null;
+    };
+    let mut has_null = false;
+    for item in items {
+        match item {
+            Value::Boolean(true) => return Value::Boolean(true),
+            Value::Boolean(false) => {}
+            _ => has_null = true,
+        }
+    }
+    if has_null {
+        Value::Null
+    } else {
+        Value::Boolean(false)
+    }
+}

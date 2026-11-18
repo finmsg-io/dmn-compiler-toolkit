@@ -144,7 +144,44 @@ public enum DmnIrBuiltinSignature {
 																																															List.of("from",
 																																																	"grouping separator",
 																																																	"decimal separator"),
-																																															1);
+																																															1), SUM(BUILTIN_OPERATION_SUM_NUMBER_LIST,
+																																																	"sum",
+																																																	SCALAR_TYPE_NUMBER,
+																																																	List.of(SCALAR_TYPE_NUMBER),
+																																																	List.of("list"),
+																																																	1), MIN(BUILTIN_OPERATION_MIN_NUMBER_LIST,
+																																																			"min",
+																																																			SCALAR_TYPE_NUMBER,
+																																																			List.of(SCALAR_TYPE_NUMBER),
+																																																			List.of("list"),
+																																																			1), MAX(BUILTIN_OPERATION_MAX_NUMBER_LIST,
+																																																					"max",
+																																																					SCALAR_TYPE_NUMBER,
+																																																					List.of(SCALAR_TYPE_NUMBER),
+																																																					List.of("list"),
+																																																					1), MEAN(
+																																																							BUILTIN_OPERATION_MEAN_NUMBER_LIST,
+																																																							"mean",
+																																																							SCALAR_TYPE_NUMBER,
+																																																							List.of(SCALAR_TYPE_NUMBER),
+																																																							List.of("list"),
+																																																							1), MEDIAN(
+																																																									BUILTIN_OPERATION_MEDIAN_NUMBER_LIST,
+																																																									"median",
+																																																									SCALAR_TYPE_NUMBER,
+																																																									List.of(SCALAR_TYPE_NUMBER),
+																																																									List.of("list"),
+																																																									1), ALL(BUILTIN_OPERATION_ALL_BOOLEAN_LIST,
+																																																											"all",
+																																																											SCALAR_TYPE_BOOLEAN,
+																																																											List.of(SCALAR_TYPE_BOOLEAN),
+																																																											List.of("list"),
+																																																											1), ANY(BUILTIN_OPERATION_ANY_BOOLEAN_LIST,
+																																																													"any",
+																																																													SCALAR_TYPE_BOOLEAN,
+																																																													List.of(SCALAR_TYPE_BOOLEAN),
+																																																													List.of("list"),
+																																																													1);
 
 	private final DmnIrBuiltinOperation operation;
 	private final String feelName;
@@ -161,6 +198,17 @@ public enum DmnIrBuiltinSignature {
 		this.parameters = parameters;
 		this.parameterNames = parameterNames;
 		this.minArity = minArity;
+	}
+
+	/**
+	 * For aggregate operations the parameter scalar denotes the collection element
+	 * type.
+	 */
+	public boolean collectionParameter() {
+		return switch (this) {
+			case SUM, MIN, MAX, MEAN, MEDIAN, ALL, ANY -> true;
+			default -> false;
+		};
 	}
 
 	public DmnIrBuiltinOperation operation() {

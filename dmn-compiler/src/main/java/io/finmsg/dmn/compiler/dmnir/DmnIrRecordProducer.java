@@ -267,6 +267,15 @@ final class DmnIrRecordProducer {
 			done.add(next.getKey());
 			pending.remove(next.getKey());
 		}
+		// Built-in literal list arguments may introduce typed collections during
+		// expression production.
+		for (int i = 0; i < artifact.getModelsCount(); i++) {
+			var output = artifact.getModelsBuilder(i);
+			output.clearCollectionDefinitions();
+			collections.entrySet().stream().filter(e -> e.getKey().getModelNamespace().equals(output.getNamespace()))
+					.sorted(Map.Entry.comparingByKey(ORDER))
+					.forEach(e -> output.addCollectionDefinitions(e.getValue()));
+		}
 		if (filters || builtinCalls || !bkms.isEmpty() || closures) {
 			var capabilities = List.of(DmnIrArtifactReader.LOCAL_CAPABILITY, DmnIrArtifactReader.DATE_CAPABILITY,
 					DmnIrArtifactReader.TABLE_CAPABILITY, DmnIrArtifactReader.FIELD_CONSTRAINT_CAPABILITY,
@@ -1103,12 +1112,72 @@ final class DmnIrRecordProducer {
 		}
 		return typed(type(bkm.getVariable().getType(), owner)).setBkmCall(call).build();
 	}
+	private DmnIrExpression collectionBuiltinCall(InvocationExpression source, DmnIrBuiltinSignature signature,
+			DmnSemanticModel model, String path, Set<DmnIrReference> dependencies, int depth) {
+		int count = source.getPositionalArgumentsCount();
+		Expression single = null;
+		if (source.getArgumentsCount() > 0) {
+			if (count != 0 || source.getArgumentsCount() != 1 || !source.getArguments(0).getName().equals("list"))
+				return nullLiteral();
+			single = source.getArguments(0).getExpression();
+			count = 1;
+		} else if (count == 1)
+			single = source.getPositionalArguments(0);
+		if (count == 0)
+			return nullLiteral();
+		var element = signature.parameters().getFirst();
+		String base = "$dmnir$builtin-list-" + element.name().toLowerCase(java.util.Locale.ROOT);
+		String id = base;
+		while (named.containsValue(ref(model.identity().namespace(), id))
+				|| records.containsKey(ref(model.identity().namespace(), id)))
+			id += "$";
+		var reference = ref(model.identity().namespace(), id);
+		if (!collections.containsKey(reference)) {
+			collections.put(reference,
+					DmnIrCollectionDefinition.newBuilder()
+							.setIdentity(DmnIrElementIdentity.newBuilder().setId(id).setName(id))
+							.setElementType(element).build());
+			collectionTypes.add(reference);
+		}
+		var expected = DmnIrTypeReference.newBuilder().setCollectionType(reference).build();
+		DmnIrExpression argument;
+		if (single != null) {
+			argument = expression(single, model, path + "/argument[0]", dependencies, depth + 1, expected);
+			var actual = expressionType(argument);
+			if (actual.hasScalarType() && actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+				if (actual.getScalarType() != element)
+					return nullLiteral();
+				argument = typed(expected).setList(DmnIrListExpression.newBuilder().addElements(argument)).build();
+			}
+		} else {
+			var list = DmnIrListExpression.newBuilder();
+			for (int i = 0; i < count; i++) {
+				var value = expression(source.getPositionalArguments(i), model, path + "/argument[" + i + "]",
+						dependencies, depth + 1);
+				var actual = expressionType(value);
+				if (!actual.hasScalarType() || actual.getScalarType() != element
+						&& actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL)
+					return nullLiteral();
+				list.addElements(value);
+			}
+			argument = typed(expected).setList(list).build();
+		}
+		builtinCalls = true;
+		return DmnIrExpression.newBuilder().setType(signature.result())
+				.setBuiltinCall(
+						DmnIrBuiltinCall.newBuilder().setOperation(signature.operation()).addArguments(argument))
+				.build();
+	}
+
 	private DmnIrExpression builtinCall(InvocationExpression source, DmnIrBuiltinSignature signature,
 			DmnSemanticModel model, String path, Set<DmnIrReference> dependencies, int depth) {
 		String name = signature.feelName();
 		if (localBindings.values().stream().anyMatch(local -> local.getVariable().getName().equals(name))
 				|| model.bindings().stream().anyMatch(binding -> binding.referencePath().equals(path + "/target")))
 			throw unsupported();
+
+		if (signature.collectionParameter())
+			return collectionBuiltinCall(source, signature, model, path, dependencies, depth);
 
 		boolean named = source.getArgumentsCount() > 0;
 		int positionalCount = source.getPositionalArgumentsCount();

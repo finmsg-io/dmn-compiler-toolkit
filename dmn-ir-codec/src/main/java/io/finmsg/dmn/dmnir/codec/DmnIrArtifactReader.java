@@ -789,9 +789,17 @@ public final class DmnIrArtifactReader {
 						var argument = call.getArguments(i);
 						String argumentPath = path + ".builtin_call.arguments[" + i + "]";
 						var argumentType = typeOf(argument, argumentPath);
-						check(argumentType.hasScalarType()
-								&& assignable(argumentType.getScalarType(), signature.parameters().get(i)),
-								INVALID_TYPE, argumentPath, "Built-in argument type must match its signature.");
+						boolean matches = argumentType.hasScalarType()
+								&& argumentType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL;
+						if (signature.collectionParameter() && argumentType.hasCollectionType()) {
+							var collection = collections.get(Address.of(argumentType.getCollectionType()));
+							matches = collection != null && !collection.hasRecordType()
+									&& collection.getElementType() == signature.parameters().get(i);
+						} else if (!signature.collectionParameter()) {
+							matches |= argumentType.hasScalarType()
+									&& assignable(argumentType.getScalarType(), signature.parameters().get(i));
+						}
+						check(matches, INVALID_TYPE, argumentPath, "Built-in argument type must match its signature.");
 						node(argument, owner, dependencies, argumentPath, depth + 1);
 					}
 				}
