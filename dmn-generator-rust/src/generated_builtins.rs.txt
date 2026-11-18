@@ -1252,3 +1252,57 @@ fn builtin_any(val: Value) -> Value {
         Value::Boolean(false)
     }
 }
+
+fn builtin_sqrt(value: Value) -> Value {
+    let Value::Number { coefficient, scale } = value else {
+        return Value::Null;
+    };
+    if coefficient.starts_with('-') && coefficient != "-0" {
+        return Value::Null;
+    }
+    if coefficient == "0" || coefficient == "-0" {
+        return Value::Number {
+            coefficient: "0".into(),
+            scale: 0,
+        };
+    }
+    if let Some(f) = to_f64(&coefficient, scale) {
+        if f < 0.0 || !f.is_finite() {
+            return Value::Null;
+        }
+        let root = f.sqrt();
+        if !root.is_finite() {
+            return Value::Null;
+        }
+        if root.fract() == 0.0 && root <= i64::MAX as f64 {
+            return Value::Number {
+                coefficient: (root as i64).to_string(),
+                scale: 0,
+            };
+        }
+        from_f64(root)
+    } else {
+        Value::Null
+    }
+}
+
+fn builtin_product(val: Value) -> Value {
+    let Value::List(items) = val else {
+        return Value::Null;
+    };
+    if items.is_empty() {
+        return Value::Null;
+    }
+    let mut prod = Value::Number {
+        coefficient: "1".into(),
+        scale: 0,
+    };
+    for item in items {
+        if !matches!(item, Value::Number { .. }) {
+            return Value::Null;
+        }
+        prod = multiply(prod, item);
+        prod = trim_decimal_precision(prod, 34);
+    }
+    prod
+}

@@ -341,6 +341,12 @@ fn generated_literal_replacement_handles_unicode_and_empty_patterns() {
         assert_eq!(builtin_any(Value::List(vec![Value::Boolean(false), Value::Null])), Value::Null);
         assert_eq!(builtin_any(Value::List(vec![Value::Boolean(true), Value::Null])), Value::Boolean(true));
         assert_eq!(builtin_any(Value::List(vec![])), Value::Boolean(false));
+        assert_eq!(builtin_product(Value::List(vec![num("2", 0), num("3", 0), num("4", 0)])), num("24", 0));
+        assert_eq!(builtin_product(Value::List(vec![])), Value::Null);
+        assert_eq!(builtin_product(Value::List(vec![num("1", 0), Value::Null])), Value::Null);
+        assert_eq!(builtin_sqrt(num("4", 0)), num("2", 0));
+        assert_eq!(builtin_sqrt(num("0", 0)), num("0", 0));
+        assert_eq!(builtin_sqrt(num("-1", 0)), Value::Null);
     }
 }
 "#,

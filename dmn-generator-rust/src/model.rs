@@ -1429,7 +1429,7 @@ impl ExpressionEmitter<'_, '_> {
                 result.value
             }
             Node::BuiltinCall(call) if self.builtins_enabled => {
-                if (26..=32).contains(&call.operation) {
+                if (26..=32).contains(&call.operation) || call.operation == 34 {
                     if call.arguments.len() != 1 {
                         return Err("builtin argument count mismatch");
                     }
@@ -1441,6 +1441,7 @@ impl ExpressionEmitter<'_, '_> {
                         30 => (Number, Number, "builtin_median"),
                         31 => (Boolean, Boolean, "builtin_all"),
                         32 => (Boolean, Boolean, "builtin_any"),
+                        34 => (Number, Number, "builtin_product"),
                         _ => unreachable!(),
                     };
                     if ty != expected_res {
@@ -1485,6 +1486,7 @@ impl ExpressionEmitter<'_, '_> {
                             21 => (&[Text, Text, Text], Boolean, "builtin_matches"),
                             22 => (&[Text, Text, Text, Text], Text, "builtin_replace"),
                             25 => (&[Text, Text, Text], Number, "builtin_number_from_string"),
+                            33 => (&[Number], Number, "builtin_sqrt"),
                             _ => return Err("unsupported builtin operation"),
                         };
                     if ty != result {

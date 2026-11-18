@@ -181,7 +181,19 @@ public enum DmnIrBuiltinSignature {
 																																																													SCALAR_TYPE_BOOLEAN,
 																																																													List.of(SCALAR_TYPE_BOOLEAN),
 																																																													List.of("list"),
-																																																													1);
+																																																													1), SQRT(
+																																																															BUILTIN_OPERATION_SQRT,
+																																																															"sqrt",
+																																																															SCALAR_TYPE_NUMBER,
+																																																															List.of(SCALAR_TYPE_NUMBER),
+																																																															List.of("number"),
+																																																															1), PRODUCT(
+																																																																	BUILTIN_OPERATION_PRODUCT_NUMBER_LIST,
+																																																																	"product",
+																																																																	SCALAR_TYPE_NUMBER,
+																																																																	List.of(SCALAR_TYPE_NUMBER),
+																																																																	List.of("list"),
+																																																																	1);
 
 	private final DmnIrBuiltinOperation operation;
 	private final String feelName;
@@ -206,7 +218,7 @@ public enum DmnIrBuiltinSignature {
 	 */
 	public boolean collectionParameter() {
 		return switch (this) {
-			case SUM, MIN, MAX, MEAN, MEDIAN, ALL, ANY -> true;
+			case SUM, MIN, MAX, MEAN, MEDIAN, ALL, ANY, PRODUCT -> true;
 			default -> false;
 		};
 	}
