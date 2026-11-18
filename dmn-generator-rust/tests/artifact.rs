@@ -347,6 +347,11 @@ fn generated_literal_replacement_handles_unicode_and_empty_patterns() {
         assert_eq!(builtin_sqrt(num("4", 0)), num("2", 0));
         assert_eq!(builtin_sqrt(num("0", 0)), num("0", 0));
         assert_eq!(builtin_sqrt(num("-1", 0)), Value::Null);
+        assert_eq!(builtin_exp(num("0", 0)), num("1", 0));
+        assert_eq!(builtin_exp(Value::Null), Value::Null);
+        assert_eq!(builtin_log(num("1", 0)), num("0", 0));
+        assert_eq!(builtin_log(num("0", 0)), Value::Null);
+        assert_eq!(builtin_log(num("-1", 0)), Value::Null);
     }
 }
 "#,

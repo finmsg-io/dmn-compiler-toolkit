@@ -1306,3 +1306,39 @@ fn builtin_product(val: Value) -> Value {
     }
     prod
 }
+
+fn builtin_exp(value: Value) -> Value {
+    let Value::Number { coefficient, scale } = value else {
+        return Value::Null;
+    };
+    if let Some(f) = to_f64(&coefficient, scale) {
+        if !f.is_finite() {
+            return Value::Null;
+        }
+        let res = f.exp();
+        if !res.is_finite() {
+            return Value::Null;
+        }
+        from_f64(res)
+    } else {
+        Value::Null
+    }
+}
+
+fn builtin_log(value: Value) -> Value {
+    let Value::Number { coefficient, scale } = value else {
+        return Value::Null;
+    };
+    if let Some(f) = to_f64(&coefficient, scale) {
+        if f <= 0.0 || !f.is_finite() {
+            return Value::Null;
+        }
+        let res = f.ln();
+        if !res.is_finite() {
+            return Value::Null;
+        }
+        from_f64(res)
+    } else {
+        Value::Null
+    }
+}

@@ -193,7 +193,17 @@ public enum DmnIrBuiltinSignature {
 																																																																	SCALAR_TYPE_NUMBER,
 																																																																	List.of(SCALAR_TYPE_NUMBER),
 																																																																	List.of("list"),
-																																																																	1);
+																																																																	1), EXP(BUILTIN_OPERATION_EXP,
+																																																																			"exp",
+																																																																			SCALAR_TYPE_NUMBER,
+																																																																			List.of(SCALAR_TYPE_NUMBER),
+																																																																			List.of("number"),
+																																																																			1), LOG(BUILTIN_OPERATION_LOG,
+																																																																					"log",
+																																																																					SCALAR_TYPE_NUMBER,
+																																																																					List.of(SCALAR_TYPE_NUMBER),
+																																																																					List.of("number"),
+																																																																					1);
 
 	private final DmnIrBuiltinOperation operation;
 	private final String feelName;
