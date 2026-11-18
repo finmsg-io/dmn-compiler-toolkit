@@ -411,7 +411,7 @@ public final class DmnIrScalarProducer {
 			throw unsupported(address);
 		if (message instanceof Expression expression) {
 			boolean admitted = switch (expression.getNodeCase()) {
-				case LITERAL, NAME, PATH, UNARY, BINARY, IF_EXPRESSION, BETWEEN, IN -> true;
+				case LITERAL, NAME, PATH, UNARY, BINARY, IF_EXPRESSION, BETWEEN, IN, LIST, RANGE -> true;
 				case INVOCATION -> expression.getInvocation().getTarget().hasName()
 						&& expression.getInvocation().getTarget().getName().getName().equals("not")
 						&& expression.getInvocation().getPositionalArgumentsCount() == 1
