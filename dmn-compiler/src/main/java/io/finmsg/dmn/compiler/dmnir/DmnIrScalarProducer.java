@@ -197,11 +197,28 @@ public final class DmnIrScalarProducer {
 					.setOperand(expression(call.positionalArguments().getFirst(), addresses, address, depth + 1)))
 					.build();
 		}
+		if (expression instanceof RuntimeInvocationExpression call && call.function().orElse("").equals("is")
+				&& call.target().isEmpty() && call.namedArguments().isEmpty()
+				&& call.positionalArguments().size() == 2) {
+			return output
+					.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL)
+							.setLeft(expression(call.positionalArguments().get(0), addresses, address, depth + 1))
+							.setRight(expression(call.positionalArguments().get(1), addresses, address, depth + 1)))
+					.build();
+		}
 		if (expression instanceof RuntimeFunctionCall call && call.function().equals("not")
 				&& call.arguments().size() == 1) {
 			return output
 					.setUnary(DmnIrUnaryExpression.newBuilder().setOperator(DmnIrUnaryOperator.UNARY_OPERATOR_NOT)
 							.setOperand(expression(call.arguments().getFirst(), addresses, address, depth + 1)))
+					.build();
+		}
+		if (expression instanceof RuntimeFunctionCall call && call.function().equals("is")
+				&& call.arguments().size() == 2) {
+			return output
+					.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL)
+							.setLeft(expression(call.arguments().get(0), addresses, address, depth + 1))
+							.setRight(expression(call.arguments().get(1), addresses, address, depth + 1)))
 					.build();
 		}
 		if (expression instanceof RuntimeValueReference ref)
@@ -413,9 +430,12 @@ public final class DmnIrScalarProducer {
 			boolean admitted = switch (expression.getNodeCase()) {
 				case LITERAL, NAME, PATH, UNARY, BINARY, IF_EXPRESSION, BETWEEN, IN, LIST, RANGE -> true;
 				case INVOCATION -> expression.getInvocation().getTarget().hasName()
-						&& expression.getInvocation().getTarget().getName().getName().equals("not")
-						&& expression.getInvocation().getPositionalArgumentsCount() == 1
-						&& expression.getInvocation().getArgumentsCount() == 0;
+						&& ((expression.getInvocation().getTarget().getName().getName().equals("not")
+								&& expression.getInvocation().getPositionalArgumentsCount() == 1
+								&& expression.getInvocation().getArgumentsCount() == 0)
+								|| (expression.getInvocation().getTarget().getName().getName().equals("is")
+										&& expression.getInvocation().getPositionalArgumentsCount() == 2
+										&& expression.getInvocation().getArgumentsCount() == 0));
 				default -> false;
 			};
 			if (!admitted)

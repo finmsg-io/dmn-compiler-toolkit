@@ -43,7 +43,8 @@ final class DmnIrRecordProducer {
 	static boolean containsBuiltinCall(com.google.protobuf.Message source) {
 		return DmnIrDates.containsNode(source,
 				node -> node instanceof InvocationExpression call && call.getTarget().hasName()
-						&& DmnIrBuiltinSignature.forFeelName(call.getTarget().getName().getName()).isPresent());
+						&& (DmnIrBuiltinSignature.forFeelName(call.getTarget().getName().getName()).isPresent()
+								|| call.getTarget().getName().getName().equals("is")));
 	}
 
 	DmnIrArtifactReader.VerifiedArtifact produce() {
@@ -831,6 +832,44 @@ final class DmnIrRecordProducer {
 					if (date == null)
 						throw unsupported();
 					return output.setLiteral(DmnIrLiteral.newBuilder().setDateValue(DmnIrDates.wire(date))).build();
+				}
+				if (value.getTarget().hasName() && value.getTarget().getName().getName().equals("is")) {
+					if (value.getArgumentsCount() > 0) {
+						if (value.getArgumentsCount() > 2 || value.getArgumentsList().stream()
+								.anyMatch(a -> !"value1".equals(a.getName()) && !"value2".equals(a.getName()))) {
+							return nullLiteral();
+						}
+						Expression v1 = null, v2 = null;
+						for (var arg : value.getArgumentsList()) {
+							if ("value1".equals(arg.getName()))
+								v1 = arg.getExpression();
+							else if ("value2".equals(arg.getName()))
+								v2 = arg.getExpression();
+						}
+						var left = v1 != null
+								? expression(v1, model, path + "/argument[0]", dependencies, depth + 1)
+								: nullLiteral();
+						var right = v2 != null
+								? expression(v2, model, path + "/argument[1]", dependencies, depth + 1)
+								: nullLiteral();
+						return output.setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+								.setBinary(DmnIrBinaryExpression.newBuilder()
+										.setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL).setLeft(left)
+										.setRight(right))
+								.build();
+					} else if (value.getPositionalArgumentsCount() == 2) {
+						var left = expression(value.getPositionalArguments(0), model, path + "/argument[0]",
+								dependencies, depth + 1);
+						var right = expression(value.getPositionalArguments(1), model, path + "/argument[1]",
+								dependencies, depth + 1);
+						return output.setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+								.setBinary(DmnIrBinaryExpression.newBuilder()
+										.setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL).setLeft(left)
+										.setRight(right))
+								.build();
+					} else {
+						return nullLiteral();
+					}
 				}
 				if (!value.getTarget().hasName() || !value.getTarget().getName().getName().equals("not")
 						|| value.getArgumentsCount() != 0 || value.getPositionalArgumentsCount() != 1)
