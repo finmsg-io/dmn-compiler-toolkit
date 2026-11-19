@@ -15,7 +15,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Ok(protoc) = env::var("PROTOC") {
             config.protoc_executable(PathBuf::from(protoc));
         } else {
-            let m2_protoc = PathBuf::from("C:/Users/lik/.m2/repository/com/google/protobuf/protoc/4.31.1/protoc-4.31.1-windows-x86_64.exe");
+            let m2_protoc = PathBuf::from(
+                "C:/Users/lik/.m2/repository/com/google/protobuf/protoc/4.31.1/protoc-4.31.1-windows-x86_64.exe",
+            );
             if m2_protoc.exists() {
                 config.protoc_executable(m2_protoc);
             } else if let Ok(path) = protoc_bin_vendored::protoc_bin_path() {

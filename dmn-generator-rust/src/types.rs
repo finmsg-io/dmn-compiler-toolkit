@@ -94,12 +94,16 @@ impl<'a> Types<'a> {
         for (index, value) in collection_indices.values_mut().enumerate() {
             *value = index;
         }
-        let mut collections = vec![Type::Scalar(DmnIrScalarType::ScalarTypeNull); collection_indices.len()];
+        let mut collections =
+            vec![Type::Scalar(DmnIrScalarType::ScalarTypeNull); collection_indices.len()];
         for model in models {
             for collection in &model.collection_definitions {
                 let item_type = if let Some(rec_ref) = &collection.record_type {
                     let index = indices
-                        .get(&(rec_ref.model_namespace.as_str(), rec_ref.element_id.as_str()))
+                        .get(&(
+                            rec_ref.model_namespace.as_str(),
+                            rec_ref.element_id.as_str(),
+                        ))
                         .copied()
                         .ok_or("collection record type not found")?;
                     Type::Record(index)

@@ -142,23 +142,43 @@ mod regex_engine {
                     '*' => {
                         self.next();
                         let greedy = self.check_greedy();
-                        Ok(AST::Repeat { inner: Box::new(base), min: 0, max: None, greedy })
+                        Ok(AST::Repeat {
+                            inner: Box::new(base),
+                            min: 0,
+                            max: None,
+                            greedy,
+                        })
                     }
                     '+' => {
                         self.next();
                         let greedy = self.check_greedy();
-                        Ok(AST::Repeat { inner: Box::new(base), min: 1, max: None, greedy })
+                        Ok(AST::Repeat {
+                            inner: Box::new(base),
+                            min: 1,
+                            max: None,
+                            greedy,
+                        })
                     }
                     '?' => {
                         self.next();
                         let greedy = self.check_greedy();
-                        Ok(AST::Repeat { inner: Box::new(base), min: 0, max: Some(1), greedy })
+                        Ok(AST::Repeat {
+                            inner: Box::new(base),
+                            min: 0,
+                            max: Some(1),
+                            greedy,
+                        })
                     }
                     '{' => {
                         self.next();
                         let (min, max) = self.parse_range()?;
                         let greedy = self.check_greedy();
-                        Ok(AST::Repeat { inner: Box::new(base), min, max, greedy })
+                        Ok(AST::Repeat {
+                            inner: Box::new(base),
+                            min,
+                            max,
+                            greedy,
+                        })
                     }
                     _ => Ok(base),
                 }
@@ -282,7 +302,8 @@ mod regex_engine {
                             if !self.flags.x && (prop.starts_with(' ') || prop.ends_with(' ')) {
                                 return Err(());
                             }
-                            let compact: String = trimmed.chars().filter(|c| !c.is_whitespace()).collect();
+                            let compact: String =
+                                trimmed.chars().filter(|c| !c.is_whitespace()).collect();
                             if compact == "IsBasicLatin" || compact == "BasicLatin" {
                                 Ok(AST::Class {
                                     negated: false,
@@ -321,7 +342,12 @@ mod regex_engine {
 
             while let Some(c) = self.next() {
                 if c == ']' {
-                    return Ok(AST::Class { negated, ranges, chars, sub });
+                    return Ok(AST::Class {
+                        negated,
+                        ranges,
+                        chars,
+                        sub,
+                    });
                 }
                 if c == '-' && self.peek() == Some('[') {
                     // Character class subtraction: -[...]
@@ -331,7 +357,12 @@ mod regex_engine {
                     if self.next() != Some(']') {
                         return Err(());
                     }
-                    return Ok(AST::Class { negated, ranges, chars, sub });
+                    return Ok(AST::Class {
+                        negated,
+                        ranges,
+                        chars,
+                        sub,
+                    });
                 }
                 let ch = if c == '\\' {
                     let esc = self.next().ok_or(())?;
@@ -355,7 +386,9 @@ mod regex_engine {
                 if self.peek() == Some('-') {
                     // Check if range or trailing '-'
                     let next_pos = self.pos;
-                    if self.chars.get(next_pos + 1) == Some(&']') || self.chars.get(next_pos + 1) == Some(&'[') {
+                    if self.chars.get(next_pos + 1) == Some(&']')
+                        || self.chars.get(next_pos + 1) == Some(&'[')
+                    {
                         // Trailing or subtraction prefix
                         chars.push(ch);
                     } else {
@@ -393,7 +426,15 @@ mod regex_engine {
     }
 
     fn matches_char_class(c: char, ast: &AST, ignore_case: bool) -> bool {
-        let AST::Class { negated, ranges, chars, sub } = ast else { return false };
+        let AST::Class {
+            negated,
+            ranges,
+            chars,
+            sub,
+        } = ast
+        else {
+            return false;
+        };
         let mut hit = false;
         for (start, end) in ranges {
             if ignore_case {
@@ -549,9 +590,25 @@ mod regex_engine {
                 }
                 results
             }
-            AST::Repeat { inner, min, max, greedy } => {
+            AST::Repeat {
+                inner,
+                min,
+                max,
+                greedy,
+            } => {
                 let mut results = Vec::new();
-                match_repeat(inner, *min, *max, *greedy, input, pos, state, flags, 0, &mut results);
+                match_repeat(
+                    inner,
+                    *min,
+                    *max,
+                    *greedy,
+                    input,
+                    pos,
+                    state,
+                    flags,
+                    0,
+                    &mut results,
+                );
                 results
             }
         }
@@ -590,7 +647,18 @@ mod regex_engine {
                     // avoid infinite loop on empty match
                     continue;
                 }
-                match_repeat(inner, min, max, greedy, input, next_pos, &next_state, flags, count + 1, results);
+                match_repeat(
+                    inner,
+                    min,
+                    max,
+                    greedy,
+                    input,
+                    next_pos,
+                    &next_state,
+                    flags,
+                    count + 1,
+                    results,
+                );
             }
         }
 
@@ -612,7 +680,9 @@ mod regex_engine {
         let ast = parser.parse().ok()?;
         let chars: Vec<char> = input.chars().collect();
         for start in 0..=chars.len() {
-            let mut state = State { groups: vec![None; parser.group_count + 1] };
+            let mut state = State {
+                groups: vec![None; parser.group_count + 1],
+            };
             let matches = match_node(&ast, &chars, start, &mut state, flags);
             if !matches.is_empty() {
                 return Some(true);
@@ -621,7 +691,12 @@ mod regex_engine {
         Some(false)
     }
 
-    pub fn feel_replace(input: &str, pattern: &str, replacement: &str, flags_str: &str) -> Option<String> {
+    pub fn feel_replace(
+        input: &str,
+        pattern: &str,
+        replacement: &str,
+        flags_str: &str,
+    ) -> Option<String> {
         let flags = parse_flags(flags_str)?;
         if flags.q {
             if flags.i {
@@ -648,7 +723,9 @@ mod regex_engine {
         let mut out = String::new();
 
         while pos <= chars.len() {
-            let mut state = State { groups: vec![None; parser.group_count + 1] };
+            let mut state = State {
+                groups: vec![None; parser.group_count + 1],
+            };
             let matches = match_node(&ast, &chars, pos, &mut state, flags);
             if let Some((end_pos, match_state)) = matches.into_iter().next() {
                 // Expand replacement
@@ -662,7 +739,9 @@ mod regex_engine {
                                 let grp_idx = (next_c as u8 - b'0') as usize;
                                 if grp_idx == 0 {
                                     rep.extend(&chars[pos..end_pos]);
-                                } else if let Some(Some((g_start, g_end))) = match_state.groups.get(grp_idx) {
+                                } else if let Some(Some((g_start, g_end))) =
+                                    match_state.groups.get(grp_idx)
+                                {
                                     rep.extend(&chars[*g_start..*g_end]);
                                 }
                                 continue;
@@ -703,39 +782,69 @@ mod tests {
 
     #[test]
     fn test_all_feel_replace_cases() {
-        assert_eq!(feel_replace("abcd", "(ab)|(a)", "[1=$1][2=$2]", "").unwrap(), "[1=ab][2=]cd");
+        assert_eq!(
+            feel_replace("abcd", "(ab)|(a)", "[1=$1][2=$2]", "").unwrap(),
+            "[1=ab][2=]cd"
+        );
         assert_eq!(feel_replace("a", "[b-z]", "#", "").unwrap(), "a");
         assert_eq!(feel_replace("a", "[a-z]", "#", "").unwrap(), "#");
         assert_eq!(feel_replace("abc", "def", "#", "").unwrap(), "abc");
         assert_eq!(feel_replace("abc", "e", "#", "").unwrap(), "abc");
         assert_eq!(feel_replace("foobar", "^fo*b*", "#", "").unwrap(), "#ar");
         assert_eq!(feel_replace("abc", ".^[d-z]", "#", "").unwrap(), "abc");
-        assert_eq!(feel_replace("abracadabra", "bra", "*", "").unwrap(), "a*cada*");
+        assert_eq!(
+            feel_replace("abracadabra", "bra", "*", "").unwrap(),
+            "a*cada*"
+        );
         assert_eq!(feel_replace("abracadabra", "a.*a", "*", "").unwrap(), "*");
-        assert_eq!(feel_replace("abracadabra", "a.*?a", "*", "").unwrap(), "*c*bra");
+        assert_eq!(
+            feel_replace("abracadabra", "a.*?a", "*", "").unwrap(),
+            "*c*bra"
+        );
         assert_eq!(feel_replace("abracadabra", "a", "", "").unwrap(), "brcdbr");
-        assert_eq!(feel_replace("abracadabra", "a(.)", "a$1$1", "").unwrap(), "abbraccaddabbra");
+        assert_eq!(
+            feel_replace("abracadabra", "a(.)", "a$1$1", "").unwrap(),
+            "abbraccaddabbra"
+        );
         assert_eq!(feel_replace("AAAA", "A+", "b", "").unwrap(), "b");
         assert_eq!(feel_replace("AAAA", "A+?", "b", "").unwrap(), "bbbb");
-        assert_eq!(feel_replace("darted", "^(.*?)d(.*)$", "$1c$2", "").unwrap(), "carted");
+        assert_eq!(
+            feel_replace("darted", "^(.*?)d(.*)$", "$1c$2", "").unwrap(),
+            "carted"
+        );
         assert_eq!(feel_replace("reluctant", "r.*?t", "X", "").unwrap(), "Xant");
-        assert_eq!(feel_replace("0123456789", r"(\d{3})(\d{3})(\d{4})", "($1) $2-$3", "").unwrap(), "(012) 345-6789");
-        assert_eq!(feel_replace("facetiously", "[iouy]", "[$0]", "").unwrap(), "facet[i][o][u]sl[y]");
+        assert_eq!(
+            feel_replace("0123456789", r"(\d{3})(\d{3})(\d{4})", "($1) $2-$3", "").unwrap(),
+            "(012) 345-6789"
+        );
+        assert_eq!(
+            feel_replace("facetiously", "[iouy]", "[$0]", "").unwrap(),
+            "facet[i][o][u]sl[y]"
+        );
         assert_eq!(feel_replace("abc", "[a-z]", "#", "").unwrap(), "###");
         assert_eq!(feel_replace("a.b.c.", "[a-z]", "#", "s").unwrap(), "#.#.#.");
         assert_eq!(feel_replace("abc", "[A-Z]", "#", "i").unwrap(), "###");
         assert_eq!(feel_replace("abc", "[a-z]", "#", "s").unwrap(), "###");
-        assert_eq!(feel_replace("a b c d ", "[a-z]", "#", "x").unwrap(), "# # # # ");
+        assert_eq!(
+            feel_replace("a b c d ", "[a-z]", "#", "x").unwrap(),
+            "# # # # "
+        );
         assert_eq!(feel_replace("abc", ".^[d-z]*", "#", "smix").unwrap(), "abc");
     }
 
     #[test]
     fn test_feel_matches_cases() {
-        assert_eq!(feel_matches("This is a characte", "This is a characte", "").unwrap(), true);
+        assert_eq!(
+            feel_matches("This is a characte", "This is a characte", "").unwrap(),
+            true
+        );
         assert_eq!(feel_matches("abracadabra", "bra", "p"), None);
         assert_eq!(feel_matches("\nabcd\ndefg\n", "^$", "m").unwrap(), true);
         assert_eq!(feel_matches("abcd\n\ndefg\n ", "^$", "m").unwrap(), true);
-        assert_eq!(feel_matches("Mary\rJones", "Mary.Jones", "").unwrap(), false);
+        assert_eq!(
+            feel_matches("Mary\rJones", "Mary.Jones", "").unwrap(),
+            false
+        );
         assert_eq!(feel_matches("abc", "ABC", "i").unwrap(), true);
         assert_eq!(feel_matches("abZ", "[A-Z]*", "i").unwrap(), true);
         assert_eq!(feel_matches("abZ", "[a-z]*", "i").unwrap(), true);
@@ -746,12 +855,30 @@ mod tests {
         assert_eq!(feel_matches("i", "[A-Z-[OI]]", "i").unwrap(), false);
         assert_eq!(feel_matches("Q", "[^Q]", "i").unwrap(), false);
         assert_eq!(feel_matches("q", "[^Q]", "i").unwrap(), false);
-        assert_eq!(feel_matches("hello world", "hello\\ sworld", "x").unwrap(), true);
-        assert_eq!(feel_matches("hello world", " hello[ ]world", "x").unwrap(), true);
-        assert_eq!(feel_matches("hello world", "hello[ ]world ", "x").unwrap(), true);
-        assert_eq!(feel_matches("hello world", "he ll o[ ]worl d", "x").unwrap(), true);
-        assert_eq!(feel_matches("hello world", "\\p{ IsBasicLatin}+", "x").unwrap(), true);
-        assert_eq!(feel_matches("hello world", "\\p{ I s B a s i c L a t i n }+", "x").unwrap(), true);
+        assert_eq!(
+            feel_matches("hello world", "hello\\ sworld", "x").unwrap(),
+            true
+        );
+        assert_eq!(
+            feel_matches("hello world", " hello[ ]world", "x").unwrap(),
+            true
+        );
+        assert_eq!(
+            feel_matches("hello world", "hello[ ]world ", "x").unwrap(),
+            true
+        );
+        assert_eq!(
+            feel_matches("hello world", "he ll o[ ]worl d", "x").unwrap(),
+            true
+        );
+        assert_eq!(
+            feel_matches("hello world", "\\p{ IsBasicLatin}+", "x").unwrap(),
+            true
+        );
+        assert_eq!(
+            feel_matches("hello world", "\\p{ I s B a s i c L a t i n }+", "x").unwrap(),
+            true
+        );
         assert_eq!(feel_matches("hello world", "\\p{ IsBasicLatin}+", ""), None);
         assert_eq!(feel_matches("h", "(.)\\3", ""), None);
         assert_eq!(feel_matches("h", "(.)\\2", ""), None);

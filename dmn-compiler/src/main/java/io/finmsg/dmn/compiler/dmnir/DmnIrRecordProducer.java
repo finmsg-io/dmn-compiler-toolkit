@@ -772,7 +772,7 @@ final class DmnIrRecordProducer {
 				return closureCall(call, closureBinding, model, path, dependencies, depth);
 			var signature = DmnIrBuiltinSignature.forFeelName(call.getTarget().getName().getName());
 			if (signature.isPresent())
-				return builtinCall(call, signature.get(), model, path, dependencies, depth);
+				return builtinCall(call, signature.get(), model, path, dependencies, depth, expected);
 			if (boundBkm(model, path + "/target").isPresent())
 				return bkmCall(call, model, path + "/target", dependencies, depth,
 						index -> path + "/argument[" + index + "]");
@@ -1213,7 +1213,8 @@ final class DmnIrRecordProducer {
 	}
 
 	private DmnIrExpression builtinCall(InvocationExpression source, DmnIrBuiltinSignature signature,
-			DmnSemanticModel model, String path, Set<DmnIrReference> dependencies, int depth) {
+			DmnSemanticModel model, String path, Set<DmnIrReference> dependencies, int depth,
+			DmnIrTypeReference expected) {
 		String name = signature.feelName();
 		if (localBindings.values().stream().anyMatch(local -> local.getVariable().getName().equals(name))
 				|| model.bindings().stream().anyMatch(binding -> binding.referencePath().equals(path + "/target")))
@@ -1362,6 +1363,12 @@ final class DmnIrRecordProducer {
 			call.addArguments(arg);
 		}
 		builtinCalls = true;
+		if (signature.collectionResult()) {
+			DmnIrTypeReference resultType = expected != null && expected.hasCollectionType()
+					? expected
+					: ensureCollectionType(model, signature.result());
+			return typed(resultType).setBuiltinCall(call).build();
+		}
 		return DmnIrExpression.newBuilder().setType(signature.result()).setBuiltinCall(call).build();
 	}
 

@@ -1036,6 +1036,49 @@ fn feel_replace_impl(input: &str, pattern: &str, replacement: &str, flags_str: &
     Some(out)
 }
 
+fn feel_split_impl(input: &str, delimiter: &str) -> Option<Vec<String>> {
+    let flags = RegexFlags::default();
+    let mut parser = RegexParser::new(delimiter, flags);
+    let ast = parser.parse().ok()?;
+    let chars: Vec<char> = input.chars().collect();
+    let mut results = Vec::new();
+    let mut last_end = 0;
+    let mut pos = 0;
+
+    while pos <= chars.len() {
+        let mut state = RegexState { groups: vec![None; parser.group_count + 1] };
+        let matches = match_regex_node(&ast, &chars, pos, &mut state, flags);
+        if let Some((end_pos, _)) = matches.into_iter().next() {
+            let segment: String = chars[last_end..pos].iter().collect();
+            results.push(segment);
+            if end_pos > pos {
+                pos = end_pos;
+                last_end = end_pos;
+            } else {
+                if pos < chars.len() {
+                    pos += 1;
+                    last_end = pos;
+                } else {
+                    break;
+                }
+            }
+        } else {
+            pos += 1;
+        }
+    }
+    let tail: String = chars[last_end..].iter().collect();
+    results.push(tail);
+    Some(results)
+}
+
+fn builtin_split(input: Value, delimiter: Value) -> Value {
+    let (Value::Text(i), Value::Text(d)) = (input, delimiter) else { return Value::Null; };
+    match feel_split_impl(&i, &d) {
+        Some(list) => Value::List(list.into_iter().map(Value::Text).collect()),
+        None => Value::Null,
+    }
+}
+
 fn builtin_matches(input: Value, pattern: Value, flags: Value) -> Value {
     let (Value::Text(i), Value::Text(p)) = (input, pattern) else { return Value::Null; };
     let f = match flags {

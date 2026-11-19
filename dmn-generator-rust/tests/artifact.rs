@@ -358,6 +358,10 @@ fn generated_literal_replacement_handles_unicode_and_empty_patterns() {
         assert_eq!(builtin_string_join(Value::Text("a".into()), Value::Text("X".into())), Value::Text("a".into()));
         assert_eq!(builtin_string_join(Value::List(vec![Value::Text("a".into())]), Value::Null), Value::Text("a".into()));
         assert_eq!(builtin_string_join(Value::Null, Value::Text("X".into())), Value::Null);
+        assert_eq!(builtin_split(Value::Text("John Doe".into()), Value::Text(r"\s".into())), Value::List(vec![Value::Text("John".into()), Value::Text("Doe".into())]));
+        assert_eq!(builtin_split(Value::Text("a;b;c;;".into()), Value::Text(";".into())), Value::List(vec![Value::Text("a".into()), Value::Text("b".into()), Value::Text("c".into()), Value::Text("".into()), Value::Text("".into())]));
+        assert_eq!(builtin_split(Value::Null, Value::Text(";".into())), Value::Null);
+        assert_eq!(builtin_split(Value::Text("foo".into()), Value::Null), Value::Null);
     }
 }
 "#,

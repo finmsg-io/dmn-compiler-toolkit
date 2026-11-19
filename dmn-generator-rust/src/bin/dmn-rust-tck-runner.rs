@@ -202,7 +202,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let successfully_generated = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
 
     // Phase 1: Generate all crates in parallel
-    println!("Phase 1: Generating Rust crates for {} ready groups in parallel...", total_ready);
+    println!(
+        "Phase 1: Generating Rust crates for {} ready groups in parallel...",
+        total_ready
+    );
     let gen_queue = std::sync::Arc::new(std::sync::Mutex::new(ready_list.into_iter()));
     let mut gen_handles = Vec::new();
 
@@ -213,28 +216,29 @@ fn main() -> Result<(), Box<dyn Error>> {
         let audit_dir = audit_dir.clone();
         let generator_bin = generator_bin.clone();
 
-        gen_handles.push(std::thread::spawn(move || -> Result<(), Box<dyn Error + Send + Sync>> {
-            loop {
-                let item = {
-                    let mut lock = queue.lock().unwrap();
-                    lock.next()
-                };
-                let Some((group_id, indices)) = item else {
-                    break;
-                };
+        gen_handles.push(std::thread::spawn(
+            move || -> Result<(), Box<dyn Error + Send + Sync>> {
+                loop {
+                    let item = {
+                        let mut lock = queue.lock().unwrap();
+                        lock.next()
+                    };
+                    let Some((group_id, indices)) = item else {
+                        break;
+                    };
 
-                let group_dir = audit_dir.join(&group_id);
-                let artifact_path = group_dir.join("artifact.dmnir");
-                let cases_path = group_dir.join("cases.rs");
-                let crate_dir = group_dir.join("crate");
-                if crate_dir.exists() {
-                    let _ = fs::remove_dir_all(&crate_dir);
-                }
+                    let group_dir = audit_dir.join(&group_id);
+                    let artifact_path = group_dir.join("artifact.dmnir");
+                    let cases_path = group_dir.join("cases.rs");
+                    let crate_dir = group_dir.join("crate");
+                    if crate_dir.exists() {
+                        let _ = fs::remove_dir_all(&crate_dir);
+                    }
 
-                let gen_out = Command::new(&generator_bin)
-                    .arg(&artifact_path)
-                    .arg(&crate_dir)
-                    .output();
+                    let gen_out = Command::new(&generator_bin)
+                        .arg(&artifact_path)
+                        .arg(&crate_dir)
+                        .output();
 
                     match gen_out {
                         Ok(output) if !output.status.success() => {
@@ -245,42 +249,58 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 err
                             };
                             let diag = err.replace('\t', " ").replace('\n', " ");
-                            let results = indices.iter().map(|&idx| EvaluationResult {
-                                indices: vec![idx],
-                                category: "RUST_REJECTION".to_string(),
-                                outcome: "RUST_REJECTION".to_string(),
-                                diagnostic: diag.clone(),
-                            }).collect();
-                            group_outcomes.lock().unwrap().push(GroupOutcome { results });
+                            let results = indices
+                                .iter()
+                                .map(|&idx| EvaluationResult {
+                                    indices: vec![idx],
+                                    category: "RUST_REJECTION".to_string(),
+                                    outcome: "RUST_REJECTION".to_string(),
+                                    diagnostic: diag.clone(),
+                                })
+                                .collect();
+                            group_outcomes
+                                .lock()
+                                .unwrap()
+                                .push(GroupOutcome { results });
                             continue;
                         }
                         Err(e) => {
                             let diag = e.to_string();
-                            let results = indices.iter().map(|&idx| EvaluationResult {
-                                indices: vec![idx],
-                                category: "RUST_REJECTION".to_string(),
-                                outcome: "GENERATOR_ERROR".to_string(),
-                                diagnostic: diag.clone(),
-                            }).collect();
-                            group_outcomes.lock().unwrap().push(GroupOutcome { results });
+                            let results = indices
+                                .iter()
+                                .map(|&idx| EvaluationResult {
+                                    indices: vec![idx],
+                                    category: "RUST_REJECTION".to_string(),
+                                    outcome: "GENERATOR_ERROR".to_string(),
+                                    diagnostic: diag.clone(),
+                                })
+                                .collect();
+                            group_outcomes
+                                .lock()
+                                .unwrap()
+                                .push(GroupOutcome { results });
                             continue;
                         }
                         _ => {}
                     }
 
-                // Add standalone test harness in crate/tests/tck.rs
-                let tests_dir = crate_dir.join("tests");
-                fs::create_dir_all(&tests_dir)?;
-                let cases_src = fs::read_to_string(&cases_path)?;
-                fs::write(
-                    tests_dir.join("tck.rs"),
-                    format!("{}\n{}", HARNESS_PRELUDE, cases_src),
-                )?;
+                    // Add standalone test harness in crate/tests/tck.rs
+                    let tests_dir = crate_dir.join("tests");
+                    fs::create_dir_all(&tests_dir)?;
+                    let cases_src = fs::read_to_string(&cases_path)?;
+                    fs::write(
+                        tests_dir.join("tck.rs"),
+                        format!("{}\n{}", HARNESS_PRELUDE, cases_src),
+                    )?;
 
-                successfully_generated.lock().unwrap().push((group_id, indices));
-            }
-            Ok(())
-        }));
+                    successfully_generated
+                        .lock()
+                        .unwrap()
+                        .push((group_id, indices));
+                }
+                Ok(())
+            },
+        ));
     }
 
     for handle in gen_handles {
@@ -289,14 +309,21 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut generated_groups = std::mem::take(&mut *successfully_generated.lock().unwrap());
     generated_groups.sort_by(|a, b| a.0.cmp(&b.0));
-    println!("Phase 1 complete: {} groups successfully generated.", generated_groups.len());
+    println!(
+        "Phase 1 complete: {} groups successfully generated.",
+        generated_groups.len()
+    );
 
     // Phase 2: Fast unified test execution
     let mut fallback_groups = Vec::new();
     // Bound compiler memory and temporary disk use for generated runtimes.
     for (batch_index, batch) in generated_groups.chunks(32).enumerate() {
         let generated_groups = batch.to_vec();
-        println!("Phase 2: Compiling and executing batch {} ({} groups)...", batch_index + 1, batch.len());
+        println!(
+            "Phase 2: Compiling and executing batch {} ({} groups)...",
+            batch_index + 1,
+            batch.len()
+        );
         let harness_dir = audit_dir.join("unified_harness");
         let src_dir = harness_dir.join("src");
         fs::create_dir_all(&src_dir)?;
@@ -324,11 +351,20 @@ opt-level = 0
         fs::write(src_dir.join("prelude.rs"), unified_prelude)?;
 
         // Build lib.rs modules
-        let mut lib_src = String::from("#![allow(unused_imports, dead_code, unused_variables, non_snake_case, non_camel_case_types)]\n\n");
+        let mut lib_src = String::from(
+            "#![allow(unused_imports, dead_code, unused_variables, non_snake_case, non_camel_case_types)]\n\n",
+        );
         for (group_id, _) in &generated_groups {
             let group_dir = audit_dir.join(group_id);
-            let lib_clean = group_dir.join("crate").join("lib.rs").to_string_lossy().replace('\\', "/");
-            let cases_clean = group_dir.join("cases.rs").to_string_lossy().replace('\\', "/");
+            let lib_clean = group_dir
+                .join("crate")
+                .join("lib.rs")
+                .to_string_lossy()
+                .replace('\\', "/");
+            let cases_clean = group_dir
+                .join("cases.rs")
+                .to_string_lossy()
+                .replace('\\', "/");
 
             lib_src.push_str(&format!(
                 "pub mod {} {{\n    include!(\"{}\");\n    include!(\"prelude.rs\");\n    include!(\"{}\");\n}}\n\n",
@@ -356,7 +392,12 @@ opt-level = 0
                 Err(e) => (String::new(), e.to_string(), -1),
             };
 
-            if code != 0 && attempts < 4 && (err.contains("Access is denied") || err.contains("os error 5") || err.contains("os error 32")) {
+            if code != 0
+                && attempts < 4
+                && (err.contains("Access is denied")
+                    || err.contains("os error 5")
+                    || err.contains("os error 32"))
+            {
                 std::thread::sleep(std::time::Duration::from_millis(200 * attempts));
                 continue;
             }
@@ -364,12 +405,19 @@ opt-level = 0
         };
 
         let full_output = format!("{}\n{}", out_str, err_str);
-        let is_build_error = exit_code != 0 && (err_str.contains("error[E") || err_str.contains("could not compile"));
+        let is_build_error = exit_code != 0
+            && (err_str.contains("error[E") || err_str.contains("could not compile"));
 
-        fs::write(audit_dir.join(format!("rust-batch-{:03}.log", batch_index + 1)), &full_output)?;
+        fs::write(
+            audit_dir.join(format!("rust-batch-{:03}.log", batch_index + 1)),
+            &full_output,
+        )?;
         if !is_build_error && full_output.contains("test result:") {
             let elapsed = test_start.elapsed();
-            println!("Unified harness executed in {:.2}s. Parsing results...", elapsed.as_secs_f64());
+            println!(
+                "Unified harness executed in {:.2}s. Parsing results...",
+                elapsed.as_secs_f64()
+            );
             for (group_id, indices) in &generated_groups {
                 let mut passed = 0;
                 let mut failed = 0;
@@ -408,11 +456,22 @@ opt-level = 0
                 } else {
                     format!("COMPLETED (passed={}, failed={})", passed, failed)
                 };
-                println!("Evaluated group {} ({} cases): {}", group_id, indices.len(), summary);
-                group_outcomes.lock().unwrap().push(GroupOutcome { results });
+                println!(
+                    "Evaluated group {} ({} cases): {}",
+                    group_id,
+                    indices.len(),
+                    summary
+                );
+                group_outcomes
+                    .lock()
+                    .unwrap()
+                    .push(GroupOutcome { results });
             }
         } else {
-            println!("Unified harness failed with exit_code={}: stdout:\n{}\nstderr:\n{}", exit_code, out_str, err_str);
+            println!(
+                "Unified harness failed with exit_code={}: stdout:\n{}\nstderr:\n{}",
+                exit_code, out_str, err_str
+            );
             println!("Falling back to per-group evaluation...");
             fallback_groups.extend(generated_groups);
         }
@@ -420,7 +479,8 @@ opt-level = 0
 
     if !fallback_groups.is_empty() {
         // Fallback: per-group execution
-        let fallback_queue = std::sync::Arc::new(std::sync::Mutex::new(fallback_groups.into_iter()));
+        let fallback_queue =
+            std::sync::Arc::new(std::sync::Mutex::new(fallback_groups.into_iter()));
         let completed_counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let mut handles = Vec::new();
 
@@ -431,104 +491,140 @@ opt-level = 0
             let audit_dir = audit_dir.clone();
             let cargo_bin = cargo_bin.clone();
 
-            handles.push(std::thread::spawn(move || -> Result<(), Box<dyn Error + Send + Sync>> {
-                loop {
-                    let item = {
-                        let mut lock = queue.lock().unwrap();
-                        lock.next()
-                    };
-                    let Some((group_id, indices)) = item else {
-                        break;
-                    };
-
-                    let group_dir = audit_dir.join(&group_id);
-                    let crate_dir = group_dir.join("crate");
-
-                    let mut attempts = 0;
-                    let (out_str, err_str, exit_code) = loop {
-                        attempts += 1;
-                        let test_out = Command::new(&cargo_bin)
-                            .args(["test", "--offline", "--", "--color", "never"])
-                            .current_dir(&crate_dir)
-                            .output();
-
-                        let (out, err, code) = match test_out {
-                            Ok(o) => (
-                                String::from_utf8_lossy(&o.stdout).to_string(),
-                                String::from_utf8_lossy(&o.stderr).to_string(),
-                                o.status.code().unwrap_or(-1),
-                            ),
-                            Err(e) => (String::new(), e.to_string(), -1),
+            handles.push(std::thread::spawn(
+                move || -> Result<(), Box<dyn Error + Send + Sync>> {
+                    loop {
+                        let item = {
+                            let mut lock = queue.lock().unwrap();
+                            lock.next()
+                        };
+                        let Some((group_id, indices)) = item else {
+                            break;
                         };
 
-                        if code != 0 && attempts < 4 && (err.contains("Access is denied") || err.contains("os error 5") || err.contains("os error 32")) {
-                            std::thread::sleep(std::time::Duration::from_millis(150 * attempts));
+                        let group_dir = audit_dir.join(&group_id);
+                        let crate_dir = group_dir.join("crate");
+
+                        let mut attempts = 0;
+                        let (out_str, err_str, exit_code) = loop {
+                            attempts += 1;
+                            let test_out = Command::new(&cargo_bin)
+                                .args(["test", "--offline", "--", "--color", "never"])
+                                .current_dir(&crate_dir)
+                                .output();
+
+                            let (out, err, code) = match test_out {
+                                Ok(o) => (
+                                    String::from_utf8_lossy(&o.stdout).to_string(),
+                                    String::from_utf8_lossy(&o.stderr).to_string(),
+                                    o.status.code().unwrap_or(-1),
+                                ),
+                                Err(e) => (String::new(), e.to_string(), -1),
+                            };
+
+                            if code != 0
+                                && attempts < 4
+                                && (err.contains("Access is denied")
+                                    || err.contains("os error 5")
+                                    || err.contains("os error 32"))
+                            {
+                                std::thread::sleep(std::time::Duration::from_millis(
+                                    150 * attempts,
+                                ));
+                                continue;
+                            }
+                            break (out, err, code);
+                        };
+
+                        let full_output = format!("{}\n{}", out_str, err_str);
+                        fs::write(group_dir.join("rust-test.log"), &full_output)?;
+
+                        let is_build_error = exit_code != 0
+                            && (err_str.contains("error[E")
+                                || err_str.contains("could not compile"));
+                        if is_build_error {
+                            let diag = err_str.trim().replace('\t', " ").replace('\n', " ");
+                            let results = indices
+                                .iter()
+                                .map(|&idx| EvaluationResult {
+                                    indices: vec![idx],
+                                    category: "BUILD_ERROR".to_string(),
+                                    outcome: "BUILD_ERROR".to_string(),
+                                    diagnostic: diag.clone(),
+                                })
+                                .collect();
+                            let done =
+                                completed.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                            println!(
+                                "[{}/{}] Evaluated group {} ({} cases): BUILD_ERROR",
+                                done,
+                                total_ready,
+                                group_id,
+                                indices.len()
+                            );
+                            group_outcomes
+                                .lock()
+                                .unwrap()
+                                .push(GroupOutcome { results });
                             continue;
                         }
-                        break (out, err, code);
-                    };
 
-                    let full_output = format!("{}\n{}", out_str, err_str);
-                    fs::write(group_dir.join("rust-test.log"), &full_output)?;
+                        let mut passed = 0;
+                        let mut failed = 0;
+                        let mut results = Vec::new();
 
-                    let is_build_error = exit_code != 0 && (err_str.contains("error[E") || err_str.contains("could not compile"));
-                    if is_build_error {
-                        let diag = err_str.trim().replace('\t', " ").replace('\n', " ");
-                        let results = indices.iter().map(|&idx| EvaluationResult {
-                            indices: vec![idx],
-                            category: "BUILD_ERROR".to_string(),
-                            outcome: "BUILD_ERROR".to_string(),
-                            diagnostic: diag.clone(),
-                        }).collect();
+                        for &idx in &indices {
+                            let (category, outcome) = case_result(&full_output, idx);
+                            let (cat, out, diag) = if category == "PASS" {
+                                passed += 1;
+                                ("PASS".to_string(), outcome.to_string(), String::new())
+                            } else if category == "EXECUTION_ERROR" {
+                                failed += 1;
+                                (
+                                    "EXECUTION_ERROR".to_string(),
+                                    outcome.to_string(),
+                                    format!(
+                                        "{outcome}; process exit {exit_code}; see rust-test.log"
+                                    ),
+                                )
+                            } else {
+                                failed += 1;
+                                (
+                                    "FAILURE".to_string(),
+                                    "FAILURE".to_string(),
+                                    "Expected result differs".to_string(),
+                                )
+                            };
+                            results.push(EvaluationResult {
+                                indices: vec![idx],
+                                category: cat,
+                                outcome: out,
+                                diagnostic: diag,
+                            });
+                        }
+
                         let done = completed.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-                        println!("[{}/{}] Evaluated group {} ({} cases): BUILD_ERROR", done, total_ready, group_id, indices.len());
-                        group_outcomes.lock().unwrap().push(GroupOutcome { results });
-                        continue;
-                    }
-
-                    let mut passed = 0;
-                    let mut failed = 0;
-                    let mut results = Vec::new();
-
-                    for &idx in &indices {
-                        let (category, outcome) = case_result(&full_output, idx);
-                        let (cat, out, diag) = if category == "PASS" {
-                            passed += 1;
-                            ("PASS".to_string(), outcome.to_string(), String::new())
-                        } else if category == "EXECUTION_ERROR" {
-                            failed += 1;
-                            (
-                                "EXECUTION_ERROR".to_string(),
-                                outcome.to_string(),
-                                format!("{outcome}; process exit {exit_code}; see rust-test.log"),
-                            )
+                        let summary = if failed == 0 {
+                            format!("PASS ({} cases)", passed)
                         } else {
-                            failed += 1;
-                            (
-                                "FAILURE".to_string(),
-                                "FAILURE".to_string(),
-                                "Expected result differs".to_string(),
-                            )
+                            format!("COMPLETED (passed={}, failed={})", passed, failed)
                         };
-                        results.push(EvaluationResult {
-                            indices: vec![idx],
-                            category: cat,
-                            outcome: out,
-                            diagnostic: diag,
-                        });
+                        println!(
+                            "[{}/{}] Evaluated group {} ({} cases): {}",
+                            done,
+                            total_ready,
+                            group_id,
+                            indices.len(),
+                            summary
+                        );
+                        group_outcomes
+                            .lock()
+                            .unwrap()
+                            .push(GroupOutcome { results });
                     }
-
-                    let done = completed.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-                    let summary = if failed == 0 {
-                        format!("PASS ({} cases)", passed)
-                    } else {
-                        format!("COMPLETED (passed={}, failed={})", passed, failed)
-                    };
-                    println!("[{}/{}] Evaluated group {} ({} cases): {}", done, total_ready, group_id, indices.len(), summary);
-                    group_outcomes.lock().unwrap().push(GroupOutcome { results });
-                }
-                Ok(())
-            }));
+                    Ok(())
+                },
+            ));
         }
 
         for handle in handles {

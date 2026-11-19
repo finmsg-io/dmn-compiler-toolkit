@@ -50,7 +50,8 @@ impl ExpressionEmitter<'_, '_> {
                     Type::Scalar(_) if table.outputs.len() == 1 => Vec::new(),
                     Type::Record(rec_index)
                         if table.outputs.len() > 1
-                            && self.types.records[rec_index].fields.len() == table.outputs.len() =>
+                            && self.types.records[rec_index].fields.len()
+                                == table.outputs.len() =>
                     {
                         self.types.records[rec_index].fields.clone()
                     }

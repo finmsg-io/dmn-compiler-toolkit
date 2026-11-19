@@ -783,8 +783,18 @@ public final class DmnIrArtifactReader {
 									"Unsupported built-in operation."));
 					check(call.getArgumentsCount() == signature.parameters().size(), INVALID_EXPRESSION, path,
 							"Built-in argument count must match its signature.");
-					check(nodeType.hasScalarType() && nodeType.getScalarType() == signature.result(), INVALID_TYPE,
-							path, "Built-in result type must match its signature.");
+					if (signature.collectionResult()) {
+						boolean matches = false;
+						if (nodeType.hasCollectionType()) {
+							var collection = collections.get(Address.of(nodeType.getCollectionType()));
+							matches = collection != null && !collection.hasRecordType()
+									&& collection.getElementType() == signature.result();
+						}
+						check(matches, INVALID_TYPE, path, "Built-in result type must match its signature.");
+					} else {
+						check(nodeType.hasScalarType() && nodeType.getScalarType() == signature.result(), INVALID_TYPE,
+								path, "Built-in result type must match its signature.");
+					}
 					for (int i = 0; i < call.getArgumentsCount(); i++) {
 						var argument = call.getArguments(i);
 						String argumentPath = path + ".builtin_call.arguments[" + i + "]";

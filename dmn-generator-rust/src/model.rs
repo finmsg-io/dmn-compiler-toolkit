@@ -1429,7 +1429,32 @@ impl ExpressionEmitter<'_, '_> {
                 result.value
             }
             Node::BuiltinCall(call) if self.builtins_enabled => {
-                if call.operation == 24 {
+                if call.operation == 23 {
+                    if call.arguments.len() != 2 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    match ty {
+                        Type::Collection(idx) => {
+                            if !assignable(self.types.collections[idx], Text) {
+                                return Err("builtin result type mismatch");
+                            }
+                        }
+                        _ => return Err("builtin result type mismatch"),
+                    }
+                    let emitted_input = self.expression(&call.arguments[0])?;
+                    if !assignable(emitted_input.ty, Text) {
+                        return Err("builtin argument type mismatch");
+                    }
+                    let emitted_delim = self.expression(&call.arguments[1])?;
+                    if !assignable(emitted_delim.ty, Text) {
+                        return Err("builtin argument type mismatch");
+                    }
+                    depth = depth.max(emitted_input.depth).max(emitted_delim.depth);
+                    format!(
+                        "builtin_split({},{})",
+                        emitted_input.value, emitted_delim.value
+                    )
+                } else if call.operation == 24 {
                     if call.arguments.len() != 2 {
                         return Err("builtin argument count mismatch");
                     }
@@ -1438,9 +1463,7 @@ impl ExpressionEmitter<'_, '_> {
                     }
                     let emitted_list = self.expression(&call.arguments[0])?;
                     let valid_list = match emitted_list.ty {
-                        Type::Collection(idx) => {
-                            assignable(self.types.collections[idx], Text)
-                        }
+                        Type::Collection(idx) => assignable(self.types.collections[idx], Text),
                         Type::Scalar(DmnIrScalarType::ScalarTypeString)
                         | Type::Scalar(DmnIrScalarType::ScalarTypeNull) => true,
                         _ => false,
@@ -1453,7 +1476,10 @@ impl ExpressionEmitter<'_, '_> {
                         return Err("builtin argument type mismatch");
                     }
                     depth = depth.max(emitted_list.depth).max(emitted_delim.depth);
-                    format!("builtin_string_join({},{})", emitted_list.value, emitted_delim.value)
+                    format!(
+                        "builtin_string_join({},{})",
+                        emitted_list.value, emitted_delim.value
+                    )
                 } else if (26..=32).contains(&call.operation) || call.operation == 34 {
                     if call.arguments.len() != 1 {
                         return Err("builtin argument count mismatch");
@@ -1486,36 +1512,39 @@ impl ExpressionEmitter<'_, '_> {
                     depth = depth.max(emitted.depth);
                     format!("{function}({})", emitted.value)
                 } else {
-                    let (parameters, result, function): (&[DmnIrScalarType], DmnIrScalarType, &str) =
-                        match call.operation {
-                            1 => (&[Number], Number, "builtin_abs"),
-                            2 => (&[Text], Number, "builtin_string_length"),
-                            3 => (&[Text, Text], Boolean, "builtin_contains"),
-                            4 => (&[Number, Number], Number, "builtin_modulo"),
-                            5 => (&[Number, Number], Number, "builtin_floor"),
-                            6 => (&[Number, Number], Number, "builtin_ceiling"),
-                            7 => (&[Number], Boolean, "builtin_even"),
-                            8 => (&[Number], Boolean, "builtin_odd"),
-                            9 => (&[Number, Number], Number, "builtin_decimal"),
-                            10 => (&[Number, Number], Number, "builtin_round_up"),
-                            11 => (&[Number, Number], Number, "builtin_round_down"),
-                            12 => (&[Number, Number], Number, "builtin_round_half_up"),
-                            13 => (&[Number, Number], Number, "builtin_round_half_down"),
-                            14 => (&[Text], Text, "builtin_upper_case"),
-                            15 => (&[Text], Text, "builtin_lower_case"),
-                            16 => (&[Text, Number, Number], Text, "builtin_substring"),
-                            17 => (&[Text, Text], Text, "builtin_substring_before"),
-                            18 => (&[Text, Text], Text, "builtin_substring_after"),
-                            19 => (&[Text, Text], Boolean, "builtin_starts_with"),
-                            20 => (&[Text, Text], Boolean, "builtin_ends_with"),
-                            21 => (&[Text, Text, Text], Boolean, "builtin_matches"),
-                            22 => (&[Text, Text, Text, Text], Text, "builtin_replace"),
-                            25 => (&[Text, Text, Text], Number, "builtin_number_from_string"),
-                            33 => (&[Number], Number, "builtin_sqrt"),
-                            35 => (&[Number], Number, "builtin_exp"),
-                            36 => (&[Number], Number, "builtin_log"),
-                            _ => return Err("unsupported builtin operation"),
-                        };
+                    let (parameters, result, function): (
+                        &[DmnIrScalarType],
+                        DmnIrScalarType,
+                        &str,
+                    ) = match call.operation {
+                        1 => (&[Number], Number, "builtin_abs"),
+                        2 => (&[Text], Number, "builtin_string_length"),
+                        3 => (&[Text, Text], Boolean, "builtin_contains"),
+                        4 => (&[Number, Number], Number, "builtin_modulo"),
+                        5 => (&[Number, Number], Number, "builtin_floor"),
+                        6 => (&[Number, Number], Number, "builtin_ceiling"),
+                        7 => (&[Number], Boolean, "builtin_even"),
+                        8 => (&[Number], Boolean, "builtin_odd"),
+                        9 => (&[Number, Number], Number, "builtin_decimal"),
+                        10 => (&[Number, Number], Number, "builtin_round_up"),
+                        11 => (&[Number, Number], Number, "builtin_round_down"),
+                        12 => (&[Number, Number], Number, "builtin_round_half_up"),
+                        13 => (&[Number, Number], Number, "builtin_round_half_down"),
+                        14 => (&[Text], Text, "builtin_upper_case"),
+                        15 => (&[Text], Text, "builtin_lower_case"),
+                        16 => (&[Text, Number, Number], Text, "builtin_substring"),
+                        17 => (&[Text, Text], Text, "builtin_substring_before"),
+                        18 => (&[Text, Text], Text, "builtin_substring_after"),
+                        19 => (&[Text, Text], Boolean, "builtin_starts_with"),
+                        20 => (&[Text, Text], Boolean, "builtin_ends_with"),
+                        21 => (&[Text, Text, Text], Boolean, "builtin_matches"),
+                        22 => (&[Text, Text, Text, Text], Text, "builtin_replace"),
+                        25 => (&[Text, Text, Text], Number, "builtin_number_from_string"),
+                        33 => (&[Number], Number, "builtin_sqrt"),
+                        35 => (&[Number], Number, "builtin_exp"),
+                        36 => (&[Number], Number, "builtin_log"),
+                        _ => return Err("unsupported builtin operation"),
+                    };
                     if ty != result {
                         return Err("builtin result type mismatch");
                     }

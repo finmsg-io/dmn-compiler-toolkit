@@ -211,7 +211,15 @@ public enum DmnIrBuiltinSignature {
 																																																																									SCALAR_TYPE_STRING),
 																																																																							List.of("list",
 																																																																									"delimiter"),
-																																																																							1);
+																																																																							1), SPLIT(
+																																																																									BUILTIN_OPERATION_SPLIT,
+																																																																									"split",
+																																																																									SCALAR_TYPE_STRING,
+																																																																									List.of(SCALAR_TYPE_STRING,
+																																																																											SCALAR_TYPE_STRING),
+																																																																									List.of("string",
+																																																																											"delimiter"),
+																																																																									2);
 
 	private final DmnIrBuiltinOperation operation;
 	private final String feelName;
@@ -244,6 +252,10 @@ public enum DmnIrBuiltinSignature {
 
 	public boolean collectionParameter() {
 		return collectionParameter(0);
+	}
+
+	public boolean collectionResult() {
+		return this == SPLIT;
 	}
 
 	public DmnIrBuiltinOperation operation() {
