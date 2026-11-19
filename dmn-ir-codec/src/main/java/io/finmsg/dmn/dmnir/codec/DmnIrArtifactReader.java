@@ -805,6 +805,8 @@ public final class DmnIrArtifactReader {
 							var collection = collections.get(Address.of(argumentType.getCollectionType()));
 							matches = collection != null && !collection.hasRecordType()
 									&& collection.getElementType() == signature.parameters().get(i);
+						} else if (signature == DmnIrBuiltinSignature.STRING_FROM) {
+							matches = true;
 						} else if (!signature.collectionParameter(i)) {
 							matches |= argumentType.hasScalarType()
 									&& assignable(argumentType.getScalarType(), signature.parameters().get(i));

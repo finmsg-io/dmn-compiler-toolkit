@@ -13,13 +13,15 @@ class ExportTckCorpus {
     record Group(String id,DmnIrArtifact artifact,String failure,String diagnostic) {}
     public static void main(String[] args)throws Exception {
         Path root=Path.of(args[0]),output=Path.of(args[1]);Files.createDirectory(output);
+        String filter = args.length > 2 ? args[2] : null;
         var inventory=new TckCatalogueDiscovery().discover(root,List.of("compliance-level-2","compliance-level-3"));
-        if(inventory.decodedCaseCount()!=3407)throw new IllegalStateException("Unexpected pinned denominator: "+inventory.decodedCaseCount());
+        if(filter == null && inventory.decodedCaseCount()!=3407)throw new IllegalStateException("Unexpected pinned denominator: "+inventory.decodedCaseCount());
         if(inventory.entries().stream().anyMatch(e->!e.executable()))throw new IllegalStateException("Invalid catalogue entries: "+inventory.entries().stream().filter(e->!e.executable()).map(e->e.id()+": "+e.invalidReason()).toList());
         Map<String,Group> groups=new LinkedHashMap<>();
         StringBuilder manifest=new StringBuilder("entryId\tcaseId\tstatus\tgroup\tdiagnostic\n");
         int index=0,ready=0;
         for(var entry:inventory.entries()) {
+            if (filter != null && !entry.id().contains(filter)) continue;
             for(var test:entry.testCases()) {
                 String status="READY",diagnostic="",groupId="";
                 if(test.invocableName().isPresent()) { status="INVOCATION_UNSUPPORTED";diagnostic="Harness needs direct BKM/service invocation mapping"; }

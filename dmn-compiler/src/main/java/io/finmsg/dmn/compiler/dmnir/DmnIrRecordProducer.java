@@ -1220,7 +1220,8 @@ final class DmnIrRecordProducer {
 				|| model.bindings().stream().anyMatch(binding -> binding.referencePath().equals(path + "/target")))
 			throw unsupported();
 
-		if (signature.collectionParameter() && signature != DmnIrBuiltinSignature.STRING_JOIN)
+		if (signature.collectionParameter() && signature != DmnIrBuiltinSignature.STRING_JOIN
+				&& !signature.collectionResult() && signature != DmnIrBuiltinSignature.INDEX_OF)
 			return collectionBuiltinCall(source, signature, model, path, dependencies, depth);
 
 		boolean named = source.getArgumentsCount() > 0;
@@ -1317,6 +1318,18 @@ final class DmnIrRecordProducer {
 					}
 				}
 				fillOptionalArguments(signature, args);
+			}
+		} else if (signature == DmnIrBuiltinSignature.STRING_FROM) {
+			if (named) {
+				if (source.getArgumentsCount() != 1 || !"from".equals(source.getArguments(0).getName()))
+					return nullLiteral();
+				args[0] = expression(source.getArguments(0).getExpression(), model, path + "/argument[0]", dependencies,
+						depth + 1);
+			} else {
+				if (positionalCount != 1)
+					return nullLiteral();
+				args[0] = expression(source.getPositionalArguments(0), model, path + "/argument[0]", dependencies,
+						depth + 1);
 			}
 		} else if (named) {
 			for (int i = 0; i < source.getArgumentsCount(); i++) {

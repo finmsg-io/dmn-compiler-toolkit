@@ -1454,6 +1454,16 @@ impl ExpressionEmitter<'_, '_> {
                         "builtin_split({},{})",
                         emitted_input.value, emitted_delim.value
                     )
+                } else if call.operation == 37 {
+                    if call.arguments.len() != 1 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    if ty != Text {
+                        return Err("builtin result type mismatch");
+                    }
+                    let emitted = self.expression(&call.arguments[0])?;
+                    depth = depth.max(emitted.depth);
+                    format!("builtin_string({})", emitted.value)
                 } else if call.operation == 24 {
                     if call.arguments.len() != 2 {
                         return Err("builtin argument count mismatch");

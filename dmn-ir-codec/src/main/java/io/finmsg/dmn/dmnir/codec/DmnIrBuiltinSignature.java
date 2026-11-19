@@ -219,7 +219,91 @@ public enum DmnIrBuiltinSignature {
 																																																																											SCALAR_TYPE_STRING),
 																																																																									List.of("string",
 																																																																											"delimiter"),
-																																																																									2);
+																																																																									2), STRING_FROM(
+																																																																											BUILTIN_OPERATION_STRING_FROM,
+																																																																											"string",
+																																																																											SCALAR_TYPE_STRING,
+																																																																											List.of(SCALAR_TYPE_STRING),
+																																																																											List.of("from"),
+																																																																											1), SUBLIST(
+																																																																													BUILTIN_OPERATION_SUBLIST,
+																																																																													"sublist",
+																																																																													SCALAR_TYPE_NULL,
+																																																																													List.of(SCALAR_TYPE_NULL,
+																																																																															SCALAR_TYPE_NUMBER,
+																																																																															SCALAR_TYPE_NUMBER),
+																																																																													List.of("list",
+																																																																															"start position",
+																																																																															"length"),
+																																																																													2), APPEND(
+																																																																															BUILTIN_OPERATION_APPEND,
+																																																																															"append",
+																																																																															SCALAR_TYPE_NULL,
+																																																																															List.of(SCALAR_TYPE_NULL,
+																																																																																	SCALAR_TYPE_NULL),
+																																																																															List.of("list",
+																																																																																	"item"),
+																																																																															2), CONCATENATE(
+																																																																																	BUILTIN_OPERATION_CONCATENATE,
+																																																																																	"concatenate",
+																																																																																	SCALAR_TYPE_NULL,
+																																																																																	List.of(SCALAR_TYPE_NULL,
+																																																																																			SCALAR_TYPE_NULL),
+																																																																																	List.of("list1",
+																																																																																			"list2"),
+																																																																																	2), INSERT_BEFORE(
+																																																																																			BUILTIN_OPERATION_INSERT_BEFORE,
+																																																																																			"insert before",
+																																																																																			SCALAR_TYPE_NULL,
+																																																																																			List.of(SCALAR_TYPE_NULL,
+																																																																																					SCALAR_TYPE_NUMBER,
+																																																																																					SCALAR_TYPE_NULL),
+																																																																																			List.of("list",
+																																																																																					"position",
+																																																																																					"newItem"),
+																																																																																			3), REMOVE(
+																																																																																					BUILTIN_OPERATION_REMOVE,
+																																																																																					"remove",
+																																																																																					SCALAR_TYPE_NULL,
+																																																																																					List.of(SCALAR_TYPE_NULL,
+																																																																																							SCALAR_TYPE_NUMBER),
+																																																																																					List.of("list",
+																																																																																							"position"),
+																																																																																					2), REVERSE(
+																																																																																							BUILTIN_OPERATION_REVERSE,
+																																																																																							"reverse",
+																																																																																							SCALAR_TYPE_NULL,
+																																																																																							List.of(SCALAR_TYPE_NULL),
+																																																																																							List.of("list"),
+																																																																																							1), INDEX_OF(
+																																																																																									BUILTIN_OPERATION_INDEX_OF,
+																																																																																									"index of",
+																																																																																									SCALAR_TYPE_NUMBER,
+																																																																																									List.of(SCALAR_TYPE_NULL,
+																																																																																											SCALAR_TYPE_NULL),
+																																																																																									List.of("list",
+																																																																																											"match"),
+																																																																																									2), DISTINCT_VALUES(
+																																																																																											BUILTIN_OPERATION_DISTINCT_VALUES,
+																																																																																											"distinct values",
+																																																																																											SCALAR_TYPE_NULL,
+																																																																																											List.of(SCALAR_TYPE_NULL),
+																																																																																											List.of("list"),
+																																																																																											1), FLATTEN(
+																																																																																													BUILTIN_OPERATION_FLATTEN,
+																																																																																													"flatten",
+																																																																																													SCALAR_TYPE_NULL,
+																																																																																													List.of(SCALAR_TYPE_NULL),
+																																																																																													List.of("list"),
+																																																																																													1), UNION(
+																																																																																															BUILTIN_OPERATION_UNION,
+																																																																																															"union",
+																																																																																															SCALAR_TYPE_NULL,
+																																																																																															List.of(SCALAR_TYPE_NULL,
+																																																																																																	SCALAR_TYPE_NULL),
+																																																																																															List.of("list1",
+																																																																																																	"list2"),
+																																																																																															2);
 
 	private final DmnIrBuiltinOperation operation;
 	private final String feelName;
@@ -245,7 +329,10 @@ public enum DmnIrBuiltinSignature {
 	public boolean collectionParameter(int parameterIndex) {
 		return switch (this) {
 			case SUM, MIN, MAX, MEAN, MEDIAN, ALL, ANY, PRODUCT -> parameterIndex == 0;
-			case STRING_JOIN -> parameterIndex == 0;
+			case STRING_JOIN, SUBLIST, APPEND, INSERT_BEFORE, REMOVE, REVERSE, DISTINCT_VALUES, FLATTEN ->
+				parameterIndex == 0;
+			case CONCATENATE, UNION -> parameterIndex == 0 || parameterIndex == 1;
+			case INDEX_OF -> parameterIndex == 0;
 			default -> false;
 		};
 	}
@@ -255,7 +342,11 @@ public enum DmnIrBuiltinSignature {
 	}
 
 	public boolean collectionResult() {
-		return this == SPLIT;
+		return switch (this) {
+			case SPLIT, SUBLIST, APPEND, CONCATENATE, INSERT_BEFORE, REMOVE, REVERSE, DISTINCT_VALUES, FLATTEN, UNION ->
+				true;
+			default -> false;
+		};
 	}
 
 	public DmnIrBuiltinOperation operation() {

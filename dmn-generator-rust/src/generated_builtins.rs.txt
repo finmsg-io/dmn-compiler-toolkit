@@ -1414,3 +1414,55 @@ fn builtin_string_join(list: Value, delimiter: Value) -> Value {
     }
     Value::Text(out)
 }
+
+fn builtin_string_normalize_decimal(coefficient: &str, scale: i32) -> (String, i32) {
+    if coefficient == "0" || coefficient == "-0" {
+        return ("0".to_string(), 0);
+    }
+    let is_neg = coefficient.starts_with('-');
+    let digits = coefficient.trim_start_matches('-');
+    let mut s = digits.to_string();
+    let mut scale = scale;
+    while s.ends_with('0') && scale > 0 {
+        s.pop();
+        scale -= 1;
+    }
+    while scale < 0 {
+        s.push('0');
+        scale += 1;
+    }
+    let coef = if is_neg { format!("-{}", s) } else { s };
+    (coef, scale)
+}
+
+fn builtin_string(val: Value) -> Value {
+    match val {
+        Value::Text(s) => Value::Text(s),
+        Value::Boolean(b) => Value::Text(if b { "true".into() } else { "false".into() }),
+        Value::Number { coefficient, scale } => {
+            let (coef, s) = builtin_string_normalize_decimal(&coefficient, scale);
+            if s == 0 {
+                Value::Text(coef)
+            } else if s > 0 {
+                let neg = coef.starts_with('-');
+                let digits = coef.trim_start_matches('-');
+                let u_s = s as usize;
+                let s_val = if digits.len() <= u_s {
+                    let zeros = "0".repeat(u_s - digits.len());
+                    format!("0.{}{}", zeros, digits)
+                } else {
+                    let split_idx = digits.len() - u_s;
+                    format!("{}.{}", &digits[..split_idx], &digits[split_idx..])
+                };
+                Value::Text(if neg { format!("-{}", s_val) } else { s_val })
+            } else {
+                let zeros = "0".repeat((-s) as usize);
+                Value::Text(format!("{}{}", coef, zeros))
+            }
+        }
+        Value::Date { year, month, day } => {
+            Value::Text(format!("{:04}-{:02}-{:02}", year, month, day))
+        }
+        _ => Value::Null,
+    }
+}
