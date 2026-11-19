@@ -791,11 +791,11 @@ public final class DmnIrArtifactReader {
 						var argumentType = typeOf(argument, argumentPath);
 						boolean matches = argumentType.hasScalarType()
 								&& argumentType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL;
-						if (signature.collectionParameter() && argumentType.hasCollectionType()) {
+						if (signature.collectionParameter(i) && argumentType.hasCollectionType()) {
 							var collection = collections.get(Address.of(argumentType.getCollectionType()));
 							matches = collection != null && !collection.hasRecordType()
 									&& collection.getElementType() == signature.parameters().get(i);
-						} else if (!signature.collectionParameter()) {
+						} else if (!signature.collectionParameter(i)) {
 							matches |= argumentType.hasScalarType()
 									&& assignable(argumentType.getScalarType(), signature.parameters().get(i));
 						}

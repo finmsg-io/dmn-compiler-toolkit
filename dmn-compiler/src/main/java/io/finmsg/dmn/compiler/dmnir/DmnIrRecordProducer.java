@@ -1151,6 +1151,23 @@ final class DmnIrRecordProducer {
 		}
 		return typed(type(bkm.getVariable().getType(), owner)).setBkmCall(call).build();
 	}
+	private DmnIrTypeReference ensureCollectionType(DmnSemanticModel model, DmnIrScalarType element) {
+		String base = "$dmnir$builtin-list-" + element.name().toLowerCase(java.util.Locale.ROOT);
+		String id = base;
+		while (named.containsValue(ref(model.identity().namespace(), id))
+				|| records.containsKey(ref(model.identity().namespace(), id)))
+			id += "$";
+		var reference = ref(model.identity().namespace(), id);
+		if (!collections.containsKey(reference)) {
+			collections.put(reference,
+					DmnIrCollectionDefinition.newBuilder()
+							.setIdentity(DmnIrElementIdentity.newBuilder().setId(id).setName(id))
+							.setElementType(element).build());
+			collectionTypes.add(reference);
+		}
+		return DmnIrTypeReference.newBuilder().setCollectionType(reference).build();
+	}
+
 	private DmnIrExpression collectionBuiltinCall(InvocationExpression source, DmnIrBuiltinSignature signature,
 			DmnSemanticModel model, String path, Set<DmnIrReference> dependencies, int depth) {
 		int count = source.getPositionalArgumentsCount();
@@ -1165,20 +1182,7 @@ final class DmnIrRecordProducer {
 		if (count == 0)
 			return nullLiteral();
 		var element = signature.parameters().getFirst();
-		String base = "$dmnir$builtin-list-" + element.name().toLowerCase(java.util.Locale.ROOT);
-		String id = base;
-		while (named.containsValue(ref(model.identity().namespace(), id))
-				|| records.containsKey(ref(model.identity().namespace(), id)))
-			id += "$";
-		var reference = ref(model.identity().namespace(), id);
-		if (!collections.containsKey(reference)) {
-			collections.put(reference,
-					DmnIrCollectionDefinition.newBuilder()
-							.setIdentity(DmnIrElementIdentity.newBuilder().setId(id).setName(id))
-							.setElementType(element).build());
-			collectionTypes.add(reference);
-		}
-		var expected = DmnIrTypeReference.newBuilder().setCollectionType(reference).build();
+		var expected = ensureCollectionType(model, element);
 		DmnIrExpression argument;
 		if (single != null) {
 			argument = expression(single, model, path + "/argument[0]", dependencies, depth + 1, expected);
@@ -1215,7 +1219,7 @@ final class DmnIrRecordProducer {
 				|| model.bindings().stream().anyMatch(binding -> binding.referencePath().equals(path + "/target")))
 			throw unsupported();
 
-		if (signature.collectionParameter())
+		if (signature.collectionParameter() && signature != DmnIrBuiltinSignature.STRING_JOIN)
 			return collectionBuiltinCall(source, signature, model, path, dependencies, depth);
 
 		boolean named = source.getArgumentsCount() > 0;
@@ -1236,7 +1240,84 @@ final class DmnIrRecordProducer {
 				&& (named ? source.getArgumentsCount() : positionalCount) == 2)
 			return nullLiteral();
 		DmnIrExpression[] args = new DmnIrExpression[paramCount];
-		if (named) {
+		if (signature == DmnIrBuiltinSignature.STRING_JOIN) {
+			DmnIrTypeReference stringListType = ensureCollectionType(model, DmnIrScalarType.SCALAR_TYPE_STRING);
+			if (named) {
+				for (int i = 0; i < source.getArgumentsCount(); i++) {
+					var namedArg = source.getArguments(i);
+					Integer pos = signature.parameterIndex(namedArg.getName());
+					if (pos == null || pos >= paramCount || args[pos] != null)
+						return nullLiteral();
+					try {
+						DmnIrExpression argExpr;
+						if (pos == 0) {
+							argExpr = expression(namedArg.getExpression(), model, path + "/argument[" + i + "]",
+									dependencies, depth + 1, stringListType);
+							var actual = expressionType(argExpr);
+							if (actual.hasScalarType() && actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+								if (actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_STRING)
+									return nullLiteral();
+								argExpr = typed(stringListType)
+										.setList(DmnIrListExpression.newBuilder().addElements(argExpr)).build();
+							} else if (actual.hasCollectionType()) {
+								var colDef = collections.get(actual.getCollectionType());
+								if (colDef == null || colDef.getElementType() != DmnIrScalarType.SCALAR_TYPE_STRING)
+									return nullLiteral();
+							} else if (actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+								return nullLiteral();
+							}
+						} else {
+							argExpr = expression(namedArg.getExpression(), model, path + "/argument[" + i + "]",
+									dependencies, depth + 1);
+							if (argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_STRING
+									&& argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL)
+								return nullLiteral();
+						}
+						args[pos] = argExpr;
+					} catch (RuntimeException ex) {
+						return nullLiteral();
+					}
+				}
+				for (int i = 0; i < signature.minArity(); i++) {
+					if (args[i] == null)
+						return nullLiteral();
+				}
+				fillOptionalArguments(signature, args);
+			} else {
+				for (int i = 0; i < positionalCount; i++) {
+					try {
+						DmnIrExpression argExpr;
+						if (i == 0) {
+							argExpr = expression(source.getPositionalArguments(0), model, path + "/argument[0]",
+									dependencies, depth + 1, stringListType);
+							var actual = expressionType(argExpr);
+							if (actual.hasScalarType() && actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+								if (actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_STRING)
+									return nullLiteral();
+								argExpr = typed(stringListType)
+										.setList(DmnIrListExpression.newBuilder().addElements(argExpr)).build();
+							} else if (actual.hasCollectionType()) {
+								var colDef = collections.get(actual.getCollectionType());
+								if (colDef == null || colDef.getElementType() != DmnIrScalarType.SCALAR_TYPE_STRING)
+									return nullLiteral();
+							} else if (actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+								return nullLiteral();
+							}
+						} else {
+							argExpr = expression(source.getPositionalArguments(i), model, path + "/argument[" + i + "]",
+									dependencies, depth + 1);
+							if (argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_STRING
+									&& argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL)
+								return nullLiteral();
+						}
+						args[i] = argExpr;
+					} catch (RuntimeException ex) {
+						return nullLiteral();
+					}
+				}
+				fillOptionalArguments(signature, args);
+			}
+		} else if (named) {
 			for (int i = 0; i < source.getArgumentsCount(); i++) {
 				var namedArg = source.getArguments(i);
 				Integer pos = signature.parameterIndex(namedArg.getName());
@@ -1314,6 +1395,11 @@ final class DmnIrRecordProducer {
 		} else if (signature == DmnIrBuiltinSignature.REPLACE) {
 			if (args[3] == null) {
 				args[3] = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_STRING)
+						.setLiteral(DmnIrLiteral.newBuilder().setStringValue("")).build();
+			}
+		} else if (signature == DmnIrBuiltinSignature.STRING_JOIN) {
+			if (args[1] == null) {
+				args[1] = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_STRING)
 						.setLiteral(DmnIrLiteral.newBuilder().setStringValue("")).build();
 			}
 		}

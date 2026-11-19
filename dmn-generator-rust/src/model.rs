@@ -1429,7 +1429,32 @@ impl ExpressionEmitter<'_, '_> {
                 result.value
             }
             Node::BuiltinCall(call) if self.builtins_enabled => {
-                if (26..=32).contains(&call.operation) || call.operation == 34 {
+                if call.operation == 24 {
+                    if call.arguments.len() != 2 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    if ty != Text {
+                        return Err("builtin result type mismatch");
+                    }
+                    let emitted_list = self.expression(&call.arguments[0])?;
+                    let valid_list = match emitted_list.ty {
+                        Type::Collection(idx) => {
+                            assignable(self.types.collections[idx], Text)
+                        }
+                        Type::Scalar(DmnIrScalarType::ScalarTypeString)
+                        | Type::Scalar(DmnIrScalarType::ScalarTypeNull) => true,
+                        _ => false,
+                    };
+                    if !valid_list {
+                        return Err("builtin argument type mismatch");
+                    }
+                    let emitted_delim = self.expression(&call.arguments[1])?;
+                    if !assignable(emitted_delim.ty, Text) {
+                        return Err("builtin argument type mismatch");
+                    }
+                    depth = depth.max(emitted_list.depth).max(emitted_delim.depth);
+                    format!("builtin_string_join({},{})", emitted_list.value, emitted_delim.value)
+                } else if (26..=32).contains(&call.operation) || call.operation == 34 {
                     if call.arguments.len() != 1 {
                         return Err("builtin argument count mismatch");
                     }

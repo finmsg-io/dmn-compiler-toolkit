@@ -1342,3 +1342,32 @@ fn builtin_log(value: Value) -> Value {
         Value::Null
     }
 }
+
+fn builtin_string_join(list: Value, delimiter: Value) -> Value {
+    let items = match list {
+        Value::List(l) => l,
+        Value::Text(s) => vec![Value::Text(s)],
+        _ => return Value::Null,
+    };
+    let delim = match delimiter {
+        Value::Text(s) => s,
+        Value::Null => String::new(),
+        _ => return Value::Null,
+    };
+    let mut out = String::new();
+    let mut first = true;
+    for item in items {
+        match item {
+            Value::Null => continue,
+            Value::Text(s) => {
+                if !first {
+                    out.push_str(&delim);
+                }
+                out.push_str(&s);
+                first = false;
+            }
+            _ => return Value::Null,
+        }
+    }
+    Value::Text(out)
+}

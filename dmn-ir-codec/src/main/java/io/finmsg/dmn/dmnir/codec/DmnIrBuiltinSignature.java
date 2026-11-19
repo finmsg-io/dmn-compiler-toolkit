@@ -203,7 +203,15 @@ public enum DmnIrBuiltinSignature {
 																																																																					SCALAR_TYPE_NUMBER,
 																																																																					List.of(SCALAR_TYPE_NUMBER),
 																																																																					List.of("number"),
-																																																																					1);
+																																																																					1), STRING_JOIN(
+																																																																							BUILTIN_OPERATION_STRING_JOIN,
+																																																																							"string join",
+																																																																							SCALAR_TYPE_STRING,
+																																																																							List.of(SCALAR_TYPE_STRING,
+																																																																									SCALAR_TYPE_STRING),
+																																																																							List.of("list",
+																																																																									"delimiter"),
+																																																																							1);
 
 	private final DmnIrBuiltinOperation operation;
 	private final String feelName;
@@ -223,14 +231,19 @@ public enum DmnIrBuiltinSignature {
 	}
 
 	/**
-	 * For aggregate operations the parameter scalar denotes the collection element
-	 * type.
+	 * Returns true if the parameter at {@code parameterIndex} is a collection
+	 * parameter where the parameter scalar denotes the collection element type.
 	 */
-	public boolean collectionParameter() {
+	public boolean collectionParameter(int parameterIndex) {
 		return switch (this) {
-			case SUM, MIN, MAX, MEAN, MEDIAN, ALL, ANY, PRODUCT -> true;
+			case SUM, MIN, MAX, MEAN, MEDIAN, ALL, ANY, PRODUCT -> parameterIndex == 0;
+			case STRING_JOIN -> parameterIndex == 0;
 			default -> false;
 		};
+	}
+
+	public boolean collectionParameter() {
+		return collectionParameter(0);
 	}
 
 	public DmnIrBuiltinOperation operation() {

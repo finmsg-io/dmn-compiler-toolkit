@@ -352,6 +352,12 @@ fn generated_literal_replacement_handles_unicode_and_empty_patterns() {
         assert_eq!(builtin_log(num("1", 0)), num("0", 0));
         assert_eq!(builtin_log(num("0", 0)), Value::Null);
         assert_eq!(builtin_log(num("-1", 0)), Value::Null);
+        assert_eq!(builtin_string_join(Value::List(vec![Value::Text("a".into()), Value::Text("b".into())]), Value::Text(",".into())), Value::Text("a,b".into()));
+        assert_eq!(builtin_string_join(Value::List(vec![Value::Text("a".into()), Value::Null, Value::Text("b".into())]), Value::Text("X".into())), Value::Text("aXb".into()));
+        assert_eq!(builtin_string_join(Value::List(vec![]), Value::Text("X".into())), Value::Text("".into()));
+        assert_eq!(builtin_string_join(Value::Text("a".into()), Value::Text("X".into())), Value::Text("a".into()));
+        assert_eq!(builtin_string_join(Value::List(vec![Value::Text("a".into())]), Value::Null), Value::Text("a".into()));
+        assert_eq!(builtin_string_join(Value::Null, Value::Text("X".into())), Value::Null);
     }
 }
 "#,
