@@ -314,24 +314,58 @@ fn main() -> Result<(), Box<dyn Error>> {
         generated_groups.len()
     );
 
-    // Phase 2: Fast unified test execution
-    let mut fallback_groups = Vec::new();
-    // Bound compiler memory and temporary disk use for generated runtimes.
-    for (batch_index, batch) in generated_groups.chunks(32).enumerate() {
-        let generated_groups = batch.to_vec();
-        println!(
-            "Phase 2: Compiling and executing batch {} ({} groups)...",
-            batch_index + 1,
-            batch.len()
-        );
-        let harness_dir = audit_dir.join("unified_harness");
-        let src_dir = harness_dir.join("src");
-        fs::create_dir_all(&src_dir)?;
+    // Phase 2: Fast unified test execution in parallel batches
+    let fallback_groups = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let num_batch_workers = num_threads.clamp(2, 6);
+    println!(
+        "Phase 2: Compiling and executing batches across {} parallel workers (batch size 64)...",
+        num_batch_workers
+    );
 
-        fs::write(
-            harness_dir.join("Cargo.toml"),
-            r#"[package]
-name = "unified-harness"
+    let batches: Vec<(usize, Vec<(String, Vec<usize>)>)> = generated_groups
+        .chunks(64)
+        .enumerate()
+        .map(|(i, b)| (i, b.to_vec()))
+        .collect();
+    let total_batches = batches.len();
+    let batch_queue = std::sync::Arc::new(std::sync::Mutex::new(batches.into_iter()));
+    let mut batch_handles = Vec::new();
+
+    for worker_id in 0..num_batch_workers {
+        let queue = std::sync::Arc::clone(&batch_queue);
+        let group_outcomes = std::sync::Arc::clone(&group_outcomes);
+        let fallback_groups = std::sync::Arc::clone(&fallback_groups);
+        let audit_dir = audit_dir.clone();
+        let cargo_bin = cargo_bin.clone();
+
+        batch_handles.push(std::thread::spawn(
+            move || -> Result<(), Box<dyn Error + Send + Sync>> {
+                loop {
+                    let item = {
+                        let mut lock = queue.lock().unwrap();
+                        lock.next()
+                    };
+                    let Some((batch_index, batch_groups)) = item else {
+                        break;
+                    };
+
+                    println!(
+                        "[Worker {}] Starting batch {}/{} ({} groups)...",
+                        worker_id,
+                        batch_index + 1,
+                        total_batches,
+                        batch_groups.len()
+                    );
+
+                    let harness_dir = audit_dir.join(format!("unified_harness_{}", worker_id));
+                    let src_dir = harness_dir.join("src");
+                    fs::create_dir_all(&src_dir)?;
+
+                    fs::write(
+                        harness_dir.join("Cargo.toml"),
+                        format!(
+                            r#"[package]
+name = "unified-harness-{}"
 version = "0.1.0"
 edition = "2024"
 publish = false
@@ -340,142 +374,155 @@ publish = false
 debug = false
 opt-level = 0
 "#,
-        )?;
+                            worker_id
+                        ),
+                    )?;
 
-        // Write shared prelude (excluding external crate import for unified module layout)
-        let unified_prelude = HARNESS_PRELUDE
-            .lines()
-            .filter(|l| !l.contains("use generated_dmn"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        fs::write(src_dir.join("prelude.rs"), unified_prelude)?;
+                    let unified_prelude = HARNESS_PRELUDE
+                        .lines()
+                        .filter(|l| !l.contains("use generated_dmn"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    fs::write(src_dir.join("prelude.rs"), unified_prelude)?;
 
-        // Build lib.rs modules
-        let mut lib_src = String::from(
-            "#![allow(unused_imports, dead_code, unused_variables, non_snake_case, non_camel_case_types)]\n\n",
-        );
-        for (group_id, _) in &generated_groups {
-            let group_dir = audit_dir.join(group_id);
-            let lib_clean = group_dir
-                .join("crate")
-                .join("lib.rs")
-                .to_string_lossy()
-                .replace('\\', "/");
-            let cases_clean = group_dir
-                .join("cases.rs")
-                .to_string_lossy()
-                .replace('\\', "/");
+                    let mut lib_src = String::from(
+                        "#![allow(unused_imports, dead_code, unused_variables, non_snake_case, non_camel_case_types)]\n\n",
+                    );
+                    for (group_id, _) in &batch_groups {
+                        let group_dir = audit_dir.join(group_id);
+                        let lib_clean = group_dir
+                            .join("crate")
+                            .join("lib.rs")
+                            .to_string_lossy()
+                            .replace('\\', "/");
+                        let cases_clean = group_dir
+                            .join("cases.rs")
+                            .to_string_lossy()
+                            .replace('\\', "/");
 
-            lib_src.push_str(&format!(
-                "pub mod {} {{\n    include!(\"{}\");\n    include!(\"prelude.rs\");\n    include!(\"{}\");\n}}\n\n",
-                group_id, lib_clean, cases_clean
-            ));
-        }
-        fs::write(src_dir.join("lib.rs"), &lib_src)?;
+                        lib_src.push_str(&format!(
+                            "pub mod {} {{\n    include!(\"{}\");\n    include!(\"prelude.rs\");\n    include!(\"{}\");\n}}\n\n",
+                            group_id, lib_clean, cases_clean
+                        ));
+                    }
+                    fs::write(src_dir.join("lib.rs"), &lib_src)?;
 
-        let test_start = std::time::Instant::now();
-        let mut attempts = 0;
-        let (out_str, err_str, exit_code) = loop {
-            attempts += 1;
-            let test_out = Command::new(&cargo_bin)
-                .env("CARGO_INCREMENTAL", "0")
-                .args(["test", "--lib", "--offline", "--", "--color", "never"])
-                .current_dir(&harness_dir)
-                .output();
+                    let test_start = std::time::Instant::now();
+                    let mut attempts = 0;
+                    let (out_str, err_str, exit_code) = loop {
+                        attempts += 1;
+                        let test_out = Command::new(&cargo_bin)
+                            .env("CARGO_INCREMENTAL", "0")
+                            .args(["test", "--lib", "--offline", "--", "--color", "never"])
+                            .current_dir(&harness_dir)
+                            .output();
 
-            let (out, err, code) = match test_out {
-                Ok(o) => (
-                    String::from_utf8_lossy(&o.stdout).to_string(),
-                    String::from_utf8_lossy(&o.stderr).to_string(),
-                    o.status.code().unwrap_or(-1),
-                ),
-                Err(e) => (String::new(), e.to_string(), -1),
-            };
+                        let (out, err, code) = match test_out {
+                            Ok(o) => (
+                                String::from_utf8_lossy(&o.stdout).to_string(),
+                                String::from_utf8_lossy(&o.stderr).to_string(),
+                                o.status.code().unwrap_or(-1),
+                            ),
+                            Err(e) => (String::new(), e.to_string(), -1),
+                        };
 
-            if code != 0
-                && attempts < 4
-                && (err.contains("Access is denied")
-                    || err.contains("os error 5")
-                    || err.contains("os error 32"))
-            {
-                std::thread::sleep(std::time::Duration::from_millis(200 * attempts));
-                continue;
-            }
-            break (out, err, code);
-        };
-
-        let full_output = format!("{}\n{}", out_str, err_str);
-        let is_build_error = exit_code != 0
-            && (err_str.contains("error[E") || err_str.contains("could not compile"));
-
-        fs::write(
-            audit_dir.join(format!("rust-batch-{:03}.log", batch_index + 1)),
-            &full_output,
-        )?;
-        if !is_build_error && full_output.contains("test result:") {
-            let elapsed = test_start.elapsed();
-            println!(
-                "Unified harness executed in {:.2}s. Parsing results...",
-                elapsed.as_secs_f64()
-            );
-            for (group_id, indices) in &generated_groups {
-                let mut passed = 0;
-                let mut failed = 0;
-                let mut results = Vec::new();
-
-                for &idx in indices {
-                    let (category, outcome) = case_result(&full_output, idx);
-                    let (cat, out, diag) = if category == "PASS" {
-                        passed += 1;
-                        ("PASS".to_string(), outcome.to_string(), String::new())
-                    } else if category == "EXECUTION_ERROR" {
-                        failed += 1;
-                        (
-                            "EXECUTION_ERROR".to_string(),
-                            outcome.to_string(),
-                            format!("{outcome}; see unified harness output"),
-                        )
-                    } else {
-                        failed += 1;
-                        (
-                            "FAILURE".to_string(),
-                            "FAILURE".to_string(),
-                            "Expected result differs".to_string(),
-                        )
+                        if code != 0
+                            && attempts < 4
+                            && (err.contains("Access is denied")
+                                || err.contains("os error 5")
+                                || err.contains("os error 32"))
+                        {
+                            std::thread::sleep(std::time::Duration::from_millis(200 * attempts));
+                            continue;
+                        }
+                        break (out, err, code);
                     };
-                    results.push(EvaluationResult {
-                        indices: vec![idx],
-                        category: cat,
-                        outcome: out,
-                        diagnostic: diag,
-                    });
-                }
 
-                let summary = if failed == 0 {
-                    format!("PASS ({} cases)", passed)
-                } else {
-                    format!("COMPLETED (passed={}, failed={})", passed, failed)
-                };
-                println!(
-                    "Evaluated group {} ({} cases): {}",
-                    group_id,
-                    indices.len(),
-                    summary
-                );
-                group_outcomes
-                    .lock()
-                    .unwrap()
-                    .push(GroupOutcome { results });
-            }
-        } else {
-            println!(
-                "Unified harness failed with exit_code={}: stdout:\n{}\nstderr:\n{}",
-                exit_code, out_str, err_str
-            );
-            println!("Falling back to per-group evaluation...");
-            fallback_groups.extend(generated_groups);
-        }
+                    let full_output = format!("{}\n{}", out_str, err_str);
+                    let is_build_error = exit_code != 0
+                        && (err_str.contains("error[E") || err_str.contains("could not compile"));
+
+                    fs::write(
+                        audit_dir.join(format!("rust-batch-{:03}.log", batch_index + 1)),
+                        &full_output,
+                    )?;
+                    if !is_build_error && full_output.contains("test result:") {
+                        let elapsed = test_start.elapsed();
+                        println!(
+                            "[Worker {}] Batch {}/{} executed in {:.2}s. Parsing results...",
+                            worker_id,
+                            batch_index + 1,
+                            total_batches,
+                            elapsed.as_secs_f64()
+                        );
+                        for (group_id, indices) in &batch_groups {
+                            let mut passed = 0;
+                            let mut failed = 0;
+                            let mut results = Vec::new();
+
+                            for &idx in indices {
+                                let (category, outcome) = case_result(&full_output, idx);
+                                let (cat, out, diag) = if category == "PASS" {
+                                    passed += 1;
+                                    ("PASS".to_string(), outcome.to_string(), String::new())
+                                } else if category == "EXECUTION_ERROR" {
+                                    failed += 1;
+                                    (
+                                        "EXECUTION_ERROR".to_string(),
+                                        outcome.to_string(),
+                                        format!("{outcome}; see unified harness output"),
+                                    )
+                                } else {
+                                    failed += 1;
+                                    (
+                                        "FAILURE".to_string(),
+                                        "FAILURE".to_string(),
+                                        "Expected result differs".to_string(),
+                                    )
+                                };
+                                results.push(EvaluationResult {
+                                    indices: vec![idx],
+                                    category: cat,
+                                    outcome: out,
+                                    diagnostic: diag,
+                                });
+                            }
+
+                            let summary = if failed == 0 {
+                                format!("PASS ({} cases)", passed)
+                            } else {
+                                format!("COMPLETED (passed={}, failed={})", passed, failed)
+                            };
+                            println!(
+                                "Evaluated group {} ({} cases): {}",
+                                group_id,
+                                indices.len(),
+                                summary
+                            );
+                            group_outcomes
+                                .lock()
+                                .unwrap()
+                                .push(GroupOutcome { results });
+                        }
+                    } else {
+                        println!(
+                            "[Worker {}] Batch {}/{} failed with exit_code={}: stdout:\n{}\nstderr:\n{}",
+                            worker_id, batch_index + 1, total_batches, exit_code, out_str, err_str
+                        );
+                        println!("Queuing batch groups for per-group fallback evaluation...");
+                        fallback_groups.lock().unwrap().extend(batch_groups);
+                    }
+                }
+                Ok(())
+            },
+        ));
     }
+
+    for handle in batch_handles {
+        handle.join().unwrap().map_err(|e| e.to_string())?;
+    }
+
+    let fallback_groups = std::mem::take(&mut *fallback_groups.lock().unwrap());
 
     if !fallback_groups.is_empty() {
         // Fallback: per-group execution
