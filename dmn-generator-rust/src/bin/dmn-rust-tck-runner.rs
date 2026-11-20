@@ -172,11 +172,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let cargo_bin = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
+    let exe_name = if cfg!(windows) {
+        "dmn-generator-rust.exe"
+    } else {
+        "dmn-generator-rust"
+    };
     let generator_bin = env::current_exe()?
         .parent()
-        .map(|p| p.join("dmn-generator-rust.exe"))
+        .map(|p| p.join(exe_name))
         .filter(|p| p.exists())
-        .unwrap_or_else(|| PathBuf::from("dmn-generator-rust/target/debug/dmn-generator-rust.exe"));
+        .unwrap_or_else(|| {
+            if cfg!(windows) {
+                PathBuf::from("dmn-generator-rust/target/debug/dmn-generator-rust.exe")
+            } else {
+                PathBuf::from("dmn-generator-rust/target/debug/dmn-generator-rust")
+            }
+        });
 
     let num_threads = std::thread::available_parallelism()
         .map(|n| n.get())
