@@ -107,6 +107,15 @@ impl<'a> Types<'a> {
                         .copied()
                         .ok_or("collection record type not found")?;
                     Type::Record(index)
+                } else if let Some(col_ref) = &collection.collection_type {
+                    let index = collection_indices
+                        .get(&(
+                            col_ref.model_namespace.as_str(),
+                            col_ref.element_id.as_str(),
+                        ))
+                        .copied()
+                        .ok_or("nested collection type not found")?;
+                    Type::Collection(index)
                 } else {
                     let scalar = scalar_type(collection.element_type, dates)?;
                     if scalar == DmnIrScalarType::ScalarTypeNull {

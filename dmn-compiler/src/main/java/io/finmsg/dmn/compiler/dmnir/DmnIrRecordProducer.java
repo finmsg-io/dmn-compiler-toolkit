@@ -126,6 +126,8 @@ final class DmnIrRecordProducer {
 								.setIdentity(identity(item.getNode(), id));
 						if (elemType.hasRecordType()) {
 							colBuilder.setRecordType(elemType.getRecordType());
+						} else if (elemType.hasCollectionType()) {
+							colBuilder.setCollectionType(elemType.getCollectionType());
 						} else {
 							var element = elemType.getScalarType();
 							if (element == DmnIrScalarType.SCALAR_TYPE_NULL && !elemType.hasCollectionType())

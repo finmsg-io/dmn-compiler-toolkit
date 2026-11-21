@@ -223,6 +223,9 @@ public final class DmnIrArtifactReader {
 					if (collection.hasRecordType()) {
 						check(recordsProfile, UNSUPPORTED_CAPABILITY, collectionPath + ".record_type",
 								"Records require profile 0.2.");
+					} else if (collection.hasCollectionType()) {
+						check(collectionsProfile, UNSUPPORTED_CAPABILITY, collectionPath + ".collection_type",
+								"Collections require profile 0.7.");
 					} else {
 						var element = collection.getElementType();
 						scalar(element, collectionPath + ".element_type");
@@ -834,7 +837,10 @@ public final class DmnIrArtifactReader {
 					var colDef = collections.get(Address.of(nodeType.getCollectionType()));
 					var itemType = colDef.hasRecordType()
 							? DmnIrTypeReference.newBuilder().setRecordType(colDef.getRecordType()).build()
-							: DmnIrTypeReference.newBuilder().setScalarType(colDef.getElementType()).build();
+							: colDef.hasCollectionType()
+									? DmnIrTypeReference.newBuilder().setCollectionType(colDef.getCollectionType())
+											.build()
+									: DmnIrTypeReference.newBuilder().setScalarType(colDef.getElementType()).build();
 					visibleLocals.put(binding, itemType);
 					filterPredicate = true;
 					try {
@@ -856,6 +862,10 @@ public final class DmnIrArtifactReader {
 							check(element.hasRecordType()
 									&& Address.of(element.getRecordType()).equals(Address.of(colDef.getRecordType())),
 									INVALID_TYPE, elementPath, "List element must match record type.");
+						} else if (colDef.hasCollectionType()) {
+							check(element.hasCollectionType() && Address.of(element.getCollectionType())
+									.equals(Address.of(colDef.getCollectionType())), INVALID_TYPE, elementPath,
+									"List element must match collection type.");
 						} else {
 							check(!element.hasRecordType() && !element.hasCollectionType()
 									&& assignable(element.getType(), colDef.getElementType()), INVALID_TYPE,

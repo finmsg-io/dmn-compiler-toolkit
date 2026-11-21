@@ -220,6 +220,7 @@ message DmnIrCollectionDefinition {
   DmnIrElementIdentity identity = 1;
   DmnIrScalarType element_type = 2;
   DmnIrReference record_type = 3;
+  DmnIrReference collection_type = 4;
 }
 
 message DmnIrFilterExpression {
