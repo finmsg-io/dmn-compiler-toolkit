@@ -69,7 +69,8 @@ public final class DmnIrScalarProducer {
 					.map(m -> new DmnSemanticPipelineResult(m.model(), m.compilationOrder(), List.of(), m.bindings()))
 					.toList());
 		} catch (RuntimeIrLoweringException e) {
-			throw new DmnIrProductionException(UNSUPPORTED_PROFILE, "RuntimeIrLowerer failed: " + e.getMessage(), null, List.of(), e);
+			throw new DmnIrProductionException(UNSUPPORTED_PROFILE, "RuntimeIrLowerer failed: " + e.getMessage(), null,
+					List.of(), e);
 		}
 		Map<Integer, RuntimeInput> inputs = new HashMap<>();
 		runtime.inputs().forEach(i -> inputs.put(i.valueSlot(), i));
@@ -347,9 +348,11 @@ public final class DmnIrScalarProducer {
 			if (op == DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL) {
 				var valKind = value.type().kind();
 				var endKind = comp.endpoint().type().kind();
-				if (valKind != null && endKind != null && valKind != RuntimeTypeKind.ANY && endKind != RuntimeTypeKind.ANY && valKind != endKind) {
+				if (valKind != null && endKind != null && valKind != RuntimeTypeKind.ANY
+						&& endKind != RuntimeTypeKind.ANY && valKind != endKind) {
 					var lit = DmnIrLiteral.newBuilder().setBooleanValue(false);
-					return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN).setLiteral(lit).build();
+					return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN).setLiteral(lit)
+							.build();
 				}
 			}
 			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
@@ -362,7 +365,8 @@ public final class DmnIrScalarProducer {
 			if (expr.expression() instanceof io.finmsg.dmn.ir.RuntimeRangeExpression range) {
 				return lowerRangeTest(value, range, addresses, address, depth);
 			}
-			if (expr.expression() instanceof io.finmsg.dmn.ir.RuntimeListExpression list && value.type().kind() != RuntimeTypeKind.LIST) {
+			if (expr.expression() instanceof io.finmsg.dmn.ir.RuntimeListExpression list
+					&& value.type().kind() != RuntimeTypeKind.LIST) {
 				DmnIrExpression disjunction = null;
 				for (var elem : list.elements()) {
 					var term = lowerUnaryTest(value, new io.finmsg.dmn.ir.RuntimeExpressionUnaryTest(elem), addresses,
@@ -383,9 +387,11 @@ public final class DmnIrScalarProducer {
 			}
 			var valKind = value.type().kind();
 			var endKind = expr.expression().type().kind();
-			if (valKind != null && endKind != null && valKind != RuntimeTypeKind.ANY && endKind != RuntimeTypeKind.ANY && valKind != endKind) {
+			if (valKind != null && endKind != null && valKind != RuntimeTypeKind.ANY && endKind != RuntimeTypeKind.ANY
+					&& valKind != endKind) {
 				var lit = DmnIrLiteral.newBuilder().setBooleanValue(false);
-				return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN).setLiteral(lit).build();
+				return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN).setLiteral(lit)
+						.build();
 			}
 			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
 					.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL)
@@ -473,7 +479,8 @@ public final class DmnIrScalarProducer {
 		return new DmnIrProductionException(UNSUPPORTED_PROFILE,
 				(ref == null || ref.getElementId().isBlank()
 						? ""
-						: new DmnIrRuntimeAdapter.ElementId(ref.getModelNamespace(), ref.getElementId()) + " ") + location,
+						: new DmnIrRuntimeAdapter.ElementId(ref.getModelNamespace(), ref.getElementId()) + " ")
+						+ location,
 				ref == null || ref.getElementId().isBlank()
 						? null
 						: new DmnIrRuntimeAdapter.ElementId(ref.getModelNamespace(), ref.getElementId()),

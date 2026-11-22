@@ -9,12 +9,8 @@ import io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer;
 import io.finmsg.dmn.dmnir.codec.DmnIrArtifactReader;
 import io.finmsg.dmn.generator.java.DmnJavaGenerator;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorOptions;
-import io.finmsg.dmn.generator.java.DmnJavaGeneratorResult;
 import io.finmsg.dmn.ir.RuntimeIrOptimizer;
-import io.finmsg.dmn.ir.RuntimeOptimizedModel;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
@@ -28,31 +24,24 @@ import javax.tools.ToolProvider;
 /**
  * Fast, parallel runner for the Portable DMNIR -> Generated Java TCK pipeline.
  *
- * Architecture:
- * 1. Exports / loads portable Protobuf DMNIR artifacts (.dmnir) into target/tck-corpus.
- * 2. Compiles generated Java engines in large batches via javac (reducing compile overhead from 1s/class to <20ms/class).
- * 3. Evaluates all 3,407 official test cases in parallel across CPU cores.
- * 4. Writes complete case accounting ledger (TSV + JSON).
+ * Architecture: 1. Exports / loads portable Protobuf DMNIR artifacts (.dmnir)
+ * into target/tck-corpus. 2. Compiles generated Java engines in large batches
+ * via javac (reducing compile overhead from 1s/class to <20ms/class). 3.
+ * Evaluates all 3,407 official test cases in parallel across CPU cores. 4.
+ * Writes complete case accounting ledger (TSV + JSON).
  */
 public final class RunPortableJavaTckCorpus {
 
-	public record GroupExecution(
-			String groupId,
-			DmnIrRuntimeAdapter.AdaptedModel adaptedModel,
-			Class<?> engineClass,
-			Object engineInstance,
-			String status,
-			String diagnostic
-	) {}
+	public record GroupExecution(String groupId, DmnIrRuntimeAdapter.AdaptedModel adaptedModel, Class<?> engineClass,
+			Object engineInstance, String status, String diagnostic) {
+	}
 
 	public static void main(String[] args) throws Exception {
 		long startMillis = System.currentTimeMillis();
 		Path testCasesDir = args.length > 0
 				? Path.of(args[0])
 				: Path.of("dmn-tck-runner/src/test/resources/tck-official/TestCases");
-		Path corpusDir = args.length > 1
-				? Path.of(args[1])
-				: Path.of("target/tck-corpus");
+		Path corpusDir = args.length > 1 ? Path.of(args[1]) : Path.of("target/tck-corpus");
 		String filter = args.length > 2 && !args[2].isBlank() ? args[2] : null;
 
 		System.out.println("========================================================================");
@@ -65,17 +54,19 @@ public final class RunPortableJavaTckCorpus {
 		// 1. Discover official catalogue
 		var discovery = new TckCatalogueDiscovery();
 		var inventory = discovery.discover(testCasesDir, List.of("compliance-level-2", "compliance-level-3"));
-		System.out.printf("Discovered %d test cases across %d suites in catalogue.%n",
-				inventory.decodedCaseCount(), inventory.entries().size());
+		System.out.printf("Discovered %d test cases across %d suites in catalogue.%n", inventory.decodedCaseCount(),
+				inventory.entries().size());
 		if (filter == null && inventory.decodedCaseCount() != 3407) {
-			throw new IllegalStateException("Expected pinned denominator 3,407 but discovered: " + inventory.decodedCaseCount());
+			throw new IllegalStateException(
+					"Expected pinned denominator 3,407 but discovered: " + inventory.decodedCaseCount());
 		}
 
 		Files.createDirectories(corpusDir);
 
 		// 2. Identify unique model groups
 		// Group key = entryId + "|" + invocableName or sorted expectedResult names
-		record GroupSpec(String id, TckCatalogueEntry entry, Set<String> resultNames, Optional<String> invocableName) {}
+		record GroupSpec(String id, TckCatalogueEntry entry, Set<String> resultNames, Optional<String> invocableName) {
+		}
 		Map<String, GroupSpec> groupSpecs = new LinkedHashMap<>();
 		Map<String, String> testToGroupId = new LinkedHashMap<>();
 
@@ -85,7 +76,8 @@ public final class RunPortableJavaTckCorpus {
 				if (test.invocableName().isPresent()) {
 					cacheKey = entry.id() + "|invocable:" + test.invocableName().get();
 				} else {
-					cacheKey = entry.id() + "|decisions:" + String.join("|", new TreeSet<>(test.expectedResults().keySet()));
+					cacheKey = entry.id() + "|decisions:"
+							+ String.join("|", new TreeSet<>(test.expectedResults().keySet()));
 				}
 
 				GroupSpec spec = groupSpecs.computeIfAbsent(cacheKey, k -> {
@@ -133,7 +125,8 @@ public final class RunPortableJavaTckCorpus {
 					Files.createDirectories(groupDir);
 					List<DmnSource> sources = new ArrayList<>();
 					Path modelPath = spec.entry().rootDmn().orElseThrow();
-					DmnSource rootSource = new DmnSource(new DmnSourceId(modelPath.toUri()), Files.readAllBytes(modelPath));
+					DmnSource rootSource = new DmnSource(new DmnSourceId(modelPath.toUri()),
+							Files.readAllBytes(modelPath));
 					if (spec.invocableName().isEmpty()) {
 						sources.add(pruner.prune(rootSource, spec.resultNames()));
 					} else {
@@ -188,10 +181,8 @@ public final class RunPortableJavaTckCorpus {
 				}
 
 				if (needsCompile) {
-					var genResult = new DmnJavaGenerator().generate(
-							optModel,
-							DmnJavaGeneratorOptions.of("io.finmsg.dmn.tck.gen", className)
-					);
+					var genResult = new DmnJavaGenerator().generate(optModel,
+							DmnJavaGeneratorOptions.of("io.finmsg.dmn.tck.gen", className));
 
 					String sourceCode = genResult.sources().get("io.finmsg.dmn.tck.gen." + className);
 					Files.writeString(groupDir.resolve("Engine.java"), sourceCode, StandardCharsets.UTF_8);
@@ -206,11 +197,11 @@ public final class RunPortableJavaTckCorpus {
 		});
 
 		long exportedReady = groups.values().stream().filter(g -> "READY".equals(g.status())).count();
-		System.out.printf("Export complete. %d/%d groups ready for Java compilation.%n",
-				exportedReady, groups.size());
+		System.out.printf("Export complete. %d/%d groups ready for Java compilation.%n", exportedReady, groups.size());
 
 		// 4. Batch compile generated Java classes in parallel
-		System.out.printf("Step 2/4: Batch compiling %d generated Java classes via javac (parallel)...%n", filesToCompile.size());
+		System.out.printf("Step 2/4: Batch compiling %d generated Java classes via javac (parallel)...%n",
+				filesToCompile.size());
 		long compileStart = System.currentTimeMillis();
 		if (!filesToCompile.isEmpty()) {
 			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
@@ -242,11 +233,13 @@ public final class RunPortableJavaTckCorpus {
 				}
 			});
 		}
-		System.out.printf("Batch compilation finished in %.2fs.%n", (System.currentTimeMillis() - compileStart) / 1000.0);
+		System.out.printf("Batch compilation finished in %.2fs.%n",
+				(System.currentTimeMillis() - compileStart) / 1000.0);
 
 		// 5. Load and instantiate engines
 		System.out.println("Step 3/4: Loading compiled engines...");
-		URLClassLoader classLoader = new URLClassLoader(new URL[]{genClassesDir.toUri().toURL()}, RunPortableJavaTckCorpus.class.getClassLoader());
+		URLClassLoader classLoader = new URLClassLoader(new URL[]{genClassesDir.toUri().toURL()},
+				RunPortableJavaTckCorpus.class.getClassLoader());
 		groups.keySet().parallelStream().forEach(groupId -> {
 			var g = groups.get(groupId);
 			if ("READY".equals(g.status())) {
@@ -257,7 +250,8 @@ public final class RunPortableJavaTckCorpus {
 							.newInstance(OfficialExternalJavaPolicy.POLICY);
 					groups.put(g.groupId(), new GroupExecution(g.groupId(), g.adaptedModel(), cls, inst, "READY", ""));
 				} catch (Throwable t) {
-					groups.put(g.groupId(), new GroupExecution(g.groupId(), g.adaptedModel(), null, null, "INSTANTIATE_ERROR", t.toString()));
+					groups.put(g.groupId(), new GroupExecution(g.groupId(), g.adaptedModel(), null, null,
+							"INSTANTIATE_ERROR", t.toString()));
 				}
 			}
 		});
@@ -273,7 +267,8 @@ public final class RunPortableJavaTckCorpus {
 
 		List<Map.Entry<TckCatalogueEntry, TckTestCase>> allCases = new ArrayList<>();
 		for (var entry : inventory.entries()) {
-			if (filter != null && !entry.id().contains(filter)) continue;
+			if (filter != null && !entry.id().contains(filter))
+				continue;
 			for (var test : entry.testCases()) {
 				allCases.add(Map.entry(entry, test));
 			}
@@ -323,7 +318,8 @@ public final class RunPortableJavaTckCorpus {
 		System.out.printf(" PASSED       : %d (%.2f%%)%n", passedCount.get(), pct);
 		System.out.printf(" FAILED       : %d%n", failedCount.get());
 		System.out.printf(" REJECTIONS   : %d%n", rejectedCount.get());
-		System.out.printf(" EVAL TIME    : %.2fs (%.1f cases/sec)%n", totalEvalTime / 1000.0, (total * 1000.0) / totalEvalTime);
+		System.out.printf(" EVAL TIME    : %.2fs (%.1f cases/sec)%n", totalEvalTime / 1000.0,
+				(total * 1000.0) / totalEvalTime);
 		System.out.printf(" TOTAL TIME   : %.2fs%n", totalTime / 1000.0);
 		System.out.println(" LEDGER FILE  : " + ledgerPath);
 		System.out.println("========================================================================");
@@ -339,7 +335,8 @@ public final class RunPortableJavaTckCorpus {
 		aliases.put(rootNs, "");
 		var rootModelOpt = adapted.source().artifact().getModelsList().stream()
 				.filter(m -> m.getNamespace().equals(rootNs)).findFirst();
-		rootModelOpt.ifPresent(r -> r.getImportsList().forEach(i -> aliases.put(i.getModelNamespace(), i.getName() + ".")));
+		rootModelOpt
+				.ifPresent(r -> r.getImportsList().forEach(i -> aliases.put(i.getModelNamespace(), i.getName() + ".")));
 
 		if (testCase.invocableName().isPresent()) {
 			String invocableName = testCase.invocableName().get();
@@ -347,7 +344,8 @@ public final class RunPortableJavaTckCorpus {
 			List<String> paramNames = new ArrayList<>();
 			for (var model : adapted.source().artifact().getModelsList()) {
 				for (var bkm : model.getBkmsList()) {
-					if (bkm.getVariable().getName().equals(invocableName) || bkm.getIdentity().getName().equals(invocableName)) {
+					if (bkm.getVariable().getName().equals(invocableName)
+							|| bkm.getIdentity().getName().equals(invocableName)) {
 						for (var param : bkm.getParametersList()) {
 							paramNames.add(param.getVariable().getName());
 						}
@@ -372,10 +370,12 @@ public final class RunPortableJavaTckCorpus {
 						break;
 					}
 				}
-				if (bkmSlot >= 0) break;
+				if (bkmSlot >= 0)
+					break;
 			}
 			if (bkmSlot < 0) {
-				throw new UnsupportedOperationException("Invocable BKM not resolved in portable DMNIR: " + invocableName);
+				throw new UnsupportedOperationException(
+						"Invocable BKM not resolved in portable DMNIR: " + invocableName);
 			}
 
 			Object[] args = new Object[paramNames.size()];
@@ -435,8 +435,8 @@ public final class RunPortableJavaTckCorpus {
 					result = genClass.getMethod("evaluateBkm", int.class, Object[].class, Object[].class)
 							.invoke(engineInstance, bkmSlot, args, (Object) evaluated);
 				} catch (NoSuchMethodException e) {
-					result = genClass.getMethod("evaluateBkm", int.class, Object[].class).invoke(engineInstance, bkmSlot,
-							args);
+					result = genClass.getMethod("evaluateBkm", int.class, Object[].class).invoke(engineInstance,
+							bkmSlot, args);
 				}
 			} catch (Throwable ignored) {
 			}
@@ -499,7 +499,8 @@ public final class RunPortableJavaTckCorpus {
 	}
 
 	private static String clean(String s) {
-		if (s == null) return "";
+		if (s == null)
+			return "";
 		return s.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ').trim();
 	}
 }

@@ -790,10 +790,9 @@ public final class DmnIrArtifactReader {
 						boolean matches = false;
 						if (nodeType.hasCollectionType()) {
 							var collection = collections.get(Address.of(nodeType.getCollectionType()));
-							matches = collection != null
-									&& (signature.result() == DmnIrScalarType.SCALAR_TYPE_NULL
-											|| (!collection.hasRecordType()
-													&& collection.getElementType() == signature.result()));
+							matches = collection != null && (signature.result() == DmnIrScalarType.SCALAR_TYPE_NULL
+									|| (!collection.hasRecordType()
+											&& collection.getElementType() == signature.result()));
 						}
 						check(matches, INVALID_TYPE, path, "Built-in result type must match its signature.");
 					} else {
@@ -818,8 +817,7 @@ public final class DmnIrArtifactReader {
 						} else if (!signature.collectionParameter(i)) {
 							matches |= argumentType.hasScalarType()
 									&& (signature.parameters().get(i) == DmnIrScalarType.SCALAR_TYPE_NULL
-											|| assignable(argumentType.getScalarType(),
-													signature.parameters().get(i)));
+											|| assignable(argumentType.getScalarType(), signature.parameters().get(i)));
 						}
 						check(matches, INVALID_TYPE, argumentPath, "Built-in argument type must match its signature.");
 						node(argument, owner, dependencies, argumentPath, depth + 1);

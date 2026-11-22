@@ -249,7 +249,8 @@ class OfficialTckSuiteTest {
 			if (backendProp.equals("interpreter")) {
 				return Stream.of(variant + "-interpreter");
 			}
-			return Stream.of(variant + "-interpreter", variant + "-generated-java", variant + "-generated-portable-java",
+			return Stream.of(variant + "-interpreter", variant + "-generated-java",
+					variant + "-generated-portable-java",
 					variant + "-generated-sparksql" + (SPARK_HYBRID ? "-hybrid" : ""));
 		}).toList();
 	}
@@ -304,9 +305,10 @@ class OfficialTckSuiteTest {
 		}
 
 		if (activeBackends.contains(generatedPortableJavaBackend)) {
-			dynamicTests.add(recordedTest(
-					testName + " @" + generatedPortableJavaBackend, entry, testCase, generatedPortableJavaBackend, () -> {
-						PortableGeneratedPreparation prepared = getPortableGeneratedPreparation(sources, testCase, modelMode);
+			dynamicTests.add(recordedTest(testName + " @" + generatedPortableJavaBackend, entry, testCase,
+					generatedPortableJavaBackend, () -> {
+						PortableGeneratedPreparation prepared = getPortableGeneratedPreparation(sources, testCase,
+								modelMode);
 						if (prepared.failureDiagnostic() != null)
 							throw new AssertionError(prepared.failureDiagnostic(), prepared.failureCause());
 						executePortableGeneratedJava(prepared, testCase, testName);
@@ -491,11 +493,12 @@ class OfficialTckSuiteTest {
 		Set<String> resultNames = Set.copyOf(testCase.expectedResults().keySet());
 		PreparationKey key = new PreparationKey(sources.stream().map(source -> source.id().toString()).toList(),
 				resultNames, modelMode);
-		return portableGeneratedPreparationCache.computeIfAbsent(key, ignored -> preparePortableGenerated(sources, resultNames));
+		return portableGeneratedPreparationCache.computeIfAbsent(key,
+				ignored -> preparePortableGenerated(sources, resultNames));
 	}
 
-	private void executePortableGeneratedJava(PortableGeneratedPreparation prepared,
-			TckTestCase testCase, String testName) throws Exception {
+	private void executePortableGeneratedJava(PortableGeneratedPreparation prepared, TckTestCase testCase,
+			String testName) throws Exception {
 		Class<?> genClass = prepared.generatedClass();
 		Object engineInstance = prepared.engineInstance();
 		var adapted = prepared.adaptedModel();
@@ -505,7 +508,8 @@ class OfficialTckSuiteTest {
 		aliases.put(rootNs, "");
 		var rootModelOpt = adapted.source().artifact().getModelsList().stream()
 				.filter(m -> m.getNamespace().equals(rootNs)).findFirst();
-		rootModelOpt.ifPresent(r -> r.getImportsList().forEach(i -> aliases.put(i.getModelNamespace(), i.getName() + ".")));
+		rootModelOpt
+				.ifPresent(r -> r.getImportsList().forEach(i -> aliases.put(i.getModelNamespace(), i.getName() + ".")));
 
 		if (testCase.invocableName().isPresent()) {
 			String invocableName = testCase.invocableName().get();
@@ -513,7 +517,8 @@ class OfficialTckSuiteTest {
 			List<String> paramNames = new ArrayList<>();
 			for (var model : adapted.source().artifact().getModelsList()) {
 				for (var bkm : model.getBkmsList()) {
-					if (bkm.getVariable().getName().equals(invocableName) || bkm.getIdentity().getName().equals(invocableName)) {
+					if (bkm.getVariable().getName().equals(invocableName)
+							|| bkm.getIdentity().getName().equals(invocableName)) {
 						for (var param : bkm.getParametersList()) {
 							paramNames.add(param.getVariable().getName());
 						}
@@ -538,10 +543,12 @@ class OfficialTckSuiteTest {
 						break;
 					}
 				}
-				if (bkmSlot >= 0) break;
+				if (bkmSlot >= 0)
+					break;
 			}
 			if (bkmSlot < 0) {
-				throw new UnsupportedOperationException("Invocable BKM not resolved in portable DMNIR: " + invocableName);
+				throw new UnsupportedOperationException(
+						"Invocable BKM not resolved in portable DMNIR: " + invocableName);
 			}
 
 			Object[] args = new Object[paramNames.size()];
@@ -601,8 +608,8 @@ class OfficialTckSuiteTest {
 					result = genClass.getMethod("evaluateBkm", int.class, Object[].class, Object[].class)
 							.invoke(engineInstance, bkmSlot, args, (Object) evaluated);
 				} catch (NoSuchMethodException e) {
-					result = genClass.getMethod("evaluateBkm", int.class, Object[].class).invoke(engineInstance, bkmSlot,
-							args);
+					result = genClass.getMethod("evaluateBkm", int.class, Object[].class).invoke(engineInstance,
+							bkmSlot, args);
 				}
 			} catch (Throwable ignored) {
 			}
@@ -971,28 +978,23 @@ class OfficialTckSuiteTest {
 					: new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(List.of());
 
 			// 1. DMN -> Java compiler -> portable DMNIR (dmn-ir-protobuf)
-			DmnIrArtifactReader.VerifiedArtifact produced =
-					new DmnIrScalarProducer().produce(root, resolver);
+			DmnIrArtifactReader.VerifiedArtifact produced = new DmnIrScalarProducer().produce(root, resolver);
 
 			// 2. Serialized Protobuf bytes
 			byte[] protoBytes = produced.artifact().toByteArray();
 
 			// 3. Bounded verification
-			DmnIrArtifactReader.VerifiedArtifact verified =
-					new DmnIrArtifactReader().read(protoBytes);
+			DmnIrArtifactReader.VerifiedArtifact verified = new DmnIrArtifactReader().read(protoBytes);
 
 			// 4. Java Runtime IR adapter
-			DmnIrRuntimeAdapter.AdaptedModel adapted =
-					new DmnIrRuntimeAdapter().adapt(verified);
+			DmnIrRuntimeAdapter.AdaptedModel adapted = new DmnIrRuntimeAdapter().adapt(verified);
 
 			// 5. Optimization
-			RuntimeOptimizedModel optModel =
-					new RuntimeIrOptimizer().optimize(adapted.runtimeModel());
+			RuntimeOptimizedModel optModel = new RuntimeIrOptimizer().optimize(adapted.runtimeModel());
 
 			// 6. Java generator
 			String className = "OmgTckPortableEngine_" + ENGINE_COUNTER.getAndIncrement();
-			DmnJavaGeneratorResult generated = new DmnJavaGenerator().generate(
-					optModel,
+			DmnJavaGeneratorResult generated = new DmnJavaGenerator().generate(optModel,
 					DmnJavaGeneratorOptions.of("io.finmsg.dmn.tck.gen", className));
 
 			// 7. Compilation and Instantiation
@@ -1005,7 +1007,8 @@ class OfficialTckSuiteTest {
 			return PortableGeneratedPreparation.success(generatedClass, engineInstance, adapted);
 		} catch (Throwable exception) {
 			String diagnostic = (exception instanceof io.finmsg.dmn.compiler.dmnir.DmnIrProductionException pe)
-					? "EXPORT_" + pe.category() + ": " + pe.getMessage() + (pe.diagnostics().isEmpty() ? "" : " " + pe.diagnostics())
+					? "EXPORT_" + pe.category() + ": " + pe.getMessage()
+							+ (pe.diagnostics().isEmpty() ? "" : " " + pe.diagnostics())
 					: exception.getMessage() != null ? exception.getMessage() : exception.toString();
 			return PortableGeneratedPreparation.failure(diagnostic, exception);
 		}
@@ -1063,14 +1066,18 @@ class OfficialTckSuiteTest {
 					typedRequests.get(), typedResponses.get(), typedCompletedCases.get(), outcomes.size());
 		}
 		if (activeBackends.stream().anyMatch(backend -> backend.contains("portable-java"))) {
-			new TckCatalogueReportWriter().write(Path.of("target", "tck-accounting" + variant + "-portable-java.json"), report);
+			new TckCatalogueReportWriter().write(Path.of("target", "tck-accounting" + variant + "-portable-java.json"),
+					report);
 			StringBuilder tsv = new StringBuilder("entryId\tcaseId\tstatus\tdiagnostic\n");
-			for (var outcome : outcomes.stream().filter(o -> o.backend().contains("portable-java")).sorted(Comparator.comparing(TckCatalogueOutcome::key)).toList()) {
+			for (var outcome : outcomes.stream().filter(o -> o.backend().contains("portable-java"))
+					.sorted(Comparator.comparing(TckCatalogueOutcome::key)).toList()) {
 				tsv.append(outcome.entryId()).append('\t').append(outcome.caseId()).append('\t')
 						.append(outcome.status()).append('\t')
-						.append(outcome.diagnostic().replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')).append('\n');
+						.append(outcome.diagnostic().replace('\n', ' ').replace('\r', ' ').replace('\t', ' '))
+						.append('\n');
 			}
-			Files.writeString(Path.of("target", "tck-accounting" + variant + "-portable-java.tsv"), tsv.toString(), java.nio.charset.StandardCharsets.UTF_8);
+			Files.writeString(Path.of("target", "tck-accounting" + variant + "-portable-java.tsv"), tsv.toString(),
+					java.nio.charset.StandardCharsets.UTF_8);
 		}
 
 		Files.write(
