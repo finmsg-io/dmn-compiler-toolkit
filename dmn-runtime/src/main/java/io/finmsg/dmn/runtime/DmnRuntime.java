@@ -2355,9 +2355,6 @@ public final class DmnRuntime {
 	public static LocalDate parseFeelDate(String value) {
 		if (value == null)
 			return null;
-		if (value.startsWith("+") && value.length() > 1 && Character.isDigit(value.charAt(1))) {
-			value = value.substring(1);
-		}
 		try {
 			java.util.regex.Matcher matcher = java.util.regex.Pattern
 					.compile("(\\d{4}|[1-9]\\d{4,8}|-\\d{4,9})-(\\d{2})-(\\d{2})").matcher(value);
