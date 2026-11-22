@@ -3910,3 +3910,10 @@ other backend full-suite revalidation remains outstanding.
 Next: resolve the numerical comparison/semantics questions and expand rejected expressions/types
 using the current manifest. Arithmetic (794 rejected cases), membership (192), instance-of (142),
 and temporal functions are large remaining suites; these counts are not independent projected gains.
+
+## 53. Progress Update — List Builtins & Java Portable DMNIR Execution (2026-11-22)
+
+- **Decision Variable Inference**: Decisions without an explicitly declared type in DMN XML now infer their variable type from the compiled expression rather than being forced to `SCALAR_TYPE_NULL`.
+- **Collection Parameter Coercion**: FEEL scalar-to-singleton-list coercion (`1` -> `[1]`) was implemented in `DmnIrRecordProducer.java` for all built-in calls taking collection arguments.
+- **Null Collection Arguments**: Passing null as a collection argument (e.g. `list replace(null, 1, 4)`) now cleanly yields null per specification.
+- **Suite `1155-list-replace-function`**: Passes improved from 11/22 to 16/22 (72.73%). Remaining 6 cases depend on lowering FEEL function definition literals into DMNIR closures.

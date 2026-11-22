@@ -303,7 +303,28 @@ public enum DmnIrBuiltinSignature {
 																																																																																																	SCALAR_TYPE_NULL),
 																																																																																															List.of("list1",
 																																																																																																	"list2"),
-																																																																																															2);
+																																																																																															2), LIST_CONTAINS(
+																																																																																																	BUILTIN_OPERATION_LIST_CONTAINS,
+																																																																																																	"list contains",
+																																																																																																	SCALAR_TYPE_BOOLEAN,
+																																																																																																	List.of(SCALAR_TYPE_NULL,
+																																																																																																			SCALAR_TYPE_NULL),
+																																																																																																	List.of("list",
+																																																																																																			"element"),
+																																																																																																	2), COUNT(
+																																																																																																			BUILTIN_OPERATION_COUNT,
+																																																																																																			"count",
+																																																																																																			SCALAR_TYPE_NUMBER,
+																																																																																																			List.of(SCALAR_TYPE_NULL),
+																																																																																																			List.of("list"),
+																																																																																																			1),
+	MODE(BUILTIN_OPERATION_MODE, "mode", SCALAR_TYPE_NULL, List.of(SCALAR_TYPE_NULL), List.of("list"), 1),
+	GET_VALUE(BUILTIN_OPERATION_GET_VALUE, "get value", SCALAR_TYPE_NULL, List.of(SCALAR_TYPE_NULL, SCALAR_TYPE_STRING), List.of("m", "key"), 2),
+	CONTEXT_PUT(BUILTIN_OPERATION_CONTEXT_PUT, "context put", SCALAR_TYPE_NULL, List.of(SCALAR_TYPE_NULL, SCALAR_TYPE_NULL, SCALAR_TYPE_NULL), List.of("context", "key", "value"), 3),
+	CONTEXT_MERGE(BUILTIN_OPERATION_CONTEXT_MERGE, "context merge", SCALAR_TYPE_NULL, List.of(SCALAR_TYPE_NULL), List.of("contexts"), 1),
+	LIST_REPLACE(BUILTIN_OPERATION_LIST_REPLACE, "list replace", SCALAR_TYPE_NULL, List.of(SCALAR_TYPE_NULL, SCALAR_TYPE_NUMBER, SCALAR_TYPE_NULL), List.of("list", "position", "newItem"), 3),
+	RANGE(BUILTIN_OPERATION_RANGE, "range", SCALAR_TYPE_NULL, List.of(SCALAR_TYPE_STRING), List.of("from"), 1),
+	SORT(BUILTIN_OPERATION_SORT, "sort", SCALAR_TYPE_NULL, List.of(SCALAR_TYPE_NULL, SCALAR_TYPE_NULL), List.of("list", "precedes"), 1);
 
 	private final DmnIrBuiltinOperation operation;
 	private final String feelName;
@@ -329,7 +350,7 @@ public enum DmnIrBuiltinSignature {
 	public boolean collectionParameter(int parameterIndex) {
 		return switch (this) {
 			case SUM, MIN, MAX, MEAN, MEDIAN, ALL, ANY, PRODUCT -> parameterIndex == 0;
-			case STRING_JOIN, SUBLIST, APPEND, INSERT_BEFORE, REMOVE, REVERSE, DISTINCT_VALUES, FLATTEN ->
+			case STRING_JOIN, SUBLIST, APPEND, INSERT_BEFORE, REMOVE, REVERSE, DISTINCT_VALUES, FLATTEN, LIST_CONTAINS, COUNT, MODE, SORT, LIST_REPLACE, CONTEXT_MERGE ->
 				parameterIndex == 0;
 			case CONCATENATE, UNION -> parameterIndex == 0 || parameterIndex == 1;
 			case INDEX_OF -> parameterIndex == 0;
@@ -343,7 +364,7 @@ public enum DmnIrBuiltinSignature {
 
 	public boolean collectionResult() {
 		return switch (this) {
-			case SPLIT, SUBLIST, APPEND, CONCATENATE, INSERT_BEFORE, REMOVE, REVERSE, DISTINCT_VALUES, FLATTEN, UNION ->
+			case SPLIT, SUBLIST, APPEND, CONCATENATE, INSERT_BEFORE, REMOVE, REVERSE, DISTINCT_VALUES, FLATTEN, UNION, MODE, SORT, LIST_REPLACE ->
 				true;
 			default -> false;
 		};
@@ -379,7 +400,9 @@ public enum DmnIrBuiltinSignature {
 
 	public Integer parameterIndex(String name) {
 		int idx = parameterNames.indexOf(name);
-		return idx >= 0 ? idx : null;
+		if (idx >= 0) return idx;
+		if (this == LIST_REPLACE && "match".equals(name)) return 1;
+		return null;
 	}
 
 	public static Optional<DmnIrBuiltinSignature> forOperation(DmnIrBuiltinOperation operation) {

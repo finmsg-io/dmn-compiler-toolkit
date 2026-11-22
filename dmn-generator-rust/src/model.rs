@@ -1490,6 +1490,116 @@ impl ExpressionEmitter<'_, '_> {
                         "builtin_string_join({},{})",
                         emitted_list.value, emitted_delim.value
                     )
+                } else if call.operation == 38 {
+                    // sublist(list, start_pos, length?)
+                    if call.arguments.len() < 2 || call.arguments.len() > 3 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted_list = self.expression(&call.arguments[0])?;
+                    let emitted_start = self.expression(&call.arguments[1])?;
+                    let emitted_len = if call.arguments.len() == 3 {
+                        self.expression(&call.arguments[2])?
+                    } else {
+                        Emitted { value: "Value::Null".into(), ty: Type::Scalar(DmnIrScalarType::ScalarTypeNull), depth: 0, bounds: None }
+                    };
+                    depth = depth.max(emitted_list.depth).max(emitted_start.depth).max(emitted_len.depth);
+                    format!("builtin_sublist({},{},{})", emitted_list.value, emitted_start.value, emitted_len.value)
+                } else if call.operation == 39 {
+                    // append(list, item)
+                    if call.arguments.len() != 2 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted_list = self.expression(&call.arguments[0])?;
+                    let emitted_item = self.expression(&call.arguments[1])?;
+                    depth = depth.max(emitted_list.depth).max(emitted_item.depth);
+                    format!("builtin_append({},{})", emitted_list.value, emitted_item.value)
+                } else if call.operation == 40 {
+                    // concatenate(list1, list2)
+                    if call.arguments.len() != 2 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted1 = self.expression(&call.arguments[0])?;
+                    let emitted2 = self.expression(&call.arguments[1])?;
+                    depth = depth.max(emitted1.depth).max(emitted2.depth);
+                    format!("builtin_concatenate({},{})", emitted1.value, emitted2.value)
+                } else if call.operation == 41 {
+                    // insert before(list, pos, item)
+                    if call.arguments.len() != 3 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted_list = self.expression(&call.arguments[0])?;
+                    let emitted_pos = self.expression(&call.arguments[1])?;
+                    let emitted_item = self.expression(&call.arguments[2])?;
+                    depth = depth.max(emitted_list.depth).max(emitted_pos.depth).max(emitted_item.depth);
+                    format!("builtin_insert_before({},{},{})", emitted_list.value, emitted_pos.value, emitted_item.value)
+                } else if call.operation == 42 {
+                    // remove(list, pos)
+                    if call.arguments.len() != 2 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted_list = self.expression(&call.arguments[0])?;
+                    let emitted_pos = self.expression(&call.arguments[1])?;
+                    depth = depth.max(emitted_list.depth).max(emitted_pos.depth);
+                    format!("builtin_remove({},{})", emitted_list.value, emitted_pos.value)
+                } else if call.operation == 43 {
+                    // reverse(list)
+                    if call.arguments.len() != 1 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted = self.expression(&call.arguments[0])?;
+                    depth = depth.max(emitted.depth);
+                    format!("builtin_reverse({})", emitted.value)
+                } else if call.operation == 44 {
+                    // index of(list, match)
+                    if call.arguments.len() != 2 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted_list = self.expression(&call.arguments[0])?;
+                    let emitted_match = self.expression(&call.arguments[1])?;
+                    depth = depth.max(emitted_list.depth).max(emitted_match.depth);
+                    format!("builtin_index_of({},{})", emitted_list.value, emitted_match.value)
+                } else if call.operation == 45 {
+                    // distinct values(list)
+                    if call.arguments.len() != 1 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted = self.expression(&call.arguments[0])?;
+                    depth = depth.max(emitted.depth);
+                    format!("builtin_distinct_values({})", emitted.value)
+                } else if call.operation == 46 {
+                    // flatten(list)
+                    if call.arguments.len() != 1 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted = self.expression(&call.arguments[0])?;
+                    depth = depth.max(emitted.depth);
+                    format!("builtin_flatten({})", emitted.value)
+                } else if call.operation == 47 {
+                    // union(list1, list2)
+                    if call.arguments.len() != 2 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted1 = self.expression(&call.arguments[0])?;
+                    let emitted2 = self.expression(&call.arguments[1])?;
+                    depth = depth.max(emitted1.depth).max(emitted2.depth);
+                    format!("builtin_union({},{})", emitted1.value, emitted2.value)
+                } else if call.operation == 48 {
+                    // list contains(list, item)
+                    if call.arguments.len() != 2 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted_list = self.expression(&call.arguments[0])?;
+                    let emitted_item = self.expression(&call.arguments[1])?;
+                    depth = depth.max(emitted_list.depth).max(emitted_item.depth);
+                    format!("builtin_list_contains({},{})", emitted_list.value, emitted_item.value)
+                } else if call.operation == 49 {
+                    // count(list)
+                    if call.arguments.len() != 1 {
+                        return Err("builtin argument count mismatch");
+                    }
+                    let emitted = self.expression(&call.arguments[0])?;
+                    depth = depth.max(emitted.depth);
+                    format!("builtin_count({})", emitted.value)
                 } else if (26..=32).contains(&call.operation) || call.operation == 34 {
                     if call.arguments.len() != 1 {
                         return Err("builtin argument count mismatch");

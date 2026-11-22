@@ -790,13 +790,16 @@ public final class DmnIrArtifactReader {
 						boolean matches = false;
 						if (nodeType.hasCollectionType()) {
 							var collection = collections.get(Address.of(nodeType.getCollectionType()));
-							matches = collection != null && !collection.hasRecordType()
-									&& collection.getElementType() == signature.result();
+							matches = collection != null
+									&& (signature.result() == DmnIrScalarType.SCALAR_TYPE_NULL
+											|| (!collection.hasRecordType()
+													&& collection.getElementType() == signature.result()));
 						}
 						check(matches, INVALID_TYPE, path, "Built-in result type must match its signature.");
 					} else {
-						check(nodeType.hasScalarType() && nodeType.getScalarType() == signature.result(), INVALID_TYPE,
-								path, "Built-in result type must match its signature.");
+						check(nodeType.hasScalarType() && (signature.result() == DmnIrScalarType.SCALAR_TYPE_NULL
+								|| nodeType.getScalarType() == signature.result()), INVALID_TYPE, path,
+								"Built-in result type must match its signature.");
 					}
 					for (int i = 0; i < call.getArgumentsCount(); i++) {
 						var argument = call.getArguments(i);
@@ -806,13 +809,17 @@ public final class DmnIrArtifactReader {
 								&& argumentType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL;
 						if (signature.collectionParameter(i) && argumentType.hasCollectionType()) {
 							var collection = collections.get(Address.of(argumentType.getCollectionType()));
-							matches = collection != null && !collection.hasRecordType()
-									&& collection.getElementType() == signature.parameters().get(i);
+							matches = collection != null
+									&& (signature.parameters().get(i) == DmnIrScalarType.SCALAR_TYPE_NULL
+											|| (!collection.hasRecordType()
+													&& collection.getElementType() == signature.parameters().get(i)));
 						} else if (signature == DmnIrBuiltinSignature.STRING_FROM) {
 							matches = true;
 						} else if (!signature.collectionParameter(i)) {
 							matches |= argumentType.hasScalarType()
-									&& assignable(argumentType.getScalarType(), signature.parameters().get(i));
+									&& (signature.parameters().get(i) == DmnIrScalarType.SCALAR_TYPE_NULL
+											|| assignable(argumentType.getScalarType(),
+													signature.parameters().get(i)));
 						}
 						check(matches, INVALID_TYPE, argumentPath, "Built-in argument type must match its signature.");
 						node(argument, owner, dependencies, argumentPath, depth + 1);

@@ -13,12 +13,17 @@ public final class DmnIrProductionException extends IllegalArgumentException {
 	private final Optional<DmnIrRuntimeAdapter.ElementId> element;
 	private final List<DmnCompilerDiagnostic> diagnostics;
 
-	DmnIrProductionException(Category category, DmnIrRuntimeAdapter.ElementId element,
+	DmnIrProductionException(Category category, String message, DmnIrRuntimeAdapter.ElementId element,
 			List<DmnCompilerDiagnostic> diagnostics, Throwable cause) {
-		super("DMNIR production failed: " + category, cause);
+		super(message != null ? message : "DMNIR production failed: " + category, cause);
 		this.category = category;
 		this.element = Optional.ofNullable(element);
 		this.diagnostics = List.copyOf(diagnostics);
+	}
+
+	DmnIrProductionException(Category category, DmnIrRuntimeAdapter.ElementId element,
+			List<DmnCompilerDiagnostic> diagnostics, Throwable cause) {
+		this(category, null, element, diagnostics, cause);
 	}
 
 	public Category category() {

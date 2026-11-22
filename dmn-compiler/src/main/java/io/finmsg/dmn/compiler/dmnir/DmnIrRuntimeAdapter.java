@@ -220,7 +220,7 @@ public final class DmnIrRuntimeAdapter {
 							group.getTestsList().stream().map(test -> test(test, expression)).toList()))
 					.toList(), rule.getOutputEntriesList().stream().map(expression).toList(), List.of()));
 		}
-		return new RuntimeDecisionTable(switch (table.getHitPolicy()) {
+		var hitPolicy = switch (table.getHitPolicy()) {
 			case TABLE_HIT_POLICY_UNIQUE -> RuntimeHitPolicy.UNIQUE;
 			case TABLE_HIT_POLICY_FIRST -> RuntimeHitPolicy.FIRST;
 			case TABLE_HIT_POLICY_ANY -> RuntimeHitPolicy.ANY;
@@ -230,7 +230,15 @@ public final class DmnIrRuntimeAdapter {
 					TABLE_HIT_POLICY_COLLECT_MAX, TABLE_HIT_POLICY_COLLECT_COUNT ->
 				RuntimeHitPolicy.COLLECT;
 			default -> throw new IllegalArgumentException("Unsupported verified hit policy.");
-		}, Optional.empty(), inputs, outputs, rules, 0);
+		};
+		var aggregation = switch (table.getHitPolicy()) {
+			case TABLE_HIT_POLICY_COLLECT_SUM -> Optional.of(RuntimeAggregation.SUM);
+			case TABLE_HIT_POLICY_COLLECT_MIN -> Optional.of(RuntimeAggregation.MIN);
+			case TABLE_HIT_POLICY_COLLECT_MAX -> Optional.of(RuntimeAggregation.MAX);
+			case TABLE_HIT_POLICY_COLLECT_COUNT -> Optional.of(RuntimeAggregation.COUNT);
+			default -> Optional.<RuntimeAggregation>empty();
+		};
+		return new RuntimeDecisionTable(hitPolicy, aggregation, inputs, outputs, rules, 0);
 	}
 
 	static RuntimeUnaryTest test(DmnIrUnaryTest test, Function<DmnIrExpression, RuntimeExpression> expression) {

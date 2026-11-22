@@ -790,6 +790,7 @@ public final class DmnJavaGenerator {
 						    return map;
 						  }
 						  private static Object aggregate(List<Object> matches, String agg) {
+						    if ("COUNT".equalsIgnoreCase(agg)) return BigDecimal.valueOf(matches == null ? 0 : matches.size());
 						    if (matches == null || matches.isEmpty()) return null;
 						    if ("SUM".equalsIgnoreCase(agg)) {
 						      BigDecimal sum = BigDecimal.ZERO;

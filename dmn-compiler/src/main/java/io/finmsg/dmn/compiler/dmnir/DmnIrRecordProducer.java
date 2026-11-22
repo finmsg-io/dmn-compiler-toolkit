@@ -156,9 +156,17 @@ final class DmnIrRecordProducer {
 		int minor = !collections.isEmpty()
 				? 7
 				: fieldConstraintsProfile ? 6 : tableProfile ? 5 : dateProfile ? 4 : localProfile ? 3 : 2;
+		if (closures) minor = 11;
+		else if (!bkms.isEmpty()) minor = 10;
+		else if (builtinCalls) minor = 9;
+		else if (filters) minor = 8;
 		var artifact = DmnIrArtifact.newBuilder()
 				.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(minor))
 				.setSemanticsVersion(switch (minor) {
+					case 11 -> DmnIrArtifactReader.CLOSURE_SEMANTICS_VERSION;
+					case 10 -> DmnIrArtifactReader.BKM_SEMANTICS_VERSION;
+					case 9 -> DmnIrArtifactReader.BUILTIN_SEMANTICS_VERSION;
+					case 8 -> DmnIrArtifactReader.FILTER_SEMANTICS_VERSION;
 					case 7 -> DmnIrArtifactReader.COLLECTION_SEMANTICS_VERSION;
 					case 6 -> DmnIrArtifactReader.FIELD_CONSTRAINT_SEMANTICS_VERSION;
 					case 5 -> DmnIrArtifactReader.TABLE_SEMANTICS_VERSION;
@@ -178,6 +186,14 @@ final class DmnIrRecordProducer {
 			artifact.addRequiredCapabilities(DmnIrArtifactReader.FIELD_CONSTRAINT_CAPABILITY);
 		if (minor >= 7)
 			artifact.addRequiredCapabilities(DmnIrArtifactReader.COLLECTION_CAPABILITY);
+		if (minor >= 8)
+			artifact.addRequiredCapabilities(DmnIrArtifactReader.FILTER_CAPABILITY);
+		if (minor >= 9)
+			artifact.addRequiredCapabilities(DmnIrArtifactReader.BUILTIN_CAPABILITY);
+		if (minor >= 10)
+			artifact.addRequiredCapabilities(DmnIrArtifactReader.BKM_CAPABILITY);
+		if (minor >= 11)
+			artifact.addRequiredCapabilities(DmnIrArtifactReader.CLOSURE_CAPABILITY);
 		for (var model : models.values()) {
 			var output = DmnIrModel.newBuilder().setIdentity(identity(model.model().getNode()))
 					.setNamespace(model.identity().namespace());
@@ -224,15 +240,16 @@ final class DmnIrRecordProducer {
 					knowledge = knowledge(decision.getKnowledgeRequirementsList(), model);
 					String path = "definitions/decision[" + decision.getNode().getName() + "]/logic";
 					var wire = DmnIrDecision.newBuilder().setIdentity(identity(decision.getNode()))
-							.setVariable(variable(decision.getVariable(), model))
 							.addAllKnowledgeDependencies(knowledge);
-					var result = type(decision.getVariable().getType(), model);
+					var declaredType = decision.getVariable().hasType() ? type(decision.getVariable().getType(), model) : null;
+					var expectedResult = declaredType != null && declaredType.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL ? declaredType : null;
 					if (decision.getLogic().hasDecisionTable()) {
-						wire.setDecisionTable(table(decision.getLogic().getDecisionTable(), result, model,
-								path + "/decisionTable", dependencies));
+						wire.setDecisionTable(table(decision.getLogic().getDecisionTable(),
+								declaredType != null ? declaredType : type(decision.getVariable().getType(), model),
+								model, path + "/decisionTable", dependencies));
 					} else if (decision.getLogic().hasLiteralExpression()) {
 						wire.setExpression(expression(decision.getLogic().getLiteralExpression().getParsed().getAst(),
-								model, path + "/literalExpression", dependencies, 1, result));
+								model, path + "/literalExpression", dependencies, 1, expectedResult));
 					} else if (decision.getLogic().hasInvocation()) {
 						var invocation = decision.getLogic().getInvocation();
 						var target = invocation.getExpression().getParsed().getAst();
@@ -244,8 +261,19 @@ final class DmnIrRecordProducer {
 								1, index -> path + "/invocation/binding[" + index + "]/expression"));
 					} else {
 						wire.setExpression(boxed(decision.getLogic().getBoxedExpression().getParsed(), model,
-								path + "/boxedExpression", dependencies, 1, result));
+								path + "/boxedExpression", dependencies, 1, expectedResult));
 					}
+					DmnIrTypeReference resolvedVarType = declaredType;
+					if (resolvedVarType == null || (resolvedVarType.hasScalarType() && resolvedVarType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL)) {
+						if (wire.hasExpression()) {
+							var exprType = expressionType(wire.getExpression());
+							if (exprType.hasCollectionType() || exprType.hasRecordType() || (exprType.hasScalarType() && exprType.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL)) {
+								resolvedVarType = exprType;
+							}
+						}
+					}
+					wire.setVariable(variable(decision.getVariable(), model, resolvedVarType));
+					declarations.put(ref(model.identity().namespace(), decision.getNode().getId()), resolvedVarType);
 					decisions.add(wire.addAllDependencies(dependencies).build());
 				}
 			}
@@ -279,32 +307,50 @@ final class DmnIrRecordProducer {
 					.sorted(Map.Entry.comparingByKey(ORDER))
 					.forEach(e -> output.addCollectionDefinitions(e.getValue()));
 		}
-		if (filters || builtinCalls || !bkms.isEmpty() || closures) {
-			var capabilities = List.of(DmnIrArtifactReader.LOCAL_CAPABILITY, DmnIrArtifactReader.DATE_CAPABILITY,
-					DmnIrArtifactReader.TABLE_CAPABILITY, DmnIrArtifactReader.FIELD_CONSTRAINT_CAPABILITY,
-					DmnIrArtifactReader.COLLECTION_CAPABILITY, DmnIrArtifactReader.FILTER_CAPABILITY);
-			artifact.addAllRequiredCapabilities(capabilities.subList(minor - 2, capabilities.size()));
-			artifact.getSchemaVersionBuilder().setMinor(closures ? 11 : !bkms.isEmpty() ? 10 : builtinCalls ? 9 : 8);
-			artifact.setSemanticsVersion(closures
-					? DmnIrArtifactReader.CLOSURE_SEMANTICS_VERSION
-					: !bkms.isEmpty()
-							? DmnIrArtifactReader.BKM_SEMANTICS_VERSION
-							: builtinCalls
-									? DmnIrArtifactReader.BUILTIN_SEMANTICS_VERSION
-									: DmnIrArtifactReader.FILTER_SEMANTICS_VERSION);
-			if (builtinCalls || !bkms.isEmpty() || closures)
-				artifact.addRequiredCapabilities(DmnIrArtifactReader.BUILTIN_CAPABILITY);
-			if (!bkms.isEmpty() || closures)
-				artifact.addRequiredCapabilities(DmnIrArtifactReader.BKM_CAPABILITY);
-			if (closures)
-				artifact.addRequiredCapabilities(DmnIrArtifactReader.CLOSURE_CAPABILITY);
+		int finalMinor = !collections.isEmpty()
+				? 7
+				: fieldConstraintsProfile ? 6 : tableProfile ? 5 : dateProfile ? 4 : localProfile ? 3 : 2;
+		if (closures) finalMinor = 11;
+		else if (!bkms.isEmpty()) finalMinor = 10;
+		else if (builtinCalls) finalMinor = 9;
+		else if (filters) finalMinor = 8;
+		artifact.getSchemaVersionBuilder().setMinor(finalMinor);
+		artifact.setSemanticsVersion(switch (finalMinor) {
+			case 11 -> DmnIrArtifactReader.CLOSURE_SEMANTICS_VERSION;
+			case 10 -> DmnIrArtifactReader.BKM_SEMANTICS_VERSION;
+			case 9 -> DmnIrArtifactReader.BUILTIN_SEMANTICS_VERSION;
+			case 8 -> DmnIrArtifactReader.FILTER_SEMANTICS_VERSION;
+			case 7 -> DmnIrArtifactReader.COLLECTION_SEMANTICS_VERSION;
+			case 6 -> DmnIrArtifactReader.FIELD_CONSTRAINT_SEMANTICS_VERSION;
+			case 5 -> DmnIrArtifactReader.TABLE_SEMANTICS_VERSION;
+			case 4 -> DmnIrArtifactReader.DATE_SEMANTICS_VERSION;
+			case 3 -> DmnIrArtifactReader.LOCAL_SEMANTICS_VERSION;
+			default -> DmnIrArtifactReader.RECORD_SEMANTICS_VERSION;
+		});
+		artifact.clearRequiredCapabilities();
+		var allCaps = List.of(
+				DmnIrArtifactReader.SCALAR_CAPABILITY,
+				DmnIrArtifactReader.EXPRESSION_CAPABILITY,
+				DmnIrArtifactReader.RECORD_CAPABILITY,
+				DmnIrArtifactReader.LOCAL_CAPABILITY,
+				DmnIrArtifactReader.DATE_CAPABILITY,
+				DmnIrArtifactReader.TABLE_CAPABILITY,
+				DmnIrArtifactReader.FIELD_CONSTRAINT_CAPABILITY,
+				DmnIrArtifactReader.COLLECTION_CAPABILITY,
+				DmnIrArtifactReader.FILTER_CAPABILITY,
+				DmnIrArtifactReader.BUILTIN_CAPABILITY,
+				DmnIrArtifactReader.BKM_CAPABILITY,
+				DmnIrArtifactReader.CLOSURE_CAPABILITY);
+		for (int c = 0; c <= finalMinor; c++) {
+			artifact.addRequiredCapabilities(allCaps.get(c));
 		}
 		try {
 			return new DmnIrArtifactReader().read(artifact.build().toByteArray());
 		} catch (DmnIrValidationException e) {
-			throw new DmnIrProductionException(e.code() == DmnIrValidationException.Code.INVALID_TYPE
+			var cat = e.code() == DmnIrValidationException.Code.INVALID_TYPE
 					? DmnIrProductionException.Category.UNSUPPORTED_PROFILE
-					: DmnIrProductionException.Category.ARTIFACT_INVALID, null, List.of(), e);
+					: DmnIrProductionException.Category.ARTIFACT_INVALID;
+			throw new DmnIrProductionException(cat, "DmnIrValidation failed: " + e.getMessage(), null, List.of(), e);
 		}
 	}
 
@@ -645,10 +691,13 @@ final class DmnIrRecordProducer {
 		}).build();
 	}
 	private DmnIrVariable variable(InformationItem item, DmnSemanticModel model) {
+		return variable(item, model, null);
+	}
+	private DmnIrVariable variable(InformationItem item, DmnSemanticModel model, DmnIrTypeReference resolvedType) {
 		var output = DmnIrVariable.newBuilder().setName(item.getNode().getName());
 		if (!item.getNode().getId().isBlank())
 			output.setId(item.getNode().getId());
-		var type = type(item.getType(), model);
+		var type = resolvedType != null ? resolvedType : type(item.getType(), model);
 		if (type.hasCollectionType())
 			output.setCollectionType(type.getCollectionType());
 		else if (type.hasRecordType())
@@ -733,13 +782,19 @@ final class DmnIrRecordProducer {
 			}
 		}
 		if (source.hasList()) {
-			if (expected == null || !expected.hasCollectionType())
-				throw unsupported();
+			DmnIrTypeReference listType = expected;
+			if (listType == null || !listType.hasCollectionType()) {
+				DmnIrScalarType elemScalar = findUnderlyingScalarType(source);
+				if (elemScalar == DmnIrScalarType.SCALAR_TYPE_NULL) {
+					elemScalar = DmnIrScalarType.SCALAR_TYPE_STRING;
+				}
+				listType = ensureCollectionType(model, elemScalar);
+			}
 			var list = DmnIrListExpression.newBuilder();
 			for (int i = 0; i < source.getList().getElementsCount(); i++)
 				list.addElements(expression(source.getList().getElements(i), model, path + "/element[" + i + "]",
 						dependencies, depth + 1));
-			return typed(expected).setList(list).build();
+			return typed(listType).setList(list).build();
 		}
 		if (source.hasIfExpression()) {
 			var value = source.getIfExpression();
@@ -966,6 +1021,15 @@ final class DmnIrRecordProducer {
 					case UNARY_TEST_OPERATOR_GREATER_EQUAL -> DmnIrBinaryOperator.BINARY_OPERATOR_GREATER_EQUAL;
 					default -> throw unsupported();
 				};
+				if (op == DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL) {
+					var subjectType = findUnderlyingScalarType(subjectExpr);
+					var endpointType = findUnderlyingScalarType(comp.getEndpoint());
+					if (subjectType != DmnIrScalarType.SCALAR_TYPE_NULL && endpointType != DmnIrScalarType.SCALAR_TYPE_NULL
+							&& subjectType != endpointType) {
+						return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+								.setLiteral(DmnIrLiteral.newBuilder().setBooleanValue(false)).build();
+					}
+				}
 				return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
 						.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(op)
 								.setLeft(expression(subjectExpr, model, subjectPath, dependencies, depth + 1))
@@ -1024,7 +1088,9 @@ final class DmnIrRecordProducer {
 
 	private DmnIrExpression lowerExpressionTest(Expression subjectExpr, Expression testExpr, DmnSemanticModel model,
 			String subjectPath, String testPath, Set<DmnIrReference> dependencies, int depth) {
-		if (testExpr.hasList()) {
+		boolean subjectIsList = subjectExpr.hasList()
+				|| (subjectExpr.hasInferredType() && subjectExpr.getInferredType().hasList());
+		if (testExpr.hasList() && !subjectIsList) {
 			var list = testExpr.getList();
 			DmnIrExpression disjunction = null;
 			for (int i = 0; i < list.getElementsCount(); i++) {
@@ -1047,6 +1113,15 @@ final class DmnIrRecordProducer {
 		}
 		if (testExpr.hasRange()) {
 			return lowerRangeTest(subjectExpr, testExpr.getRange(), model, subjectPath, testPath, dependencies, depth);
+		}
+		var subjectType = findUnderlyingScalarType(subjectExpr);
+		var testType = findUnderlyingScalarType(testExpr);
+		if (subjectType != DmnIrScalarType.SCALAR_TYPE_NULL && testType != DmnIrScalarType.SCALAR_TYPE_NULL
+				&& subjectType != testType) {
+			// In FEEL Table 49 / Clause 10.3.2.14: an element of an incompatible type in a positive unary test
+			// does not match the subject, evaluating to false (not null).
+			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+					.setLiteral(DmnIrLiteral.newBuilder().setBooleanValue(false)).build();
 		}
 		return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
 				.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL)
@@ -1171,7 +1246,8 @@ final class DmnIrRecordProducer {
 	}
 
 	private DmnIrExpression collectionBuiltinCall(InvocationExpression source, DmnIrBuiltinSignature signature,
-			DmnSemanticModel model, String path, Set<DmnIrReference> dependencies, int depth) {
+			DmnSemanticModel model, String path, Set<DmnIrReference> dependencies, int depth,
+			DmnIrTypeReference expected) {
 		int count = source.getPositionalArgumentsCount();
 		Expression single = null;
 		if (source.getArgumentsCount() > 0) {
@@ -1184,15 +1260,33 @@ final class DmnIrRecordProducer {
 		if (count == 0)
 			return nullLiteral();
 		var element = signature.parameters().getFirst();
-		var expected = ensureCollectionType(model, element);
+		if (element == DmnIrScalarType.SCALAR_TYPE_NULL) {
+			if (expected != null && expected.hasCollectionType()) {
+				var colDef = collections.get(expected.getCollectionType());
+				if (colDef != null && colDef.getElementType() != DmnIrScalarType.SCALAR_TYPE_NULL && colDef.getElementType() != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED) {
+					element = colDef.getElementType();
+				}
+			}
+			if (element == DmnIrScalarType.SCALAR_TYPE_NULL && count > 0) {
+				Expression probe = single != null ? single : source.getPositionalArguments(0);
+				var inferred = findUnderlyingScalarType(probe);
+				if (inferred != DmnIrScalarType.SCALAR_TYPE_NULL) {
+					element = inferred;
+				}
+			}
+		}
+		var expectedListType = element != DmnIrScalarType.SCALAR_TYPE_NULL ? ensureCollectionType(model, element) : null;
 		DmnIrExpression argument;
 		if (single != null) {
-			argument = expression(single, model, path + "/argument[0]", dependencies, depth + 1, expected);
+			argument = expression(single, model, path + "/argument[0]", dependencies, depth + 1, expectedListType);
 			var actual = expressionType(argument);
 			if (actual.hasScalarType() && actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
-				if (actual.getScalarType() != element)
+				if (actual.getScalarType() != element && element != DmnIrScalarType.SCALAR_TYPE_NULL)
 					return nullLiteral();
-				argument = typed(expected).setList(DmnIrListExpression.newBuilder().addElements(argument)).build();
+				if (expectedListType == null) {
+					expectedListType = ensureCollectionType(model, actual.getScalarType());
+				}
+				argument = typed(expectedListType).setList(DmnIrListExpression.newBuilder().addElements(argument)).build();
 			}
 		} else {
 			var list = DmnIrListExpression.newBuilder();
@@ -1200,17 +1294,36 @@ final class DmnIrRecordProducer {
 				var value = expression(source.getPositionalArguments(i), model, path + "/argument[" + i + "]",
 						dependencies, depth + 1);
 				var actual = expressionType(value);
-				if (!actual.hasScalarType() || actual.getScalarType() != element
-						&& actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL)
+				if (element != DmnIrScalarType.SCALAR_TYPE_NULL && (!actual.hasScalarType() || actual.getScalarType() != element
+						&& actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL))
 					return nullLiteral();
+				if (element == DmnIrScalarType.SCALAR_TYPE_NULL && actual.hasScalarType() && actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+					element = actual.getScalarType();
+				}
 				list.addElements(value);
 			}
-			argument = typed(expected).setList(list).build();
+			if (expectedListType == null && element != DmnIrScalarType.SCALAR_TYPE_NULL) {
+				expectedListType = ensureCollectionType(model, element);
+			}
+			if (expectedListType == null)
+				return nullLiteral();
+			argument = typed(expectedListType).setList(list).build();
 		}
 		builtinCalls = true;
+		var call = DmnIrBuiltinCall.newBuilder().setOperation(signature.operation()).addArguments(argument);
+		if (signature.collectionResult()) {
+			if (argument.getType() == DmnIrScalarType.SCALAR_TYPE_NULL && !argument.hasCollectionType()) {
+				return nullLiteral();
+			}
+			DmnIrTypeReference resultType = expected != null && expected.hasCollectionType()
+					? expected
+					: argument.hasCollectionType()
+							? DmnIrTypeReference.newBuilder().setCollectionType(argument.getCollectionType()).build()
+							: ensureCollectionType(model, signature.result());
+			return typed(resultType).setBuiltinCall(call).build();
+		}
 		return DmnIrExpression.newBuilder().setType(signature.result())
-				.setBuiltinCall(
-						DmnIrBuiltinCall.newBuilder().setOperation(signature.operation()).addArguments(argument))
+				.setBuiltinCall(call)
 				.build();
 	}
 
@@ -1223,8 +1336,9 @@ final class DmnIrRecordProducer {
 			throw unsupported();
 
 		if (signature.collectionParameter() && signature != DmnIrBuiltinSignature.STRING_JOIN
-				&& !signature.collectionResult() && signature != DmnIrBuiltinSignature.INDEX_OF)
-			return collectionBuiltinCall(source, signature, model, path, dependencies, depth);
+				&& signature != DmnIrBuiltinSignature.INDEX_OF && signature != DmnIrBuiltinSignature.LIST_REPLACE
+				&& signature != DmnIrBuiltinSignature.INSERT_BEFORE && signature != DmnIrBuiltinSignature.REMOVE)
+			return collectionBuiltinCall(source, signature, model, path, dependencies, depth, expected);
 
 		boolean named = source.getArgumentsCount() > 0;
 		int positionalCount = source.getPositionalArgumentsCount();
@@ -1278,6 +1392,8 @@ final class DmnIrRecordProducer {
 								return nullLiteral();
 						}
 						args[pos] = argExpr;
+					} catch (DmnIrProductionException ex) {
+						throw ex;
 					} catch (RuntimeException ex) {
 						return nullLiteral();
 					}
@@ -1315,6 +1431,8 @@ final class DmnIrRecordProducer {
 								return nullLiteral();
 						}
 						args[i] = argExpr;
+					} catch (DmnIrProductionException ex) {
+						throw ex;
 					} catch (RuntimeException ex) {
 						return nullLiteral();
 					}
@@ -1342,10 +1460,21 @@ final class DmnIrRecordProducer {
 				try {
 					var argExpr = expression(namedArg.getExpression(), model, path + "/argument[" + i + "]",
 							dependencies, depth + 1);
-					if (argExpr.getType() != signature.parameters().get(pos)
-							&& argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL)
+					var expectedParamType = signature.parameters().get(pos);
+					if (signature.collectionParameter(pos)) {
+						if (!argExpr.hasCollectionType() && argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+							// FEEL collection coercion: scalar to singleton list
+							var colType = ensureCollectionType(model, argExpr.getType());
+							argExpr = typed(colType).setList(DmnIrListExpression.newBuilder().addElements(argExpr)).build();
+						}
+					} else if (expectedParamType != DmnIrScalarType.SCALAR_TYPE_NULL
+							&& argExpr.getType() != expectedParamType
+							&& argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
 						return nullLiteral();
+					}
 					args[pos] = argExpr;
+				} catch (DmnIrProductionException ex) {
+					throw ex;
 				} catch (RuntimeException ex) {
 					return nullLiteral();
 				}
@@ -1360,10 +1489,21 @@ final class DmnIrRecordProducer {
 				try {
 					var argExpr = expression(source.getPositionalArguments(i), model, path + "/argument[" + i + "]",
 							dependencies, depth + 1);
-					if (argExpr.getType() != signature.parameters().get(i)
-							&& argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL)
+					var expectedParamType = signature.parameters().get(i);
+					if (signature.collectionParameter(i)) {
+						if (!argExpr.hasCollectionType() && argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+							// FEEL collection coercion: scalar to singleton list
+							var colType = ensureCollectionType(model, argExpr.getType());
+							argExpr = typed(colType).setList(DmnIrListExpression.newBuilder().addElements(argExpr)).build();
+						}
+					} else if (expectedParamType != DmnIrScalarType.SCALAR_TYPE_NULL
+							&& argExpr.getType() != expectedParamType
+							&& argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
 						return nullLiteral();
+					}
 					args[i] = argExpr;
+				} catch (DmnIrProductionException ex) {
+					throw ex;
 				} catch (RuntimeException ex) {
 					return nullLiteral();
 				}
@@ -1379,9 +1519,14 @@ final class DmnIrRecordProducer {
 		}
 		builtinCalls = true;
 		if (signature.collectionResult()) {
+			if (args[0].getType() == DmnIrScalarType.SCALAR_TYPE_NULL && !args[0].hasCollectionType()) {
+				return nullLiteral();
+			}
 			DmnIrTypeReference resultType = expected != null && expected.hasCollectionType()
 					? expected
-					: ensureCollectionType(model, signature.result());
+					: args[0].hasCollectionType()
+							? DmnIrTypeReference.newBuilder().setCollectionType(args[0].getCollectionType()).build()
+							: (signature.result() != DmnIrScalarType.SCALAR_TYPE_NULL ? ensureCollectionType(model, signature.result()) : DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build());
 			return typed(resultType).setBuiltinCall(call).build();
 		}
 		return DmnIrExpression.newBuilder().setType(signature.result()).setBuiltinCall(call).build();
@@ -1616,11 +1761,46 @@ final class DmnIrRecordProducer {
 		}
 		return DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build();
 	}
+	private static DmnIrScalarType findUnderlyingScalarType(Expression expr) {
+		if (expr == null) return DmnIrScalarType.SCALAR_TYPE_NULL;
+		if (expr.hasInferredType() && expr.getInferredType().hasBuiltin()) {
+			var st = switch (expr.getInferredType().getBuiltin()) {
+				case BUILTIN_TYPE_STRING -> DmnIrScalarType.SCALAR_TYPE_STRING;
+				case BUILTIN_TYPE_NUMBER -> DmnIrScalarType.SCALAR_TYPE_NUMBER;
+				case BUILTIN_TYPE_BOOLEAN -> DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
+				case BUILTIN_TYPE_DATE -> DmnIrScalarType.SCALAR_TYPE_DATE;
+				default -> DmnIrScalarType.SCALAR_TYPE_NULL;
+			};
+			if (st != DmnIrScalarType.SCALAR_TYPE_NULL) return st;
+		}
+		if (expr.hasList()) {
+			for (var el : expr.getList().getElementsList()) {
+				var st = findUnderlyingScalarType(el);
+				if (st != DmnIrScalarType.SCALAR_TYPE_NULL) return st;
+			}
+		}
+		if (expr.hasLiteral()) {
+			var value = expr.getLiteral();
+			return switch (value.getKind()) {
+				case LITERAL_KIND_STRING -> DmnIrScalarType.SCALAR_TYPE_STRING;
+				case LITERAL_KIND_NUMBER -> DmnIrScalarType.SCALAR_TYPE_NUMBER;
+				case LITERAL_KIND_BOOLEAN -> DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
+				case LITERAL_KIND_DATE -> DmnIrScalarType.SCALAR_TYPE_DATE;
+				default -> DmnIrScalarType.SCALAR_TYPE_NULL;
+			};
+		}
+		return DmnIrScalarType.SCALAR_TYPE_NULL;
+	}
+
 	private static DmnIrReference ref(String namespace, String id) {
 		return DmnIrRecordTypes.ref(namespace, id);
 	}
+	private static DmnIrProductionException unsupported(String message) {
+		return new DmnIrProductionException(DmnIrProductionException.Category.UNSUPPORTED_PROFILE, message, null,
+				List.of(), null);
+	}
 	private static DmnIrProductionException unsupported() {
-		return new DmnIrProductionException(DmnIrProductionException.Category.UNSUPPORTED_PROFILE, null, List.of(),
-				null);
+		StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+		return unsupported("Unsupported construct at " + caller.getFileName() + ":" + caller.getLineNumber());
 	}
 }

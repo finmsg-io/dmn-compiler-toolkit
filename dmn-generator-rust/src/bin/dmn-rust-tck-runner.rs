@@ -327,14 +327,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Phase 2: Fast unified test execution in parallel batches
     let fallback_groups = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-    let num_batch_workers = num_threads.clamp(2, 6);
+    let num_batch_workers = num_threads.clamp(2, 8);
     println!(
-        "Phase 2: Compiling and executing batches across {} parallel workers (batch size 64)...",
+        "Phase 2: Compiling and executing batches across {} parallel workers (batch size 128)...",
         num_batch_workers
     );
 
     let batches: Vec<(usize, Vec<(String, Vec<usize>)>)> = generated_groups
-        .chunks(64)
+        .chunks(128)
         .enumerate()
         .map(|(i, b)| (i, b.to_vec()))
         .collect();

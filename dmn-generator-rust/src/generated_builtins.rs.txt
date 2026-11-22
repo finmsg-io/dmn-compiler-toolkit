@@ -1466,3 +1466,107 @@ fn builtin_string(val: Value) -> Value {
         _ => Value::Null,
     }
 }
+
+fn builtin_sublist(list: Value, start_pos: Value, len: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    let Value::Number { coefficient: start_c, scale: start_s } = start_pos else { return Value::Null; };
+    let Ok(start_int) = start_c.parse::<i64>() else { return Value::Null; };
+    if start_s != 0 { return Value::Null; };
+    if start_int == 0 { return Value::Null; };
+    let n = items.len() as i64;
+    let idx = if start_int > 0 { start_int - 1 } else { n + start_int };
+    if idx < 0 || idx >= n { return Value::List(Vec::new()); }
+    let start_idx = idx as usize;
+    let end_idx = match len {
+        Value::Null => items.len(),
+        Value::Number { coefficient: len_c, scale: len_s } => {
+            let Ok(len_int) = len_c.parse::<i64>() else { return Value::Null; };
+            if len_s != 0 || len_int < 0 { return Value::Null; };
+            (start_idx + len_int as usize).min(items.len())
+        }
+        _ => return Value::Null,
+    };
+    Value::List(items[start_idx..end_idx].to_vec())
+}
+
+fn builtin_append(list: Value, item: Value) -> Value {
+    let Value::List(mut items) = list else { return Value::Null; };
+    items.push(item);
+    Value::List(items)
+}
+
+fn builtin_concatenate(list1: Value, list2: Value) -> Value {
+    let Value::List(mut items1) = list1 else { return Value::Null; };
+    let Value::List(items2) = list2 else { return Value::Null; };
+    items1.extend(items2);
+    Value::List(items1)
+}
+
+fn builtin_insert_before(list: Value, pos: Value, item: Value) -> Value {
+    let Value::List(mut items) = list else { return Value::Null; };
+    let Value::Number { coefficient: pos_c, scale: pos_s } = pos else { return Value::Null; };
+    let Ok(pos_int) = pos_c.parse::<i64>() else { return Value::Null; };
+    if pos_s != 0 || pos_int == 0 { return Value::Null; };
+    let n = items.len() as i64;
+    let idx = if pos_int > 0 { pos_int - 1 } else { n + pos_int };
+    if idx < 0 || idx > n { return Value::Null; }
+    items.insert(idx as usize, item);
+    Value::List(items)
+}
+
+fn builtin_remove(list: Value, pos: Value) -> Value {
+    let Value::List(mut items) = list else { return Value::Null; };
+    let Value::Number { coefficient: pos_c, scale: pos_s } = pos else { return Value::Null; };
+    let Ok(pos_int) = pos_c.parse::<i64>() else { return Value::Null; };
+    if pos_s != 0 || pos_int == 0 { return Value::Null; };
+    let n = items.len() as i64;
+    let idx = if pos_int > 0 { pos_int - 1 } else { n + pos_int };
+    if idx < 0 || idx >= n { return Value::Null; }
+    items.remove(idx as usize);
+    Value::List(items)
+}
+
+fn builtin_reverse(list: Value) -> Value {
+    let Value::List(mut items) = list else { return Value::Null; };
+    items.reverse();
+    Value::List(items)
+}
+
+fn builtin_index_of(list: Value, match_val: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    let mut indexes = Vec::new();
+    for (i, item) in items.iter().enumerate() {
+        if item == &match_val {
+            indexes.push(Value::Number { coefficient: (i + 1).to_string(), scale: 0 });
+        }
+    }
+    Value::List(indexes)
+}
+
+fn builtin_distinct_values(list: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    let mut result = Vec::new();
+    for item in items {
+        if !result.iter().any(|existing| existing == &item) {
+            result.push(item);
+        }
+    }
+    Value::List(result)
+}
+
+fn builtin_union(list1: Value, list2: Value) -> Value {
+    let Value::List(mut items) = list1 else { return Value::Null; };
+    let Value::List(items2) = list2 else { return Value::Null; };
+    items.extend(items2);
+    builtin_distinct_values(Value::List(items))
+}
+
+fn builtin_list_contains(list: Value, item: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    Value::Boolean(items.iter().any(|it| it == &item))
+}
+
+fn builtin_count(list: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    Value::Number { coefficient: items.len().to_string(), scale: 0 }
+}

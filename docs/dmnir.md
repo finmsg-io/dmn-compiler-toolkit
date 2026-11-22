@@ -19,10 +19,13 @@ The `dmn-ir-protobuf` module defines the experimental structured scalar wire con
 | 0.11 | `finmsg-dmnir-inline-feel/0` | The ordered 0.10 capabilities followed by `dmnir.inline-feel` |
 
 This implements the first scalar slice of [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md).
-The reader validates without executing. `DmnIrRuntimeAdapter` in `dmn-compiler` now derives and
+The reader validates without executing. `DmnIrRuntimeAdapter` in `dmn-compiler` derives and
 executes scalar process-local Runtime IR from a verified artifact. `DmnIrScalarProducer` produces
-this profile from supported DMN source models. `DmnIrScalarDmnExporter` synthesizes DMN 1.6 for
-the explicitly admitted profiles. DSL authoring, Rust generation, broader DMN export,
+this profile from supported DMN source models across DMN versions 1.3, 1.5, and 1.6.
+`DmnIrScalarDmnExporter` synthesizes conforming DMN XML (supporting 1.3, 1.5, and 1.6, default 1.6)
+for explicitly admitted profiles; the generated DMN is a working, semantically equivalent model
+that may be optimized or canonicalized differently from the source.
+DSL authoring, Rust generation, broader DMN export,
 canonical hashing and stable wire compatibility
 remain later delivery work.
 
