@@ -165,11 +165,11 @@ class DmnIrScalarProducerTest {
 	}
 
 	@Test
-	void rejectsUnrepresentableTemporalType() {
-		assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE,
-				assertThrows(DmnIrProductionException.class, () -> new DmnIrScalarProducer().produce(source(
-						"<inputData id=\"time\" name=\"Time\"><variable name=\"Time\" typeRef=\"time\"/></inputData>")))
-						.category());
+	void admitsTemporalTimeType() {
+		var verified = new DmnIrScalarProducer().produce(
+				source("<inputData id=\"time\" name=\"Time\"><variable name=\"Time\" typeRef=\"time\"/></inputData>"));
+		assertEquals(io.finmsg.dmn.dmnir.proto.v0.DmnIrScalarType.SCALAR_TYPE_TIME,
+				verified.artifact().getModels(0).getInputs(0).getVariable().getType());
 	}
 
 	@Test

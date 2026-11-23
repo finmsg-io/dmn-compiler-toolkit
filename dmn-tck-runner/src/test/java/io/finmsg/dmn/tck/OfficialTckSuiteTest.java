@@ -1087,8 +1087,7 @@ class OfficialTckSuiteTest {
 				}
 			} catch (Exception e) {
 				for (GeneratedUnit u : batch) {
-					portableArchiveCache.put(u.artifactPath(),
-							PortableGeneratedPreparation.failure(e.toString(), e));
+					portableArchiveCache.put(u.artifactPath(), PortableGeneratedPreparation.failure(e.toString(), e));
 				}
 			}
 		});
@@ -1108,7 +1107,8 @@ class OfficialTckSuiteTest {
 		});
 
 		double elapsedSec = (System.nanoTime() - startNanos) / 1_000_000_000.0;
-		System.out.printf("[INFO] [DMNIR-ARCHIVE] Batch-compiled %d pre-built .dmnir artifacts in %.2f s (%d batches)%n",
+		System.out.printf(
+				"[INFO] [DMNIR-ARCHIVE] Batch-compiled %d pre-built .dmnir artifacts in %.2f s (%d batches)%n",
 				neededArtifacts.size(), elapsedSec, batches.size());
 		System.out.flush();
 	}

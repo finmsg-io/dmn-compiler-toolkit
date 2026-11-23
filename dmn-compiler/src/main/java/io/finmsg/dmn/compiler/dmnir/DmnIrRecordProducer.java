@@ -150,6 +150,8 @@ final class DmnIrRecordProducer {
 				else if (element.hasBusinessKnowledgeModel()) {
 					var bkm = element.getBusinessKnowledgeModel();
 					bkms.put(ref(model.identity().namespace(), bkm.getNode().getId()), bkm);
+				} else if (element.hasKnowledgeSource()) {
+					continue;
 				} else
 					throw unsupported();
 			}
@@ -688,16 +690,16 @@ final class DmnIrRecordProducer {
 		if (!type.hasBuiltin())
 			return DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build();
 		return DmnIrTypeReference.newBuilder().setScalarType(switch (type.getBuiltin()) {
-			case BUILTIN_TYPE_NULL, BUILTIN_TYPE_ANY, BUILTIN_TYPE_UNSPECIFIED,
-					BUILTIN_TYPE_RANGE -> DmnIrScalarType.SCALAR_TYPE_NULL;
+			case BUILTIN_TYPE_NULL, BUILTIN_TYPE_ANY, BUILTIN_TYPE_UNSPECIFIED, BUILTIN_TYPE_RANGE ->
+				DmnIrScalarType.SCALAR_TYPE_NULL;
 			case BUILTIN_TYPE_BOOLEAN -> DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
 			case BUILTIN_TYPE_NUMBER -> DmnIrScalarType.SCALAR_TYPE_NUMBER;
 			case BUILTIN_TYPE_STRING -> DmnIrScalarType.SCALAR_TYPE_STRING;
 			case BUILTIN_TYPE_DATE -> DmnIrScalarType.SCALAR_TYPE_DATE;
 			case BUILTIN_TYPE_TIME -> DmnIrScalarType.SCALAR_TYPE_TIME;
 			case BUILTIN_TYPE_DATE_AND_TIME -> DmnIrScalarType.SCALAR_TYPE_DATE_TIME;
-			case BUILTIN_TYPE_DURATION, BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION,
-					BUILTIN_TYPE_DAYS_AND_TIME_DURATION -> DmnIrScalarType.SCALAR_TYPE_DURATION;
+			case BUILTIN_TYPE_DURATION, BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION, BUILTIN_TYPE_DAYS_AND_TIME_DURATION ->
+				DmnIrScalarType.SCALAR_TYPE_DURATION;
 			default -> throw unsupported();
 		}).build();
 	}
@@ -1026,8 +1028,8 @@ final class DmnIrRecordProducer {
 				var formals = new java.util.ArrayList<InformationItem>();
 				for (int i = 0; i < fn.getParametersCount(); i++) {
 					var type = i < types.size() ? types.get(i) : TypeReference.getDefaultInstance();
-					formals.add(InformationItem.newBuilder().setNode(Node.newBuilder().setName(fn.getParameters(i).getName()))
-							.setType(type).build());
+					formals.add(InformationItem.newBuilder()
+							.setNode(Node.newBuilder().setName(fn.getParameters(i).getName())).setType(type).build());
 				}
 				var body = ExpressionParsed.newBuilder().setFeel(FeelParsed.newBuilder().setAst(fn.getBody())).build();
 				var def = closure(formals, body, model, path + "/function", depth + 1);
@@ -1793,12 +1795,17 @@ final class DmnIrRecordProducer {
 			var t = item.getType();
 			if (t.hasBuiltin()) {
 				return DmnIrTypeReference.newBuilder().setScalarType(switch (t.getBuiltin()) {
-					case BUILTIN_TYPE_NULL, BUILTIN_TYPE_ANY, BUILTIN_TYPE_UNSPECIFIED ->
+					case BUILTIN_TYPE_NULL, BUILTIN_TYPE_ANY, BUILTIN_TYPE_UNSPECIFIED, BUILTIN_TYPE_RANGE ->
 						DmnIrScalarType.SCALAR_TYPE_NULL;
 					case BUILTIN_TYPE_BOOLEAN -> DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
 					case BUILTIN_TYPE_NUMBER -> DmnIrScalarType.SCALAR_TYPE_NUMBER;
 					case BUILTIN_TYPE_STRING -> DmnIrScalarType.SCALAR_TYPE_STRING;
 					case BUILTIN_TYPE_DATE -> DmnIrScalarType.SCALAR_TYPE_DATE;
+					case BUILTIN_TYPE_TIME -> DmnIrScalarType.SCALAR_TYPE_TIME;
+					case BUILTIN_TYPE_DATE_AND_TIME -> DmnIrScalarType.SCALAR_TYPE_DATE_TIME;
+					case BUILTIN_TYPE_DURATION, BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION,
+							BUILTIN_TYPE_DAYS_AND_TIME_DURATION ->
+						DmnIrScalarType.SCALAR_TYPE_DURATION;
 					default -> throw unsupported();
 				}).build();
 			}

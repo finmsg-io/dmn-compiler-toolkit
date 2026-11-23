@@ -11,7 +11,8 @@ import java.util.Optional;
  * Lightweight reader for pre-compiled {@code .dmnir} Protobuf artifacts and
  * their manifest stored in {@code dmn-tck} ({@code tck-dmnir/}).
  *
- * <p>Uses a simple line-oriented TSV manifest ({@code manifest.tsv}) so this
+ * <p>
+ * Uses a simple line-oriented TSV manifest ({@code manifest.tsv}) so this
  * module carries zero external JSON/runtime dependencies and can be consumed
  * identically by Java and standalone Rust harnesses.
  */

@@ -935,17 +935,14 @@ public final class DmnIrArtifactReader {
 										&& right == DmnIrScalarType.SCALAR_TYPE_STRING
 										&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_STRING)
 								|| (datesProfile && hasDuration);
-						case BINARY_OPERATOR_SUBTRACT ->
-							(numberPair
-									&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic))
-									|| temporalSub;
-						case BINARY_OPERATOR_MULTIPLY, BINARY_OPERATOR_DIVIDE ->
-							(numberPair
-									&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic))
-									|| (datesProfile && hasDuration);
-						case BINARY_OPERATOR_POWER ->
-							numberPair
-									&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic);
+						case BINARY_OPERATOR_SUBTRACT -> (numberPair
+								&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic))
+								|| temporalSub;
+						case BINARY_OPERATOR_MULTIPLY, BINARY_OPERATOR_DIVIDE -> (numberPair
+								&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic))
+								|| (datesProfile && hasDuration);
+						case BINARY_OPERATOR_POWER -> numberPair
+								&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic);
 						case BINARY_OPERATOR_EQUAL, BINARY_OPERATOR_NOT_EQUAL ->
 							booleanResult && left != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED
 									&& right != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED;

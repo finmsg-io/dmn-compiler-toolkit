@@ -34,10 +34,9 @@ final class DmnIrRecordTypes {
 			boolean progress = false;
 			for (var key : new ArrayList<>(pending)) {
 				var record = definitions.get(key);
-				if (record.getFieldsList().stream().anyMatch(
-						f -> (f.getType().hasRecordType() && !layouts.containsKey(f.getType().getRecordType()))
-								|| (f.getType().hasCollectionType()
-										&& !layouts.containsKey(f.getType().getCollectionType()))))
+				if (record.getFieldsList().stream().anyMatch(f -> (f.getType().hasRecordType()
+						&& !layouts.containsKey(f.getType().getRecordType()))
+						|| (f.getType().hasCollectionType() && !layouts.containsKey(f.getType().getCollectionType()))))
 					continue;
 				List<RuntimeField> fields = new ArrayList<>();
 				for (var field : record.getFieldsList())

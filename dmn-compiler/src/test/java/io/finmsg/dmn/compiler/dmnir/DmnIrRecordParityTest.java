@@ -89,7 +89,12 @@ class DmnIrRecordParityTest {
 	void rejectsUnsupportedConstraintsTemporalFieldsAndRecordConstruction() {
 		var source = source(false);
 		String xml = new String(source.content(), StandardCharsets.UTF_8);
-		for (String changed : List.of(xml.replace("<typeRef>string</typeRef>", "<typeRef>time</typeRef>"),
+		var withTime = new DmnIrScalarProducer().produce(new DmnSource(source.id(),
+				xml.replace("<typeRef>string</typeRef>", "<typeRef>time</typeRef>").getBytes(StandardCharsets.UTF_8)));
+		assertTrue(withTime.artifact().getModels(0).getRecordDefinitionsList().stream()
+				.flatMap(r -> r.getFieldsList().stream())
+				.anyMatch(f -> f.getType().getScalarType() == DmnIrScalarType.SCALAR_TYPE_TIME));
+		for (String changed : List.of(
 				xml.replace("<typeRef>number</typeRef>",
 						"<typeRef>number</typeRef><allowedValues><text>&gt; 1 + 2</text></allowedValues>"),
 				xml.replace("<text>Driver</text>", "<text>{Name: \"Synthetic\", Points: 1}</text>"))) {

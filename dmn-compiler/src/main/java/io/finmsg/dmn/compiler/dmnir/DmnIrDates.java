@@ -40,19 +40,17 @@ final class DmnIrDates {
 		}
 	}
 	static boolean containsDate(Message source) {
-		return containsNode(source,
-				node -> node instanceof TypeReference type
-						&& (type.getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE
-								|| type.getBuiltin() == BuiltinType.BUILTIN_TYPE_TIME
-								|| type.getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE_AND_TIME
-								|| type.getBuiltin() == BuiltinType.BUILTIN_TYPE_DURATION
-								|| type.getBuiltin() == BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION
-								|| type.getBuiltin() == BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION)
-						|| node instanceof LiteralExpression literal
-								&& (literal.getKind() == LiteralKind.LITERAL_KIND_DATE
-										|| literal.getKind() == LiteralKind.LITERAL_KIND_TIME
-										|| literal.getKind() == LiteralKind.LITERAL_KIND_DATE_TIME
-										|| literal.getKind() == LiteralKind.LITERAL_KIND_DURATION));
+		return containsNode(source, node -> node instanceof TypeReference type
+				&& (type.getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE
+						|| type.getBuiltin() == BuiltinType.BUILTIN_TYPE_TIME
+						|| type.getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE_AND_TIME
+						|| type.getBuiltin() == BuiltinType.BUILTIN_TYPE_DURATION
+						|| type.getBuiltin() == BuiltinType.BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION
+						|| type.getBuiltin() == BuiltinType.BUILTIN_TYPE_DAYS_AND_TIME_DURATION)
+				|| node instanceof LiteralExpression literal && (literal.getKind() == LiteralKind.LITERAL_KIND_DATE
+						|| literal.getKind() == LiteralKind.LITERAL_KIND_TIME
+						|| literal.getKind() == LiteralKind.LITERAL_KIND_DATE_TIME
+						|| literal.getKind() == LiteralKind.LITERAL_KIND_DURATION));
 	}
 	static boolean containsNode(Message source, Predicate<Message> matches) {
 		var pending = new ArrayDeque<Message>();

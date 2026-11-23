@@ -83,14 +83,20 @@ class DmnIrDateParityTest {
 	}
 	@Test
 	void rejectsUnreviewedDateConstructorsAndRetainsUnusedDateDeclarations() {
-		for (String expression : List.of("date(Value)", "date(&quot;0000-01-01&quot;)",
-				"date(&quot;+10000-01-01&quot;)", "date(&quot;-00001-01-01&quot;)", "date(&quot;2023-02-29&quot;)",
-				"date(2024, 2, 29)")) {
+		for (String expression : List.of("date(&quot;0000-01-01&quot;)", "date(&quot;+10000-01-01&quot;)",
+				"date(&quot;-00001-01-01&quot;)", "date(&quot;2023-02-29&quot;)")) {
 			var source = scalar(expression,
 					"<inputData id=\"value\" name=\"Value\"><variable name=\"Value\" typeRef=\"string\"/></inputData>");
 			assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE,
 					assertThrows(DmnIrProductionException.class, () -> new DmnIrScalarProducer().produce(source))
 							.category());
+		}
+		for (String expression : List.of("date(Value)", "date(2024, 2, 29)")) {
+			var source = scalar(expression,
+					"<inputData id=\"value\" name=\"Value\"><variable name=\"Value\" typeRef=\"string\"/></inputData>");
+			var verified = new DmnIrScalarProducer().produce(source);
+			assertEquals(DmnIrBuiltinOperation.BUILTIN_OPERATION_DATE,
+					verified.artifact().getModels(0).getDecisions(0).getExpression().getBuiltinCall().getOperation());
 		}
 		var source = scalar("date(&quot;2024-01-01&quot;)",
 				"<itemDefinition id=\"unused\" name=\"Unused\"><itemComponent name=\"When\"><typeRef>date</typeRef></itemComponent></itemDefinition>");

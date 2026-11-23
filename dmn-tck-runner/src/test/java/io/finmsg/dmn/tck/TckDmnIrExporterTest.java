@@ -25,7 +25,9 @@ import org.junit.jupiter.api.Test;
  * portable {@code .dmnir} Protobuf files stored in the {@code dmn-tck} Maven
  * module ({@code dmn-tck/src/main/resources/tck-dmnir/}).
  *
- * <p>Run only when the pinned TCK revision or DMNIR compiler/schema changes:
+ * <p>
+ * Run only when the pinned TCK revision or DMNIR compiler/schema changes:
+ * 
  * <pre>
  * mvn test -Ptck -pl dmn-ir-codec,dmn-compiler,dmn-tck,dmn-tck-runner \
  *     -Dtest=TckDmnIrExporterTest -DfailIfNoTests=false -Dtck.exportDmnIr=true
@@ -146,12 +148,9 @@ class TckDmnIrExporterTest {
 		double elapsedSec = (System.nanoTime() - startNanos) / 1_000_000_000.0;
 		System.out.printf(
 				"========================================================================%n"
-						+ " DMN TCK -> DMNIR ARCHIVE EXPORT COMPLETE%n"
-						+ " OUTPUT DIR      : %s%n"
-						+ " TCK REVISION    : %s%n"
-						+ " TOTAL CASES     : %d (EXPORTED: %d, UNSUPPORTED: %d)%n"
-						+ " UNIQUE .dmnir   : %d files (%.2f MB)%n"
-						+ " ELAPSED         : %.2f s%n"
+						+ " DMN TCK -> DMNIR ARCHIVE EXPORT COMPLETE%n" + " OUTPUT DIR      : %s%n"
+						+ " TCK REVISION    : %s%n" + " TOTAL CASES     : %d (EXPORTED: %d, UNSUPPORTED: %d)%n"
+						+ " UNIQUE .dmnir   : %d files (%.2f MB)%n" + " ELAPSED         : %.2f s%n"
 						+ "========================================================================%n",
 				outRoot, TCK_REVISION, manifestRows.size(), exportedCases.get(), failedCases.get(),
 				writtenArtifacts.size(), totalBytes.get() / (1024.0 * 1024.0), elapsedSec);
