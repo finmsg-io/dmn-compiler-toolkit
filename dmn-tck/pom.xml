@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.finmsg.dmn</groupId>
+    <artifactId>dmn-compiler-toolkit</artifactId>
+    <version>1.1.0</version>
+  </parent>
+  <artifactId>dmn-tck</artifactId>
+  <name>DMN TCK Pre-Compiled DMNIR Artifacts</name>
+  <description>Pre-compiled portable .dmnir Protobuf artifacts for the pinned OMG DMN TCK (revision 5cd912f281831bc535e710aba435e16de198028a)</description>
+
+  <properties>
+    <tck.revision>5cd912f281831bc535e710aba435e16de198028a</tck.revision>
+  </properties>
+</project>

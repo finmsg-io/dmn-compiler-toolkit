@@ -424,6 +424,7 @@ public final class DmnIrRuntimeAdapter {
 			}
 			case LIST -> new RuntimeListExpression(expression.getList().getElementsList().stream()
 					.map(element -> expression(element, slots, types, locals, nextSlot)).toList(), type);
+			case CLOSURE -> closure(expression.getClosure(), slots, types, locals);
 			default -> throw new IllegalArgumentException("Unsupported expression in runtime adapter.");
 		};
 	}
@@ -435,6 +436,10 @@ public final class DmnIrRuntimeAdapter {
 				new RuntimeConstant(RuntimeConstantKind.BOOLEAN, Boolean.toString(literal.getBooleanValue()), type);
 			case DATE_VALUE -> new RuntimeConstant(RuntimeConstantKind.DATE,
 					DmnIrDates.value(literal.getDateValue()).toString(), type);
+			case TIME_VALUE -> new RuntimeConstant(RuntimeConstantKind.TIME, literal.getTimeValue(), type);
+			case DATE_TIME_VALUE ->
+				new RuntimeConstant(RuntimeConstantKind.DATE_TIME, literal.getDateTimeValue(), type);
+			case DURATION_VALUE -> new RuntimeConstant(RuntimeConstantKind.DURATION, literal.getDurationValue(), type);
 			case STRING_VALUE -> new RuntimeConstant(RuntimeConstantKind.STRING, literal.getStringValue(), type);
 			case NUMBER_VALUE -> {
 				DmnIrDecimal decimal = literal.getNumberValue();

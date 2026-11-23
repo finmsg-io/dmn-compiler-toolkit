@@ -14,23 +14,30 @@ final class DmnIrRecordTypes {
 	private final Map<DmnIrReference, RuntimeType> layouts = new HashMap<>();
 
 	DmnIrRecordTypes(DmnIrArtifact artifact) {
+		Set<DmnIrReference> pendingCollections = new LinkedHashSet<>();
 		for (var model : artifact.getModelsList()) {
 			for (var record : model.getRecordDefinitionsList())
 				definitions.put(ref(model.getNamespace(), record.getIdentity().getId()), record);
 			for (var collection : model.getCollectionDefinitionsList()) {
 				var reference = ref(model.getNamespace(), collection.getIdentity().getId());
 				collections.put(reference, collection);
-				layouts.put(reference, RuntimeType.element(RuntimeTypeKind.LIST,
-						type(collection.getElementType(), false, DmnIrReference.getDefaultInstance())));
+				if (collection.hasRecordType() || collection.hasCollectionType()) {
+					pendingCollections.add(reference);
+				} else {
+					layouts.put(reference, RuntimeType.element(RuntimeTypeKind.LIST,
+							type(collection.getElementType(), false, DmnIrReference.getDefaultInstance())));
+				}
 			}
 		}
 		Set<DmnIrReference> pending = new LinkedHashSet<>(definitions.keySet());
-		while (!pending.isEmpty()) {
+		while (!pending.isEmpty() || !pendingCollections.isEmpty()) {
 			boolean progress = false;
 			for (var key : new ArrayList<>(pending)) {
 				var record = definitions.get(key);
 				if (record.getFieldsList().stream().anyMatch(
-						f -> f.getType().hasRecordType() && !layouts.containsKey(f.getType().getRecordType())))
+						f -> (f.getType().hasRecordType() && !layouts.containsKey(f.getType().getRecordType()))
+								|| (f.getType().hasCollectionType()
+										&& !layouts.containsKey(f.getType().getCollectionType()))))
 					continue;
 				List<RuntimeField> fields = new ArrayList<>();
 				for (var field : record.getFieldsList())
@@ -42,6 +49,17 @@ final class DmnIrRecordTypes {
 							field.hasConstraint() ? Optional.of(constraint(field.getConstraint())) : Optional.empty()));
 				layouts.put(key, RuntimeType.contextFields(fields));
 				pending.remove(key);
+				progress = true;
+			}
+			for (var key : new ArrayList<>(pendingCollections)) {
+				var collection = collections.get(key);
+				DmnIrReference target = collection.hasRecordType()
+						? collection.getRecordType()
+						: collection.getCollectionType();
+				if (!layouts.containsKey(target))
+					continue;
+				layouts.put(key, RuntimeType.element(RuntimeTypeKind.LIST, layouts.get(target)));
+				pendingCollections.remove(key);
 				progress = true;
 			}
 			if (!progress)
@@ -75,6 +93,9 @@ final class DmnIrRecordTypes {
 			case SCALAR_TYPE_NUMBER -> RuntimeTypeKind.NUMBER;
 			case SCALAR_TYPE_STRING -> RuntimeTypeKind.STRING;
 			case SCALAR_TYPE_DATE -> RuntimeTypeKind.DATE;
+			case SCALAR_TYPE_TIME -> RuntimeTypeKind.TIME;
+			case SCALAR_TYPE_DATE_TIME -> RuntimeTypeKind.DATE_TIME;
+			case SCALAR_TYPE_DURATION -> RuntimeTypeKind.DURATION;
 			default -> throw new IllegalArgumentException("Unsupported verified scalar type.");
 		});
 	}

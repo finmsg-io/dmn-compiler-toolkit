@@ -30,7 +30,15 @@ public final class DmnIrScalarProducer {
 				.anyMatch(m -> DmnIrDates.containsDate(m.model()) || DmnIrRecordProducer.containsBuiltinCall(m.model())
 						|| DmnIrDates.containsNode(m.model(),
 								node -> node instanceof io.finmsg.dmn.model.FunctionDefinitionExpression
-										|| node instanceof io.finmsg.dmn.model.ContextExpression)
+										|| node instanceof io.finmsg.dmn.model.ContextExpression
+										|| node instanceof io.finmsg.dmn.model.ListExpression
+										|| node instanceof io.finmsg.dmn.model.InvocationExpression
+										|| node instanceof io.finmsg.dmn.model.FilterExpression
+										|| node instanceof io.finmsg.dmn.model.ForExpression
+										|| (node instanceof io.finmsg.dmn.model.LiteralExpression lit
+												&& (lit.getKind() == io.finmsg.dmn.model.LiteralKind.LITERAL_KIND_DURATION
+														|| lit.getKind() == io.finmsg.dmn.model.LiteralKind.LITERAL_KIND_TIME
+														|| lit.getKind() == io.finmsg.dmn.model.LiteralKind.LITERAL_KIND_DATE_TIME)))
 						|| m.model().getItemDefinitionsCount() != 0
 						|| m.model().getDrgElementsList().stream()
 								.anyMatch(e -> e.hasBusinessKnowledgeModel()
@@ -178,7 +186,7 @@ public final class DmnIrScalarProducer {
 
 	private static DmnIrScalarType type(RuntimeType type, DmnIrReference address) {
 		return switch (type.kind()) {
-			case NULL, ANY -> DmnIrScalarType.SCALAR_TYPE_NULL;
+			case NULL, ANY, DURATION, YEARS_MONTHS_DURATION, DAYS_TIME_DURATION, TIME, DATE_TIME -> DmnIrScalarType.SCALAR_TYPE_NULL;
 			case BOOLEAN -> DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
 			case NUMBER -> DmnIrScalarType.SCALAR_TYPE_NUMBER;
 			case STRING -> DmnIrScalarType.SCALAR_TYPE_STRING;

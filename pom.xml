@@ -314,6 +314,7 @@
                 <tck.spark.hybrid>true</tck.spark.hybrid>
             </properties>
             <modules>
+                <module>dmn-tck</module>
                 <module>dmn-tck-runner</module>
             </modules>
         </profile>

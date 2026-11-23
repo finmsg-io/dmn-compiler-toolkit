@@ -181,6 +181,9 @@ enum DmnIrScalarType {
   SCALAR_TYPE_NUMBER = 3;
   SCALAR_TYPE_STRING = 4;
   SCALAR_TYPE_DATE = 5;
+  SCALAR_TYPE_TIME = 6;
+  SCALAR_TYPE_DATE_TIME = 7;
+  SCALAR_TYPE_DURATION = 8;
 }
 
 message DmnIrExpression {
@@ -205,6 +208,7 @@ message DmnIrExpression {
     DmnIrBuiltinCall builtin_call = 14;
     DmnIrBkmCall bkm_call = 15;
     DmnIrClosureInvocation closure_invocation = 16;
+    DmnIrClosure closure = 17;
   }
 }
 
@@ -287,6 +291,11 @@ enum DmnIrBuiltinOperation {
   BUILTIN_OPERATION_LIST_REPLACE = 54;
   BUILTIN_OPERATION_RANGE = 55;
   BUILTIN_OPERATION_SORT = 56;
+  BUILTIN_OPERATION_DATE = 57;
+  BUILTIN_OPERATION_TIME = 58;
+  BUILTIN_OPERATION_DATE_AND_TIME = 59;
+  BUILTIN_OPERATION_DURATION = 60;
+  BUILTIN_OPERATION_YEARS_AND_MONTHS_DURATION = 61;
 }
 
 message DmnIrBuiltinCall {
@@ -401,6 +410,9 @@ message DmnIrLiteral {
     string string_value = 3;
     DmnIrDecimal number_value = 4;
     DmnIrDate date_value = 5;
+    string time_value = 6;
+    string date_time_value = 7;
+    string duration_value = 8;
   }
 }
 

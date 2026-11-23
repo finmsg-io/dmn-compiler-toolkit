@@ -131,7 +131,7 @@ final class DmnIrRecordProducer {
 						} else {
 							var element = elemType.getScalarType();
 							if (element == DmnIrScalarType.SCALAR_TYPE_NULL && !elemType.hasCollectionType())
-								throw unsupported();
+								element = DmnIrScalarType.SCALAR_TYPE_STRING;
 							colBuilder.setElementType(element);
 						}
 						collections.put(reference, colBuilder.build());
@@ -688,11 +688,16 @@ final class DmnIrRecordProducer {
 		if (!type.hasBuiltin())
 			return DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build();
 		return DmnIrTypeReference.newBuilder().setScalarType(switch (type.getBuiltin()) {
-			case BUILTIN_TYPE_NULL, BUILTIN_TYPE_ANY, BUILTIN_TYPE_UNSPECIFIED -> DmnIrScalarType.SCALAR_TYPE_NULL;
+			case BUILTIN_TYPE_NULL, BUILTIN_TYPE_ANY, BUILTIN_TYPE_UNSPECIFIED,
+					BUILTIN_TYPE_RANGE -> DmnIrScalarType.SCALAR_TYPE_NULL;
 			case BUILTIN_TYPE_BOOLEAN -> DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
 			case BUILTIN_TYPE_NUMBER -> DmnIrScalarType.SCALAR_TYPE_NUMBER;
 			case BUILTIN_TYPE_STRING -> DmnIrScalarType.SCALAR_TYPE_STRING;
 			case BUILTIN_TYPE_DATE -> DmnIrScalarType.SCALAR_TYPE_DATE;
+			case BUILTIN_TYPE_TIME -> DmnIrScalarType.SCALAR_TYPE_TIME;
+			case BUILTIN_TYPE_DATE_AND_TIME -> DmnIrScalarType.SCALAR_TYPE_DATE_TIME;
+			case BUILTIN_TYPE_DURATION, BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION,
+					BUILTIN_TYPE_DAYS_AND_TIME_DURATION -> DmnIrScalarType.SCALAR_TYPE_DURATION;
 			default -> throw unsupported();
 		}).build();
 	}
@@ -721,6 +726,26 @@ final class DmnIrRecordProducer {
 		if (depth > 32)
 			throw unsupported();
 		var binding = model.bindings().stream().filter(b -> b.referencePath().equals(path)).findFirst();
+		if (source.hasName() && binding.isEmpty()) {
+			var matchingLocal = localBindings.values().stream()
+					.filter(l -> !l.hasClosure() && l.getVariable().getName().equals(source.getName().getName()))
+					.findFirst();
+			if (matchingLocal.isPresent()) {
+				var local = matchingLocal.get();
+				if (captures != null && captureScope.contains(local.getBindingId()))
+					captures.add(local.getBindingId());
+				var variable = local.getVariable();
+				var localType = DmnIrTypeReference.newBuilder();
+				if (variable.hasCollectionType())
+					localType.setCollectionType(variable.getCollectionType());
+				else if (variable.hasRecordType())
+					localType.setRecordType(variable.getRecordType());
+				else
+					localType.setScalarType(variable.getType());
+				return typed(localType.build())
+						.setLocalReference(DmnIrLocalReference.newBuilder().setBindingId(local.getBindingId())).build();
+			}
+		}
 		if ((source.hasName() || source.hasPath()) && binding.isPresent()) {
 			DmnSymbolBinding symbol = binding.get();
 			if (symbol.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE
@@ -833,6 +858,18 @@ final class DmnIrRecordProducer {
 					.filter(DmnIrLocalBinding::hasClosure).findFirst();
 			if (call.getTarget().hasFunctionDefinition() || closureBinding.isPresent())
 				return closureCall(call, closureBinding, model, path, dependencies, depth);
+			if (call.getTarget().hasName() && call.getTarget().getName().getName().equals("date")
+					&& source.getInferredType().getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE
+					&& call.getArgumentsCount() == 0 && call.getPositionalArgumentsCount() == 1
+					&& call.getPositionalArguments(0).hasLiteral()
+					&& call.getPositionalArguments(0).getLiteral().getKind() == LiteralKind.LITERAL_KIND_STRING
+					&& model.bindings().stream().noneMatch(b -> b.referencePath().equals(path + "/target"))) {
+				var date = DmnIrDates.fromFeel(call.getPositionalArguments(0).getLiteral().getValue());
+				if (date == null)
+					throw unsupported();
+				return typed(type(source.getInferredType(), model))
+						.setLiteral(DmnIrLiteral.newBuilder().setDateValue(DmnIrDates.wire(date))).build();
+			}
 			var signature = DmnIrBuiltinSignature.forFeelName(call.getTarget().getName().getName());
 			if (signature.isPresent())
 				return builtinCall(call, signature.get(), model, path, dependencies, depth, expected);
@@ -862,6 +899,9 @@ final class DmnIrRecordProducer {
 						literal.setNumberValue(DmnIrDecimal.newBuilder()
 								.setUnscaledValue(number.unscaledValue().toString()).setScale(number.scale()));
 					}
+					case LITERAL_KIND_TIME -> literal.setTimeValue(value.getValue());
+					case LITERAL_KIND_DATE_TIME -> literal.setDateTimeValue(value.getValue());
+					case LITERAL_KIND_DURATION -> literal.setDurationValue(value.getValue());
 					default -> throw unsupported();
 				}
 				return output.setLiteral(literal).build();
@@ -934,6 +974,13 @@ final class DmnIrRecordProducer {
 						return nullLiteral();
 					}
 				}
+				if (value.getTarget().hasName()) {
+					String targetName = value.getTarget().getName().getName();
+					if (targetName.equals("duration") || targetName.equals("time")
+							|| targetName.equals("date and time")) {
+						return nullLiteral();
+					}
+				}
 				if (!value.getTarget().hasName() || !value.getTarget().getName().getName().equals("not")
 						|| value.getArgumentsCount() != 0 || value.getPositionalArgumentsCount() != 1)
 					throw unsupported();
@@ -968,7 +1015,25 @@ final class DmnIrRecordProducer {
 				var in = source.getIn();
 				return lowerIn(in.getValue(), in.getTests(), model, path, dependencies, depth);
 			}
-			default -> throw unsupported();
+			case FUNCTION_DEFINITION -> {
+				var fn = source.getFunctionDefinition();
+				if (fn.getExternal())
+					throw unsupported();
+				var types = source.getInferredType().hasFunction()
+						? source.getInferredType().getFunction().getParameterTypeList()
+						: java.util.Collections.<TypeReference>nCopies(fn.getParametersCount(),
+								TypeReference.getDefaultInstance());
+				var formals = new java.util.ArrayList<InformationItem>();
+				for (int i = 0; i < fn.getParametersCount(); i++) {
+					var type = i < types.size() ? types.get(i) : TypeReference.getDefaultInstance();
+					formals.add(InformationItem.newBuilder().setNode(Node.newBuilder().setName(fn.getParameters(i).getName()))
+							.setType(type).build());
+				}
+				var body = ExpressionParsed.newBuilder().setFeel(FeelParsed.newBuilder().setAst(fn.getBody())).build();
+				var def = closure(formals, body, model, path + "/function", depth + 1);
+				return output.setType(DmnIrScalarType.SCALAR_TYPE_NULL).setClosure(def).build();
+			}
+			default -> throw unsupported("Unsupported expression node: " + source.getNodeCase() + " at " + path);
 		}
 	}
 
@@ -1525,10 +1590,13 @@ final class DmnIrRecordProducer {
 		}
 
 		var call = DmnIrBuiltinCall.newBuilder().setOperation(signature.operation());
-		for (var arg : args) {
-			if (arg == null)
+		for (int i = 0; i < args.length; i++) {
+			if (args[i] == null) {
+				if (i >= signature.minArity())
+					break;
 				return nullLiteral();
-			call.addArguments(arg);
+			}
+			call.addArguments(args[i]);
 		}
 		builtinCalls = true;
 		if (signature.collectionResult()) {

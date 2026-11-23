@@ -1,6 +1,6 @@
 # Actual task: full official-TCK compliance through Protobuf DMNIR and generated Java/Rust
 
-Updated: 2026-11-21. Status: incomplete. Latest recorded full Rust result: 1,018/3,407 passed (2026-11-17); full portable-DMNIR-to-generated-Java TCK compliance is not established.
+Updated: 2026-11-23. Status: incomplete. Latest recorded full portable-DMNIR-to-generated-Java (`optimized-generated-portable-java`) result: **2,280 / 3,407 passed (66.92%)** in **3m 30s** via the pre-compiled `dmn-tck` `.dmnir` archive + batch `javac`. Latest recorded full Rust result: **1,018 / 3,407 passed (29.88%)** (2026-11-17; pending re-run against `dmn-tck`).
 
 ## Goal and acceptance
 
@@ -44,28 +44,25 @@ Require every pinned official TCK case to execute through **DMN -> Java compiler
 
 Inspection on 2026-11-21 found that `OfficialTckSuiteTest.prepareGenerated` was previously passing `compilation.optimizedRuntimeModel()` directly to Java generation, bypassing the portable serialization/verification/adapter path.
 
-### Baseline Measurement & Progress (2026-11-22)
-The pure portable DMNIR Java runner (`optimized-generated-portable-java` / `RunPortableJavaTckCorpus`) executes tests strictly via the full DMNIR round-trip pipeline:
-`DMN XML -> DMNIR Protobuf (.dmnir) -> Bounded Validation -> Runtime IR Adapter -> Java Generator -> javac -> Evaluation`.
+### Baseline Measurement & Progress (2026-11-23)
+The pure portable DMNIR Java runner (`optimized-generated-portable-java`) executes all 3,407 official cases strictly via the full DMNIR round-trip pipeline:
+`DMN XML -> DMNIR Protobuf (.dmnir) -> Bounded Validation -> Runtime IR Adapter -> Optimizer -> Java Generator -> javac -> Evaluation`.
 
-Recent improvements in `feature/release-1.2-dmnir`:
-- **Unconstrained Decision Variable Type Resolution**: Decision variables without explicit declared types infer their types directly from their evaluated expressions (resolving `SCALAR_TYPE_NULL` blocks, aligned with SparkSQL lessons).
-- **Multi-Argument List Builtins Routing**: Separated multi-argument list operations (`list replace`, `insert before`, `remove`) from single-argument/vararg list reduction bypasses (`collectionBuiltinCall`).
-- **FEEL Singleton List Coercion**: Implemented automatic scalar-to-singleton-list coercion (`1` -> `[1]`) for collection parameters in built-in invocations in `DmnIrRecordProducer.java`.
-- **Null Collection Argument Semantics**: Handled null collection literals directly returning null per DMN specification.
-- **Suite `1155-list-replace-function` Progress**: Pass rate advanced from **11/22 (50.0%)** to **16/22 (72.73%)**. The remaining 6 cases (`009`, `013`, `017`–`020`) require inline FEEL `function(...)` literal lowering (`NodeCase.FUNCTION_DEFINITION`) into `DmnIrClosure` / `FeelCallable`.
+| Checkpoint (2026-11-23) | Configuration | `OfficialTckSuiteTest` Time | Total Maven Time | Passed / 3,407 |
+|---|---|---:|---:|---:|
+| Baseline (`task-1846`) | Multithreaded, live DMN -> DMNIR -> per-case `javac` | ~37m 28s | `37:32 min` | **1,748 (51.31%)** |
+| Temporal + collection slice (`task-2071`) | + Real temporals, record-collection layouts, whole-model cache | ~29m 15s | `29:19 min` | **2,280 (66.92%)** (+532) |
+| **`dmn-tck` archive + batch `javac` (`task-2153`)** | **Pre-compiled `.dmnir` from `dmn-tck` + parallel batch `javac`** | **`3m 30s` (`209.9 s`)** | **`04:27 min`** | **2,280 (66.92%)** (exact parity) |
 
-### Accelerated TCK Runner Architecture
-To eliminate the ~60-minute sequential overhead caused by repeated DMN front-end compilation, redundant per-case `javac` invocations, and single-threaded JUnit dispatch:
-1. **Stored DMNIR Protobuf Corpus (`target/tck-corpus/`)**:
-   - DMN models are exported once to verified `.dmnir` Protobuf binary artifacts.
-   - Both Java and Rust runners consume the identical binary Protobuf artifacts directly from disk, decoupling front-end compilation from target execution:
-     `DMN XML -> dmn-ir-protobuf -> (Java Runner | Rust Runner | ...)`.
-2. **Model-Level Compilation Caching**:
-   - The ~3,407 test cases map to only ~150 distinct DMN decision models.
-   - Code generation and class compilation occur once per model rather than per test case, reducing `javac` calls by >95%.
-3. **Multithreaded Parallel Execution**:
-   - Test cases and models execute in parallel across available CPU cores, targeting full-suite execution in under 30 seconds.
+Implemented in `feature/release-1.2-dmnir`:
+- **Inline FEEL Closures (`DmnIrClosure`)**: Added `DmnIrClosure closure = 17` to `dmnir.proto`, codec validation, `DmnIrRecordProducer` lowering (`FUNCTION_DEFINITION`), and `DmnIrRuntimeAdapter` adaptation (`1155-list-replace-function` -> 22/22, `0051-feel-sqrt-function` -> 15/15).
+- **Real Temporal Types, Literals & Constructors**: Added `SCALAR_TYPE_TIME`, `SCALAR_TYPE_DATE_TIME`, `SCALAR_TYPE_DURATION`, temporal literal wire fields, and `date` / `time` / `date and time` / `duration` / `years and months duration` built-ins with variable-arity validation (`0071-feel-between` -> 38/38).
+- **Record & Nested Collection Layouts**: Fixed `DmnIrRecordTypes` fixpoint graph resolution for collections of records and nested collections (`0112`/`0113` -> 100%) and untyped collection `itemDefinition` fallback in `DmnIrRecordProducer`.
+- **Pre-Compiled `dmn-tck` Maven Module + Batch `javac` Acceleration**:
+  - Added `dmn-tck` module (`dmn-tck/src/main/resources/tck-dmnir/`) storing **1,786 verified `.dmnir` Protobuf files (1.10 MB)** + `manifest.tsv` pinned to TCK revision `5cd912f281831bc535e710aba435e16de198028a` and DMNIR schema `0.11`.
+  - Regenerate only when TCK revision or DMNIR changes via `mvn test -Ptck -pl dmn-ir-codec,dmn-compiler,dmn-tck,dmn-tck-runner -Dtest=TckDmnIrExporterTest -DfailIfNoTests=false -Dtck.exportDmnIr=true` (**31.50 s**).
+  - `OfficialTckSuiteTest` loads `.dmnir` bytes from `dmn-tck`, batch-compiles generated Java in parallel `javac` batches (`197.94 s`), and executes all 3,407 evaluations in **12.0 s** (~10x faster end-to-end).
+  - The exact same `dmn-tck/src/main/resources/tck-dmnir/` artifacts are directly consumable by standalone Rust (`dmnir -> rust`).
 
 Completion requires reproducible, separately identified full-suite Java and Rust reports on the delivered revision, with complete case ledgers, commands and provenance. Mark the task incomplete until both required paths pass all cases. Report implementation, focused verification and full-suite conformance separately.
 
@@ -124,17 +121,13 @@ Follow [general instructions](generall-prompt.md), [guardrails](details/guardrai
 
 ## Next action and limitations
 
-Wire and measure the missing full portable-Java round-trip TCK path, then resolve its blockers alongside the Rust blockers below. The Java baseline is unavailable, not 100%; existing direct-Java success cannot be transferred to it.
+1. **Advance DMNIR compliance beyond 2,280 / 3,407 (66.92%)**:
+   - Remaining portable-Java gap: **1,127 failures** (`1,097` export rejections + `30` runtime/evaluation mismatches).
+   - Top remaining rejection clusters: FEEL `CONTEXT` literals (`{ a: 1 }`), `INSTANCE_OF` expressions, numeric list index filters (`list[i]`), and unsupported binary/list signatures.
+2. **Re-measure Standalone Rust against `dmn-tck`**:
+   - Wire the Rust TCK runner directly to `dmn-tck/src/main/resources/tck-dmnir/` and record the updated full 3,407-case Rust compliance ledger alongside Java.
 
-Trace the 13 numerical mismatches and rank the remaining 2,376 exclusions from the current
-manifest. Large rejected suites include arithmetic, membership, instance-of, temporal
-functions, and lists. These are remaining case counts, not projected feature gains.
-Full compliance remains **unmet: 2,389 cases do not pass**.
-
-Focused verification passed: six catalogue-discovery tests, two test-value reader tests,
-one compiler/adapter number-conversion test, three Rust runner tests, and a generated-runtime
-regression covering exact number parsing and Unicode/empty literal replacement. A preceding
-27-test Rust artifact run also passed; the final full run verifies the latest runtime.
+Full compliance remains **unmet** until both portable Java and standalone Rust pass all 3,407 cases.
 Other backend full-suite revalidation and release 1.2 completion are not established.
 Usage accounting is unavailable. Rust runs do not measure Spark native/fallback routing.
-Detailed commands and caveats: [work package, section 52](details/release-1.2-dmnir-work-package.md#52-current-rust-tck-handover-2026-11-17-strict-3407-case-audit).
+Detailed historical Rust commands and caveats: [work package, section 52](details/release-1.2-dmnir-work-package.md#52-current-rust-tck-handover-2026-11-17-strict-3407-case-audit).

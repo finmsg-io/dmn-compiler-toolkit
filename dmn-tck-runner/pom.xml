@@ -26,6 +26,11 @@
   <dependencies>
     <dependency>
       <groupId>io.finmsg.dmn</groupId>
+      <artifactId>dmn-tck</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.finmsg.dmn</groupId>
       <artifactId>dmn-grpc</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>

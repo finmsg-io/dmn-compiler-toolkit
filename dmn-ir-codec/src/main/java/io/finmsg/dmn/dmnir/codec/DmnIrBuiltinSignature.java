@@ -371,7 +371,23 @@ public enum DmnIrBuiltinSignature {
 																																																																																																																			SCALAR_TYPE_NULL),
 																																																																																																																	List.of("list",
 																																																																																																																			"precedes"),
-																																																																																																																	1);
+																																																																																																																	1),
+	DATE(BUILTIN_OPERATION_DATE, "date", SCALAR_TYPE_DATE,
+			List.of(SCALAR_TYPE_NULL, SCALAR_TYPE_NUMBER, SCALAR_TYPE_NUMBER),
+			List.of("from", "month", "day"), 1),
+	TIME(BUILTIN_OPERATION_TIME, "time", SCALAR_TYPE_TIME,
+			List.of(SCALAR_TYPE_NULL, SCALAR_TYPE_NUMBER, SCALAR_TYPE_NUMBER, SCALAR_TYPE_DURATION),
+			List.of("from", "minute", "second", "offset"), 1),
+	DATE_AND_TIME(BUILTIN_OPERATION_DATE_AND_TIME, "date and time", SCALAR_TYPE_DATE_TIME,
+			List.of(SCALAR_TYPE_NULL, SCALAR_TYPE_TIME),
+			List.of("from", "time"), 1),
+	DURATION(BUILTIN_OPERATION_DURATION, "duration", SCALAR_TYPE_DURATION,
+			List.of(SCALAR_TYPE_STRING),
+			List.of("from"), 1),
+	YEARS_AND_MONTHS_DURATION(BUILTIN_OPERATION_YEARS_AND_MONTHS_DURATION, "years and months duration",
+			SCALAR_TYPE_DURATION,
+			List.of(SCALAR_TYPE_NULL, SCALAR_TYPE_NULL),
+			List.of("from", "to"), 2);
 
 	private final DmnIrBuiltinOperation operation;
 	private final String feelName;
@@ -453,6 +469,12 @@ public enum DmnIrBuiltinSignature {
 			return idx;
 		if (this == LIST_REPLACE && "match".equals(name))
 			return 1;
+		if (this == DATE && "year".equals(name))
+			return 0;
+		if (this == TIME && "hour".equals(name))
+			return 0;
+		if (this == DATE_AND_TIME && "date".equals(name))
+			return 0;
 		return null;
 	}
 

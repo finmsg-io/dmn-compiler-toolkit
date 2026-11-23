@@ -784,7 +784,8 @@ public final class DmnIrArtifactReader {
 					var signature = DmnIrBuiltinSignature.forOperation(call.getOperation())
 							.orElseThrow(() -> new DmnIrValidationException(INVALID_EXPRESSION, path,
 									"Unsupported built-in operation."));
-					check(call.getArgumentsCount() == signature.parameters().size(), INVALID_EXPRESSION, path,
+					check(call.getArgumentsCount() >= signature.minArity()
+							&& call.getArgumentsCount() <= signature.maxArity(), INVALID_EXPRESSION, path,
 							"Built-in argument count must match its signature.");
 					if (signature.collectionResult()) {
 						boolean matches = false;
@@ -896,8 +897,11 @@ public final class DmnIrArtifactReader {
 					node(value.getOperand(), owner, dependencies, path + ".unary.operand", depth + 1);
 					boolean valid = switch (value.getOperator()) {
 						case UNARY_OPERATOR_POSITIVE, UNARY_OPERATOR_NEGATE ->
-							value.getOperand().getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER
-									&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER;
+							(value.getOperand().getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER
+									&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER)
+									|| (datesProfile
+											&& value.getOperand().getType() == DmnIrScalarType.SCALAR_TYPE_DURATION
+											&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_DURATION);
 						case UNARY_OPERATOR_NOT -> bool(value.getOperand().getType())
 								&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
 						default -> false;
@@ -917,6 +921,9 @@ public final class DmnIrArtifactReader {
 							|| left == DmnIrScalarType.SCALAR_TYPE_NULL)
 							&& (right == DmnIrScalarType.SCALAR_TYPE_NUMBER
 									|| right == DmnIrScalarType.SCALAR_TYPE_NULL);
+					boolean hasDuration = left == DmnIrScalarType.SCALAR_TYPE_DURATION
+							|| right == DmnIrScalarType.SCALAR_TYPE_DURATION;
+					boolean temporalSub = datesProfile && (isTemporal(left) || isTemporal(right));
 					boolean nullArithmetic = (left == DmnIrScalarType.SCALAR_TYPE_NULL
 							|| right == DmnIrScalarType.SCALAR_TYPE_NULL)
 							&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_NULL;
@@ -926,9 +933,17 @@ public final class DmnIrArtifactReader {
 								&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic))
 								|| (left == DmnIrScalarType.SCALAR_TYPE_STRING
 										&& right == DmnIrScalarType.SCALAR_TYPE_STRING
-										&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_STRING);
-						case BINARY_OPERATOR_SUBTRACT, BINARY_OPERATOR_MULTIPLY, BINARY_OPERATOR_DIVIDE,
-								BINARY_OPERATOR_POWER ->
+										&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_STRING)
+								|| (datesProfile && hasDuration);
+						case BINARY_OPERATOR_SUBTRACT ->
+							(numberPair
+									&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic))
+									|| temporalSub;
+						case BINARY_OPERATOR_MULTIPLY, BINARY_OPERATOR_DIVIDE ->
+							(numberPair
+									&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic))
+									|| (datesProfile && hasDuration);
+						case BINARY_OPERATOR_POWER ->
 							numberPair
 									&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic);
 						case BINARY_OPERATOR_EQUAL, BINARY_OPERATOR_NOT_EQUAL ->
@@ -936,8 +951,10 @@ public final class DmnIrArtifactReader {
 									&& right != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED;
 						case BINARY_OPERATOR_LESS, BINARY_OPERATOR_LESS_EQUAL, BINARY_OPERATOR_GREATER,
 								BINARY_OPERATOR_GREATER_EQUAL ->
-							(numberPair || (left == DmnIrScalarType.SCALAR_TYPE_STRING
-									|| datesProfile && left == DmnIrScalarType.SCALAR_TYPE_DATE) && right == left)
+							(numberPair || (left == DmnIrScalarType.SCALAR_TYPE_STRING && right == left)
+									|| (datesProfile && isTemporal(left)
+											&& (right == left || right == DmnIrScalarType.SCALAR_TYPE_NULL))
+									|| (datesProfile && isTemporal(right) && left == DmnIrScalarType.SCALAR_TYPE_NULL))
 									&& booleanResult;
 						case BINARY_OPERATOR_AND, BINARY_OPERATOR_OR -> left != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED
 								&& right != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED && booleanResult;
@@ -974,6 +991,10 @@ public final class DmnIrArtifactReader {
 							"Field does not exist.");
 					check(field.orElseThrow().getType().equals(nodeType), INVALID_TYPE, path + ".type",
 							"Field result type must match its declaration.");
+				}
+				case CLOSURE -> {
+					check(closureProfile, UNSUPPORTED_CAPABILITY, path, "Closures require profile 0.11.");
+					closure(expression.getClosure(), owner, path + ".closure", depth + 1);
 				}
 				default -> check(false, INVALID_EXPRESSION, path, "An expression node is required.");
 			}
@@ -1163,9 +1184,29 @@ public final class DmnIrArtifactReader {
 							path + ".number_value.scale", "Decimal scale budget exceeded.");
 					actual = DmnIrScalarType.SCALAR_TYPE_NUMBER;
 				}
+				case TIME_VALUE -> {
+					check(datesProfile, UNSUPPORTED_CAPABILITY, path + ".time_value",
+							"Temporal literals require profile 0.4.");
+					actual = DmnIrScalarType.SCALAR_TYPE_TIME;
+				}
+				case DATE_TIME_VALUE -> {
+					check(datesProfile, UNSUPPORTED_CAPABILITY, path + ".date_time_value",
+							"Temporal literals require profile 0.4.");
+					actual = DmnIrScalarType.SCALAR_TYPE_DATE_TIME;
+				}
+				case DURATION_VALUE -> {
+					check(datesProfile, UNSUPPORTED_CAPABILITY, path + ".duration_value",
+							"Temporal literals require profile 0.4.");
+					actual = DmnIrScalarType.SCALAR_TYPE_DURATION;
+				}
 				default -> throw new DmnIrValidationException(INVALID_EXPRESSION, path, "A literal value is required.");
 			}
 			check(assignable(actual, type), INVALID_TYPE, path, "Literal type is incompatible with the expression.");
+		}
+
+		private static boolean isTemporal(DmnIrScalarType type) {
+			return type == DmnIrScalarType.SCALAR_TYPE_DATE || type == DmnIrScalarType.SCALAR_TYPE_TIME
+					|| type == DmnIrScalarType.SCALAR_TYPE_DATE_TIME || type == DmnIrScalarType.SCALAR_TYPE_DURATION;
 		}
 
 		private static boolean assignable(DmnIrScalarType actual, DmnIrScalarType expected) {
@@ -1175,7 +1216,7 @@ public final class DmnIrArtifactReader {
 		private void scalar(DmnIrScalarType type, String path) {
 			boolean supported = switch (type) {
 				case SCALAR_TYPE_NULL, SCALAR_TYPE_BOOLEAN, SCALAR_TYPE_NUMBER, SCALAR_TYPE_STRING -> true;
-				case SCALAR_TYPE_DATE -> datesProfile;
+				case SCALAR_TYPE_DATE, SCALAR_TYPE_TIME, SCALAR_TYPE_DATE_TIME, SCALAR_TYPE_DURATION -> datesProfile;
 				default -> false;
 			};
 			check(supported, INVALID_TYPE, path, "An explicitly supported scalar type is required.");

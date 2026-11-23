@@ -11,6 +11,7 @@ import io.finmsg.dmn.compiler.RuntimeModelMode;
 import io.finmsg.dmn.compiler.dmnir.DmnIrRuntimeAdapter;
 import io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer;
 import io.finmsg.dmn.dmnir.codec.DmnIrArtifactReader;
+import io.finmsg.dmn.tck.dmnir.TckDmnIrArchive;
 import io.finmsg.dmn.generator.java.DmnJavaGenerator;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorOptions;
 import io.finmsg.dmn.generator.java.DmnJavaGeneratorResult;
@@ -38,6 +39,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.TestInstance;
 
 /**
@@ -59,10 +62,12 @@ class OfficialTckSuiteTest {
 	private static final String TCK_REVISION = "5cd912f281831bc535e710aba435e16de198028a";
 	private static final List<String> CATALOGUE_ROOTS = List.of("compliance-level-2", "compliance-level-3");
 	private final List<TckCatalogueOutcome> outcomes = Collections.synchronizedList(new ArrayList<>());
-	private final Map<PreparationKey, Preparation> preparationCache = new HashMap<>();
-	private final Map<PreparationKey, GeneratedPreparation> generatedPreparationCache = new HashMap<>();
-	private final Map<PreparationKey, PortableGeneratedPreparation> portableGeneratedPreparationCache = new HashMap<>();
-	private final Map<PreparationKey, GrpcTckExecution> grpcPreparationCache = new HashMap<>();
+	private final Map<PreparationKey, Preparation> preparationCache = new ConcurrentHashMap<>();
+	private final Map<PreparationKey, GeneratedPreparation> generatedPreparationCache = new ConcurrentHashMap<>();
+	private final Map<PreparationKey, PortableGeneratedPreparation> portableGeneratedPreparationCache = new ConcurrentHashMap<>();
+	private TckDmnIrArchive dmnIrArchive;
+	private final Map<String, PortableGeneratedPreparation> portableArchiveCache = new ConcurrentHashMap<>();
+	private final Map<PreparationKey, GrpcTckExecution> grpcPreparationCache = new ConcurrentHashMap<>();
 	private final AtomicInteger grpcRequests = new AtomicInteger();
 	private final AtomicInteger grpcResponses = new AtomicInteger();
 	private record TypedPreparation(TypedGrpcTckExecution service, RuntimeException failure) {
@@ -72,11 +77,11 @@ class OfficialTckSuiteTest {
 			super(message);
 		}
 	}
-	private final Map<PreparationKey, TypedPreparation> typedPreparationCache = new HashMap<>();
+	private final Map<PreparationKey, TypedPreparation> typedPreparationCache = new ConcurrentHashMap<>();
 	private final AtomicInteger typedRequests = new AtomicInteger();
 	private final AtomicInteger typedResponses = new AtomicInteger();
 	private final AtomicInteger typedCompletedCases = new AtomicInteger();
-	private final Map<PreparationKey, DmnSparkSqlGeneratorResult> sparkSqlPreparationCache = new HashMap<>();
+	private final Map<PreparationKey, DmnSparkSqlGeneratorResult> sparkSqlPreparationCache = new ConcurrentHashMap<>();
 	private final AtomicInteger currentTestIndex = new AtomicInteger(0);
 	private List<RuntimeModelMode> activeModelModes = List.of();
 	private List<String> activeBackends = List.of();
@@ -129,6 +134,7 @@ class OfficialTckSuiteTest {
 	}
 
 	@TestFactory
+	@Execution(ExecutionMode.CONCURRENT)
 	Stream<DynamicTest> verifyFullOfficialOmgTckConformance() throws Exception {
 		activeModelModes = configuredModelModes();
 		activeBackends = configuredBackends(activeModelModes);
@@ -189,6 +195,10 @@ class OfficialTckSuiteTest {
 		totalTestCount = inventory.entries().stream().filter(TckCatalogueEntry::executable)
 				.mapToInt(e -> e.testCases().size() * activeBackends.size()).sum();
 		currentTestIndex.set(0);
+		if (activeBackends.stream().anyMatch(b -> b.contains("portable-java"))
+				&& Boolean.parseBoolean(System.getProperty("tck.useDmnIrArchive", "true"))) {
+			precompilePortableArchive(inventory);
+		}
 		List<DynamicTest> dynamicTests = new ArrayList<>();
 		DmnToolkitTckEngine interpreterEngine = new DmnToolkitTckEngine(OfficialExternalJavaPolicy.POLICY);
 
@@ -214,7 +224,7 @@ class OfficialTckSuiteTest {
 					addModelVariantTests(dynamicTests, interpreterEngine, entry, sources, testCase, modelMode);
 			}
 		}
-		return dynamicTests.stream();
+		return dynamicTests.parallelStream();
 	}
 
 	private static List<RuntimeModelMode> configuredModelModes() {
@@ -307,8 +317,22 @@ class OfficialTckSuiteTest {
 		if (activeBackends.contains(generatedPortableJavaBackend)) {
 			dynamicTests.add(recordedTest(testName + " @" + generatedPortableJavaBackend, entry, testCase,
 					generatedPortableJavaBackend, () -> {
-						PortableGeneratedPreparation prepared = getPortableGeneratedPreparation(sources, testCase,
-								modelMode);
+						PortableGeneratedPreparation prepared;
+						if (dmnIrArchive != null) {
+							var archived = dmnIrArchive.entry(testName);
+							if (archived.isPresent()) {
+								if (!archived.get().exported()) {
+									throw new AssertionError(archived.get().exportDiagnostic());
+								}
+								prepared = Objects.requireNonNull(
+										portableArchiveCache.get(archived.get().artifactPath()),
+										"Missing precompiled portable engine for " + archived.get().artifactPath());
+							} else {
+								prepared = getPortableGeneratedPreparation(sources, testCase, modelMode);
+							}
+						} else {
+							prepared = getPortableGeneratedPreparation(sources, testCase, modelMode);
+						}
 						if (prepared.failureDiagnostic() != null)
 							throw new AssertionError(prepared.failureDiagnostic(), prepared.failureCause());
 						executePortableGeneratedJava(prepared, testCase, testName);
@@ -490,9 +514,15 @@ class OfficialTckSuiteTest {
 
 	private PortableGeneratedPreparation getPortableGeneratedPreparation(List<DmnSource> sources, TckTestCase testCase,
 			RuntimeModelMode modelMode) {
+		List<String> sourceIds = sources.stream().map(source -> source.id().toString()).toList();
+		PreparationKey fullKey = new PreparationKey(sourceIds, Set.of(), modelMode);
+		PortableGeneratedPreparation full = portableGeneratedPreparationCache.computeIfAbsent(fullKey,
+				ignored -> preparePortableGenerated(sources, Set.of()));
+		if (full.failureDiagnostic() == null) {
+			return full;
+		}
 		Set<String> resultNames = Set.copyOf(testCase.expectedResults().keySet());
-		PreparationKey key = new PreparationKey(sources.stream().map(source -> source.id().toString()).toList(),
-				resultNames, modelMode);
+		PreparationKey key = new PreparationKey(sourceIds, resultNames, modelMode);
 		return portableGeneratedPreparationCache.computeIfAbsent(key,
 				ignored -> preparePortableGenerated(sources, resultNames));
 	}
@@ -967,10 +997,128 @@ class OfficialTckSuiteTest {
 		}
 	}
 
+	private void precompilePortableArchive(TckCatalogueInventory inv) throws Exception {
+		Optional<TckDmnIrArchive> loaded = TckDmnIrArchive.loadFromClasspath();
+		if (loaded.isEmpty() || !TCK_REVISION.equals(loaded.get().tckRevision())) {
+			return;
+		}
+		TckDmnIrArchive archive = loaded.get();
+		this.dmnIrArchive = archive;
+		long startNanos = System.nanoTime();
+
+		Set<String> neededArtifacts = new LinkedHashSet<>();
+		for (TckCatalogueEntry entry : inv.entries()) {
+			if (!entry.executable())
+				continue;
+			for (TckTestCase tc : entry.testCases()) {
+				String key = entry.id() + "#" + tc.id();
+				archive.entry(key).filter(TckDmnIrArchive.CaseEntry::exported)
+						.ifPresent(ce -> neededArtifacts.add(ce.artifactPath()));
+			}
+		}
+		if (neededArtifacts.isEmpty()) {
+			return;
+		}
+
+		Path tempDir = Files.createTempDirectory("dmn-official-tck-batch-gen");
+		Path pkgDir = tempDir.resolve("io/finmsg/dmn/tck/gen");
+		Files.createDirectories(pkgDir);
+
+		record GeneratedUnit(String artifactPath, String fqcn, Path sourceFile, String sourceCode,
+				DmnIrRuntimeAdapter.AdaptedModel adapted) {
+		}
+		List<GeneratedUnit> units = Collections.synchronizedList(new ArrayList<>());
+
+		neededArtifacts.parallelStream().forEach(artifactPath -> {
+			try {
+				byte[] protoBytes = archive.readArtifactBytes(artifactPath);
+				DmnIrArtifactReader.VerifiedArtifact verified = new DmnIrArtifactReader().read(protoBytes);
+				DmnIrRuntimeAdapter.AdaptedModel adapted = new DmnIrRuntimeAdapter().adapt(verified);
+				RuntimeOptimizedModel optModel = new RuntimeIrOptimizer().optimize(adapted.runtimeModel());
+				String className = "OmgTckPortableEngine_" + ENGINE_COUNTER.getAndIncrement();
+				String fqcn = "io.finmsg.dmn.tck.gen." + className;
+				DmnJavaGeneratorResult generated = new DmnJavaGenerator().generate(optModel,
+						DmnJavaGeneratorOptions.of("io.finmsg.dmn.tck.gen", className));
+				String code = generated.sources().get(fqcn);
+				Path sourceFile = pkgDir.resolve(className + ".java");
+				Files.writeString(sourceFile, code, java.nio.charset.StandardCharsets.UTF_8);
+				units.add(new GeneratedUnit(artifactPath, fqcn, sourceFile, code, adapted));
+			} catch (Throwable exception) {
+				String diagnostic = exception.getMessage() != null ? exception.getMessage() : exception.toString();
+				portableArchiveCache.put(artifactPath, PortableGeneratedPreparation.failure(diagnostic, exception));
+			}
+		});
+
+		int batchSize = 250;
+		List<List<GeneratedUnit>> batches = new ArrayList<>();
+		for (int i = 0; i < units.size(); i += batchSize) {
+			batches.add(units.subList(i, Math.min(i + batchSize, units.size())));
+		}
+
+		List<GeneratedUnit> compiledUnits = Collections.synchronizedList(new ArrayList<>());
+		batches.parallelStream().forEach(batch -> {
+			try {
+				Path argFile = Files.createTempFile(tempDir, "javac-batch-", ".args");
+				StringBuilder sb = new StringBuilder();
+				for (GeneratedUnit u : batch) {
+					sb.append('"').append(u.sourceFile().toAbsolutePath().toString().replace('\\', '/')).append("\"\n");
+				}
+				Files.writeString(argFile, sb.toString(), java.nio.charset.StandardCharsets.UTF_8);
+				JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+				java.io.ByteArrayOutputStream errOut = new java.io.ByteArrayOutputStream();
+				int exitCode = compiler.run(null, null, errOut, "-encoding", "UTF-8", "-d",
+						tempDir.toAbsolutePath().toString(), "@" + argFile.toAbsolutePath());
+				if (exitCode == 0) {
+					compiledUnits.addAll(batch);
+				} else {
+					for (GeneratedUnit u : batch) {
+						try {
+							Class<?> clazz = compileInMemory(u.fqcn(), u.sourceCode());
+							Object instance = clazz
+									.getDeclaredConstructor(io.finmsg.dmn.runtime.ExternalJavaPolicy.class)
+									.newInstance(OfficialExternalJavaPolicy.POLICY);
+							portableArchiveCache.put(u.artifactPath(),
+									PortableGeneratedPreparation.success(clazz, instance, u.adapted()));
+						} catch (Throwable ex) {
+							String diag = ex.getMessage() != null ? ex.getMessage() : ex.toString();
+							portableArchiveCache.put(u.artifactPath(), PortableGeneratedPreparation.failure(diag, ex));
+						}
+					}
+				}
+			} catch (Exception e) {
+				for (GeneratedUnit u : batch) {
+					portableArchiveCache.put(u.artifactPath(),
+							PortableGeneratedPreparation.failure(e.toString(), e));
+				}
+			}
+		});
+
+		URLClassLoader batchClassLoader = new URLClassLoader(new URL[]{tempDir.toUri().toURL()});
+		compiledUnits.parallelStream().forEach(u -> {
+			try {
+				Class<?> clazz = batchClassLoader.loadClass(u.fqcn());
+				Object instance = clazz.getDeclaredConstructor(io.finmsg.dmn.runtime.ExternalJavaPolicy.class)
+						.newInstance(OfficialExternalJavaPolicy.POLICY);
+				portableArchiveCache.put(u.artifactPath(),
+						PortableGeneratedPreparation.success(clazz, instance, u.adapted()));
+			} catch (Throwable ex) {
+				String diag = ex.getMessage() != null ? ex.getMessage() : ex.toString();
+				portableArchiveCache.put(u.artifactPath(), PortableGeneratedPreparation.failure(diag, ex));
+			}
+		});
+
+		double elapsedSec = (System.nanoTime() - startNanos) / 1_000_000_000.0;
+		System.out.printf("[INFO] [DMNIR-ARCHIVE] Batch-compiled %d pre-built .dmnir artifacts in %.2f s (%d batches)%n",
+				neededArtifacts.size(), elapsedSec, batches.size());
+		System.out.flush();
+	}
+
 	private PortableGeneratedPreparation preparePortableGenerated(List<DmnSource> sources, Set<String> resultNames) {
 		try {
 			List<DmnSource> scopedSources = new ArrayList<>(sources);
-			scopedSources.set(0, new TckDmnDecisionPruner().prune(sources.getFirst(), resultNames));
+			if (!resultNames.isEmpty()) {
+				scopedSources.set(0, new TckDmnDecisionPruner().prune(sources.getFirst(), resultNames));
+			}
 			DmnSource root = scopedSources.getFirst();
 			io.finmsg.dmn.compiler.DmnModelResolver resolver = scopedSources.size() > 1
 					? new io.finmsg.dmn.compiler.InMemoryDmnModelResolver(
