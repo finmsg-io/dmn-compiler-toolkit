@@ -1,6 +1,6 @@
 # Actual task: full official-TCK compliance through Protobuf DMNIR and generated Java/Rust
 
-Updated: 2026-11-23. Status: incomplete. Latest recorded full portable-DMNIR-to-generated-Java (`optimized-generated-portable-java`) result: **2,280 / 3,407 passed (66.92%)** in **3m 30s** via the pre-compiled `dmn-tck` `.dmnir` archive + batch `javac`. Latest recorded full Rust result: **1,018 / 3,407 passed (29.88%)** (2026-11-17; pending re-run against `dmn-tck`).
+Updated: 2026-11-23. Status: incomplete. Latest recorded full portable-DMNIR-to-generated-Java (`optimized-generated-portable-java`) result: **2,613 / 3,407 passed (76.70%)** in **5m 17s** via the pre-compiled `dmn-tck` `.dmnir` archive + batch `javac`. Latest recorded full Rust result: **1,018 / 3,407 passed (29.88%)** (2026-11-17; pending re-run against `dmn-tck`).
 
 ## Goal and acceptance
 
@@ -53,6 +53,7 @@ The pure portable DMNIR Java runner (`optimized-generated-portable-java`) execut
 | Baseline (`task-1846`) | Multithreaded, live DMN -> DMNIR -> per-case `javac` | ~37m 28s | `37:32 min` | **1,748 (51.31%)** |
 | Temporal + collection slice (`task-2071`) | + Real temporals, record-collection layouts, whole-model cache | ~29m 15s | `29:19 min` | **2,280 (66.92%)** (+532) |
 | **`dmn-tck` archive + batch `javac` (`task-2153`)** | **Pre-compiled `.dmnir` from `dmn-tck` + parallel batch `javac`** | **`3m 30s` (`209.9 s`)** | **`04:27 min`** | **2,280 (66.92%)** (exact parity) |
+| **9 Built-ins + Temporal Fields + `resolveItemType` (`task-2348`)** | **2,142 `.dmnir` files (1.33 MB) in `dmn-tck` + batch `javac`** | **`5m 17s`** | **`05:48 min`** | **2,613 (76.70%)** (+333 / +865 today) |
 
 Implemented in `feature/release-1.2-dmnir`:
 - **Inline FEEL Closures (`DmnIrClosure`)**: Added `DmnIrClosure closure = 17` to `dmnir.proto`, codec validation, `DmnIrRecordProducer` lowering (`FUNCTION_DEFINITION`), and `DmnIrRuntimeAdapter` adaptation (`1155-list-replace-function` -> 22/22, `0051-feel-sqrt-function` -> 15/15).

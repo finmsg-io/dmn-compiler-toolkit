@@ -415,7 +415,60 @@ public enum DmnIrBuiltinSignature {
 																																																																																																																													SCALAR_TYPE_NULL),
 																																																																																																																											List.of("from",
 																																																																																																																													"to"),
-																																																																																																																											2);
+																																																																																																																											2), DAY_OF_YEAR(
+																																																																																																																													BUILTIN_OPERATION_DAY_OF_YEAR,
+																																																																																																																													"day of year",
+																																																																																																																													SCALAR_TYPE_NUMBER,
+																																																																																																																													List.of(SCALAR_TYPE_NULL),
+																																																																																																																													List.of("date"),
+																																																																																																																													1), DAY_OF_WEEK(
+																																																																																																																															BUILTIN_OPERATION_DAY_OF_WEEK,
+																																																																																																																															"day of week",
+																																																																																																																															SCALAR_TYPE_STRING,
+																																																																																																																															List.of(SCALAR_TYPE_NULL),
+																																																																																																																															List.of("date"),
+																																																																																																																															1), MONTH_OF_YEAR(
+																																																																																																																																	BUILTIN_OPERATION_MONTH_OF_YEAR,
+																																																																																																																																	"month of year",
+																																																																																																																																	SCALAR_TYPE_STRING,
+																																																																																																																																	List.of(SCALAR_TYPE_NULL),
+																																																																																																																																	List.of("date"),
+																																																																																																																																	1), WEEK_OF_YEAR(
+																																																																																																																																			BUILTIN_OPERATION_WEEK_OF_YEAR,
+																																																																																																																																			"week of year",
+																																																																																																																																			SCALAR_TYPE_NUMBER,
+																																																																																																																																			List.of(SCALAR_TYPE_NULL),
+																																																																																																																																			List.of("date"),
+																																																																																																																																			1), STDDEV(
+																																																																																																																																					BUILTIN_OPERATION_STDDEV,
+																																																																																																																																					"stddev",
+																																																																																																																																					SCALAR_TYPE_NUMBER,
+																																																																																																																																					List.of(SCALAR_TYPE_NUMBER),
+																																																																																																																																					List.of("list"),
+																																																																																																																																					1), NOW(BUILTIN_OPERATION_NOW,
+																																																																																																																																							"now",
+																																																																																																																																							SCALAR_TYPE_DATE_TIME,
+																																																																																																																																							List.of(),
+																																																																																																																																							List.of(),
+																																																																																																																																							0), TODAY(
+																																																																																																																																									BUILTIN_OPERATION_TODAY,
+																																																																																																																																									"today",
+																																																																																																																																									SCALAR_TYPE_DATE,
+																																																																																																																																									List.of(),
+																																																																																																																																									List.of(),
+																																																																																																																																									0), GET_ENTRIES(
+																																																																																																																																											BUILTIN_OPERATION_GET_ENTRIES,
+																																																																																																																																											"get entries",
+																																																																																																																																											SCALAR_TYPE_NULL,
+																																																																																																																																											List.of(SCALAR_TYPE_NULL),
+																																																																																																																																											List.of("m"),
+																																																																																																																																											1), CONTEXT(
+																																																																																																																																													BUILTIN_OPERATION_CONTEXT,
+																																																																																																																																													"context",
+																																																																																																																																													SCALAR_TYPE_NULL,
+																																																																																																																																													List.of(SCALAR_TYPE_NULL),
+																																																																																																																																													List.of("entries"),
+																																																																																																																																													1);
 
 	private final DmnIrBuiltinOperation operation;
 	private final String feelName;
@@ -440,7 +493,7 @@ public enum DmnIrBuiltinSignature {
 	 */
 	public boolean collectionParameter(int parameterIndex) {
 		return switch (this) {
-			case SUM, MIN, MAX, MEAN, MEDIAN, ALL, ANY, PRODUCT -> parameterIndex == 0;
+			case SUM, MIN, MAX, MEAN, MEDIAN, ALL, ANY, PRODUCT, STDDEV -> parameterIndex == 0;
 			case STRING_JOIN, SUBLIST, APPEND, INSERT_BEFORE, REMOVE, REVERSE, DISTINCT_VALUES, FLATTEN, LIST_CONTAINS,
 					COUNT, MODE, SORT, LIST_REPLACE, CONTEXT_MERGE ->
 				parameterIndex == 0;

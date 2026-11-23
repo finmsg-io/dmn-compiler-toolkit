@@ -979,15 +979,20 @@ public final class DmnIrArtifactReader {
 					var access = expression.getFieldAccess();
 					check(access.hasSource(), INVALID_EXPRESSION, path, "Field source is required.");
 					node(access.getSource(), owner, dependencies, path + ".field_access.source", depth + 1);
-					check(access.getSource().hasRecordType(), INVALID_TYPE, path,
-							"Field source must be a named record.");
-					var record = records.get(Address.of(access.getSource().getRecordType()));
-					var field = record.getFieldsList().stream().filter(f -> f.getName().equals(access.getFieldName()))
-							.findFirst();
-					check(field.isPresent(), INVALID_REFERENCE, path + ".field_access.field_name",
-							"Field does not exist.");
-					check(field.orElseThrow().getType().equals(nodeType), INVALID_TYPE, path + ".type",
-							"Field result type must match its declaration.");
+					if (datesProfile && isTemporal(access.getSource().getType())) {
+						check(!access.getFieldName().isBlank(), INVALID_REFERENCE, path + ".field_access.field_name",
+								"Temporal property name is required.");
+					} else {
+						check(access.getSource().hasRecordType(), INVALID_TYPE, path,
+								"Field source must be a named record.");
+						var record = records.get(Address.of(access.getSource().getRecordType()));
+						var field = record.getFieldsList().stream()
+								.filter(f -> f.getName().equals(access.getFieldName())).findFirst();
+						check(field.isPresent(), INVALID_REFERENCE, path + ".field_access.field_name",
+								"Field does not exist.");
+						check(field.orElseThrow().getType().equals(nodeType), INVALID_TYPE, path + ".type",
+								"Field result type must match its declaration.");
+					}
 				}
 				case CLOSURE -> {
 					check(closureProfile, UNSUPPORTED_CAPABILITY, path, "Closures require profile 0.11.");

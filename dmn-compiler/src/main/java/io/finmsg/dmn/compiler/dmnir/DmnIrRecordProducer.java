@@ -780,8 +780,25 @@ final class DmnIrRecordProducer {
 		if (source.hasPath()) {
 			var value = source.getPath();
 			var parent = expression(value.getSource(), model, path + "/source", dependencies, depth + 1);
-			if (!parent.hasRecordType())
+			if (!parent.hasRecordType()) {
+				var pt = parent.getType();
+				if (pt == DmnIrScalarType.SCALAR_TYPE_DATE || pt == DmnIrScalarType.SCALAR_TYPE_TIME
+						|| pt == DmnIrScalarType.SCALAR_TYPE_DATE_TIME || pt == DmnIrScalarType.SCALAR_TYPE_DURATION) {
+					DmnIrScalarType propType = switch (value.getMember()) {
+						case "timezone" -> DmnIrScalarType.SCALAR_TYPE_STRING;
+						case "time offset" -> DmnIrScalarType.SCALAR_TYPE_DURATION;
+						case "year", "month", "day", "weekday", "hour", "minute", "second", "years", "months", "days",
+								"hours", "minutes", "seconds" ->
+							DmnIrScalarType.SCALAR_TYPE_NUMBER;
+						default -> DmnIrScalarType.SCALAR_TYPE_NULL;
+					};
+					return DmnIrExpression.newBuilder().setType(propType)
+							.setFieldAccess(
+									DmnIrFieldAccess.newBuilder().setSource(parent).setFieldName(value.getMember()))
+							.build();
+				}
 				throw unsupported();
+			}
 			var record = records.get(parent.getRecordType());
 			if (record == null)
 				throw unsupported();
