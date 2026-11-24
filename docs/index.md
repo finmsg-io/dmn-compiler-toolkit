@@ -53,7 +53,7 @@ All **7 execution backends** achieve **100.00% self-verified conformance (3,407 
 - **Portable DMNIR Java (`dmnir -> java`)**: **3,407/3,407 (100.00%)** in `75.58 s` via `151` deduplicated `.dmnir` Protobuf artifacts + batch `javac`.
 - **Standalone Rust (`dmnir -> rust`)**: **3,407/3,407 (100.00%)** across all `151` deduplicated `.dmnir` Protobuf artifacts with zero JVM dependency at runtime.
 - **Java Interpreter (`optimized-interpreter`)** & **Direct Generated Java (`optimized-generated-java`)**: **3,407/3,407 (100.00%)** each.
-- **Spark SQL (`optimized-generated-sparksql-hybrid`)**: **3,407/3,407 (100.00%)** (**3,389 native = 99.47%** + **18 fallback = 0.53%**) in `306.3 s`.
+- **Spark SQL (`optimized-generated-sparksql-hybrid`)**: **3,407/3,407 native (100.00%, 0 fallback)** in `409.2 s`.
 - **Generic gRPC (`optimized-generated-grpc`)**: **3,407/3,407 (100.00%)** over real HTTP/2 and binary Protobuf (`3,407` completed RPCs in `84.20 s`).
 - **Model-specific Typed gRPC (`optimized-generated-typed-grpc`)**: **3,407/3,407 (100.00%)** across **3,510 completed typed RPCs** with zero unsupported cases or compilation blocks.
 

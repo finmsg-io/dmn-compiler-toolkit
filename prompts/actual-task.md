@@ -5,7 +5,7 @@ Updated: 2026-11-24. Status: **COMPLETE (100.00% across ALL 7 backends — 23,84
 - **`dmnir -> rust`** (`dmn-generator-rust` + `dmn-rust-tck-runner`): **3,407 / 3,407 passed (100.00%)** (`0` export rejections, `0` Rust rejections, `0` build errors, `0` execution errors, `0` failures) across all `151` deduplicated `.dmnir` files from `dmn-tck` (`target/rust-tck-3407/rust-tck-accounting.tsv`).
 - **Interpreter (Java)** (`optimized-interpreter`): **3,407 / 3,407 passed (100.00%)** in **36.05 s** (`1m 08s` Maven), `0` failures, `0` errors.
 - **Direct Generated Java** (`optimized-generated-java`): **3,407 / 3,407 passed (100.00%)**, `0` failures, `0` errors.
-- **Spark SQL** (`optimized-generated-sparksql-hybrid`): **3,407 / 3,407 passed (100.00%)** (**3,389 native = 99.47%** + **18 fallback = 0.53%**, `0` failures, `0` errors) in **306.3 s** (`5m 30s` Maven, `NO_CODEGEN`, `120 s` per-case timeout).
+- **Spark SQL** (`optimized-generated-sparksql-hybrid`): **3,407 / 3,407 passed (100.00% native, 0 fallback)** (`0` failures, `0` errors, `0` compilation blocks, `0` unknown routes) in **409.2 s** (`7m 20s` Maven, `NO_CODEGEN`, `120 s` per-case timeout).
 - **Generic gRPC** (`optimized-generated-grpc`): **3,407 / 3,407 passed (100.00%)** (`3,407` HTTP/2 Protobuf RPCs completed, `0` failures, `0` errors) in **84.20 s** (`1m 37s` Maven).
 - **Typed gRPC** (`optimized-generated-typed-grpc`): **3,407 / 3,407 passed (100.00%)** (`3,510` typed HTTP/2 Protobuf RPCs completed, `0` unsupported, `0` compilation errors, `0` failures, `0` errors) in **999.2 s** (`17m 10s` Maven).
 

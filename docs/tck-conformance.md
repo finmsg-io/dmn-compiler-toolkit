@@ -33,7 +33,7 @@ Latest full 7-backend assessment (2026-11-24, pinned TCK revision `5cd912f281831
 - **`dmnir -> rust`** (`dmn-generator-rust` + `dmn-rust-tck-runner`): **3,407/3,407 passed (100.00%)** across all `151` deduplicated `.dmnir` Protobuf artifacts in `dmn-tck`.
 - **Interpreter (Java)** (`optimized-interpreter`): **3,407/3,407 passed (100.00%)** in **36.05 s** (`1m 08s` Maven).
 - **Direct Generated Java** (`optimized-generated-java`): **3,407/3,407 passed (100.00%)**.
-- **Spark SQL** (`optimized-generated-sparksql-hybrid`): **3,407/3,407 passed (100.00%)** (**3,389 native = 99.47%** + **18 fallback = 0.53%**) in **306.3 s** (`5m 30s` Maven, `NO_CODEGEN`, `120 s` per-case timeout).
+- **Spark SQL** (`optimized-generated-sparksql-hybrid`): **3,407/3,407 passed (100.00% native, 0 fallback)** in **409.2 s** (`7m 20s` Maven, `NO_CODEGEN`, `120 s` per-case timeout).
 - **Generic gRPC** (`optimized-generated-grpc`): **3,407/3,407 passed (100.00%)** (`3,407` completed HTTP/2 Protobuf RPCs) in **84.20 s** (`1m 37s` Maven).
 - **Typed gRPC** (`optimized-generated-typed-grpc`): **3,407/3,407 passed (100.00%)** (`3,510` completed typed HTTP/2 Protobuf RPCs, `0` unsupported, `0` compilation errors) in **999.2 s** (`17m 10s` Maven).
 
@@ -68,7 +68,7 @@ Every backend passes all **3,407 / 3,407 cases (100.00%)** with `0` failures, `0
 | **`dmnir -> java`** (`optimized-generated-portable-java`) | **3,407 (100.00%)** | 0 | 0 | `75.58 s` (`1m 52s` Maven) |
 | **Interpreter (Java)** (`optimized-interpreter`) | **3,407 (100.00%)** | 0 | 0 | `36.05 s` (`1m 08s` Maven) |
 | **Direct Generated Java** (`optimized-generated-java`) | **3,407 (100.00%)** | 0 | 0 | Combined `-Ptck` run |
-| **Spark SQL** (`optimized-generated-sparksql-hybrid`) | **3,407 (100.00%)** | 0 | 0 | **3,389 native (99.47%)** + 18 fallback (`0.53%`), `306.3 s` |
+| **Spark SQL** (`optimized-generated-sparksql-hybrid`) | **3,407 (100.00%)** | 0 | 0 | **3,407 native (100.00%)**, **0 fallback (0.00%)**, `409.2 s` |
 | **Generic gRPC** (`optimized-generated-grpc`) | **3,407 (100.00%)** | 0 | 0 | `3,407` RPCs completed (`84.20 s`) |
 | **Typed gRPC** (`optimized-generated-typed-grpc`) | **3,407 (100.00%)** | 0 | 0 | `3,510` RPCs completed, `0` unsupported (`999.2 s`) |
 | **Total (all 7 backends)** | **23,849 / 23,849 (100.00%)** | **0** | **0** | All backends independently verified on `5cd912f2...` |

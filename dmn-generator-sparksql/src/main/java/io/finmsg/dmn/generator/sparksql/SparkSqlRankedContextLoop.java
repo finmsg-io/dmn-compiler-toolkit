@@ -14,13 +14,25 @@ final class SparkSqlRankedContextLoop {
 	private record Plan(RuntimeRelationExpression source, SparkSqlScalarGraph.ContextBody body,
 			List<Ranking> rankings) {
 	}
+	private static RuntimeExpression unwrapCoercion(RuntimeExpression expr) {
+		if (expr instanceof RuntimeInvocationExpression inv && inv.function().isEmpty()
+				&& inv.namedArguments().isEmpty() && inv.positionalArguments().size() == 1
+				&& inv.target().orElse(null) instanceof RuntimeFunctionDefinition fn && !fn.external()
+				&& fn.parameters().size() == 1
+				&& fn.body().orElse(null) instanceof RuntimeLocalReference ref
+				&& ref.lexicalDepth() == 0 && ref.localSlot() == fn.parameters().getFirst().localSlot()) {
+			return inv.positionalArguments().getFirst();
+		}
+		return expr;
+	}
+
 	private static Plan plan(RuntimeModel model, RuntimeDecision decision) {
 		if (decision.decisionTable().isPresent() || decision.type().kind() != RuntimeTypeKind.CONTEXT
 				|| !(decision.expression().orElse(null) instanceof RuntimeContextExpression context)
 				|| context.entries().isEmpty() || context.entries().size() > 9)
 			return null;
 		var first = context.entries().getFirst();
-		if (!(first.expression() instanceof RuntimeForExpression loop) || loop.iterations().size() != 1
+		if (!(unwrapCoercion(first.expression()) instanceof RuntimeForExpression loop) || loop.iterations().size() != 1
 				|| loop.partialSlot() >= 0 || loop.iterations().getFirst().end().isPresent()
 				|| !(loop.iterations().getFirst().source() instanceof RuntimeValueReference ref))
 			return null;
@@ -70,7 +82,7 @@ final class SparkSqlRankedContextLoop {
 				rankings.add(new Ranking(entry.name(), -1, false));
 				continue;
 			}
-			RuntimeExpression expr = entry.expression();
+			RuntimeExpression expr = unwrapCoercion(entry.expression());
 			if (expr instanceof RuntimeInvocationExpression call && call.function().isPresent()
 					&& call.namedArguments().isEmpty())
 				expr = new RuntimeFunctionCall(call.function().get(), call.positionalArguments(), call.type());

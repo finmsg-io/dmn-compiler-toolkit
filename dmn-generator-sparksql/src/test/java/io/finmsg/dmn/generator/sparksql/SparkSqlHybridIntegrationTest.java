@@ -210,7 +210,8 @@ class SparkSqlHybridIntegrationTest {
 				new Object[]{BigDecimal.ONE, zero, zero, "LOW", zero, null});
 		for (var c : cases) {
 			var inputs = Map.<Integer, Object>of(0, affordabilityInput(c[0], c[1], c[2], c[3], c[4], c[5], Double.NaN));
-			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 			spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 					generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 			for (var file : List.of("Decision_2.sql", "AllDecisions.sql"))
@@ -262,7 +263,8 @@ class SparkSqlHybridIntegrationTest {
 				"", null)) {
 			var inputs = new HashMap<Integer, Object>();
 			inputs.put(0, value);
-			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 			spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 					generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 			for (var file : List.of("Decision_2.sql", "AllDecisions.sql"))
@@ -301,7 +303,8 @@ class SparkSqlHybridIntegrationTest {
 				spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 						generated.inputSchema()).repartition(1).createOrReplaceTempView("hybrid_inputs");
 				if (value == null || value instanceof BigDecimal) {
-					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 					for (var file : List.of("Decision_2.sql", "AllDecisions.sql"))
 						assertThat(SparkSqlFeelValueCodec
 								.fromSpark(spark.sql(generated.sqlFiles().get(file)).head().get(0)))
@@ -368,7 +371,8 @@ class SparkSqlHybridIntegrationTest {
 				inputs.put(0, sample[0]);
 				inputs.put(1, sample[1]);
 				inputs.put(2, sample[2]);
-				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 				spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 						generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 				for (var file : List.of("Decision_4.sql", "AllDecisions.sql")) {
@@ -463,7 +467,8 @@ class SparkSqlHybridIntegrationTest {
 							new BigDecimal("0.0000000000000000000000000000000000000001"), new BigDecimal("-1.2300")),
 					List.<BigDecimal>of())) {
 				var inputs = Map.<Integer, Object>of(0, nested ? Map.of("amounts", values, "label", "x") : values);
-				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 				spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 						generated.inputSchema()).repartition(2).createOrReplaceTempView("hybrid_inputs");
 				for (var file : List.of("Decision_1.sql", "AllDecisions.sql"))
@@ -663,7 +668,8 @@ class SparkSqlHybridIntegrationTest {
 		for (Object value : Arrays.asList(List.of(loan1, loan2), List.of(loan2, loan1), List.of(), null)) {
 			var inputs = new HashMap<Integer, Object>();
 			inputs.put(0, value);
-			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 			spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 					generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 			for (var file : List.of("Decision_2.sql", "AllDecisions.sql"))
@@ -724,13 +730,13 @@ class SparkSqlHybridIntegrationTest {
 		for (Object row : Arrays
 				.asList(Map.of("amount", BigDecimal.ONE, "rate", BigDecimal.ZERO, "term", BigDecimal.ONE), null)) {
 			var inputs = Map.<Integer, Object>of(0, Collections.singletonList(row));
-			assertThatThrownBy(() -> new io.finmsg.dmn.runtime.DmnRuntime().evaluate(payment, inputs))
-					.isInstanceOf(RuntimeException.class);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(payment, inputs).decisionValue(10);
+			assertThat(expected).isEqualTo(Collections.singletonList(null));
 			spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(payment, inputs, paymentSql.inputSchema())),
 					paymentSql.inputSchema()).repartition(1).createOrReplaceTempView("hybrid_inputs");
 			for (var file : List.of("Decision_2.sql", "AllDecisions.sql"))
-				assertThatThrownBy(() -> spark.sql(paymentSql.sqlFiles().get(file)).head())
-						.isInstanceOf(Exception.class);
+				assertThat(SparkSqlFeelValueCodec.fromSpark(spark.sql(paymentSql.sqlFiles().get(file)).head().get(0)))
+						.isEqualTo(expected);
 		}
 		for (Object row : List.of(Map.of("amount", BigDecimal.ONE, "term", BigDecimal.ONE))) {
 			var inputs = Map.<Integer, Object>of(0, Collections.singletonList(row));
@@ -794,7 +800,8 @@ class SparkSqlHybridIntegrationTest {
 			var inputs = new HashMap<Integer, Object>();
 			inputs.put(0, pair[0]);
 			inputs.put(1, pair[1]);
-			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 			spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 					generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 			for (var file : List.of("Decision_3.sql", "AllDecisions.sql"))
@@ -864,7 +871,8 @@ class SparkSqlHybridIntegrationTest {
 			inputs.put(1, pair[1] == null ? null : new BigDecimal(pair[1]));
 			spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 					generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
-			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 			for (String file : List.of("Decision_2.sql", "AllDecisions.sql"))
 				assertThat(
 						SparkSqlFeelValueCodec.fromSpark(spark.sql(generated.sqlFiles().get(file)).head().get(0), type))
@@ -891,7 +899,8 @@ class SparkSqlHybridIntegrationTest {
 			inputs.put(1, pair[1]);
 			spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 					generated.inputSchema()).repartition(1).createOrReplaceTempView("hybrid_inputs");
-			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 			for (var file : List.of("Decision_2.sql", "AllDecisions.sql"))
 				assertThat(
 						SparkSqlFeelValueCodec.fromSpark(spark.sql(generated.sqlFiles().get(file)).head().get(0), type))
@@ -952,7 +961,8 @@ class SparkSqlHybridIntegrationTest {
 			inputs.put(1, pair[1]);
 			var row = SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema());
 			spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
-			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 			for (String file : List.of("Decision_2.sql", "AllDecisions.sql"))
 				assertThat(
 						SparkSqlFeelValueCodec.fromSpark(spark.sql(generated.sqlFiles().get(file)).head().get(0), type))
@@ -1040,7 +1050,6 @@ class SparkSqlHybridIntegrationTest {
 		var cases = List.of(new Object[]{List.of(maximum), List.of(new BigDecimal("0.1"))},
 				new Object[]{List.of(maximum), List.of(new BigDecimal("0.0"))},
 				new Object[]{List.of(minimum), List.of(new BigDecimal("1E1"))},
-				new Object[]{Arrays.asList((Object) null), List.of(BigDecimal.ONE)},
 				new Object[]{List.of(Double.NaN), List.of(BigDecimal.ONE)});
 		for (var pair : cases) {
 			Map<Integer, Object> inputs = Map.of(0, pair[0], 1, pair[1]);
@@ -1053,6 +1062,13 @@ class SparkSqlHybridIntegrationTest {
 				assertThatThrownBy(() -> spark.sql(generated.sqlFiles().get(file)).collectAsList())
 						.hasMessageContaining("FEEL product");
 		}
+		Map<Integer, Object> nullInputs = Map.of(0, Arrays.asList((Object) null), 1, List.of(BigDecimal.ONE));
+		Object nullExpected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, nullInputs).decisionValue(10);
+		spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, nullInputs, generated.inputSchema())),
+				generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
+		for (String file : List.of("Decision_2.sql", "AllDecisions.sql"))
+			assertThat(SparkSqlFeelValueCodec.fromSpark(spark.sql(generated.sqlFiles().get(file)).head().get(0)))
+					.isEqualTo(nullExpected);
 	}
 
 	@Test
@@ -1095,7 +1111,8 @@ class SparkSqlHybridIntegrationTest {
 			var row = SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema());
 			assertThat(row.get(0)).isEqualTo(SparkSqlFeelValueCodec.inputRow(model, inputs).get(0));
 			spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
-			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 			for (String file : List.of("Decision_2.sql", "AllDecisions.sql"))
 				assertThat(
 						SparkSqlFeelValueCodec.fromSpark(spark.sql(generated.sqlFiles().get(file)).head().get(0), list))
@@ -1256,14 +1273,11 @@ class SparkSqlHybridIntegrationTest {
 		var model = indexedJoinFixture();
 		var generated = SparkSqlHybridTest.generate(model);
 		var one = BigDecimal.ONE;
-		var cases = List.of(
+		var cases = List.<Object[]>of(
 				new Object[]{
 						List.of(joinRow("number", one, "manager", "first"),
 								joinRow("number", Double.NaN, "manager", "invalid later")),
-						List.of(joinRow("dept", one, "name", "Name")), "Name"},
-				new Object[]{List.of(joinRow("number", null, "manager", "null key")), Arrays.asList((Object) null),
-						null},
-				new Object[]{Arrays.asList((Object) null), null, "Name"});
+						List.of(joinRow("dept", one, "name", "Name")), "Name"});
 		for (var pair : cases) {
 			Map<Integer, Object> inputs = new HashMap<>();
 			inputs.put(0, pair[0]);
@@ -1277,6 +1291,23 @@ class SparkSqlHybridIntegrationTest {
 			for (String file : List.of("Decision_3.sql", "AllDecisions.sql"))
 				assertThatThrownBy(() -> spark.sql(generated.sqlFiles().get(file)).collectAsList())
 						.hasMessageContaining("FEEL join");
+		}
+		var nullCases = List.of(
+				new Object[]{List.of(joinRow("number", null, "manager", "null key")), Arrays.asList((Object) null),
+						null},
+				new Object[]{Arrays.asList((Object) null), null, "Name"});
+		for (var pair : nullCases) {
+			Map<Integer, Object> inputs = new HashMap<>();
+			inputs.put(0, pair[0]);
+			inputs.put(1, pair[1]);
+			inputs.put(2, pair[2]);
+			Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
+			var row = SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema());
+			spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
+			for (String file : List.of("Decision_3.sql", "AllDecisions.sql"))
+				assertThat(SparkSqlFeelValueCodec.fromSpark(spark.sql(generated.sqlFiles().get(file)).head().get(0)))
+						.isEqualTo(expected);
 		}
 	}
 
@@ -1322,7 +1353,8 @@ class SparkSqlHybridIntegrationTest {
 				assertThat((byte[]) row.get(0))
 						.isEqualTo((byte[]) SparkSqlFeelValueCodec.inputRow(model, inputs).get(0));
 				spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
-				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 				assertThat(SparkSqlFeelValueCodec
 						.fromSpark(spark.sql(generated.sqlFiles().get("Decision_1.sql")).head().get(0), any))
 						.as("%s input=%s", function, value).isEqualTo(expected);
@@ -1579,7 +1611,8 @@ class SparkSqlHybridIntegrationTest {
 					assertThat(row.get(0)).isEqualTo(SparkSqlFeelValueCodec.inputRow(model, inputs).get(0));
 					spark.createDataFrame(List.of(row), generated.inputSchema())
 							.createOrReplaceTempView("hybrid_inputs");
-					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 					assertThat(SparkSqlFeelValueCodec
 							.fromSpark(spark.sql(generated.sqlFiles().get("Decision_1.sql")).head().get(0), resultType))
 							.as("literal=%s result=%s source=%s", literal, resultType, source).isEqualTo(expected);
@@ -1635,7 +1668,8 @@ class SparkSqlHybridIntegrationTest {
 					var row = SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema());
 					spark.createDataFrame(List.of(row), generated.inputSchema())
 							.createOrReplaceTempView("hybrid_inputs");
-					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 					assertThat(spark.sql(generated.sqlFiles().get("Decision_2.sql")).head().get(0))
 							.as("named=%s first=%s second=%s", named, first, second).isEqualTo(expected);
 					assertThat(spark.sql(generated.sqlFiles().get("AllDecisions.sql")).head().get(0))
@@ -3815,7 +3849,8 @@ class SparkSqlHybridIntegrationTest {
 							generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 					Object actual = SparkSqlFeelValueCodec
 							.fromSpark(spark.sql(generated.sqlFiles().get("Decision_3.sql")).head().get(0));
-					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 					assertThat(actual).as("%s on %s", call, values).isEqualTo(expected);
 				}
 			}
@@ -4847,7 +4882,8 @@ class SparkSqlHybridIntegrationTest {
 				spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 				Object actual = SparkSqlFeelValueCodec
 						.fromSpark(spark.sql(generated.sqlFiles().get("Decision_1.sql")).head().get(0));
-				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 				if (expected instanceof BigDecimal decimal)
 					assertThat((BigDecimal) actual).as("%s(%s)", name, value).isEqualByComparingTo(decimal);
 				else
@@ -5259,7 +5295,8 @@ class SparkSqlHybridIntegrationTest {
 			for (BigDecimal value : Arrays.asList(new BigDecimal("2.5"), new BigDecimal("-5"), null)) {
 				Map<Integer, Object> inputs = new HashMap<>();
 				inputs.put(0, value);
-				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs).decisionValue(10);
+				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
+					.decisionValue(model.decisions().getFirst().id());
 				spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 						generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 				Object actual = SparkSqlFeelValueCodec

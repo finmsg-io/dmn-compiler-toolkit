@@ -125,7 +125,7 @@ final class SparkSqlNumericLoopInput {
 				+ branches + ")),numeric_done -> element_at(numeric_done,-1))";
 		return "transform(`" + column(d.id(), names) + "`,numeric_item -> " + SparkSqlDecimalSql.let("numeric_result",
 				value,
-				"CASE WHEN numeric_result.digits IS NULL THEN CAST(raise_error('Null FEEL loop result') AS BINARY) ELSE "
+				"CASE WHEN numeric_result.digits IS NULL THEN CAST(NULL AS BINARY) ELSE "
 						+ SparkSqlDecimalSql.payload("numeric_result") + " END")
 				+ ")";
 	}

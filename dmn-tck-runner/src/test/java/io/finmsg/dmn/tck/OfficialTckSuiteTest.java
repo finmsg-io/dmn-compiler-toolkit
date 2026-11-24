@@ -88,8 +88,7 @@ class OfficialTckSuiteTest {
 	private int totalTestCount = 0;
 	private TckCatalogueInventory inventory;
 	private SparkSession spark;
-	private final Semaphore sparkConcurrency = new Semaphore(
-			Integer.getInteger("tck.spark.concurrency", Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors()))));
+	private final Semaphore sparkConcurrency = new Semaphore(Integer.getInteger("tck.spark.concurrency", 2));
 	private static final boolean SPARK_HYBRID = Boolean.parseBoolean(System.getProperty("tck.spark.hybrid", "true"));
 	private final Map<String, String> sparkRoutes = new ConcurrentHashMap<>();
 	private final Map<String, String> expectedRejectionDiagnostics = new ConcurrentHashMap<>();

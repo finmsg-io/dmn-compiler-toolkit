@@ -71,7 +71,7 @@ The [public TCK record](../tck-conformance.md) owns current figures and provenan
   - Portable DMNIR Java (`dmnir -> java`): **3,407 / 3,407 (100.00%)** (`75.58 s`)
   - Java Interpreter (`optimized-interpreter`): **3,407 / 3,407 (100.00%)** (`36.05 s`)
   - Direct Generated Java (`optimized-generated-java`): **3,407 / 3,407 (100.00%)**
-  - Optimized Spark SQL (`optimized-generated-sparksql-hybrid`): **3,407 / 3,407 (100.00%)** (**3,389 native = 99.47%** + 18 fallback = 0.53%, `0` compilation blocks, `0` unknown routes, `306.3 s`)
+  - Optimized Spark SQL (`optimized-generated-sparksql-hybrid`): **3,407 / 3,407 native (100.00%)** (**0 fallback**, `0` compilation blocks, `0` unknown routes, `409.2 s`)
   - Generic gRPC (`optimized-generated-grpc`): **3,407 / 3,407 (100.00%)** (`3,407` RPCs, `84.20 s`)
   - Typed gRPC (`optimized-generated-typed-grpc`): **3,407 / 3,407 (100.00%)** (`3,510` RPCs, `0` unsupported, `999.2 s`)
 - [Historical retained Spark ledger](../assets/tck-accounting-sparksql-native.json): pinned TCK revision `20274cd2ba9cad805db6114f331c743f4b2603a1` (3,391 cases), Spark 4.2.0 and JDK 25.

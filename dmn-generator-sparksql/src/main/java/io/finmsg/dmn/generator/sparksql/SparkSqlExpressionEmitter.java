@@ -3372,7 +3372,10 @@ public final class SparkSqlExpressionEmitter {
 		Object dateLoop = SparkSqlDateLoopProof.value(decision);
 		if (dateLoop != null)
 			return dateLoop;
-		if (decision.type() == null || decision.type().kind() != RuntimeTypeKind.ANY
+		if (decision.type() == null
+				|| !Set.of(RuntimeTypeKind.ANY, RuntimeTypeKind.DATE, RuntimeTypeKind.TIME, RuntimeTypeKind.DATE_TIME,
+						RuntimeTypeKind.DURATION, RuntimeTypeKind.YEARS_MONTHS_DURATION,
+						RuntimeTypeKind.DAYS_TIME_DURATION).contains(decision.type().kind())
 				|| decision.decisionTable().isPresent())
 			return null;
 		RuntimeExpression expression = decision.expression().orElse(null);
@@ -3397,11 +3400,66 @@ public final class SparkSqlExpressionEmitter {
 		if (expression instanceof RuntimePathExpression path)
 			expression = nativeTemporalPropertyConstant(path);
 		if (!(expression instanceof RuntimeConstant constant)
+				|| decision.type().kind() != RuntimeTypeKind.ANY
 				|| !Set.of(RuntimeConstantKind.TIME, RuntimeConstantKind.DATE_TIME, RuntimeConstantKind.DURATION)
 						.contains(constant.kind())
 				|| constant.value().length() > 256)
 			return null;
 		return staticConstantValue(constant);
+	}
+
+	static Object nativeClosedConstantValue(RuntimeModel model, RuntimeDecision decision) {
+		if (decision.decisionTable().isPresent() || decision.expression().isEmpty())
+			return null;
+		if (SparkSqlFeelValueCodec.isNativeType(decision.type()))
+			return null;
+		RuntimeExpression root = decision.expression().get();
+		boolean supportedRoot = (root instanceof RuntimeInvocationExpression inv && inv.function().isEmpty()
+				&& inv.target().orElse(null) instanceof RuntimeValueReference targetRef
+				&& model.businessKnowledgeModels().stream().anyMatch(b -> b.resultSlot() == targetRef.sourceSlot())
+				&& Set.of(RuntimeTypeKind.DATE, RuntimeTypeKind.DATE_TIME, RuntimeTypeKind.LIST)
+						.contains(decision.type().kind()))
+				|| (root instanceof RuntimeContextExpression ctx && !ctx.entries().isEmpty()
+						&& ctx.entries().getLast().name().isEmpty()
+						&& ctx.entries().getLast().expression() instanceof RuntimeListExpression);
+		if (!supportedRoot)
+			return null;
+		Set<Integer> required = SparkSqlDecisionGraph.required(model, decision.id(), true);
+		for (RuntimeInput input : model.inputs()) {
+			if (required.contains(input.id()))
+				return null;
+		}
+		for (RuntimeBkm bkm : model.businessKnowledgeModels()) {
+			if (required.contains(bkm.id())
+					&& (bkm.functionKind() != RuntimeFunctionKind.FEEL || bkm.function().isEmpty()
+							|| bkm.function().get().external()))
+				return null;
+		}
+		boolean[] disallowed = {false};
+		for (RuntimeDecision dep : model.decisions()) {
+			if (!required.contains(dep.id()))
+				continue;
+			if (dep.decisionTable().isPresent())
+				return null;
+			dep.expression().ifPresent(expr -> SparkSqlPayloadCodec.walk(expr, node -> {
+				if (node instanceof RuntimeForExpression || node instanceof RuntimeFilterExpression
+						|| node instanceof RuntimeQuantifiedExpression) {
+					disallowed[0] = true;
+				}
+			}));
+		}
+		if (disallowed[0])
+			return null;
+		try {
+			Object value = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of())
+					.decisionValue(decision.resultSlot());
+			if (value == null)
+				return null;
+			SparkSqlFeelValueCodec.encode(value);
+			return value;
+		} catch (RuntimeException ignored) {
+			return null;
+		}
 	}
 
 	private static boolean boundedTemporalArithmetic(RuntimeExpression expression, int depth, int[] budget) {

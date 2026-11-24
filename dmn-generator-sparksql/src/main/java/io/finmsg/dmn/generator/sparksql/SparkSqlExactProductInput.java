@@ -107,7 +107,7 @@ final class SparkSqlExactProductInput {
 		result = "CASE WHEN (product_scale < -2147483648L OR product_scale > 2147483647L) AND product_a.digits<>'0' THEN CAST(raise_error('FEEL product scale overflow') AS BINARY) ELSE "
 				+ result + " END";
 		result = let("product_scale", "product_a.scale+product_b.scale", result);
-		return "CASE WHEN product_a.invalid OR product_b.invalid THEN CAST(raise_error('Invalid FEEL product number') AS BINARY) WHEN product_a.digits IS NULL OR product_b.digits IS NULL THEN CAST(raise_error('Null FEEL product result') AS BINARY) ELSE "
+		return "CASE WHEN product_a.invalid OR product_b.invalid THEN CAST(raise_error('Invalid FEEL product number') AS BINARY) WHEN product_a.digits IS NULL OR product_b.digits IS NULL THEN CAST(NULL AS BINARY) ELSE "
 				+ result + " END";
 	}
 	private static String let(String name, String value, String expression) {

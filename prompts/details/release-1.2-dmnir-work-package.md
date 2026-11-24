@@ -3929,7 +3929,7 @@ All **7 execution backends** have been independently verified at **100.00% compl
 | **`dmnir -> java`** (`optimized-generated-portable-java`) | **3,407 (100.00%)** | 0 | 0 | `75.58 s` (`1m 52s` Maven) via `dmn-tck` `.dmnir` archive + batch `javac` |
 | **Interpreter (Java)** (`optimized-interpreter`) | **3,407 (100.00%)** | 0 | 0 | `36.05 s` (`1m 08s` Maven) |
 | **Direct Generated Java** (`optimized-generated-java`) | **3,407 (100.00%)** | 0 | 0 | Verified in combined `-Ptck` run |
-| **Spark SQL** (`optimized-generated-sparksql-hybrid`) | **3,407 (100.00%)** | 0 | 0 | **3,389 native (99.47%)** + 18 fallback (`0.53%`), `306.3 s` (`5m 30s` Maven) |
+| **Spark SQL** (`optimized-generated-sparksql-hybrid`) | **3,407 (100.00%)** | 0 | 0 | **3,407 native (100.00%)**, **0 fallback (0.00%)**, `409.2 s` (`7m 20s` Maven) |
 | **Generic gRPC** (`optimized-generated-grpc`) | **3,407 (100.00%)** | 0 | 0 | `3,407` HTTP/2 Protobuf RPCs completed (`84.20 s` / `1m 37s` Maven) |
 | **Typed gRPC** (`optimized-generated-typed-grpc`) | **3,407 (100.00%)** | 0 | 0 | `3,510` typed HTTP/2 Protobuf RPCs completed, `0` unsupported (`999.2 s` / `17m 10s` Maven) |
 

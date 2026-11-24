@@ -16,7 +16,7 @@ This page is the canonical summary of product maturity. Detailed module ownershi
 | Benchmarks | Established | Verified 3-fork JMH scalability matrix across 1, 2, 4, 8 threads with GC allocation profiling (`results/scalability-summary.md`) |
 | Generic gRPC generation | Incubating | Independently measured 3,407/3,407 official passes over HTTP/2/protobuf (`3,407` RPCs); deployment assurance and compatibility remain separate |
 | Model-specific typed gRPC generation | Incubating | Independently measured 3,407/3,407 passes through 3,510 typed RPCs (`0` unsupported); deployment assurance remains separate |
-| Spark SQL generation | Incubating | Independently measured 3,407/3,407 official passes (**3,389 native = 99.47%** + 18 fallback = 0.53%); broader models and deployments remain bounded |
+| Spark SQL generation | Incubating | Independently measured 3,407/3,407 native official passes (100.00%), zero fallback; broader models and deployments remain bounded |
 | Data-quality and multi-file model suites | Established examples | Implemented reference assets and multi-file Java streaming ingestion |
 | Go and C++ generators | Planned | No implementation claim |
 | Standalone CLI and LSP | Planned | No implementation claim |
