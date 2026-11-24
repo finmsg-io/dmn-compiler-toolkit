@@ -298,6 +298,9 @@ public final class DmnIrRuntimeAdapter {
 		RuntimeType type = expression.hasCollectionType()
 				? types.collectionType(expression.getCollectionType())
 				: types.type(expression.getType(), expression.hasRecordType(), expression.getRecordType());
+		if (!expression.hasLiteral() && type.kind() == RuntimeTypeKind.NULL) {
+			type = RuntimeType.scalar(RuntimeTypeKind.ANY);
+		}
 		return switch (expression.getNodeCase()) {
 			case LOCAL_REFERENCE -> {
 				var local = locals.get(expression.getLocalReference().getBindingId());
@@ -325,14 +328,13 @@ public final class DmnIrRuntimeAdapter {
 				yield new RuntimeContextExpression(entries, type);
 			}
 			case FIELD_ACCESS -> {
-				// Match source lowering's type-proven null plan, including native invalid
-				// input.
-				if (type.kind() == RuntimeTypeKind.NULL)
-					yield new RuntimeConstant(RuntimeConstantKind.NULL, "null", type);
 				var access = expression.getFieldAccess();
+				if (access.getSource().hasRecordType() && expression.getType() == DmnIrScalarType.SCALAR_TYPE_NULL)
+					yield new RuntimeConstant(RuntimeConstantKind.NULL, "null",
+							RuntimeType.scalar(RuntimeTypeKind.NULL));
 				var source = expression(access.getSource(), slots, types, locals, nextSlot);
 				int index = source.type().fieldLayout().stream().filter(f -> f.name().equals(access.getFieldName()))
-						.findFirst().orElseThrow().index();
+						.findFirst().map(f -> f.index()).orElse(-1);
 				yield new RuntimePathExpression(source, access.getFieldName(), index, type);
 			}
 			case GLOBAL_REFERENCE -> new RuntimeValueReference(slots.get(id(expression.getGlobalReference())), type);

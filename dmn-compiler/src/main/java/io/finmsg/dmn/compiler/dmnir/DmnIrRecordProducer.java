@@ -92,27 +92,7 @@ final class DmnIrRecordProducer {
 					String recId = item.getIsCollection() ? id + "$element" : id;
 					String baseName = item.getNode().getName().isBlank() ? id : item.getNode().getName();
 					String recName = item.getIsCollection() ? baseName + "$element" : baseName;
-					var record = DmnIrRecordDefinition.newBuilder()
-							.setIdentity(DmnIrElementIdentity.newBuilder().setId(recId).setName(recName));
-					for (var component : item.getComponentsList()) {
-						if (component.getIsCollection() || component.getComponentsCount() != 0)
-							throw unsupported();
-						var field = DmnIrRecordField.newBuilder().setName(component.getNode().getName())
-								.setType(type(component.getType(), model));
-						if (!component.getNode().getId().isBlank())
-							field.setId(component.getNode().getId());
-						if (component.hasConstraint()) {
-							if (!field.getType().hasScalarType() || !component.getConstraint().hasParsed()
-									|| field.getType().getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL)
-								throw unsupported();
-							String path = "definitions/itemDefinition[" + item.getNode().getName() + "]/component["
-									+ component.getNode().getName() + "]/typeConstraint";
-							field.setConstraint(tests(component.getConstraint().getParsed().getTests(), path,
-									(value, endpointPath) -> constraintEndpoint(value, model, endpointPath)));
-						}
-						record.addFields(field);
-					}
-					records.put(ref(model.identity().namespace(), recId), record.build());
+					registerRecord(model, recId, recName, item.getNode().getName(), item.getComponentsList());
 				}
 			}
 		}
@@ -237,14 +217,15 @@ final class DmnIrRecordProducer {
 							.setVariable(variable(input.getVariable(), model)).build());
 				} else if (element.hasBusinessKnowledgeModel()) {
 					modelBkms.add(bkm(element.getBusinessKnowledgeModel(), model));
+				} else if (element.hasKnowledgeSource() || element.hasDecisionService()) {
+					continue;
 				} else {
 					var decision = element.getDecision();
 					if (!(decision.getLogic().hasLiteralExpression()
 							&& decision.getLogic().getLiteralExpression().hasParsed()
 							|| decision.getLogic().hasBoxedExpression()
 									&& decision.getLogic().getBoxedExpression().hasParsed()
-							|| decision.getLogic().hasDecisionTable() || decision.getLogic().hasInvocation())
-							|| decision.getAuthorityRequirementsCount() != 0)
+							|| decision.getLogic().hasDecisionTable() || decision.getLogic().hasInvocation()))
 						throw unsupported();
 					Set<DmnIrReference> dependencies = new TreeSet<>(ORDER);
 					for (var requirement : decision.getInformationRequirementsList())
@@ -326,9 +307,11 @@ final class DmnIrRecordProducer {
 					.sorted(Map.Entry.comparingByKey(ORDER))
 					.forEach(e -> output.addCollectionDefinitions(e.getValue()));
 		}
-		int finalMinor = !collections.isEmpty()
+		int finalMinor = (!collections.isEmpty() || usedCollectionProfile)
 				? 7
-				: fieldConstraintsProfile ? 6 : tableProfile ? 5 : dateProfile ? 4 : localProfile ? 3 : 2;
+				: fieldConstraintsProfile
+						? 6
+						: tableProfile ? 5 : dateProfile ? 4 : (localProfile || usedLocalProfile) ? 3 : 2;
 		if (closures)
 			finalMinor = 11;
 		else if (!bkms.isEmpty())
@@ -370,11 +353,75 @@ final class DmnIrRecordProducer {
 		}
 	}
 
+	private void registerRecord(DmnSemanticModel model, String recId, String recName, String itemPathName,
+			List<ItemComponent> components) {
+		var ns = model.identity().namespace();
+		var record = DmnIrRecordDefinition.newBuilder()
+				.setIdentity(DmnIrElementIdentity.newBuilder().setId(recId).setName(recName));
+		for (var component : components) {
+			String compName = component.getNode().getName();
+			DmnIrTypeReference fieldType;
+			if (component.getComponentsCount() > 0) {
+				String nestedId = recId + "$" + compName;
+				String nestedRecId = component.getIsCollection() ? nestedId + "$element" : nestedId;
+				String nestedRecName = component.getIsCollection()
+						? recName + "$" + compName + "$element"
+						: recName + "$" + compName;
+				registerRecord(model, nestedRecId, nestedRecName, itemPathName + "/" + compName,
+						component.getComponentsList());
+				if (component.getIsCollection()) {
+					var colRef = ref(ns, nestedId);
+					collections.put(colRef, DmnIrCollectionDefinition.newBuilder()
+							.setIdentity(
+									DmnIrElementIdentity.newBuilder().setId(nestedId).setName(recName + "$" + compName))
+							.setRecordType(ref(ns, nestedRecId)).build());
+					fieldType = DmnIrTypeReference.newBuilder().setCollectionType(colRef).build();
+				} else {
+					fieldType = DmnIrTypeReference.newBuilder().setRecordType(ref(ns, nestedRecId)).build();
+				}
+			} else if (component.getIsCollection()) {
+				String colId = recId + "$" + compName;
+				var colRef = ref(ns, colId);
+				var elemType = type(component.getType(), model);
+				var colBuilder = DmnIrCollectionDefinition.newBuilder()
+						.setIdentity(DmnIrElementIdentity.newBuilder().setId(colId).setName(recName + "$" + compName));
+				if (elemType.hasRecordType()) {
+					colBuilder.setRecordType(elemType.getRecordType());
+				} else if (elemType.hasCollectionType()) {
+					colBuilder.setCollectionType(elemType.getCollectionType());
+				} else {
+					var scalar = elemType.getScalarType();
+					if (scalar == DmnIrScalarType.SCALAR_TYPE_NULL) {
+						scalar = DmnIrScalarType.SCALAR_TYPE_STRING;
+					}
+					colBuilder.setElementType(scalar);
+				}
+				collections.put(colRef, colBuilder.build());
+				fieldType = DmnIrTypeReference.newBuilder().setCollectionType(colRef).build();
+			} else {
+				fieldType = type(component.getType(), model);
+			}
+			var field = DmnIrRecordField.newBuilder().setName(compName).setType(fieldType);
+			if (!component.getNode().getId().isBlank())
+				field.setId(component.getNode().getId());
+			if (component.hasConstraint()) {
+				if (!field.getType().hasScalarType() || !component.getConstraint().hasParsed()
+						|| field.getType().getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL)
+					throw unsupported();
+				String path = "definitions/itemDefinition[" + itemPathName + "]/component[" + compName
+						+ "]/typeConstraint";
+				field.setConstraint(tests(component.getConstraint().getParsed().getTests(), path,
+						(value, endpointPath) -> constraintEndpoint(value, model, endpointPath)));
+			}
+			record.addFields(field);
+		}
+		records.put(ref(ns, recId), record.build());
+	}
+
 	private DmnIrBkm bkm(BusinessKnowledgeModel source, DmnSemanticModel model) {
 		var function = source.getFunction();
-		if (!function.getLogic().hasParsed() || source.getAuthorityRequirementsCount() != 0
-				|| function.getKind() != FunctionKind.FUNCTION_KIND_UNSPECIFIED
-						&& function.getKind() != FunctionKind.FUNCTION_KIND_FEEL)
+		if (!function.getLogic().hasParsed() || function.getKind() != FunctionKind.FUNCTION_KIND_UNSPECIFIED
+				&& function.getKind() != FunctionKind.FUNCTION_KIND_FEEL)
 			throw unsupported();
 		localBindings.clear();
 		knowledge = knowledge(source.getKnowledgeRequirementsList(), model);
@@ -408,8 +455,7 @@ final class DmnIrRecordProducer {
 
 	private DmnIrDecisionTable table(DecisionTable source, DmnIrTypeReference result, DmnSemanticModel model,
 			String path, Set<DmnIrReference> dependencies) {
-		if (source.getInputsCount() == 0 || source.getOutputsCount() == 0 || source.getRulesCount() == 0
-				|| source.getAnnotationsCount() != 0)
+		if (source.getInputsCount() == 0 || source.getOutputsCount() == 0 || source.getRulesCount() == 0)
 			throw unsupported();
 		List<DecisionRule> sortedRules = source.getRulesList();
 		var hitPolicy = switch (source.getHitPolicy().getPolicy()) {
@@ -832,18 +878,26 @@ final class DmnIrRecordProducer {
 		if (source.hasFilter()) {
 			var filter = source.getFilter();
 			var input = expression(filter.getSource(), model, path + "/source", dependencies, depth + 1, expected);
-			DmnIrScalarType itemScalar = DmnIrScalarType.SCALAR_TYPE_NULL;
+			var itemVar = DmnIrVariable.newBuilder().setName("item");
 			if (input.hasCollectionType()) {
 				var collection = collections.get(input.getCollectionType());
-				if (collection != null && !collection.hasRecordType() && !collection.hasCollectionType()) {
-					itemScalar = collection.getElementType();
+				if (collection != null) {
+					if (collection.hasRecordType()) {
+						itemVar.setRecordType(collection.getRecordType());
+					} else if (collection.hasCollectionType()) {
+						itemVar.setCollectionType(collection.getCollectionType());
+					} else {
+						itemVar.setType(collection.getElementType());
+					}
+				} else {
+					itemVar.setType(DmnIrScalarType.SCALAR_TYPE_NULL);
 				}
 			} else {
 				builtinCalls = true;
+				itemVar.setType(DmnIrScalarType.SCALAR_TYPE_NULL);
 			}
 			String itemId = path + "/filter/item";
-			localBindings.put(itemId, DmnIrLocalBinding.newBuilder().setBindingId(itemId)
-					.setVariable(DmnIrVariable.newBuilder().setName("item").setType(itemScalar)).build());
+			localBindings.put(itemId, DmnIrLocalBinding.newBuilder().setBindingId(itemId).setVariable(itemVar).build());
 			try {
 				var predicate = expression(filter.getFilter(), model, path + "/filter", dependencies, depth + 1);
 				boolean numericIndex = predicate.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER;
@@ -865,19 +919,69 @@ final class DmnIrRecordProducer {
 			}
 		}
 		if (source.hasList()) {
+			usedCollectionProfile = true;
+			var list = DmnIrListExpression.newBuilder();
+			for (int i = 0; i < source.getList().getElementsCount(); i++) {
+				list.addElements(expression(source.getList().getElements(i), model, path + "/element[" + i + "]",
+						dependencies, depth + 1));
+			}
 			DmnIrTypeReference listType = expected;
-			if (listType == null || !listType.hasCollectionType()) {
-				DmnIrScalarType elemScalar = findUnderlyingScalarType(source);
+			if (listType != null && listType.hasCollectionType()) {
+				var colDef = collections.get(listType.getCollectionType());
+				if (colDef != null) {
+					boolean allMatch = true;
+					for (var el : list.getElementsList()) {
+						if (colDef.hasRecordType()) {
+							if (!el.hasRecordType() || !el.getRecordType().equals(colDef.getRecordType())) {
+								allMatch = false;
+								break;
+							}
+						} else if (colDef.hasCollectionType()) {
+							if (!el.hasCollectionType() || !el.getCollectionType().equals(colDef.getCollectionType())) {
+								allMatch = false;
+								break;
+							}
+						} else if (el.hasRecordType() || el.hasCollectionType()
+								|| (el.getType() != colDef.getElementType()
+										&& el.getType() != DmnIrScalarType.SCALAR_TYPE_NULL)) {
+							allMatch = false;
+							break;
+						}
+					}
+					if (!allMatch) {
+						builtinCalls = true;
+						return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL).setList(list)
+								.build();
+					}
+				}
+				return typed(listType).setList(list).build();
+			}
+			// Infer uniform scalar element type if possible; otherwise dynamic list.
+			DmnIrScalarType uniformScalar = null;
+			boolean uniform = true;
+			for (var el : list.getElementsList()) {
+				if (el.hasRecordType() || el.hasCollectionType()) {
+					uniform = false;
+					break;
+				}
+				if (el.getType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+					if (uniformScalar == null) {
+						uniformScalar = el.getType();
+					} else if (uniformScalar != el.getType()) {
+						uniform = false;
+						break;
+					}
+				}
+			}
+			if (uniform) {
+				DmnIrScalarType elemScalar = uniformScalar != null ? uniformScalar : findUnderlyingScalarType(source);
 				if (elemScalar == DmnIrScalarType.SCALAR_TYPE_NULL) {
 					elemScalar = DmnIrScalarType.SCALAR_TYPE_STRING;
 				}
-				listType = ensureCollectionType(model, elemScalar);
+				return typed(ensureCollectionType(model, elemScalar)).setList(list).build();
 			}
-			var list = DmnIrListExpression.newBuilder();
-			for (int i = 0; i < source.getList().getElementsCount(); i++)
-				list.addElements(expression(source.getList().getElements(i), model, path + "/element[" + i + "]",
-						dependencies, depth + 1));
-			return typed(listType).setList(list).build();
+			builtinCalls = true;
+			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL).setList(list).build();
 		}
 		if (source.hasIfExpression()) {
 			var value = source.getIfExpression();
@@ -1979,19 +2083,59 @@ final class DmnIrRecordProducer {
 		if (depth > 32 || !source.hasContext())
 			throw unsupported();
 		var context = source.getContext();
-		if (context.getEntriesCount() == 0)
-			throw unsupported();
+		if (context.getEntriesCount() == 0) {
+			usedLocalProfile = true;
+			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL)
+					.setContextLiteral(DmnIrContextLiteral.newBuilder()).build();
+		}
+		var lastEntry = context.getEntries(context.getEntriesCount() - 1);
+		boolean returnsContextValue = lastEntry.hasVariable() && !lastEntry.getVariable().getNode().getName().isBlank();
 		var output = DmnIrContextExpression.newBuilder();
 		var outer = new HashMap<>(localBindings);
 		try {
+			if (returnsContextValue) {
+				usedLocalProfile = true;
+				var ctxLit = DmnIrContextLiteral.newBuilder();
+				for (int i = 0; i < context.getEntriesCount(); i++) {
+					var entry = context.getEntries(i);
+					String ep = path + "/context/entry[" + i + "]";
+					if (!entry.hasExpression() || !entry.hasVariable()
+							|| entry.getVariable().getNode().getName().isBlank())
+						throw unsupported();
+					if (entry.getExpression().getBoxed().hasFunctionDefinition()) {
+						var function = entry.getExpression().getBoxed().getFunctionDefinition();
+						var item = entry.getVariable();
+						if (!function.getSourceKind().isEmpty() && !function.getSourceKind().equals("FEEL"))
+							throw unsupported();
+						if (item.getType().getKindCase() != TypeReference.KindCase.KIND_NOT_SET || !function.hasBody())
+							throw unsupported();
+						var local = DmnIrClosureBinding.newBuilder().setName(item.getNode().getName())
+								.setDefinition(closure(function.getParametersList(), function.getBody(), model,
+										ep + "/expression", depth + 1));
+						if (!item.getNode().getId().isBlank())
+							local.setId(item.getNode().getId());
+						var binding = DmnIrLocalBinding.newBuilder().setBindingId(ep).setClosure(local).build();
+						ctxLit.addEntries(binding);
+						localBindings.put(ep, binding);
+						continue;
+					}
+					var variable = variable(entry.getVariable(), model);
+					var value = parsed(entry.getExpression(), model, ep + "/expression", dependencies, depth + 1,
+							type(entry.getVariable().getType(), model));
+					var binding = DmnIrLocalBinding.newBuilder().setBindingId(ep).setVariable(variable).setValue(value)
+							.build();
+					ctxLit.addEntries(binding);
+					localBindings.put(ep, binding);
+				}
+				return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL).setContextLiteral(ctxLit)
+						.build();
+			}
 			for (int i = 0; i < context.getEntriesCount(); i++) {
 				var entry = context.getEntries(i);
 				String ep = path + "/context/entry[" + i + "]";
 				if (!entry.hasExpression())
 					throw unsupported();
 				if (i == context.getEntriesCount() - 1) {
-					if (entry.hasVariable() && !entry.getVariable().getNode().getName().isBlank())
-						throw unsupported();
 					output.setResult(parsed(entry.getExpression(), model, ep + "/expression", dependencies, depth + 1,
 							expected));
 				} else {

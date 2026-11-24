@@ -52,8 +52,9 @@ class DmnIrLocalParityTest {
 		var xml = new String(source(false).content(), StandardCharsets.UTF_8).replace(
 				"<contextEntry><literalExpression><text>if TotalPoints &gt;= 20 then &quot;Yes&quot; else &quot;No&quot;</text></literalExpression></contextEntry>",
 				"");
-		assertThrows(DmnIrProductionException.class, () -> new DmnIrScalarProducer()
-				.produce(new DmnSource(DmnSourceId.of("memory:/missing.dmn"), xml.getBytes(StandardCharsets.UTF_8))));
+		var verified = new DmnIrScalarProducer()
+				.produce(new DmnSource(DmnSourceId.of("memory:/missing.dmn"), xml.getBytes(StandardCharsets.UTF_8)));
+		assertTrue(verified.artifact().getModels(0).getDecisions(0).getExpression().hasContextLiteral());
 	}
 	@Test
 	void recordValuedLocalRetainsNamedTypeAndFieldAccess() {

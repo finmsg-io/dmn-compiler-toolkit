@@ -788,7 +788,8 @@ public final class DmnIrArtifactReader {
 							&& call.getArgumentsCount() <= signature.maxArity(), INVALID_EXPRESSION, path,
 							"Built-in argument count must match its signature.");
 					if (signature.collectionResult()) {
-						boolean matches = false;
+						boolean matches = nodeType.hasScalarType()
+								&& nodeType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL;
 						if (nodeType.hasCollectionType()) {
 							var collection = collections.get(Address.of(nodeType.getCollectionType()));
 							matches = collection != null && (signature.result() == DmnIrScalarType.SCALAR_TYPE_NULL
@@ -797,9 +798,10 @@ public final class DmnIrArtifactReader {
 						}
 						check(matches, INVALID_TYPE, path, "Built-in result type must match its signature.");
 					} else {
-						check(nodeType.hasScalarType() && (signature.result() == DmnIrScalarType.SCALAR_TYPE_NULL
-								|| nodeType.getScalarType() == signature.result()), INVALID_TYPE, path,
-								"Built-in result type must match its signature.");
+						check(signature.result() == DmnIrScalarType.SCALAR_TYPE_NULL
+								|| (nodeType.hasScalarType() && (nodeType.getScalarType() == signature.result()
+										|| nodeType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL)),
+								INVALID_TYPE, path, "Built-in result type must match its signature.");
 					}
 					for (int i = 0; i < call.getArgumentsCount(); i++) {
 						var argument = call.getArguments(i);
@@ -807,18 +809,25 @@ public final class DmnIrArtifactReader {
 						var argumentType = typeOf(argument, argumentPath);
 						boolean matches = argumentType.hasScalarType()
 								&& argumentType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL;
-						if (signature.collectionParameter(i) && argumentType.hasCollectionType()) {
-							var collection = collections.get(Address.of(argumentType.getCollectionType()));
-							matches = collection != null
-									&& (signature.parameters().get(i) == DmnIrScalarType.SCALAR_TYPE_NULL
-											|| (!collection.hasRecordType()
-													&& collection.getElementType() == signature.parameters().get(i)));
-						} else if (signature == DmnIrBuiltinSignature.STRING_FROM) {
+						if (signature.collectionParameter(i)) {
+							if (argumentType.hasCollectionType()) {
+								var collection = collections.get(Address.of(argumentType.getCollectionType()));
+								matches = collection != null && (signature.parameters()
+										.get(i) == DmnIrScalarType.SCALAR_TYPE_NULL
+										|| (!collection.hasRecordType()
+												&& collection.getElementType() == signature.parameters().get(i)));
+							} else if (signature.parameters().get(i) == DmnIrScalarType.SCALAR_TYPE_NULL) {
+								matches = true;
+							} else if (argumentType.hasScalarType()
+									&& assignable(argumentType.getScalarType(), signature.parameters().get(i))) {
+								matches = true;
+							}
+						} else if (signature == DmnIrBuiltinSignature.STRING_FROM
+								|| signature.parameters().get(i) == DmnIrScalarType.SCALAR_TYPE_NULL) {
 							matches = true;
-						} else if (!signature.collectionParameter(i)) {
+						} else {
 							matches |= argumentType.hasScalarType()
-									&& (signature.parameters().get(i) == DmnIrScalarType.SCALAR_TYPE_NULL
-											|| assignable(argumentType.getScalarType(), signature.parameters().get(i)));
+									&& assignable(argumentType.getScalarType(), signature.parameters().get(i));
 						}
 						check(matches, INVALID_TYPE, argumentPath, "Built-in argument type must match its signature.");
 						node(argument, owner, dependencies, argumentPath, depth + 1);
@@ -871,26 +880,36 @@ public final class DmnIrArtifactReader {
 				}
 				case LIST -> {
 					check(collectionsProfile, UNSUPPORTED_CAPABILITY, path, "List expressions require profile 0.7.");
-					check(nodeType.hasCollectionType(), INVALID_TYPE, path + ".type",
-							"A list needs a named collection type.");
-					var colDef = collections.get(Address.of(nodeType.getCollectionType()));
-					for (int i = 0; i < expression.getList().getElementsCount(); i++) {
-						var element = expression.getList().getElements(i);
-						String elementPath = path + ".list.elements[" + i + "]";
-						if (colDef.hasRecordType()) {
-							check(element.hasRecordType()
-									&& Address.of(element.getRecordType()).equals(Address.of(colDef.getRecordType())),
-									INVALID_TYPE, elementPath, "List element must match record type.");
-						} else if (colDef.hasCollectionType()) {
-							check(element.hasCollectionType() && Address.of(element.getCollectionType())
-									.equals(Address.of(colDef.getCollectionType())), INVALID_TYPE, elementPath,
-									"List element must match collection type.");
-						} else {
-							check(!element.hasRecordType() && !element.hasCollectionType()
-									&& assignable(element.getType(), colDef.getElementType()), INVALID_TYPE,
-									elementPath, "List element must be compatible with the collection element type.");
+					boolean dynamicList = builtinProfile && nodeType.hasScalarType()
+							&& nodeType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL;
+					if (!dynamicList) {
+						check(nodeType.hasCollectionType(), INVALID_TYPE, path + ".type",
+								"A list needs a named collection type.");
+						var colDef = collections.get(Address.of(nodeType.getCollectionType()));
+						for (int i = 0; i < expression.getList().getElementsCount(); i++) {
+							var element = expression.getList().getElements(i);
+							String elementPath = path + ".list.elements[" + i + "]";
+							if (colDef.hasRecordType()) {
+								check(element.hasRecordType() && Address.of(element.getRecordType())
+										.equals(Address.of(colDef.getRecordType())), INVALID_TYPE, elementPath,
+										"List element must match record type.");
+							} else if (colDef.hasCollectionType()) {
+								check(element.hasCollectionType() && Address.of(element.getCollectionType())
+										.equals(Address.of(colDef.getCollectionType())), INVALID_TYPE, elementPath,
+										"List element must match collection type.");
+							} else {
+								check(!element.hasRecordType() && !element.hasCollectionType()
+										&& assignable(element.getType(), colDef.getElementType()), INVALID_TYPE,
+										elementPath,
+										"List element must be compatible with the collection element type.");
+							}
+							node(element, owner, dependencies, elementPath, depth + 1);
 						}
-						node(element, owner, dependencies, elementPath, depth + 1);
+					} else {
+						for (int i = 0; i < expression.getList().getElementsCount(); i++) {
+							var element = expression.getList().getElements(i);
+							node(element, owner, dependencies, path + ".list.elements[" + i + "]", depth + 1);
+						}
 					}
 				}
 				case GLOBAL_REFERENCE -> {
@@ -956,9 +975,11 @@ public final class DmnIrArtifactReader {
 								|| (datesProfile && hasDuration);
 						case BINARY_OPERATOR_POWER -> numberPair
 								&& (expression.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER || nullArithmetic);
-						case BINARY_OPERATOR_EQUAL, BINARY_OPERATOR_NOT_EQUAL ->
-							booleanResult && left != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED
-									&& right != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED;
+						case BINARY_OPERATOR_EQUAL, BINARY_OPERATOR_NOT_EQUAL -> booleanResult
+								&& (left != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED || value.getLeft().hasRecordType()
+										|| value.getLeft().hasCollectionType())
+								&& (right != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED || value.getRight().hasRecordType()
+										|| value.getRight().hasCollectionType());
 						case BINARY_OPERATOR_LESS, BINARY_OPERATOR_LESS_EQUAL, BINARY_OPERATOR_GREATER,
 								BINARY_OPERATOR_GREATER_EQUAL ->
 							(numberPair || (left == DmnIrScalarType.SCALAR_TYPE_STRING && right == left)
@@ -1256,9 +1277,42 @@ public final class DmnIrArtifactReader {
 				check(false, INVALID_TYPE, recordPaths.get(cyclic), "Recursive records are unsupported.");
 			}
 		}
-		private static boolean assignable(DmnIrTypeReference actual, DmnIrTypeReference expected) {
-			return actual.equals(expected)
-					|| actual.hasScalarType() && actual.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL;
+		private boolean assignable(DmnIrTypeReference actual, DmnIrTypeReference expected) {
+			if (actual.equals(expected)
+					|| (actual.hasScalarType() && actual.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL)) {
+				return true;
+			}
+			if (recordsProfile && expected.hasScalarType()
+					&& expected.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL) {
+				return true;
+			}
+			if (collectionsProfile && expected.hasCollectionType()) {
+				var col = collections.get(Address.of(expected.getCollectionType()));
+				if (col != null) {
+					if (col.hasRecordType() && actual.hasRecordType()
+							&& Address.of(actual.getRecordType()).equals(Address.of(col.getRecordType()))) {
+						return true;
+					}
+					if (!col.hasRecordType() && !col.hasCollectionType() && actual.hasScalarType()
+							&& assignable(actual.getScalarType(), col.getElementType())) {
+						return true;
+					}
+				}
+			}
+			if (collectionsProfile && actual.hasCollectionType()) {
+				var col = collections.get(Address.of(actual.getCollectionType()));
+				if (col != null) {
+					if (col.hasRecordType() && expected.hasRecordType()
+							&& Address.of(expected.getRecordType()).equals(Address.of(col.getRecordType()))) {
+						return true;
+					}
+					if (!col.hasRecordType() && !col.hasCollectionType() && expected.hasScalarType()
+							&& assignable(col.getElementType(), expected.getScalarType())) {
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 
 		private static boolean bool(DmnIrScalarType type) {

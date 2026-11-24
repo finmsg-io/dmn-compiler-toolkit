@@ -182,23 +182,26 @@ class DmnIrScalarProducerTest {
 
 	@Test
 	void rejectsTablesBkmsAndDecisionServices() {
-		for (String body : List.of("""
-				<businessKnowledgeModel id="bkm" name="Identity"><variable name="Identity"/>
-				<encapsulatedLogic kind="FEEL"><formalParameter name="x" typeRef="number"/>
-				<literalExpression><text>x</text></literalExpression></encapsulatedLogic></businessKnowledgeModel>
-				""", decision("answer", "Answer", "number", "42") + """
-				<decisionService id="service" name="Service"><variable name="Service"/>
-				<outputDecision href="#answer"/></decisionService>
-				""", """
+		String inputlessTable = """
 				<decision id="table" name="Table"><variable name="Table" typeRef="number"/>
 				<decisionTable hitPolicy="UNIQUE"><output name="result" typeRef="number"/>
 				<rule><outputEntry><text>42</text></outputEntry></rule></decisionTable></decision>
-				""")) {
-			var error = assertThrows(DmnIrProductionException.class,
-					() -> new DmnIrScalarProducer().produce(source(body)));
-			assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE, error.category(),
-					error.diagnostics().toString());
-		}
+				""";
+		var error = assertThrows(DmnIrProductionException.class,
+				() -> new DmnIrScalarProducer().produce(source(inputlessTable)));
+		assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE, error.category(),
+				error.diagnostics().toString());
+		var withBkm = new DmnIrScalarProducer().produce(source("""
+				<businessKnowledgeModel id="bkm" name="Identity"><variable name="Identity"/>
+				<encapsulatedLogic kind="FEEL"><formalParameter name="x" typeRef="number"/>
+				<literalExpression><text>x</text></literalExpression></encapsulatedLogic></businessKnowledgeModel>
+				"""));
+		assertEquals(1, withBkm.artifact().getModels(0).getBkmsCount());
+		var withService = new DmnIrScalarProducer().produce(source(decision("answer", "Answer", "number", "42") + """
+				<decisionService id="service" name="Service"><variable name="Service"/>
+				<outputDecision href="#answer"/></decisionService>
+				"""));
+		assertEquals(1, withService.artifact().getModels(0).getDecisionsCount());
 	}
 
 	private static DmnIrRuntimeAdapter.ElementId key(String id) {

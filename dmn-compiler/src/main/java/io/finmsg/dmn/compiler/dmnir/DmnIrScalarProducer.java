@@ -46,7 +46,7 @@ public final class DmnIrScalarProducer {
 										|| lit.getKind() == io.finmsg.dmn.model.LiteralKind.LITERAL_KIND_DATE_TIME)))
 				|| m.model().getItemDefinitionsCount() != 0
 				|| m.model().getDrgElementsList().stream()
-						.anyMatch(e -> e.hasBusinessKnowledgeModel()
+						.anyMatch(e -> e.hasBusinessKnowledgeModel() || e.hasDecisionService() || e.hasKnowledgeSource()
 								|| e.hasDecision() && (e.getDecision().getLogic().hasBoxedExpression()
 										|| e.getDecision().getLogic().hasDecisionTable()))))
 			return new DmnIrRecordProducer(semantic).produce();
