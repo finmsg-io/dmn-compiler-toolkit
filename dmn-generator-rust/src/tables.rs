@@ -18,7 +18,9 @@ impl ExpressionEmitter<'_, '_> {
     ) -> Check<String> {
         let expression = expression.ok_or("missing table cell")?;
         let emitted = self.expression(expression)?;
-        if !matches!(emitted.ty, Type::Scalar(_)) || !assignable(emitted.ty, ty) {
+        if (!self.types.extended && !matches!(emitted.ty, Type::Scalar(_)))
+            || !assignable_ext(emitted.ty, ty, self.types.extended)
+        {
             return Err("table cell type mismatch");
         }
         let value = emitted.value.clone();
@@ -30,16 +32,20 @@ impl ExpressionEmitter<'_, '_> {
         if !(1..=10).contains(&table.hit_policy) {
             return Err("unsupported table hit policy");
         }
-        if table.inputs.is_empty() || table.outputs.is_empty() || table.rules.is_empty() {
+        if (!self.types.extended && table.inputs.is_empty())
+            || table.outputs.is_empty()
+            || table.rules.is_empty()
+        {
             return Err("table requires inputs outputs and rules");
         }
         self.table_id(&table.id)?;
-        self.table_cell = true;
+        self.table_cell = !self.types.extended;
         let mut cells = Vec::new();
         let mut source = String::from("{ ");
         for (index, input) in table.inputs.iter().enumerate() {
             self.table_id(&input.id)?;
-            let input_type = Type::Scalar(crate::types::scalar_type(input.r#type, true)?);
+            let input_type =
+                Type::Scalar(crate::types::scalar_type_ext(input.r#type, true, self.types.extended)?);
             let value = self.cell(input.expression.as_ref(), input_type, &mut cells)?;
             write!(source, "let t{index} = {value}; ").unwrap();
         }
@@ -48,6 +54,7 @@ impl ExpressionEmitter<'_, '_> {
             match ty {
                 Type::Collection(col_index) => match self.types.collections[col_index] {
                     Type::Scalar(_) if table.outputs.len() == 1 => Vec::new(),
+                    Type::Scalar(DmnIrScalarType::ScalarTypeNull) if self.types.extended => Vec::new(),
                     Type::Record(rec_index)
                         if table.outputs.len() > 1
                             && self.types.records[rec_index].fields.len()
@@ -57,11 +64,13 @@ impl ExpressionEmitter<'_, '_> {
                     }
                     _ => return Err("multi-hit table item shape mismatch"),
                 },
+                Type::Scalar(DmnIrScalarType::ScalarTypeNull) if self.types.extended => Vec::new(),
                 _ => return Err("multi-hit table requires collection type"),
             }
         } else {
             match ty {
                 Type::Scalar(_) if table.outputs.len() == 1 => Vec::new(),
+                Type::Scalar(DmnIrScalarType::ScalarTypeNull) if self.types.extended => Vec::new(),
                 Type::Record(index)
                     if table.outputs.len() > 1
                         && self.types.records[index].fields.len() == table.outputs.len() =>
@@ -78,7 +87,8 @@ impl ExpressionEmitter<'_, '_> {
             if let Some(name) = &output.name {
                 nonempty(name)?;
             }
-            let output_type = Type::Scalar(crate::types::scalar_type(output.r#type, true)?);
+            let output_type =
+                Type::Scalar(crate::types::scalar_type_ext(output.r#type, true, self.types.extended)?);
             let expected_scalar = if is_multi_hit {
                 match ty {
                     Type::Collection(col_index) => self.types.collections[col_index],
@@ -88,11 +98,13 @@ impl ExpressionEmitter<'_, '_> {
                 ty
             };
             if fields.is_empty() {
-                if output_type != expected_scalar {
+                if !assignable_ext(output_type, expected_scalar, self.types.extended)
+                    && !assignable_ext(expected_scalar, output_type, self.types.extended)
+                {
                     return Err("table output type mismatch");
                 }
             } else if output.name.as_deref() != Some(fields[index].0)
-                || output_type != fields[index].1
+                || !assignable_ext(output_type, fields[index].1, self.types.extended)
             {
                 return Err("table output fields mismatch");
             }
@@ -122,15 +134,19 @@ impl ExpressionEmitter<'_, '_> {
             for (entry, output) in rule.output_entries.iter().zip(&table.outputs) {
                 values.push(self.cell(
                     Some(entry),
-                    Type::Scalar(crate::types::scalar_type(output.r#type, true)?),
+                    Type::Scalar(crate::types::scalar_type_ext(output.r#type, true, self.types.extended)?),
                     &mut output_cells,
                 )?);
             }
+            let cond = if tests.is_empty() {
+                "true".to_string()
+            } else {
+                tests.join(" & ")
+            };
             // Bitwise boolean conjunction evaluates all columns like the Java adapter.
             write!(
                 source,
-                "if {} {{ rows.push(vec![{}]); }} ",
-                tests.join(" & "),
+                "if {cond} {{ rows.push(vec![{}]); }} ",
                 values.join(",")
             )
             .unwrap();
@@ -185,8 +201,12 @@ impl ExpressionEmitter<'_, '_> {
             return Err("empty unary tests");
         }
         let mut alternatives = Vec::new();
-        let ty = Type::Scalar(crate::types::scalar_type(scalar, true)?);
-        let ordered = matches!(scalar, 3 | 4 | 5);
+        let ty = Type::Scalar(crate::types::scalar_type_ext(scalar, true, self.types.extended)?);
+        let ordered = if self.types.extended {
+            matches!(scalar, 1 | 3 | 4 | 5 | 6 | 7 | 8)
+        } else {
+            matches!(scalar, 3 | 4 | 5)
+        };
         for test in &group.tests {
             use dmn_ir_unary_test::Test;
             let value = match test.test.as_ref().ok_or("missing unary test")? {
@@ -199,10 +219,11 @@ impl ExpressionEmitter<'_, '_> {
                         .endpoint
                         .as_ref()
                         .ok_or("missing test endpoint")?;
-                    if op >= 8 && (!ordered || endpoint.r#type != scalar) {
+                    if !self.types.extended && op >= 8 && (!ordered || endpoint.r#type != scalar) {
                         return Err("ordered test type mismatch");
                     }
-                    if op <= 7
+                    if !self.types.extended
+                        && op <= 7
                         && endpoint.r#type == 1
                         && !matches!(
                             &endpoint.node,
@@ -213,17 +234,38 @@ impl ExpressionEmitter<'_, '_> {
                     {
                         return Err("null test endpoint must be explicit");
                     }
-                    let value = self.cell(Some(endpoint), ty, cells)?;
+                    let value = if self.types.extended {
+                        let emitted = self.expression(endpoint)?;
+                        let v = emitted.value.clone();
+                        cells.push(emitted);
+                        v
+                    } else {
+                        self.cell(Some(endpoint), ty, cells)?
+                    };
                     format!("table_compare(&t{index}, {value}, {op})")
                 }
                 Test::Range(range) => {
                     let lower = range.lower.as_ref().ok_or("missing range lower")?;
                     let upper = range.upper.as_ref().ok_or("missing range upper")?;
-                    if !ordered || lower.r#type != scalar || upper.r#type != scalar {
+                    if !self.types.extended && (!ordered || lower.r#type != scalar || upper.r#type != scalar) {
                         return Err("ordered test type mismatch");
                     }
-                    let lower = self.cell(Some(lower), ty, cells)?;
-                    let upper = self.cell(Some(upper), ty, cells)?;
+                    let lower = if self.types.extended {
+                        let emitted = self.expression(lower)?;
+                        let v = emitted.value.clone();
+                        cells.push(emitted);
+                        v
+                    } else {
+                        self.cell(Some(lower), ty, cells)?
+                    };
+                    let upper = if self.types.extended {
+                        let emitted = self.expression(upper)?;
+                        let v = emitted.value.clone();
+                        cells.push(emitted);
+                        v
+                    } else {
+                        self.cell(Some(upper), ty, cells)?
+                    };
                     format!(
                         "table_range(&t{index}, {lower}, {upper}, {}, {})",
                         range.lower_inclusive, range.upper_inclusive

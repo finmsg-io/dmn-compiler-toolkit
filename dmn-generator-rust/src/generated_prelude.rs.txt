@@ -12,6 +12,40 @@ pub enum Value {
     Record(BTreeMap<String, Value>),
     List(Vec<Value>),
     Date { year: i32, month: u32, day: u32 },
+    Time(String),
+    DateTime(String),
+    Duration(String),
+    Range {
+        lower: Box<Value>,
+        upper: Box<Value>,
+        lower_inclusive: bool,
+        upper_inclusive: bool,
+    },
+    Function {
+        id: usize,
+        captures: Vec<Value>,
+    },
+}
+
+#[derive(Clone, Debug)]
+struct TypeDesc {
+    kind: &'static str,
+    element_type: Option<Box<TypeDesc>>,
+    fields: Vec<(&'static str, TypeDesc)>,
+    parameter_types: Vec<TypeDesc>,
+    return_type: Option<Box<TypeDesc>>,
+}
+
+impl TypeDesc {
+    fn any() -> Self {
+        Self {
+            kind: "any",
+            element_type: None,
+            fields: Vec::new(),
+            parameter_types: Vec::new(),
+            return_type: None,
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -25,25 +59,42 @@ fn bind(value: &Value, expected: Type) -> Result<Value, &'static str> {
     if matches!(value, Value::Null) {
         return Ok(Value::Null);
     }
+    if DYNAMIC_ANY && matches!(expected, Type::Scalar(1)) {
+        return Ok(value.clone());
+    }
     if let Type::Record(index) = expected {
         return bind_record(value, index);
     }
     if let Type::Collection(index) = expected {
-        let Value::List(elements) = value else {
-            return Err("collection input type mismatch");
-        };
-        return elements
-            .iter()
-            .map(|element| bind(element, collection_element(index)))
-            .collect::<Result<Vec<_>, _>>()
-            .map(Value::List);
+        let elem_ty = collection_element(index);
+        if let Value::List(elements) = value {
+            return elements
+                .iter()
+                .map(|element| bind(element, elem_ty))
+                .collect::<Result<Vec<_>, _>>()
+                .map(Value::List);
+        }
+        return Err("collection input type mismatch");
     }
     let valid = match (value, expected) {
-        (Value::Boolean(_), Type::Scalar(2)) | (Value::Text(_), Type::Scalar(4)) => true,
+        (Value::Boolean(_), Type::Scalar(2))
+        | (Value::Text(_), Type::Scalar(4))
+        | (Value::Time(_), Type::Scalar(6))
+        | (Value::DateTime(_), Type::Scalar(7))
+        | (Value::Duration(_), Type::Scalar(8)) => true,
         (Value::Number { coefficient, scale }, Type::Scalar(3)) => {
             valid_decimal(coefficient, *scale)
         }
         (Value::Date { year, month, day }, Type::Scalar(5)) => valid_date(*year, *month, *day),
+        (Value::Date { year, month, day }, Type::Scalar(7)) if DYNAMIC_ANY => {
+            if valid_date(*year, *month, *day) {
+                return Ok(Value::DateTime(format!(
+                    "{:04}-{:02}-{:02}T00:00:00Z",
+                    year, month, day
+                )));
+            }
+            false
+        }
         _ => false,
     };
     valid.then(|| value.clone()).ok_or("input type mismatch")

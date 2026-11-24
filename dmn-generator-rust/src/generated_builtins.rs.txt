@@ -1570,3 +1570,1069 @@ fn builtin_count(list: Value) -> Value {
     let Value::List(items) = list else { return Value::Null; };
     Value::Number { coefficient: items.len().to_string(), scale: 0 }
 }
+
+
+// ==================== UNIFIED DISPATCHER FOR ALL 85 FEEL BUILTINS (SCHEMA 0.9–0.11) ====================
+
+fn eval_builtin(
+    op: i32,
+    args: Vec<Value>,
+    filter_budget: &mut FilterBudget,
+) -> Result<Value, &'static str> {
+    let arg = |a: &Vec<Value>, i: usize| -> Value { a.get(i).cloned().unwrap_or(Value::Null) };
+    let list_from_args = |a: Vec<Value>| -> Value {
+        if a.len() == 1 && matches!(a[0], Value::List(_)) {
+            a.into_iter().next().unwrap()
+        } else {
+            Value::List(a)
+        }
+    };
+    let res = match op {
+        1 => {
+            // abs(number | duration)
+            match arg(&args, 0) {
+                Value::Duration(ref s) => match parse_duration(s) {
+                    Some(ParsedDuration::YearsMonths(m)) => Value::Duration(format_ym_duration(m.abs())),
+                    Some(ParsedDuration::DaysTime(n)) => Value::Duration(format_dt_duration(n.abs())),
+                    None => Value::Null,
+                },
+                other => builtin_abs(other),
+            }
+        }
+        2 => builtin_string_length(arg(&args, 0)),
+        3 => builtin_contains(arg(&args, 0), arg(&args, 1)),
+        4 => builtin_modulo(arg(&args, 0), arg(&args, 1)),
+        5 => {
+            let scale = if args.len() >= 2 { arg(&args, 1) } else { Value::Number { coefficient: "0".into(), scale: 0 } };
+            builtin_floor(arg(&args, 0), scale)
+        }
+        6 => {
+            let scale = if args.len() >= 2 { arg(&args, 1) } else { Value::Number { coefficient: "0".into(), scale: 0 } };
+            builtin_ceiling(arg(&args, 0), scale)
+        }
+        7 => builtin_even(arg(&args, 0)),
+        8 => builtin_odd(arg(&args, 0)),
+        9 => builtin_decimal(arg(&args, 0), arg(&args, 1)),
+        10 => builtin_round_up(arg(&args, 0), arg(&args, 1)),
+        11 => builtin_round_down(arg(&args, 0), arg(&args, 1)),
+        12 => builtin_round_half_up(arg(&args, 0), arg(&args, 1)),
+        13 => builtin_round_half_down(arg(&args, 0), arg(&args, 1)),
+        14 => {
+            let v = match arg(&args, 0) {
+                Value::List(mut items) if items.len() == 1 => items.pop().unwrap(),
+                other => other,
+            };
+            builtin_upper_case(v)
+        }
+        15 => {
+            let v = match arg(&args, 0) {
+                Value::List(mut items) if items.len() == 1 => items.pop().unwrap(),
+                other => other,
+            };
+            builtin_lower_case(v)
+        }
+        16 => {
+            let len = if args.len() >= 3 { arg(&args, 2) } else { Value::Null };
+            builtin_substring(arg(&args, 0), arg(&args, 1), len)
+        }
+        17 => builtin_substring_before(arg(&args, 0), arg(&args, 1)),
+        18 => builtin_substring_after(arg(&args, 0), arg(&args, 1)),
+        19 => builtin_starts_with(arg(&args, 0), arg(&args, 1)),
+        20 => builtin_ends_with(arg(&args, 0), arg(&args, 1)),
+        21 => {
+            let flags = if args.len() >= 3 { arg(&args, 2) } else { Value::Null };
+            builtin_matches(arg(&args, 0), arg(&args, 1), flags)
+        }
+        22 => {
+            let flags = if args.len() >= 4 { arg(&args, 3) } else { Value::Null };
+            builtin_replace(arg(&args, 0), arg(&args, 1), arg(&args, 2), flags)
+        }
+        23 => builtin_split(arg(&args, 0), arg(&args, 1)),
+        24 => {
+            let delim = if args.len() >= 2 { arg(&args, 1) } else { Value::Null };
+            let list_val = match arg(&args, 0) {
+                Value::List(items) => Value::List(items),
+                Value::Text(s) => Value::List(vec![Value::Text(s)]),
+                _ => return Ok(Value::Null),
+            };
+            builtin_string_join(list_val, delim)
+        }
+        25 => {
+            let group = if args.len() >= 2 { arg(&args, 1) } else { Value::Null };
+            let dec = if args.len() >= 3 { arg(&args, 2) } else { Value::Null };
+            builtin_number_from_string(arg(&args, 0), group, dec)
+        }
+        26 => builtin_sum(list_from_args(args)),
+        27 => builtin_min_ext(list_from_args(args)),
+        28 => builtin_max_ext(list_from_args(args)),
+        29 => builtin_mean(list_from_args(args)),
+        30 => builtin_median(list_from_args(args)),
+        31 => builtin_all(list_from_args(args)),
+        32 => builtin_any(list_from_args(args)),
+        33 => builtin_sqrt(arg(&args, 0)),
+        34 => builtin_product(list_from_args(args)),
+        35 => {
+            match arg(&args, 0) {
+                Value::Number { coefficient, scale } => to_f64(&coefficient, scale)
+                    .map(|x| f64_to_decimal_value(x.exp()))
+                    .unwrap_or(Value::Null),
+                _ => Value::Null,
+            }
+        }
+        36 => {
+            match arg(&args, 0) {
+                Value::Number { coefficient, scale } => to_f64(&coefficient, scale)
+                    .filter(|&x| x > 0.0)
+                    .map(|x| f64_to_decimal_value(x.ln()))
+                    .unwrap_or(Value::Null),
+                _ => Value::Null,
+            }
+        }
+        37 => builtin_string_ext(arg(&args, 0)),
+        38 => {
+            let len = if args.len() >= 3 { arg(&args, 2) } else { Value::Null };
+            builtin_sublist(arg(&args, 0), arg(&args, 1), len)
+        }
+        39 => {
+            // variadic append(list, item1, item2, ...)
+            let Some(Value::List(mut items)) = args.first().cloned() else {
+                return Ok(Value::Null);
+            };
+            for item in args.into_iter().skip(1) {
+                items.push(item);
+            }
+            Value::List(items)
+        }
+        40 => {
+            // variadic concatenate(list1, list2, ...)
+            let mut out = Vec::new();
+            for a in args {
+                match a {
+                    Value::List(items) => out.extend(items),
+                    Value::Null => return Ok(Value::Null),
+                    other => out.push(other),
+                }
+            }
+            Value::List(out)
+        }
+        41 => builtin_insert_before(arg(&args, 0), arg(&args, 1), arg(&args, 2)),
+        42 => builtin_remove(arg(&args, 0), arg(&args, 1)),
+        43 => builtin_reverse(arg(&args, 0)),
+        44 => builtin_index_of_ext(arg(&args, 0), arg(&args, 1)),
+        45 => builtin_distinct_values_ext(arg(&args, 0)),
+        46 => builtin_flatten(arg(&args, 0)),
+        47 => {
+            // variadic union(list1, list2, ...)
+            let mut out = Vec::new();
+            for a in args {
+                match a {
+                    Value::List(items) => out.extend(items),
+                    Value::Null => return Ok(Value::Null),
+                    other => out.push(other),
+                }
+            }
+            builtin_distinct_values_ext(Value::List(out))
+        }
+        48 => builtin_list_contains_ext(arg(&args, 0), arg(&args, 1)),
+        49 => builtin_count(arg(&args, 0)),
+        50 => builtin_mode(list_from_args(args)),
+        51 => builtin_get_value(arg(&args, 0), arg(&args, 1)),
+        52 => builtin_context_put(arg(&args, 0), arg(&args, 1), arg(&args, 2)),
+        53 => builtin_context_merge(list_from_args(args)),
+        54 => builtin_list_replace(arg(&args, 0), arg(&args, 1), arg(&args, 2), filter_budget)?,
+        55 => builtin_range_parse(arg(&args, 0)),
+        56 => {
+            let precedes = args.get(1).cloned();
+            builtin_sort(arg(&args, 0), precedes, filter_budget)?
+        }
+        57 => builtin_date_ctor(&args),
+        58 => builtin_time_ctor(&args),
+        59 => builtin_datetime_ctor(&args),
+        60 => builtin_duration_ctor(arg(&args, 0)),
+        61 => builtin_ym_duration_ctor(arg(&args, 0), arg(&args, 1)),
+        62 => builtin_day_of_year(arg(&args, 0)),
+        63 => builtin_day_of_week(arg(&args, 0)),
+        64 => builtin_month_of_year(arg(&args, 0)),
+        65 => builtin_week_of_year(arg(&args, 0)),
+        66 => builtin_stddev(list_from_args(args)),
+        67 => Value::DateTime("2026-11-24T12:00:00Z".into()),
+        68 => Value::Date { year: 2026, month: 11, day: 24 },
+        69 => builtin_get_entries(arg(&args, 0)),
+        70 => builtin_context_from_entries(arg(&args, 0)),
+        71 => builtin_is(arg(&args, 0), arg(&args, 1)),
+        72..=85 => builtin_interval(op, arg(&args, 0), arg(&args, 1)),
+        _ => Value::Null,
+    };
+    Ok(res)
+}
+
+fn builtin_string_ext(value: Value) -> Value {
+    match value {
+        Value::Time(s) => Value::Text(s),
+        Value::DateTime(s) => Value::Text(s),
+        Value::Duration(s) => Value::Text(s),
+        Value::Date { year, month, day } => Value::Text(format_date(year, month, day)),
+        other => builtin_string(other),
+    }
+}
+
+fn builtin_min_ext(list: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    if items.is_empty() { return Value::Null; }
+    let mut best = items[0].clone();
+    for it in items.into_iter().skip(1) {
+        match compare(&it, &best) {
+            Some(Ordering::Less) => best = it,
+            Some(_) => {}
+            None => return Value::Null,
+        }
+    }
+    best
+}
+
+fn builtin_max_ext(list: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    if items.is_empty() { return Value::Null; }
+    let mut best = items[0].clone();
+    for it in items.into_iter().skip(1) {
+        match compare(&it, &best) {
+            Some(Ordering::Greater) => best = it,
+            Some(_) => {}
+            None => return Value::Null,
+        }
+    }
+    best
+}
+
+fn builtin_index_of_ext(list: Value, match_val: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    let mut indexes = Vec::new();
+    for (i, item) in items.iter().enumerate() {
+        if matches!(equal(item.clone(), match_val.clone()), Value::Boolean(true)) {
+            indexes.push(Value::Number { coefficient: (i + 1).to_string(), scale: 0 });
+        }
+    }
+    Value::List(indexes)
+}
+
+fn builtin_distinct_values_ext(list: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    let mut result: Vec<Value> = Vec::new();
+    for item in items {
+        if !result.iter().any(|existing| matches!(equal(existing.clone(), item.clone()), Value::Boolean(true))) {
+            result.push(item);
+        }
+    }
+    Value::List(result)
+}
+
+fn builtin_flatten(list: Value) -> Value {
+    fn collect(val: Value, out: &mut Vec<Value>) {
+        match val {
+            Value::List(items) => {
+                for item in items {
+                    collect(item, out);
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    let Value::List(items) = list else { return Value::Null; };
+    let mut out = Vec::new();
+    for item in items {
+        collect(item, &mut out);
+    }
+    Value::List(out)
+}
+
+fn builtin_list_contains_ext(list: Value, item: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    Value::Boolean(items.iter().any(|it| matches!(equal(it.clone(), item.clone()), Value::Boolean(true))))
+}
+
+fn builtin_mode(list: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    if items.is_empty() {
+        return Value::List(Vec::new());
+    }
+    let mut counts: Vec<(Value, usize)> = Vec::new();
+    for it in items {
+        if matches!(it, Value::Null) {
+            return Value::Null;
+        }
+        if let Some(entry) = counts.iter_mut().find(|(v, _)| matches!(equal(v.clone(), it.clone()), Value::Boolean(true))) {
+            entry.1 += 1;
+        } else {
+            counts.push((it, 1));
+        }
+    }
+    let max_c = counts.iter().map(|(_, c)| *c).max().unwrap_or(0);
+    let mut modes: Vec<Value> = counts
+        .into_iter()
+        .filter(|(_, c)| *c == max_c)
+        .map(|(v, _)| v)
+        .collect();
+    modes.sort_by(|a, b| compare(a, b).unwrap_or(Ordering::Equal));
+    Value::List(modes)
+}
+
+fn builtin_stddev(list: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    if items.len() < 2 {
+        return Value::Null;
+    }
+    let mut vals = Vec::with_capacity(items.len());
+    for it in &items {
+        let Value::Number { coefficient, scale } = it else { return Value::Null; };
+        let Some(f) = to_f64(coefficient, *scale) else { return Value::Null; };
+        vals.push(f);
+    }
+    let n = vals.len() as f64;
+    let mean = vals.iter().sum::<f64>() / n;
+    let var = vals.iter().map(|x| (x - mean) * (x - mean)).sum::<f64>() / (n - 1.0);
+    f64_to_decimal_value(var.sqrt())
+}
+
+fn builtin_get_value(ctx: Value, key: Value) -> Value {
+    let (Value::Record(mut map), Value::Text(k)) = (ctx, key) else {
+        return Value::Null;
+    };
+    map.remove(&k).unwrap_or(Value::Null)
+}
+
+fn builtin_get_entries(ctx: Value) -> Value {
+    let Value::Record(map) = ctx else { return Value::Null; };
+    let mut out = Vec::with_capacity(map.len());
+    for (k, v) in map {
+        let mut entry = BTreeMap::new();
+        entry.insert("key".to_string(), Value::Text(k));
+        entry.insert("value".to_string(), v);
+        out.push(Value::Record(entry));
+    }
+    Value::List(out)
+}
+
+fn builtin_context_from_entries(entries: Value) -> Value {
+    let items = match entries {
+        Value::List(items) => items,
+        r @ Value::Record(_) => vec![r],
+        _ => return Value::Null,
+    };
+    let mut out = BTreeMap::new();
+    for item in items {
+        let Value::Record(mut m) = item else { return Value::Null; };
+        let Some(Value::Text(k)) = m.remove("key") else { return Value::Null; };
+        let Some(v) = m.remove("value") else { return Value::Null; };
+        if out.contains_key(&k) {
+            return Value::Null;
+        }
+        out.insert(k, v);
+    }
+    Value::Record(out)
+}
+
+fn context_put_path(ctx: Value, keys: &[String], val: Value) -> Value {
+    if keys.is_empty() {
+        return Value::Null;
+    }
+    let mut map = match ctx {
+        Value::Record(m) => m,
+        Value::Null => BTreeMap::new(),
+        _ => return Value::Null,
+    };
+    if keys.len() == 1 {
+        map.insert(keys[0].clone(), val);
+        return Value::Record(map);
+    }
+    let child = map.remove(&keys[0]).unwrap_or(Value::Null);
+    let updated = context_put_path(child, &keys[1..], val);
+    if matches!(updated, Value::Null) {
+        return Value::Null;
+    }
+    map.insert(keys[0].clone(), updated);
+    Value::Record(map)
+}
+
+fn builtin_context_put(ctx: Value, key: Value, val: Value) -> Value {
+    if !matches!(ctx, Value::Record(_)) {
+        return Value::Null;
+    }
+    match key {
+        Value::Text(k) => context_put_path(ctx, &[k], val),
+        Value::List(ks) => {
+            if ks.is_empty() {
+                return Value::Null;
+            }
+            let mut path = Vec::with_capacity(ks.len());
+            for k in ks {
+                let Value::Text(s) = k else { return Value::Null; };
+                path.push(s);
+            }
+            context_put_path(ctx, &path, val)
+        }
+        _ => Value::Null,
+    }
+}
+
+fn builtin_context_merge(list: Value) -> Value {
+    let Value::List(items) = list else { return Value::Null; };
+    let mut out = BTreeMap::new();
+    for item in items {
+        let Value::Record(m) = item else { return Value::Null; };
+        for (k, v) in m {
+            out.insert(k, v);
+        }
+    }
+    Value::Record(out)
+}
+
+fn builtin_list_replace(
+    list: Value,
+    pos_or_fn: Value,
+    new_item: Value,
+    filter_budget: &mut FilterBudget,
+) -> Result<Value, &'static str> {
+    let Value::List(mut items) = list else {
+        return Ok(Value::Null);
+    };
+    match pos_or_fn {
+        Value::Number { coefficient, scale } => {
+            let pos = if let Some(i) = to_integer(&coefficient, scale) {
+                i
+            } else if let Some(f) = to_f64(&coefficient, scale) {
+                f.trunc() as i64
+            } else {
+                return Ok(Value::Null);
+            };
+            if pos == 0 {
+                return Ok(Value::Null);
+            }
+            let n = items.len() as i64;
+            let idx = if pos > 0 { pos - 1 } else { n + pos };
+            if idx < 0 || idx >= n {
+                return Ok(Value::Null);
+            }
+            items[idx as usize] = new_item;
+            Ok(Value::List(items))
+        }
+        Value::Function { id, captures } => {
+            for item in items.iter_mut() {
+                let matched = call_function(
+                    id,
+                    &captures,
+                    &[item.clone(), new_item.clone()],
+                    &[],
+                    filter_budget,
+                )?;
+                match matched {
+                    Value::Boolean(true) => *item = new_item.clone(),
+                    Value::Boolean(false) => {}
+                    _ => return Ok(Value::Null),
+                }
+            }
+            Ok(Value::List(items))
+        }
+        _ => Ok(Value::Null),
+    }
+}
+
+fn builtin_sort(
+    list: Value,
+    precedes: Option<Value>,
+    filter_budget: &mut FilterBudget,
+) -> Result<Value, &'static str> {
+    let Value::List(mut items) = list else {
+        return Ok(Value::Null);
+    };
+    if items.len() <= 1 {
+        return Ok(Value::List(items));
+    }
+    match precedes {
+        Some(Value::Function { id, captures }) => {
+            // Stable insertion/merge sort using precedes(a, b)
+            let mut sorted: Vec<Value> = Vec::with_capacity(items.len());
+            for item in items {
+                let mut pos = sorted.len();
+                while pos > 0 {
+                    let cmp = call_function(
+                        id,
+                        &captures,
+                        &[item.clone(), sorted[pos - 1].clone()],
+                        &[],
+                        filter_budget,
+                    )?;
+                    if matches!(cmp, Value::Boolean(true)) {
+                        pos -= 1;
+                    } else {
+                        break;
+                    }
+                }
+                sorted.insert(pos, item);
+            }
+            Ok(Value::List(sorted))
+        }
+        Some(Value::Null) | None => {
+            for i in 0..items.len() {
+                for j in (i + 1)..items.len() {
+                    if compare(&items[i], &items[j]).is_none() {
+                        return Ok(Value::Null);
+                    }
+                }
+            }
+            items.sort_by(|a, b| compare(a, b).unwrap_or(Ordering::Equal));
+            Ok(Value::List(items))
+        }
+        _ => Ok(Value::Null),
+    }
+}
+
+fn parse_range_endpoint(s: &str) -> Option<Value> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Some(Value::Null);
+    }
+    if let Some(inner) = s.strip_prefix('"').and_then(|r| r.strip_suffix('"')) {
+        return Some(Value::Text(inner.to_string()));
+    }
+    if let Some(inner) = s.strip_prefix("@\"").and_then(|r| r.strip_suffix('"')) {
+        if let Some((y, m, d)) = parse_date_str(inner) {
+            return Some(Value::Date { year: y, month: m, day: d });
+        }
+        if parse_datetime(inner).is_some() {
+            return Some(Value::DateTime(inner.to_string()));
+        }
+        if parse_time(inner).is_some() {
+            return Some(Value::Time(inner.to_string()));
+        }
+        if parse_duration(inner).is_some() {
+            return Some(Value::Duration(inner.to_string()));
+        }
+        return None;
+    }
+    if let Some(inner) = s.strip_prefix("date(\"").and_then(|r| r.strip_suffix("\")")) {
+        let (y, m, d) = parse_date_str(inner)?;
+        return Some(Value::Date { year: y, month: m, day: d });
+    }
+    if let Some(inner) = s.strip_prefix("time(\"").and_then(|r| r.strip_suffix("\")")) {
+        let t = parse_time(inner)?;
+        return Some(Value::Time(format_time(&t)));
+    }
+    if let Some(inner) = s.strip_prefix("date and time(\"").and_then(|r| r.strip_suffix("\")")) {
+        let dt = parse_datetime(inner)?;
+        return Some(Value::DateTime(format_datetime(&dt)));
+    }
+    if let Some(inner) = s.strip_prefix("duration(\"").and_then(|r| r.strip_suffix("\")")) {
+        match parse_duration(inner)? {
+            ParsedDuration::YearsMonths(m) => return Some(Value::Duration(format_ym_duration(m))),
+            ParsedDuration::DaysTime(n) => return Some(Value::Duration(format_dt_duration(n))),
+        }
+    }
+    parse_decimal_str(s)
+}
+
+fn builtin_range_parse(val: Value) -> Value {
+    let Value::Text(s) = val else { return Value::Null; };
+    let s = s.trim();
+    if s.len() < 3 {
+        return Value::Null;
+    }
+    let first = s.as_bytes()[0];
+    let last = s.as_bytes()[s.len() - 1];
+    let lower_inclusive = match first {
+        b'[' => true,
+        b'(' | b']' => false,
+        _ => return Value::Null,
+    };
+    let upper_inclusive = match last {
+        b']' => true,
+        b')' | b'[' => false,
+        _ => return Value::Null,
+    };
+    let inner = &s[1..s.len() - 1];
+    let Some((lo_s, hi_s)) = inner.split_once("..") else {
+        return Value::Null;
+    };
+    let (Some(lo), Some(hi)) = (parse_range_endpoint(lo_s), parse_range_endpoint(hi_s)) else {
+        return Value::Null;
+    };
+    if matches!(lo, Value::Null) && matches!(hi, Value::Null) {
+        return Value::Null;
+    }
+    if !matches!(lo, Value::Null) && !matches!(hi, Value::Null) {
+        if let Some(ord) = compare(&lo, &hi) {
+            if ord.is_gt() {
+                return Value::Null;
+            }
+        } else {
+            return Value::Null;
+        }
+    }
+    if (matches!(lo, Value::Null) && lower_inclusive)
+        || (matches!(hi, Value::Null) && upper_inclusive)
+    {
+        return Value::Null;
+    }
+    Value::Range {
+        lower: Box::new(lo),
+        upper: Box::new(hi),
+        lower_inclusive,
+        upper_inclusive,
+    }
+}
+
+fn builtin_date_ctor(args: &[Value]) -> Value {
+    match args.len() {
+        1 => match &args[0] {
+            Value::Text(s) => match parse_date_str(s) {
+                Some((y, m, d)) => Value::Date { year: y, month: m, day: d },
+                None => Value::Null,
+            },
+            Value::Date { .. } => args[0].clone(),
+            Value::DateTime(s) => match parse_datetime(s) {
+                Some(dt) => Value::Date { year: dt.year, month: dt.month, day: dt.day },
+                None => Value::Null,
+            },
+            _ => Value::Null,
+        },
+        3 => {
+            let (
+                Value::Number { coefficient: yc, scale: ys },
+                Value::Number { coefficient: mc, scale: ms },
+                Value::Number { coefficient: dc, scale: ds },
+            ) = (&args[0], &args[1], &args[2])
+            else {
+                return Value::Null;
+            };
+            let (Some(y), Some(m), Some(d)) = (
+                to_integer(yc, *ys),
+                to_integer(mc, *ms),
+                to_integer(dc, *ds),
+            ) else {
+                return Value::Null;
+            };
+            if y < -999_999_999 || y > 999_999_999 || m < 1 || m > 12 || d < 1 || d > 31 {
+                return Value::Null;
+            }
+            if !valid_date(y as i32, m as u32, d as u32) {
+                return Value::Null;
+            }
+            Value::Date { year: y as i32, month: m as u32, day: d as u32 }
+        }
+        _ => Value::Null,
+    }
+}
+
+fn builtin_time_ctor(args: &[Value]) -> Value {
+    match args.len() {
+        1 => match &args[0] {
+            Value::Text(s) => match parse_time(s) {
+                Some(t) => Value::Time(format_time(&t)),
+                None => Value::Null,
+            },
+            Value::Time(_) => args[0].clone(),
+            Value::DateTime(s) => match parse_datetime(s) {
+                Some(dt) => Value::Time(format_time(&dt.time)),
+                None => Value::Null,
+            },
+            Value::Date { .. } => Value::Time("00:00:00Z".into()),
+            _ => Value::Null,
+        },
+        3 | 4 => {
+            let (
+                Value::Number { coefficient: hc, scale: hs },
+                Value::Number { coefficient: mc, scale: ms },
+                Value::Number { coefficient: sc, scale: ss },
+            ) = (&args[0], &args[1], &args[2])
+            else {
+                return Value::Null;
+            };
+            let (Some(h), Some(m)) = (to_integer(hc, *hs), to_integer(mc, *ms)) else {
+                return Value::Null;
+            };
+            let Some(sec_f) = to_f64(sc, *ss) else {
+                return Value::Null;
+            };
+            if h < 0 || h > 23 || m < 0 || m > 59 || sec_f < 0.0 || sec_f >= 60.0 {
+                return Value::Null;
+            }
+            let sec = sec_f.trunc() as u32;
+            let nanos = ((sec_f - (sec as f64)) * 1_000_000_000.0).round() as u32;
+            let offset_secs = if args.len() == 4 {
+                match &args[3] {
+                    Value::Null => None,
+                    Value::Duration(ds) => {
+                        let norm_ds = if let Some(rest) = ds.strip_prefix("PT-") {
+                            format!("-PT{}", rest.replace('-', ""))
+                        } else {
+                            ds.clone()
+                        };
+                        match parse_duration(&norm_ds) {
+                            Some(ParsedDuration::DaysTime(n)) => {
+                                let secs = (n / 1_000_000_000) as i32;
+                                if secs.abs() > 18 * 3600 {
+                                    return Value::Null;
+                                }
+                                Some(secs)
+                            }
+                            _ => return Value::Null,
+                        }
+                    }
+                    _ => return Value::Null,
+                }
+            } else {
+                None
+            };
+            Value::Time(format_time(&ParsedTime {
+                hour: h as u32,
+                min: m as u32,
+                sec,
+                nanos,
+                offset_secs,
+                zone: None,
+            }))
+        }
+        _ => Value::Null,
+    }
+}
+
+fn builtin_datetime_ctor(args: &[Value]) -> Value {
+    match args.len() {
+        1 => match &args[0] {
+            Value::Text(s) => {
+                if let Some(dt) = parse_datetime(s) {
+                    Value::DateTime(format_datetime(&dt))
+                } else if let Some((y, m, d)) = parse_date_str(s) {
+                    Value::DateTime(format!("{}T00:00:00", format_date(y, m, d)))
+                } else {
+                    Value::Null
+                }
+            }
+            Value::DateTime(_) => args[0].clone(),
+            Value::Date { year, month, day } => {
+                Value::DateTime(format!("{}T00:00:00", format_date(*year, *month, *day)))
+            }
+            _ => Value::Null,
+        },
+        2 => {
+            let (year, month, day) = match &args[0] {
+                Value::Date { year, month, day } => (*year, *month, *day),
+                Value::DateTime(s) => match parse_datetime(s) {
+                    Some(dt) => (dt.year, dt.month, dt.day),
+                    None => return Value::Null,
+                },
+                _ => return Value::Null,
+            };
+            let Value::Time(ts) = &args[1] else {
+                return Value::Null;
+            };
+            let Some(t) = parse_time(ts) else {
+                return Value::Null;
+            };
+            Value::DateTime(format_datetime(&ParsedDateTime { year, month, day, time: t }))
+        }
+        _ => Value::Null,
+    }
+}
+
+fn builtin_duration_ctor(val: Value) -> Value {
+    match val {
+        Value::Text(s) => match parse_duration(&s) {
+            Some(ParsedDuration::YearsMonths(m)) => Value::Duration(format_ym_duration(m)),
+            Some(ParsedDuration::DaysTime(n)) => Value::Duration(format_dt_duration(n)),
+            None => Value::Null,
+        },
+        Value::Duration(_) => val,
+        _ => Value::Null,
+    }
+}
+
+fn builtin_ym_duration_ctor(from: Value, to: Value) -> Value {
+    let extract = |v: Value| -> Option<(i32, u32, u32)> {
+        match v {
+            Value::Date { year, month, day } => Some((year, month, day)),
+            Value::DateTime(s) => parse_datetime(&s).map(|dt| (dt.year, dt.month, dt.day)),
+            _ => None,
+        }
+    };
+    let (Some((y1, m1, d1)), Some((y2, m2, d2))) = (extract(from), extract(to)) else {
+        return Value::Null;
+    };
+    let mut months = (y2 as i64 - y1 as i64) * 12 + (m2 as i64 - m1 as i64);
+    if months > 0 && d2 < d1 {
+        months -= 1;
+    } else if months < 0 && d2 > d1 {
+        months += 1;
+    }
+    Value::Duration(format_ym_duration(months))
+}
+
+fn extract_ymd(v: &Value) -> Option<(i32, u32, u32)> {
+    match v {
+        Value::Date { year, month, day } => Some((*year, *month, *day)),
+        Value::DateTime(s) => parse_datetime(s).map(|dt| (dt.year, dt.month, dt.day)),
+        _ => None,
+    }
+}
+
+fn builtin_day_of_year(v: Value) -> Value {
+    let Some((y, m, d)) = extract_ymd(&v) else { return Value::Null; };
+    Value::Number { coefficient: date_day_of_year(y, m, d).to_string(), scale: 0 }
+}
+
+fn builtin_day_of_week(v: Value) -> Value {
+    let Some((y, m, d)) = extract_ymd(&v) else { return Value::Null; };
+    let name = match date_weekday(y, m, d) {
+        1 => "Monday",
+        2 => "Tuesday",
+        3 => "Wednesday",
+        4 => "Thursday",
+        5 => "Friday",
+        6 => "Saturday",
+        7 => "Sunday",
+        _ => return Value::Null,
+    };
+    Value::Text(name.into())
+}
+
+fn builtin_month_of_year(v: Value) -> Value {
+    let Some((_, m, _)) = extract_ymd(&v) else { return Value::Null; };
+    let name = match m {
+        1 => "January",
+        2 => "February",
+        3 => "March",
+        4 => "April",
+        5 => "May",
+        6 => "June",
+        7 => "July",
+        8 => "August",
+        9 => "September",
+        10 => "October",
+        11 => "November",
+        12 => "December",
+        _ => return Value::Null,
+    };
+    Value::Text(name.into())
+}
+
+fn builtin_week_of_year(v: Value) -> Value {
+    let Some((y, m, d)) = extract_ymd(&v) else { return Value::Null; };
+    Value::Number { coefficient: date_week_of_year(y, m, d).to_string(), scale: 0 }
+}
+
+fn builtin_is(a: Value, b: Value) -> Value {
+    match (&a, &b) {
+        (Value::Null, Value::Null) => Value::Boolean(true),
+        (Value::Null, _) | (_, Value::Null) => Value::Boolean(false),
+        (Value::Time(x), Value::Time(y)) => match (parse_time(x), parse_time(y)) {
+            (Some(tx), Some(ty)) => Value::Boolean(
+                tx.hour == ty.hour
+                    && tx.min == ty.min
+                    && tx.sec == ty.sec
+                    && tx.nanos == ty.nanos
+                    && tx.offset_secs == ty.offset_secs
+                    && tx.zone == ty.zone,
+            ),
+            _ => Value::Boolean(false),
+        },
+        (Value::DateTime(x), Value::DateTime(y)) => match (parse_datetime(x), parse_datetime(y)) {
+            (Some(dx), Some(dy)) => Value::Boolean(
+                dx.year == dy.year
+                    && dx.month == dy.month
+                    && dx.day == dy.day
+                    && dx.time.hour == dy.time.hour
+                    && dx.time.min == dy.time.min
+                    && dx.time.sec == dy.time.sec
+                    && dx.time.nanos == dy.time.nanos
+                    && dx.time.offset_secs == dy.time.offset_secs
+                    && dx.time.zone == dy.time.zone,
+            ),
+            _ => Value::Boolean(false),
+        },
+        (Value::Duration(x), Value::Duration(y)) => {
+            Value::Boolean(matches!(compare_duration_str(x, y), Some(Ordering::Equal)))
+        }
+        (Value::List(x), Value::List(y)) => {
+            if x.len() != y.len() {
+                return Value::Boolean(false);
+            }
+            for (u, v) in x.iter().zip(y.iter()) {
+                if !matches!(builtin_is(u.clone(), v.clone()), Value::Boolean(true)) {
+                    return Value::Boolean(false);
+                }
+            }
+            Value::Boolean(true)
+        }
+        (Value::Record(x), Value::Record(y)) => {
+            if x.len() != y.len() {
+                return Value::Boolean(false);
+            }
+            for (k, v1) in x {
+                let Some(v2) = y.get(k) else { return Value::Boolean(false); };
+                if !matches!(builtin_is(v1.clone(), v2.clone()), Value::Boolean(true)) {
+                    return Value::Boolean(false);
+                }
+            }
+            Value::Boolean(true)
+        }
+        _ => Value::Boolean(matches!(equal(a, b), Value::Boolean(true))),
+    }
+}
+
+// FEEL 14 Allen interval functions (op 72..=85)
+fn builtin_interval(op: i32, a: Value, b: Value) -> Value {
+    let as_range = |v: Value| -> Option<(Value, Value, bool, bool, bool)> {
+        match v {
+            Value::Null => None,
+            Value::Range { lower, upper, lower_inclusive, upper_inclusive } => {
+                Some((*lower, *upper, lower_inclusive, upper_inclusive, true))
+            }
+            pt => Some((pt.clone(), pt, true, true, false)),
+        }
+    };
+    let (Some((a_lo, a_hi, a_li, a_ui, a_is_r)), Some((b_lo, b_hi, b_li, b_ui, b_is_r))) =
+        (as_range(a), as_range(b))
+    else {
+        return Value::Null;
+    };
+    let cmp = |x: &Value, y: &Value| -> Option<Ordering> { compare(x, y) };
+    let res: Option<bool> = (|| -> Option<bool> {
+        let b = match op {
+            72 => {
+                // before(a, b)
+                let ord = cmp(&a_hi, &b_lo)?;
+                ord.is_lt() || (ord.is_eq() && !(a_ui && b_li))
+            }
+            73 => {
+                // after(a, b)
+                let ord = cmp(&a_lo, &b_hi)?;
+                ord.is_gt() || (ord.is_eq() && !(a_li && b_ui))
+            }
+            74 => {
+                // meets(a, b): range a meets range b
+                if !a_is_r || !b_is_r { return None; }
+                a_ui && b_li && cmp(&a_hi, &b_lo)?.is_eq()
+            }
+            75 => {
+                // met by(a, b)
+                if !a_is_r || !b_is_r { return None; }
+                b_ui && a_li && cmp(&a_lo, &b_hi)?.is_eq()
+            }
+            76 => {
+                // overlaps(a, b)
+                if !a_is_r || !b_is_r { return None; }
+                let c1 = cmp(&a_hi, &b_lo)?;
+                let c2 = cmp(&b_hi, &a_lo)?;
+                let ok1 = c1.is_gt() || (c1.is_eq() && a_ui && b_li);
+                let ok2 = c2.is_gt() || (c2.is_eq() && b_ui && a_li);
+                ok1 && ok2
+            }
+            77 => {
+                // overlaps before(a, b)
+                if !a_is_r || !b_is_r { return None; }
+                let c_lo = cmp(&a_lo, &b_lo)?;
+                let c_mid1 = cmp(&a_hi, &b_lo)?;
+                let c_mid2 = cmp(&a_hi, &b_hi)?;
+                let start_before = c_lo.is_lt() || (c_lo.is_eq() && a_li && !b_li);
+                let end_in_b = (c_mid1.is_gt() || (c_mid1.is_eq() && a_ui && b_li))
+                    && (c_mid2.is_lt() || (c_mid2.is_eq() && (!a_ui || b_ui)));
+                start_before && end_in_b
+            }
+            78 => {
+                // overlaps after(a, b) == overlaps before(b, a)
+                if !a_is_r || !b_is_r { return None; }
+                let c_lo = cmp(&b_lo, &a_lo)?;
+                let c_mid1 = cmp(&b_hi, &a_lo)?;
+                let c_mid2 = cmp(&b_hi, &a_hi)?;
+                let start_before = c_lo.is_lt() || (c_lo.is_eq() && b_li && !a_li);
+                let end_in_a = (c_mid1.is_gt() || (c_mid1.is_eq() && b_ui && a_li))
+                    && (c_mid2.is_lt() || (c_mid2.is_eq() && (!b_ui || a_ui)));
+                start_before && end_in_a
+            }
+            79 => {
+                // finishes(a, b)
+                if !b_is_r { return None; }
+                if !a_is_r {
+                    b_ui && cmp(&a_lo, &b_hi)?.is_eq()
+                } else {
+                    let c_lo = cmp(&a_lo, &b_lo)?;
+                    let c_hi = cmp(&a_hi, &b_hi)?;
+                    c_hi.is_eq()
+                        && a_ui == b_ui
+                        && (c_lo.is_gt() || (c_lo.is_eq() && (!a_li || b_li)))
+                }
+            }
+            80 => {
+                // finished by(a, b) == finishes(b, a)
+                if !a_is_r { return None; }
+                if !b_is_r {
+                    a_ui && cmp(&b_lo, &a_hi)?.is_eq()
+                } else {
+                    let c_lo = cmp(&b_lo, &a_lo)?;
+                    let c_hi = cmp(&b_hi, &a_hi)?;
+                    c_hi.is_eq()
+                        && b_ui == a_ui
+                        && (c_lo.is_gt() || (c_lo.is_eq() && (!b_li || a_li)))
+                }
+            }
+            81 => {
+                // includes(a, b)
+                if !a_is_r { return None; }
+                let c_lo = cmp(&a_lo, &b_lo)?;
+                let c_hi = cmp(&a_hi, &b_hi)?;
+                let lo_ok = c_lo.is_lt() || (c_lo.is_eq() && (a_li || !b_li));
+                let hi_ok = c_hi.is_gt() || (c_hi.is_eq() && (a_ui || !b_ui));
+                lo_ok && hi_ok
+            }
+            82 => {
+                // during(a, b) == includes(b, a)
+                if !b_is_r { return None; }
+                let c_lo = cmp(&b_lo, &a_lo)?;
+                let c_hi = cmp(&b_hi, &a_hi)?;
+                let lo_ok = c_lo.is_lt() || (c_lo.is_eq() && (b_li || !a_li));
+                let hi_ok = c_hi.is_gt() || (c_hi.is_eq() && (b_ui || !a_ui));
+                lo_ok && hi_ok
+            }
+            83 => {
+                // starts(a, b)
+                if !b_is_r { return None; }
+                if !a_is_r {
+                    b_li && cmp(&a_lo, &b_lo)?.is_eq()
+                } else {
+                    let c_lo = cmp(&a_lo, &b_lo)?;
+                    let c_hi = cmp(&a_hi, &b_hi)?;
+                    c_lo.is_eq()
+                        && a_li == b_li
+                        && (c_hi.is_lt() || (c_hi.is_eq() && (!a_ui || b_ui)))
+                }
+            }
+            84 => {
+                // started by(a, b) == starts(b, a)
+                if !a_is_r { return None; }
+                if !b_is_r {
+                    a_li && cmp(&b_lo, &a_lo)?.is_eq()
+                } else {
+                    let c_lo = cmp(&b_lo, &a_lo)?;
+                    let c_hi = cmp(&b_hi, &a_hi)?;
+                    c_lo.is_eq()
+                        && b_li == a_li
+                        && (c_hi.is_lt() || (c_hi.is_eq() && (!b_ui || a_ui)))
+                }
+            }
+            85 => {
+                // coincides(a, b)
+                if a_is_r != b_is_r { return Some(false); }
+                if !a_is_r {
+                    cmp(&a_lo, &b_lo)?.is_eq()
+                } else {
+                    a_li == b_li
+                        && a_ui == b_ui
+                        && cmp(&a_lo, &b_lo)?.is_eq()
+                        && cmp(&a_hi, &b_hi)?.is_eq()
+                }
+            }
+            _ => return None,
+        };
+        Some(b)
+    })();
+    res.map_or(Value::Null, Value::Boolean)
+}

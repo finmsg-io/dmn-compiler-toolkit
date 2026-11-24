@@ -40,6 +40,7 @@ pub struct Record<'a> {
 pub struct Types<'a> {
     enabled: bool,
     dates: bool,
+    pub extended: bool,
     indices: BTreeMap<(&'a str, &'a str), usize>,
     collections_enabled: bool,
     collection_indices: BTreeMap<(&'a str, &'a str), usize>,
@@ -56,6 +57,7 @@ impl<'a> Types<'a> {
         enabled: bool,
         dates: bool,
         collections_enabled: bool,
+        extended: bool,
     ) -> Check<Self> {
         let mut indices = BTreeMap::new();
         for model in models {
@@ -117,8 +119,8 @@ impl<'a> Types<'a> {
                         .ok_or("nested collection type not found")?;
                     Type::Collection(index)
                 } else {
-                    let scalar = scalar_type(collection.element_type, dates)?;
-                    if scalar == DmnIrScalarType::ScalarTypeNull {
+                    let scalar = scalar_type_ext(collection.element_type, dates, extended)?;
+                    if !extended && scalar == DmnIrScalarType::ScalarTypeNull {
                         return Err("collection needs non-null scalar element type");
                     }
                     Type::Scalar(scalar)
@@ -136,6 +138,7 @@ impl<'a> Types<'a> {
             collection_indices,
             collections,
             dates,
+            extended,
             records: (0..indices.len())
                 .map(|_| Record {
                     fields: Vec::new(),
@@ -149,7 +152,7 @@ impl<'a> Types<'a> {
         };
         for model in models {
             for record in &model.record_definitions {
-                if record.fields.is_empty() {
+                if !extended && record.fields.is_empty() {
                     return Err("empty records are unsupported");
                 }
                 let identity = record.identity.as_ref().unwrap();
@@ -267,14 +270,14 @@ impl<'a> Types<'a> {
             }
             self.record(record, namespace)
         } else {
-            Ok(Type::Scalar(scalar_type(scalar, self.dates)?))
+            Ok(Type::Scalar(scalar_type_ext(scalar, self.dates, self.extended)?))
         }
     }
 
     pub fn reference(&self, value: &DmnIrTypeReference, namespace: &str) -> Check<Type> {
         match value.kind.as_ref() {
             Some(dmn_ir_type_reference::Kind::ScalarType(scalar)) => {
-                Ok(Type::Scalar(scalar_type(*scalar, self.dates)?))
+                Ok(Type::Scalar(scalar_type_ext(*scalar, self.dates, self.extended)?))
             }
             Some(dmn_ir_type_reference::Kind::RecordType(record)) => self.record(record, namespace),
             Some(dmn_ir_type_reference::Kind::CollectionType(collection)) => {
@@ -346,12 +349,21 @@ impl<'a> Types<'a> {
 }
 
 pub fn scalar_type(value: i32, dates: bool) -> Check<DmnIrScalarType> {
+    scalar_type_ext(value, dates, false)
+}
+
+pub fn scalar_type_ext(value: i32, dates: bool, _extended: bool) -> Check<DmnIrScalarType> {
     use DmnIrScalarType::*;
     match DmnIrScalarType::try_from(value) {
         Ok(value @ (ScalarTypeNull | ScalarTypeBoolean | ScalarTypeNumber | ScalarTypeString)) => {
             Ok(value)
         }
-        Ok(ScalarTypeDate) if dates => Ok(ScalarTypeDate),
+        Ok(
+            value @ (ScalarTypeDate
+            | ScalarTypeTime
+            | ScalarTypeDateTime
+            | ScalarTypeDuration),
+        ) if dates => Ok(value),
         _ => Err("type outside scalar profile"),
     }
 }

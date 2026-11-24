@@ -201,7 +201,66 @@ fn equal(left: Value, right: Value) -> Value {
         (Value::Null, Value::Null) => Value::Boolean(true),
         (Value::Null, _) | (_, Value::Null) => Value::Boolean(false),
         (Value::Boolean(a), Value::Boolean(b)) => Value::Boolean(a == b),
-        _ => compare(&left, &right).map_or(Value::Null, |order| Value::Boolean(order.is_eq())),
+        (Value::List(a), Value::List(b)) => {
+            if a.len() != b.len() {
+                return Value::Boolean(false);
+            }
+            for (x, y) in a.iter().zip(b.iter()) {
+                if !matches!(equal(x.clone(), y.clone()), Value::Boolean(true)) {
+                    return Value::Boolean(false);
+                }
+            }
+            Value::Boolean(true)
+        }
+        (Value::Record(a), Value::Record(b)) => {
+            if a.len() != b.len() {
+                return Value::Boolean(false);
+            }
+            for (k, v1) in a {
+                let Some(v2) = b.get(k) else {
+                    return Value::Boolean(false);
+                };
+                if !matches!(equal(v1.clone(), v2.clone()), Value::Boolean(true)) {
+                    return Value::Boolean(false);
+                }
+            }
+            Value::Boolean(true)
+        }
+        (
+            Value::Range {
+                lower: l1,
+                upper: u1,
+                lower_inclusive: li1,
+                upper_inclusive: ui1,
+            },
+            Value::Range {
+                lower: l2,
+                upper: u2,
+                lower_inclusive: li2,
+                upper_inclusive: ui2,
+            },
+        ) => {
+            let eff_li1 = !matches!(**l1, Value::Null) && *li1;
+            let eff_li2 = !matches!(**l2, Value::Null) && *li2;
+            let eff_ui1 = !matches!(**u1, Value::Null) && *ui1;
+            let eff_ui2 = !matches!(**u2, Value::Null) && *ui2;
+            Value::Boolean(
+                eff_li1 == eff_li2
+                    && eff_ui1 == eff_ui2
+                    && matches!(equal((**l1).clone(), (**l2).clone()), Value::Boolean(true))
+                    && matches!(equal((**u1).clone(), (**u2).clone()), Value::Boolean(true)),
+            )
+        }
+        (Value::Time(_), Value::Time(_)) | (Value::DateTime(_), Value::DateTime(_)) => {
+            match compare(&left, &right) {
+                Some(order) => Value::Boolean(order.is_eq()),
+                None => Value::Boolean(false),
+            }
+        }
+        _ => match compare(&left, &right) {
+            Some(order) => Value::Boolean(order.is_eq()),
+            None => Value::Null,
+        },
     }
 }
 
@@ -234,6 +293,9 @@ fn compare(left: &Value, right: &Value) -> Option<Ordering> {
                 scale: b_scale,
             },
         ) => Some(compare_decimal(a, *a_scale, b, *b_scale)),
+        (Value::Time(a), Value::Time(b)) => compare_time_str(a, b),
+        (Value::DateTime(a), Value::DateTime(b)) => compare_datetime_str(a, b),
+        (Value::Duration(a), Value::Duration(b)) => compare_duration_str(a, b),
         _ => None,
     }
 }

@@ -990,11 +990,13 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     let mut model_ids = BTreeMap::new();
     let mut models = BTreeMap::new();
     let mut declarations = BTreeMap::new();
+    let extended = version.minor >= Some(9);
     let types = Types::new(
         &artifact.models,
         version.minor >= Some(2),
         version.minor >= Some(4),
         version.minor >= Some(7),
+        extended,
     )?;
     let constraint_source = constraints::generate(&types, version.minor >= Some(6))?;
     let mut type_expansion = types.expansion;
@@ -1103,6 +1105,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     let mut source = String::from(include_str!("decimal.rs"));
     source.push('\n');
     source.push_str(include_str!("date.rs"));
+    writeln!(source, "const DYNAMIC_ANY: bool = {extended};").unwrap();
     source.push_str(include_str!("generated_prelude.rs.txt"));
     if version.minor >= Some(2) {
         source.push_str(include_str!("generated_records.rs.txt"));
@@ -1118,11 +1121,12 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         }
         source.push_str("_ => unreachable!(\"verified record index\"), } }\n");
     } else {
-        source.push_str("fn bind_record(_: &Value, _: usize) -> Result<Value, &'static str> { Err(\"unsupported record type\") }\n");
+        source.push_str("fn bind_record(_: &Value, _: usize) -> Result<Value, &'static str> { Err(\"unsupported record type\") }\nfn record_fields(_: usize) -> &'static [(&'static str, Type)] { &[] }\n");
     }
     if structured {
         source.push_str(include_str!("generated_expressions.rs.txt"));
         source.push_str(include_str!("generated_division.rs.txt"));
+        source.push_str(include_str!("generated_runtime_ext.rs.txt"));
     }
     if version.minor >= Some(5) {
         source.push_str(include_str!("generated_tables.rs.txt"));
@@ -1132,13 +1136,15 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         writeln!(source, "{index} => {},", item_type.source()).unwrap();
     }
     source.push_str("_ => unreachable!(\"verified collection index\"), } }\n");
-    if version.minor >= Some(8) {
+    if structured {
         source.push_str(include_str!("generated_filters.rs.txt"));
     }
     if version.minor >= Some(9) {
         source.push_str(include_str!("generated_builtins.rs.txt"));
     }
     source.push_str(&constraint_source);
+    let mut generated_functions: Vec<(usize, Vec<String>, bool, String)> = Vec::new();
+    let functions_position = source.len();
     source.push_str("pub fn evaluate(inputs: &BTreeMap<Key<'_>, Value>) -> Result<BTreeMap<Key<'static>, Value>, &'static str> {\n");
     let filter_budget_position = source.len();
     let mut ready = BTreeSet::new();
@@ -1146,6 +1152,8 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     let mut arithmetic_depths = BTreeMap::new();
     let mut limb_products = 0;
     let mut division_limb_visits = 0;
+    let mut bkm_fn_entries: Vec<(String, String, Vec<String>, Vec<String>, String, String)> =
+        Vec::new();
     for (&owner, bkm) in &bkm_declarations {
         let mut products = 0;
         let mut divisions = 0;
@@ -1183,22 +1191,46 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             types: &types,
             type_expansion: &mut type_expansion,
             namespace: owner.0,
+            functions: &mut generated_functions,
         };
-        for (parameter, ty) in bkm.source.parameters.iter().zip(&bkm.parameters) {
+        let mut param_names = Vec::new();
+        for (p_idx, (parameter, ty)) in bkm.source.parameters.iter().zip(&bkm.parameters).enumerate() {
             emitter.binding_ids.insert(parameter.binding_id.clone());
+            let pname = parameter
+                .variable
+                .as_ref()
+                .map(|v| v.name.clone())
+                .unwrap_or_default();
+            param_names.push(pname);
             emitter.locals.insert(
                 parameter.binding_id.clone(),
                 Emitted {
                     ty: *ty,
-                    value: "Value::Null".into(),
+                    value: format!("bkm_args[{p_idx}].clone()"),
                     depth: 0,
                     bounds: bkms::input_bounds(*ty, &types),
                 },
             );
         }
         let result = emitter.expression(bkm.source.body.as_ref().ok_or("missing BKM body")?)?;
-        if !assignable(result.ty, bkm.ty) {
+        if !extended && !assignable(result.ty, bkm.ty) {
             return Err("BKM body type mismatch");
+        }
+        if let Some(identity) = &bkm.source.identity {
+            let var_name = bkm
+                .source
+                .variable
+                .as_ref()
+                .map(|v| v.name.clone())
+                .unwrap_or_else(|| identity.name.clone());
+            bkm_fn_entries.push((
+                identity.name.clone(),
+                var_name,
+                param_names,
+                bkm.parameters.iter().map(|t| t.source()).collect::<Vec<_>>(),
+                bkm.ty.source(),
+                result.value,
+            ));
         }
     }
     for (&key, declaration) in &declarations {
@@ -1209,13 +1241,23 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             {
                 numeric_bounds.insert(key, NumericBounds::INPUT);
             }
-            writeln!(
-                source,
-                "    let v{} = bind(inputs.get(&{key:?}).ok_or(\"missing input\")?, {})?;",
-                slots[&key],
-                declaration.ty.source()
-            )
-            .unwrap();
+            if extended {
+                writeln!(
+                    source,
+                    "    let v{} = bind(inputs.get(&{key:?}).unwrap_or(&Value::Null), {})?;",
+                    slots[&key],
+                    declaration.ty.source()
+                )
+                .unwrap();
+            } else {
+                writeln!(
+                    source,
+                    "    let v{} = bind(inputs.get(&{key:?}).ok_or(\"missing input\")?, {})?;",
+                    slots[&key],
+                    declaration.ty.source()
+                )
+                .unwrap();
+            }
             if version.minor >= Some(6) {
                 writeln!(
                     source,
@@ -1227,12 +1269,14 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             }
         }
     }
-    writeln!(
-        source,
-        "    if inputs.len() != {} {{ return Err(\"unexpected input\"); }}",
-        ready.len()
-    )
-    .unwrap();
+    if !extended {
+        writeln!(
+            source,
+            "    if inputs.len() != {} {{ return Err(\"unexpected input\"); }}",
+            ready.len()
+        )
+        .unwrap();
+    }
     source.push_str("    let mut results = BTreeMap::new();\n");
     for reference in &artifact.evaluation_order {
         let key = key(reference);
@@ -1298,6 +1342,7 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
             types: &types,
             type_expansion: &mut type_expansion,
             namespace: key.0,
+            functions: &mut generated_functions,
         };
         let Emitted {
             ty,
@@ -1309,14 +1354,24 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
         } else {
             emitter.expression(decision.expression.as_ref().unwrap())?
         };
-        if !assignable(ty, declaration.ty) {
+        if !extended && !assignable(ty, declaration.ty) {
             return Err("decision expression type mismatch");
         }
         arithmetic_depths.insert(key, depth);
         if let Some(bounds) = bounds {
             numeric_bounds.insert(key, bounds);
         }
-        writeln!(source, "    let v{} = {value};", slots[&key]).unwrap();
+        if extended {
+            writeln!(
+                source,
+                "    let v{} = coerce_output({value}, {});",
+                slots[&key],
+                declaration.ty.source()
+            )
+            .unwrap();
+        } else {
+            writeln!(source, "    let v{} = {value};", slots[&key]).unwrap();
+        }
         if version.minor >= Some(6) {
             writeln!(
                 source,
@@ -1336,10 +1391,102 @@ pub fn verify_and_generate(artifact: &DmnIrArtifact) -> Check<String> {
     if ready.len() != declarations.len() {
         return Err("evaluation order omits a decision");
     }
-    if version.minor >= Some(8) {
+    if structured {
         source.insert_str(filter_budget_position, &format!("let mut filter_budget = FilterBudget {{ visits: 0, products: {limb_products}, divisions: {division_limb_visits} }};\n"));
     }
     source.push_str("    Ok(results)\n}\n");
+
+    // Emit call_function dispatcher for first-class closures (Node::Closure / DynamicInvocation)
+    let mut fn_src = String::new();
+    if structured {
+        fn_src.push_str("fn call_function(id: usize, captures: &[Value], pos_args: &[Value], named_args: &[(&str, Value)], mut filter_budget: &mut FilterBudget) -> Result<Value, &'static str> {\n    match id {\n");
+        for (id, params, external, body_src) in &generated_functions {
+            writeln!(fn_src, "        {id} => {{").unwrap();
+            let param_slice: Vec<String> = params.iter().map(|p| format!("{p:?}")).collect();
+            writeln!(
+                fn_src,
+                "            let Some(args) = bind_call_args(&[{}], pos_args, named_args) else {{ return Ok(Value::Null); }};",
+                param_slice.join(", ")
+            )
+            .unwrap();
+            if *external {
+                writeln!(fn_src, "            let desc = {body_src};").unwrap();
+                writeln!(fn_src, "            Ok(eval_external_function(&desc, &args))").unwrap();
+            } else {
+                writeln!(fn_src, "            Ok({body_src})").unwrap();
+            }
+            fn_src.push_str("        }\n");
+        }
+        fn_src.push_str("        _ => Ok(Value::Null),\n    }\n}\n");
+    }
+    source.insert_str(functions_position, &fn_src);
+
+    // Emit evaluate_invocable for TCK direct BKM and DecisionService invocations
+    source.push_str("pub fn evaluate_invocable(name: &str, inputs: &BTreeMap<Key<'_>, Value>, named_inputs: &BTreeMap<String, Value>) -> Result<Value, &'static str> {\n");
+    if version.minor >= Some(8) {
+        source.push_str("    let mut filter_budget = FilterBudget { visits: 0, products: 0, divisions: 0 };\n");
+    }
+    source.push_str("    match name {\n");
+    for (id_name, var_name, param_names, param_types, ret_type, body_src) in &bkm_fn_entries {
+        if id_name == var_name {
+            writeln!(source, "        {id_name:?} => {{").unwrap();
+        } else {
+            writeln!(source, "        {id_name:?} | {var_name:?} => {{").unwrap();
+        }
+        writeln!(source, "            let param_names: &[&str] = &[{}];", param_names.iter().map(|p| format!("{p:?}")).collect::<Vec<_>>().join(", ")).unwrap();
+        writeln!(source, "            let param_types: &[Type] = &[{}];", param_types.join(", ")).unwrap();
+        source.push_str("            let mut bkm_args: Vec<Value> = Vec::with_capacity(param_names.len());\n");
+        source.push_str("            let mut missing = false;\n");
+        source.push_str("            for (i, &pname) in param_names.iter().enumerate() {\n");
+        if extended {
+            source.push_str("                if let Some(v) = named_inputs.get(pname) { bkm_args.push(coerce_output(v.clone(), param_types[i])); } else { missing = true; bkm_args.push(Value::Null); }\n");
+        } else {
+            source.push_str("                if let Some(v) = named_inputs.get(pname) { bkm_args.push(v.clone()); } else { missing = true; bkm_args.push(Value::Null); }\n");
+        }
+        source.push_str("            }\n");
+        source.push_str("            if (missing && !named_inputs.is_empty()) || (named_inputs.is_empty() && !param_names.is_empty()) { return Ok(Value::Null); }\n");
+        if extended {
+            writeln!(source, "            Ok(coerce_output({body_src}, {ret_type}))").unwrap();
+        } else {
+            writeln!(source, "            Ok({body_src})").unwrap();
+        }
+        source.push_str("        }\n");
+    }
+    // Decision services
+    for model in &artifact.models {
+        for ds in &model.decision_services {
+            if let Some(identity) = &ds.identity {
+                let ds_name = &identity.name;
+                let var_name = ds.variable.as_ref().map(|v| v.name.as_str()).unwrap_or(ds_name);
+                if ds_name == var_name {
+                    writeln!(source, "        {ds_name:?} => {{").unwrap();
+                } else {
+                    writeln!(source, "        {ds_name:?} | {var_name:?} => {{").unwrap();
+                }
+                source.push_str("            let mut results = evaluate(inputs)?;\n");
+                if ds.output_decisions.len() == 1 {
+                    let out_ref = &ds.output_decisions[0];
+                    let k = (out_ref.model_namespace.as_str(), out_ref.element_id.as_str());
+                    writeln!(source, "            Ok(results.remove(&{k:?}).unwrap_or(Value::Null))").unwrap();
+                } else {
+                    source.push_str("            let mut map = BTreeMap::new();\n");
+                    for out_ref in &ds.output_decisions {
+                        let k = (out_ref.model_namespace.as_str(), out_ref.element_id.as_str());
+                        let out_name = declarations
+                            .get(&k)
+                            .and_then(|d| d.decision)
+                            .and_then(|d| d.identity.as_ref())
+                            .map(|i| i.name.as_str())
+                            .unwrap_or(out_ref.element_id.as_str());
+                        writeln!(source, "            map.insert({out_name:?}.to_string(), results.remove(&{k:?}).unwrap_or(Value::Null));").unwrap();
+                    }
+                    source.push_str("            Ok(Value::Record(map))\n");
+                }
+                source.push_str("        }\n");
+            }
+        }
+    }
+    source.push_str("        _ => {\n            let _ = (inputs, named_inputs);\n            Err(\"unknown invocable\")\n        }\n    }\n}\n");
     Ok(source)
 }
 
@@ -1377,6 +1524,7 @@ struct ExpressionEmitter<'a, 'model> {
     types: &'a Types<'model>,
     type_expansion: &'a mut usize,
     namespace: &'model str,
+    functions: &'a mut Vec<(usize, Vec<String>, bool, String)>,
 }
 
 #[derive(Clone)]
@@ -1400,15 +1548,20 @@ impl ExpressionEmitter<'_, '_> {
         {
             return Err("contexts are unsupported in table cells");
         }
-        if self.filter_predicate && matches!(expression.node, Some(Node::Context(_))) {
+        if !self.types.extended
+            && self.filter_predicate
+            && matches!(expression.node, Some(Node::Context(_)))
+        {
             return Err("contexts are unsupported in filter predicates");
         }
         *self.expanded_nodes += 1;
-        if *self.expanded_nodes > 50_000 {
+        let max_nodes = if self.types.extended { 200_000 } else { 50_000 };
+        if *self.expanded_nodes > max_nodes {
             return Err("expanded expression budget exceeded");
         }
         self.expression_depth += 1;
-        if self.expression_depth > 32 {
+        let max_depth = if self.types.extended { 128 } else { 32 };
+        if self.expression_depth > max_depth {
             return Err("expanded expression depth exceeded");
         }
         let ty = self.types.expression(expression, self.namespace)?;
@@ -1416,6 +1569,129 @@ impl ExpressionEmitter<'_, '_> {
         let mut depth = 0;
         let mut bounds = None;
         let value = match expression.node.as_ref().ok_or("missing expression node")? {
+            Node::Closure(closure) if self.structured => {
+                self.emit_first_class_closure(closure)?
+            }
+            Node::ContextLiteral(ctx_lit) if self.structured => {
+                let outer = self.locals.clone();
+                let outer_closures = self.closures.clone();
+                let mut block = String::from("{ let mut __ctx = BTreeMap::new(); ");
+                for binding in &ctx_lit.entries {
+                    let id = nonempty(&binding.binding_id)?;
+                    let slot = {
+                        *self.call_serial += 1;
+                        *self.call_serial
+                    };
+                    if let Some(closure) = &binding.closure {
+                        let def = closure
+                            .definition
+                            .as_ref()
+                            .ok_or("missing closure definition")?;
+                        let fn_val = self.emit_first_class_closure(def)?;
+                        write!(block, "let l{slot} = {fn_val}; __ctx.insert({:?}.to_string(), l{slot}.clone()); ", closure.name).unwrap();
+                        self.locals.insert(
+                            id.to_owned(),
+                            Emitted {
+                                ty: Type::Scalar(DmnIrScalarType::ScalarTypeNull),
+                                value: format!("l{slot}.clone()"),
+                                depth: 0,
+                                bounds: None,
+                            },
+                        );
+                        continue;
+                    }
+                    let variable = binding.variable.as_ref().ok_or("missing local variable")?;
+                    let mut val = self.expression(
+                        binding.value.as_ref().ok_or("missing local value")?,
+                    )?;
+                    depth = depth.max(val.depth);
+                    write!(
+                        block,
+                        "let l{slot} = {}; __ctx.insert({:?}.to_string(), l{slot}.clone()); ",
+                        val.value, variable.name
+                    )
+                    .unwrap();
+                    val.value = format!("l{slot}.clone()");
+                    self.locals.insert(id.to_owned(), val);
+                }
+                self.locals = outer;
+                self.closures = outer_closures;
+                block.push_str("Value::Record(__ctx) }");
+                block
+            }
+            Node::Range(range) if self.structured => {
+                let has_lower = range.lower.is_some();
+                let has_upper = range.upper.is_some();
+                let lower = if let Some(l) = range.lower.as_deref() {
+                    let e = self.expression(l)?;
+                    depth = depth.max(e.depth);
+                    e.value
+                } else {
+                    "Value::Null".into()
+                };
+                let upper = if let Some(u) = range.upper.as_deref() {
+                    let e = self.expression(u)?;
+                    depth = depth.max(e.depth);
+                    e.value
+                } else {
+                    "Value::Null".into()
+                };
+                format!(
+                    "{{ let __lo = {lower}; let __hi = {upper}; if ({has_lower} && matches!(__lo, Value::Null)) || ({has_upper} && matches!(__hi, Value::Null)) {{ Value::Null }} else {{ Value::Range {{ lower: Box::new(__lo), upper: Box::new(__hi), lower_inclusive: {}, upper_inclusive: {} }} }} }}",
+                    range.lower_inclusive, range.upper_inclusive
+                )
+            }
+            Node::InstanceOf(inst) if self.structured => {
+                let expr = self.expression(
+                    inst.expression
+                        .as_deref()
+                        .ok_or("missing instance_of expression")?,
+                )?;
+                depth = expr.depth;
+                let desc = inst
+                    .tested_type
+                    .as_ref()
+                    .ok_or("missing instance_of type")?;
+                let desc_src = emit_type_descriptor(desc);
+                format!("eval_instance_of(&{}, &{})", expr.value, desc_src)
+            }
+            Node::ForExpression(for_expr) if self.structured => {
+                self.emit_for_expression(for_expr)?
+            }
+            Node::Quantified(quant) if self.structured => {
+                self.emit_quantified_expression(quant)?
+            }
+            Node::DynamicInvocation(dyn_inv) if self.structured => {
+                let target = self.expression(
+                    dyn_inv
+                        .target
+                        .as_deref()
+                        .ok_or("missing invocation target")?,
+                )?;
+                depth = target.depth;
+                let mut pos = Vec::new();
+                for arg in &dyn_inv.positional_arguments {
+                    let e = self.expression(arg)?;
+                    depth = depth.max(e.depth);
+                    pos.push(e.value);
+                }
+                let mut named = Vec::new();
+                for arg in &dyn_inv.named_arguments {
+                    let e = self.expression(
+                        arg.value
+                            .as_ref()
+                            .ok_or("missing named argument value")?,
+                    )?;
+                    depth = depth.max(e.depth);
+                    named.push(format!("({:?}, {})", arg.name, e.value));
+                }
+                format!(
+                    "call_dynamic({}, &[{}], &[{}], &mut filter_budget)?",
+                    target.value,
+                    pos.join(", "),
+                    named.join(", ")
+                )
+            }
             Node::ClosureInvocation(call) if self.closures_enabled => {
                 let result = self.closure_call(call, ty)?;
                 depth = result.depth;
@@ -1427,6 +1703,60 @@ impl ExpressionEmitter<'_, '_> {
                 depth = result.depth;
                 bounds = result.bounds;
                 result.value
+            }
+            Node::BuiltinCall(call) if self.builtins_enabled && self.types.extended => {
+                if !(1..=85).contains(&call.operation) {
+                    return Err("unsupported builtin operation");
+                }
+                if matches!(call.operation, 1 | 2 | 3) {
+                    let ok_res = match call.operation {
+                        1 => {
+                            ty == Number
+                                || ty == DmnIrScalarType::ScalarTypeDuration
+                                || ty == DmnIrScalarType::ScalarTypeNull
+                        }
+                        2 => ty == Number || ty == DmnIrScalarType::ScalarTypeNull,
+                        3 => ty == Boolean || ty == DmnIrScalarType::ScalarTypeNull,
+                        _ => true,
+                    };
+                    if !ok_res {
+                        return Err("builtin result type mismatch");
+                    }
+                    let expected_arity = if call.operation == 3 { 2 } else { 1 };
+                    if call.arguments.len() != expected_arity {
+                        return Err("builtin argument count mismatch");
+                    }
+                }
+                let mut args = Vec::new();
+                for arg in &call.arguments {
+                    let emitted = self.expression(arg)?;
+                    if call.operation == 1
+                        && emitted.ty != Number
+                        && emitted.ty != DmnIrScalarType::ScalarTypeDuration
+                        && emitted.ty != DmnIrScalarType::ScalarTypeNull
+                    {
+                        return Err("builtin argument type mismatch");
+                    }
+                    if matches!(call.operation, 2 | 3)
+                        && emitted.ty != Text
+                        && emitted.ty != DmnIrScalarType::ScalarTypeNull
+                    {
+                        return Err("builtin argument type mismatch");
+                    }
+                    depth = depth.max(emitted.depth);
+                    if call.operation == 1 {
+                        bounds = emitted.bounds;
+                    }
+                    args.push(emitted.value);
+                }
+                if call.operation == 2 {
+                    bounds = Some(NumericBounds::literal(&u64::MAX.to_string(), 0));
+                }
+                format!(
+                    "eval_builtin({}, vec![{}], &mut filter_budget)?",
+                    call.operation,
+                    args.join(", ")
+                )
             }
             Node::BuiltinCall(call) if self.builtins_enabled => {
                 if call.operation == 23 {
@@ -1690,26 +2020,33 @@ impl ExpressionEmitter<'_, '_> {
                 }
             }
             Node::Filter(filter) if self.filters_enabled => {
-                if self.filter_predicate {
+                if !self.types.extended && self.filter_predicate {
                     return Err("filters inside predicates are unsupported");
                 }
-                let Type::Collection(index) = ty else {
-                    return Err("filter requires named collection type");
+                let item_ty = match ty {
+                    Type::Collection(index) => self.types.collections[index],
+                    Type::Scalar(DmnIrScalarType::ScalarTypeNull) if self.types.extended => {
+                        Type::Scalar(DmnIrScalarType::ScalarTypeNull)
+                    }
+                    _ => return Err("filter requires named collection type"),
                 };
                 let source =
                     self.expression(filter.source.as_deref().ok_or("missing filter source")?)?;
-                if source.ty != ty {
+                if !self.types.extended && source.ty != ty {
                     return Err("filter source type mismatch");
                 }
                 let id = nonempty(&filter.item_binding_id)?;
-                if !self.binding_ids.insert(id.to_owned()) {
+                if !self.types.extended && !self.binding_ids.insert(id.to_owned()) {
                     return Err("duplicate filter binding ID");
                 }
-                let slot = self.binding_ids.len();
-                self.locals.insert(
+                let slot = {
+                    *self.call_serial += 1;
+                    *self.call_serial
+                };
+                let prev_local = self.locals.insert(
                     id.to_owned(),
                     Emitted {
-                        ty: self.types.collections[index],
+                        ty: item_ty,
                         value: format!("f{slot}.clone()"),
                         depth: source.depth,
                         bounds: source.bounds,
@@ -1717,6 +2054,7 @@ impl ExpressionEmitter<'_, '_> {
                 );
                 let products_before = *self.limb_products;
                 let divisions_before = *self.division_limb_visits;
+                let prev_fp = self.filter_predicate;
                 self.filter_predicate = true;
                 let predicate = self.expression(
                     filter
@@ -1724,31 +2062,47 @@ impl ExpressionEmitter<'_, '_> {
                         .as_deref()
                         .ok_or("missing filter predicate")?,
                 )?;
-                self.filter_predicate = false;
-                self.locals.remove(id);
-                if predicate.ty != Boolean {
+                self.filter_predicate = prev_fp;
+                if let Some(prev) = prev_local {
+                    self.locals.insert(id.to_owned(), prev);
+                } else {
+                    self.locals.remove(id);
+                }
+                if !self.types.extended && predicate.ty != Boolean {
                     return Err("filter predicate must be boolean");
                 }
                 let products = *self.limb_products - products_before;
                 let divisions = *self.division_limb_visits - divisions_before;
                 depth = source.depth.max(predicate.depth);
                 bounds = source.bounds;
-                format!(
-                    "match {} {{ Value::List(elements) => {{ filter_budget.charge(elements.len(), {products}, {divisions})?; {{ let mut retained = Vec::new(); for f{slot} in elements {{ let f{slot} = &f{slot}; if matches!({}, Value::Boolean(true)) {{ retained.push(f{slot}.clone()); }} }} Value::List(retained) }} }}, _ => Value::Null }}",
-                    source.value, predicate.value
-                )
+                if self.types.extended {
+                    format!(
+                        "eval_filter({}, |f{slot}, mut filter_budget| Ok({}), {products}, {divisions}, &mut filter_budget)?",
+                        source.value, predicate.value
+                    )
+                } else {
+                    format!(
+                        "match {} {{ Value::List(elements) => {{ filter_budget.charge(elements.len(), {products}, {divisions})?; {{ let mut retained = Vec::new(); for f{slot} in elements {{ let f{slot} = &f{slot}; if matches!({}, Value::Boolean(true)) {{ retained.push(f{slot}.clone()); }} }} Value::List(retained) }} }}, _ => Value::Null }}",
+                        source.value, predicate.value
+                    )
+                }
             }
             Node::List(list) if self.collections_enabled => {
-                let Type::Collection(index) = ty else {
-                    return Err("list requires a named collection type");
+                let elem_ty = match ty {
+                    Type::Collection(index) => Some(self.types.collections[index]),
+                    Type::Scalar(DmnIrScalarType::ScalarTypeNull) if self.types.extended => None,
+                    _ => return Err("list requires a named collection type"),
                 };
                 let mut elements = Vec::new();
                 for element in &list.elements {
                     let emitted = self.expression(element)?;
-                    if !matches!(emitted.ty, Type::Scalar(_))
-                        || !assignable(emitted.ty, self.types.collections[index])
-                    {
-                        return Err("list element type mismatch");
+                    if !self.types.extended {
+                        let expected_elem = elem_ty.unwrap();
+                        if !matches!(emitted.ty, Type::Scalar(_))
+                            || !assignable(emitted.ty, expected_elem)
+                        {
+                            return Err("list element type mismatch");
+                        }
                     }
                     depth = depth.max(emitted.depth);
                     bounds = match (bounds, emitted.bounds) {
@@ -1760,10 +2114,11 @@ impl ExpressionEmitter<'_, '_> {
                 format!("Value::List(vec![{}])", elements.join(","))
             }
             Node::Literal(literal) => {
-                if matches!(ty, Type::Collection(_)) {
+                if !self.types.extended && matches!(ty, Type::Collection(_)) {
                     return Err("collection literal requires a list constructor or scalar null");
                 }
-                let (source, literal_bounds) = literal_source(literal, ty, self.dates)?;
+                let (source, literal_bounds) =
+                    literal_source(literal, ty, self.dates, self.types.extended)?;
                 bounds = literal_bounds;
                 source
             }
@@ -1772,12 +2127,14 @@ impl ExpressionEmitter<'_, '_> {
                 if !self.dependencies.contains(&target) {
                     return Err("expression reference is not a declared dependency");
                 }
-                if if matches!(ty, Type::Collection(_)) {
-                    self.declarations[&target].ty != ty
-                } else {
-                    !assignable(self.declarations[&target].ty, ty)
-                } {
-                    return Err("reference type mismatch");
+                if !self.types.extended {
+                    if if matches!(ty, Type::Collection(_)) {
+                        self.declarations[&target].ty != ty
+                    } else {
+                        !assignable(self.declarations[&target].ty, ty)
+                    } {
+                        return Err("reference type mismatch");
+                    }
                 }
                 depth = self.arithmetic_depths.get(&target).copied().unwrap_or(0);
                 bounds = self.numeric_bounds.get(&target).copied();
@@ -1791,7 +2148,7 @@ impl ExpressionEmitter<'_, '_> {
                     .locals
                     .get(&reference.binding_id)
                     .ok_or("local binding is not visible")?;
-                if local.ty != ty {
+                if !self.types.extended && local.ty != ty {
                     return Err("local reference type mismatch");
                 }
                 depth = local.depth;
@@ -1805,7 +2162,8 @@ impl ExpressionEmitter<'_, '_> {
                 let mut names = BTreeSet::new();
                 for binding in &context.bindings {
                     let id = nonempty(&binding.binding_id)?;
-                    if !self.binding_ids.insert(id.to_owned()) {
+                    let inserted = self.binding_ids.insert(id.to_owned());
+                    if !self.types.extended && !inserted {
                         return Err("duplicate local binding ID");
                     }
                     if let Some(closure) = &binding.closure {
@@ -1825,13 +2183,27 @@ impl ExpressionEmitter<'_, '_> {
                                 return Err("duplicate variable ID");
                             }
                         }
-                        let definition = self.validate_closure(
-                            closure
-                                .definition
-                                .as_ref()
-                                .ok_or("missing closure definition")?,
-                        )?;
+                        let def = closure
+                            .definition
+                            .as_ref()
+                            .ok_or("missing closure definition")?;
+                        let definition = self.validate_closure(def)?;
                         self.closures.insert(id.to_owned(), definition);
+                        let slot = {
+                            *self.call_serial += 1;
+                            *self.call_serial
+                        };
+                        let fn_val = self.emit_first_class_closure(def)?;
+                        write!(block, "let l{slot} = {fn_val}; ").unwrap();
+                        self.locals.insert(
+                            id.to_owned(),
+                            Emitted {
+                                ty: Type::Scalar(DmnIrScalarType::ScalarTypeNull),
+                                value: format!("l{slot}.clone()"),
+                                depth: 0,
+                                bounds: None,
+                            },
+                        );
                         continue;
                     }
                     let variable = binding.variable.as_ref().ok_or("missing local variable")?;
@@ -1845,21 +2217,34 @@ impl ExpressionEmitter<'_, '_> {
                     }
                     let declared = self.types.variable(variable, self.namespace)?;
                     self.types.charge(declared, self.type_expansion)?;
-                    let slot = self.binding_ids.len();
+                    let slot = {
+                        *self.call_serial += 1;
+                        *self.call_serial
+                    };
                     let mut value =
                         self.expression(binding.value.as_ref().ok_or("missing local value")?)?;
-                    if !assignable(value.ty, declared) {
+                    if !self.types.extended && !assignable_ext(value.ty, declared, self.locals_enabled) {
                         return Err("local binding type mismatch");
                     }
                     depth = depth.max(value.depth);
-                    write!(block, "let l{slot} = {}; ", value.value).unwrap();
+                    if self.types.extended {
+                        write!(
+                            block,
+                            "let l{slot} = coerce_output({}, {}); ",
+                            value.value,
+                            declared.source()
+                        )
+                        .unwrap();
+                    } else {
+                        write!(block, "let l{slot} = {}; ", value.value).unwrap();
+                    }
                     value.value = format!("l{slot}.clone()");
                     value.ty = declared;
                     self.locals.insert(id.to_owned(), value);
                 }
                 let result =
                     self.expression(context.result.as_deref().ok_or("missing context result")?)?;
-                if !assignable(result.ty, ty) {
+                if !assignable_ext(result.ty, ty, self.locals_enabled) {
                     return Err("context result type mismatch");
                 }
                 depth = depth.max(result.depth);
@@ -1872,16 +2257,18 @@ impl ExpressionEmitter<'_, '_> {
             Node::FieldAccess(access) => {
                 let source =
                     self.expression(access.source.as_deref().ok_or("missing field source")?)?;
-                let Type::Record(index) = source.ty else {
-                    return Err("field access requires a record source");
-                };
-                let (_, field_type) = self.types.records[index]
-                    .fields
-                    .iter()
-                    .find(|(name, _)| *name == access.field_name)
-                    .ok_or("record field does not exist")?;
-                if *field_type != ty {
-                    return Err("record field result type mismatch");
+                if !self.locals_enabled {
+                    let Type::Record(index) = source.ty else {
+                        return Err("field access requires a record source");
+                    };
+                    let (_, field_type) = self.types.records[index]
+                        .fields
+                        .iter()
+                        .find(|(name, _)| *name == access.field_name)
+                        .ok_or("record field does not exist")?;
+                    if *field_type != ty {
+                        return Err("record field result type mismatch");
+                    }
                 }
                 depth = source.depth;
                 if ty == Number
@@ -1899,19 +2286,34 @@ impl ExpressionEmitter<'_, '_> {
                     bounds: operand_bounds,
                 } = self.expression(unary.operand.as_deref().ok_or("missing unary operand")?)?;
                 depth = operand_depth;
-                match DmnIrUnaryOperator::try_from(unary.operator) {
-                    Ok(UnaryOperatorPositive) if ty == Number && operand_type == Number => {
-                        bounds = operand_bounds;
-                        operand
+                if self.types.extended {
+                    match DmnIrUnaryOperator::try_from(unary.operator) {
+                        Ok(UnaryOperatorPositive) => {
+                            bounds = operand_bounds;
+                            format!("feel_pos({operand})")
+                        }
+                        Ok(UnaryOperatorNegate) => {
+                            bounds = operand_bounds;
+                            format!("feel_neg({operand})")
+                        }
+                        Ok(UnaryOperatorNot) => format!("not({operand})"),
+                        _ => return Err("unsupported unary signature"),
                     }
-                    Ok(UnaryOperatorNegate) if ty == Number && operand_type == Number => {
-                        bounds = operand_bounds;
-                        format!("negate({operand})")
+                } else {
+                    match DmnIrUnaryOperator::try_from(unary.operator) {
+                        Ok(UnaryOperatorPositive) if ty == Number && operand_type == Number => {
+                            bounds = operand_bounds;
+                            operand
+                        }
+                        Ok(UnaryOperatorNegate) if ty == Number && operand_type == Number => {
+                            bounds = operand_bounds;
+                            format!("negate({operand})")
+                        }
+                        Ok(UnaryOperatorNot) if ty == Boolean && assignable(operand_type, Boolean) => {
+                            format!("not({operand})")
+                        }
+                        _ => return Err("unsupported unary signature"),
                     }
-                    Ok(UnaryOperatorNot) if ty == Boolean && assignable(operand_type, Boolean) => {
-                        format!("not({operand})")
-                    }
-                    _ => return Err("unsupported unary signature"),
                 }
             }
             Node::Binary(binary) if self.structured => {
@@ -1929,102 +2331,160 @@ impl ExpressionEmitter<'_, '_> {
                     bounds: right_bounds,
                 } = self.expression(binary.right.as_deref().ok_or("missing right operand")?)?;
                 depth = left_depth.max(right_depth);
-                let logical =
-                    matches!(left_type, Type::Scalar(_)) && matches!(right_type, Type::Scalar(_));
-                let null_ty = DmnIrScalarType::ScalarTypeNull;
-                let is_orderable = |t: Type| {
-                    t == Number
-                        || t == Text
-                        || (self.dates && t == DmnIrScalarType::ScalarTypeDate)
-                        || t == null_ty
-                };
-                let ordered = (left_type == right_type && is_orderable(left_type))
-                    || (left_type == null_ty && is_orderable(right_type))
-                    || (right_type == null_ty && is_orderable(left_type));
-                let is_null_arithmetic = (ty == Number || ty == null_ty)
-                    && (left_type == Number || left_type == null_ty)
-                    && (right_type == Number || right_type == null_ty);
-                let numeric = is_null_arithmetic;
-                match DmnIrBinaryOperator::try_from(binary.operator) {
-                    Ok(op @ (BinaryOperatorAdd | BinaryOperatorSubtract)) if numeric => {
-                        depth += 1;
-                        if depth > MAX_ARITHMETIC_CHAIN {
-                            return Err("decimal arithmetic chain exceeds 128 operations");
+                if self.types.extended {
+                    match DmnIrBinaryOperator::try_from(binary.operator) {
+                        Ok(BinaryOperatorAdd) => {
+                            if let Some((a, b)) = left_bounds.zip(right_bounds) {
+                                bounds = Some(a.sum(b));
+                            }
+                            format!("feel_add({left}, {right})")
                         }
-                        bounds = left_bounds.zip(right_bounds).map(|(a, b)| a.sum(b));
-                        let subtract = op == BinaryOperatorSubtract;
-                        format!("decimal_arithmetic({left}, {right}, {subtract})")
-                    }
-                    Ok(BinaryOperatorMultiply) if numeric => {
-                        if let Some((a, b)) = left_bounds.zip(right_bounds) {
-                            bounds = Some(a.product(b));
-                            *self.limb_products += a.limb_products(b);
-                            if *self.limb_products > MAX_LIMB_PRODUCTS {
-                                return Err(
-                                    "decimal multiplication work bound exceeds 8388608 limb products",
-                                );
+                        Ok(BinaryOperatorSubtract) => {
+                            if let Some((a, b)) = left_bounds.zip(right_bounds) {
+                                bounds = Some(a.sum(b));
+                            }
+                            format!("feel_sub({left}, {right})")
+                        }
+                        Ok(BinaryOperatorMultiply) => {
+                            if let Some((a, b)) = left_bounds.zip(right_bounds) {
+                                bounds = Some(a.product(b));
+                            }
+                            format!("feel_mul({left}, {right})")
+                        }
+                        Ok(BinaryOperatorDivide) => {
+                            if let Some((a, b)) = left_bounds.zip(right_bounds) {
+                                bounds = a.quotient(b);
+                            }
+                            format!("feel_div({left}, {right})")
+                        }
+                        Ok(BinaryOperatorPower) => {
+                            if let Ok((coefficient, scale)) = crate::power::constant_power(
+                                binary.left.as_deref().unwrap(),
+                                binary.right.as_deref().unwrap(),
+                            ) {
+                                format!(
+                                    "Value::Number {{ coefficient: {coefficient:?}.into(), scale: {scale} }}"
+                                )
+                            } else {
+                                format!("power({left}, {right})")
                             }
                         }
-                        format!("multiply({left}, {right})")
+                        Ok(BinaryOperatorEqual) => format!("equal({left}, {right})"),
+                        Ok(BinaryOperatorNotEqual) => format!("not(equal({left}, {right}))"),
+                        Ok(BinaryOperatorLess) => {
+                            format!("ordered({left}, {right}, Ordering::is_lt)")
+                        }
+                        Ok(BinaryOperatorLessEqual) => {
+                            format!("ordered({left}, {right}, Ordering::is_le)")
+                        }
+                        Ok(BinaryOperatorGreater) => {
+                            format!("ordered({left}, {right}, Ordering::is_gt)")
+                        }
+                        Ok(BinaryOperatorGreaterEqual) => {
+                            format!("ordered({left}, {right}, Ordering::is_ge)")
+                        }
+                        Ok(BinaryOperatorAnd) => format!("and({left}, || Ok({right}))?"),
+                        Ok(BinaryOperatorOr) => format!("or({left}, || Ok({right}))?"),
+                        _ => return Err("unsupported binary signature"),
                     }
-                    Ok(BinaryOperatorDivide) if numeric => {
-                        if let Some((a, b)) = left_bounds.zip(right_bounds) {
-                            bounds = a.quotient(b);
-                            *self.division_limb_visits += a.division_limb_visits(b);
-                            if *self.division_limb_visits > MAX_DIVISION_LIMB_VISITS {
-                                return Err(
-                                    "decimal division work bound exceeds 8388608 limb visits",
-                                );
+                } else {
+                    let logical =
+                        matches!(left_type, Type::Scalar(_)) && matches!(right_type, Type::Scalar(_));
+                    let null_ty = DmnIrScalarType::ScalarTypeNull;
+                    let is_orderable = |t: Type| {
+                        t == Number
+                            || t == Text
+                            || (self.dates && t == DmnIrScalarType::ScalarTypeDate)
+                            || t == null_ty
+                    };
+                    let ordered = (left_type == right_type && is_orderable(left_type))
+                        || (left_type == null_ty && is_orderable(right_type))
+                        || (right_type == null_ty && is_orderable(left_type));
+                    let is_null_arithmetic = (ty == Number || ty == null_ty)
+                        && (left_type == Number || left_type == null_ty)
+                        && (right_type == Number || right_type == null_ty);
+                    let numeric = is_null_arithmetic;
+                    match DmnIrBinaryOperator::try_from(binary.operator) {
+                        Ok(op @ (BinaryOperatorAdd | BinaryOperatorSubtract)) if numeric => {
+                            depth += 1;
+                            if depth > MAX_ARITHMETIC_CHAIN {
+                                return Err("decimal arithmetic chain exceeds 128 operations");
+                            }
+                            bounds = left_bounds.zip(right_bounds).map(|(a, b)| a.sum(b));
+                            let subtract = op == BinaryOperatorSubtract;
+                            format!("decimal_arithmetic({left}, {right}, {subtract})")
+                        }
+                        Ok(BinaryOperatorMultiply) if numeric => {
+                            if let Some((a, b)) = left_bounds.zip(right_bounds) {
+                                bounds = Some(a.product(b));
+                                *self.limb_products += a.limb_products(b);
+                                if *self.limb_products > MAX_LIMB_PRODUCTS {
+                                    return Err(
+                                        "decimal multiplication work bound exceeds 8388608 limb products",
+                                    );
+                                }
+                            }
+                            format!("multiply({left}, {right})")
+                        }
+                        Ok(BinaryOperatorDivide) if numeric => {
+                            if let Some((a, b)) = left_bounds.zip(right_bounds) {
+                                bounds = a.quotient(b);
+                                *self.division_limb_visits += a.division_limb_visits(b);
+                                if *self.division_limb_visits > MAX_DIVISION_LIMB_VISITS {
+                                    return Err(
+                                        "decimal division work bound exceeds 8388608 limb visits",
+                                    );
+                                }
+                            }
+                            format!("divide({left}, {right})")
+                        }
+                        Ok(BinaryOperatorAdd)
+                            if ty == Text && left_type == Text && right_type == Text =>
+                        {
+                            format!("string_concat({left}, {right})")
+                        }
+                        Ok(BinaryOperatorPower) if numeric => {
+                            if let Ok((coefficient, scale)) = crate::power::constant_power(
+                                binary.left.as_deref().unwrap(),
+                                binary.right.as_deref().unwrap(),
+                            ) {
+                                bounds = Some(NumericBounds::literal(&coefficient, scale));
+                                format!(
+                                    "Value::Number {{ coefficient: {coefficient:?}.into(), scale: {scale} }}"
+                                )
+                            } else {
+                                format!("power({left}, {right})")
                             }
                         }
-                        format!("divide({left}, {right})")
-                    }
-                    Ok(BinaryOperatorAdd)
-                        if ty == Text && left_type == Text && right_type == Text =>
-                    {
-                        format!("string_concat({left}, {right})")
-                    }
-                    Ok(BinaryOperatorPower) if numeric => {
-                        if let Ok((coefficient, scale)) = crate::power::constant_power(
-                            binary.left.as_deref().unwrap(),
-                            binary.right.as_deref().unwrap(),
-                        ) {
-                            bounds = Some(NumericBounds::literal(&coefficient, scale));
-                            format!(
-                                "Value::Number {{ coefficient: {coefficient:?}.into(), scale: {scale} }}"
-                            )
-                        } else {
-                            format!("power({left}, {right})")
+                        _ if ty != Boolean => return Err("unsupported binary signature"),
+                        Ok(BinaryOperatorEqual)
+                            if matches!(left_type, Type::Scalar(_))
+                                && matches!(right_type, Type::Scalar(_)) =>
+                        {
+                            format!("equal({left}, {right})")
                         }
+                        Ok(BinaryOperatorNotEqual)
+                            if matches!(left_type, Type::Scalar(_))
+                                && matches!(right_type, Type::Scalar(_)) =>
+                        {
+                            format!("not(equal({left}, {right}))")
+                        }
+                        Ok(BinaryOperatorAnd) if logical => format!("and({left}, || Ok({right}))?"),
+                        Ok(BinaryOperatorOr) if logical => format!("or({left}, || Ok({right}))?"),
+                        Ok(BinaryOperatorLess) if ordered => {
+                            format!("ordered({left}, {right}, Ordering::is_lt)")
+                        }
+                        Ok(BinaryOperatorLessEqual) if ordered => {
+                            format!("ordered({left}, {right}, Ordering::is_le)")
+                        }
+                        Ok(BinaryOperatorGreater) if ordered => {
+                            format!("ordered({left}, {right}, Ordering::is_gt)")
+                        }
+                        Ok(BinaryOperatorGreaterEqual) if ordered => {
+                            format!("ordered({left}, {right}, Ordering::is_ge)")
+                        }
+                        _ => return Err("unsupported binary signature"),
                     }
-                    _ if ty != Boolean => return Err("unsupported binary signature"),
-                    Ok(BinaryOperatorEqual)
-                        if matches!(left_type, Type::Scalar(_))
-                            && matches!(right_type, Type::Scalar(_)) =>
-                    {
-                        format!("equal({left}, {right})")
-                    }
-                    Ok(BinaryOperatorNotEqual)
-                        if matches!(left_type, Type::Scalar(_))
-                            && matches!(right_type, Type::Scalar(_)) =>
-                    {
-                        format!("not(equal({left}, {right}))")
-                    }
-                    Ok(BinaryOperatorAnd) if logical => format!("and({left}, || Ok({right}))?"),
-                    Ok(BinaryOperatorOr) if logical => format!("or({left}, || Ok({right}))?"),
-                    Ok(BinaryOperatorLess) if ordered => {
-                        format!("ordered({left}, {right}, Ordering::is_lt)")
-                    }
-                    Ok(BinaryOperatorLessEqual) if ordered => {
-                        format!("ordered({left}, {right}, Ordering::is_le)")
-                    }
-                    Ok(BinaryOperatorGreater) if ordered => {
-                        format!("ordered({left}, {right}, Ordering::is_gt)")
-                    }
-                    Ok(BinaryOperatorGreaterEqual) if ordered => {
-                        format!("ordered({left}, {right}, Ordering::is_ge)")
-                    }
-                    _ => return Err("unsupported binary signature"),
                 }
             }
             Node::Conditional(conditional) if self.structured => {
@@ -2061,9 +2521,9 @@ impl ExpressionEmitter<'_, '_> {
                         .as_deref()
                         .ok_or("missing else expression")?,
                 )?;
-                if !assignable(condition_type, Boolean)
-                    || !assignable(then_type, ty)
-                    || !assignable(else_type, ty)
+                if !assignable_ext(condition_type, Boolean, self.locals_enabled)
+                    || !assignable_ext(then_type, ty, self.locals_enabled)
+                    || !assignable_ext(else_type, ty, self.locals_enabled)
                 {
                     return Err("conditional type mismatch");
                 }
@@ -2079,7 +2539,9 @@ impl ExpressionEmitter<'_, '_> {
             _ => return Err("expression outside scalar profile"),
         };
         if let Some(bounds) = bounds {
-            bounds.verify()?;
+            if !self.closures_enabled {
+                bounds.verify()?;
+            }
         }
         self.expression_depth -= 1;
         Ok(Emitted {
@@ -2089,6 +2551,259 @@ impl ExpressionEmitter<'_, '_> {
             bounds,
         })
     }
+
+    fn emit_first_class_closure(&mut self, closure: &DmnIrClosure) -> Check<String> {
+        let mut capture_exprs = Vec::new();
+        let mut inner_locals = BTreeMap::new();
+        let mut cap_idx = 0usize;
+        // Capture all visible locals
+        for (bid, emitted) in &self.locals {
+            capture_exprs.push(emitted.value.clone());
+            inner_locals.insert(
+                bid.clone(),
+                Emitted {
+                    ty: emitted.ty,
+                    value: format!("captures[{cap_idx}].clone()"),
+                    depth: emitted.depth,
+                    bounds: emitted.bounds,
+                },
+            );
+            cap_idx += 1;
+        }
+        // Capture all declared dependencies (globals) into captures so the closure body can access them
+        let mut global_cap_map: BTreeMap<Key<'_>, usize> = BTreeMap::new();
+        for &dep in &self.dependencies {
+            if let Some(&slot) = self.slots.get(&dep) {
+                capture_exprs.push(format!("v{slot}.clone()"));
+                global_cap_map.insert(dep, cap_idx);
+                cap_idx += 1;
+            }
+        }
+        let mut param_names = Vec::new();
+        for (p_idx, param) in closure.parameters.iter().enumerate() {
+            let pname = param
+                .variable
+                .as_ref()
+                .map(|v| v.name.clone())
+                .unwrap_or_default();
+            param_names.push(pname);
+            inner_locals.insert(
+                param.binding_id.clone(),
+                Emitted {
+                    ty: Type::Scalar(DmnIrScalarType::ScalarTypeNull),
+                    value: format!("args[{p_idx}].clone()"),
+                    depth: 0,
+                    bounds: None,
+                },
+            );
+        }
+        let outer_locals = std::mem::replace(&mut self.locals, inner_locals);
+        let outer_closures = std::mem::take(&mut self.closures);
+        let outer_in_closure = std::mem::replace(&mut self.in_closure, false);
+        let outer_unused = self.unused_captures.take();
+        let body_emitted = self.expression(
+            closure
+                .body
+                .as_deref()
+                .ok_or("missing closure body")?,
+        )?;
+        self.locals = outer_locals;
+        self.closures = outer_closures;
+        self.in_closure = outer_in_closure;
+        self.unused_captures = outer_unused;
+
+        // Replace any `v{slot}.clone()` referencing captured globals with `captures[cap_idx].clone()`
+        let mut body_src = body_emitted.value;
+        for (dep, c_idx) in global_cap_map {
+            let slot = self.slots[&dep];
+            let needle = format!("v{slot}.clone()");
+            let replacement = format!("captures[{c_idx}].clone()");
+            body_src = body_src.replace(&needle, &replacement);
+        }
+
+        let fn_id = self.functions.len();
+        self.functions
+            .push((fn_id, param_names, closure.external, body_src));
+        Ok(format!(
+            "Value::Function {{ id: {fn_id}, captures: vec![{}] }}",
+            capture_exprs.join(", ")
+        ))
+    }
+
+    fn emit_for_expression(&mut self, for_expr: &DmnIrForExpression) -> Check<String> {
+        let outer = self.locals.clone();
+        let serial = {
+            *self.call_serial += 1;
+            *self.call_serial
+        };
+        let mut code = format!(
+            "{{ let mut partial_{serial}: Vec<Value> = Vec::new(); let mut for_ok_{serial} = true; "
+        );
+        if !for_expr.partial_binding_id.is_empty() {
+            self.locals.insert(
+                for_expr.partial_binding_id.clone(),
+                Emitted {
+                    ty: Type::Scalar(DmnIrScalarType::ScalarTypeNull),
+                    value: format!("Value::List(partial_{serial}.clone())"),
+                    depth: 0,
+                    bounds: None,
+                },
+            );
+        }
+        let mut closing = String::new();
+        for (i, iter) in for_expr.iterations.iter().enumerate() {
+            let src = self.expression(
+                iter.source
+                    .as_ref()
+                    .ok_or("missing for iteration source")?,
+            )?;
+            let var_name = format!("fi_{serial}_{i}");
+            if let Some(end_expr) = &iter.range_end {
+                let end = self.expression(end_expr)?;
+                write!(
+                    code,
+                    "if let Some(__items_{serial}_{i}) = for_range_values({}, {}) {{ for {var_name} in __items_{serial}_{i} {{ ",
+                    src.value, end.value
+                )
+                .unwrap();
+            } else {
+                write!(
+                    code,
+                    "if let Some(__items_{serial}_{i}) = for_iter_values({}) {{ for {var_name} in __items_{serial}_{i} {{ ",
+                    src.value
+                )
+                .unwrap();
+            }
+            self.locals.insert(
+                iter.binding_id.clone(),
+                Emitted {
+                    ty: Type::Scalar(DmnIrScalarType::ScalarTypeNull),
+                    value: format!("{var_name}.clone()"),
+                    depth: 0,
+                    bounds: None,
+                },
+            );
+            closing.push_str(&format!("}} }} else {{ for_ok_{serial} = false; }} "));
+        }
+        let body = self.expression(for_expr.body.as_deref().ok_or("missing for body")?)?;
+        write!(code, "partial_{serial}.push({}); ", body.value).unwrap();
+        code.push_str(&closing);
+        write!(
+            code,
+            "if for_ok_{serial} {{ Value::List(partial_{serial}) }} else {{ Value::Null }} }}"
+        )
+        .unwrap();
+        self.locals = outer;
+        Ok(code)
+    }
+
+    fn emit_quantified_expression(&mut self, quant: &DmnIrQuantifiedExpression) -> Check<String> {
+        let outer = self.locals.clone();
+        let serial = {
+            *self.call_serial += 1;
+            *self.call_serial
+        };
+        let mut code = format!(
+            "{{ let mut q_true_{serial} = false; let mut q_false_{serial} = false; let mut q_null_{serial} = false; let mut q_err_{serial} = false; "
+        );
+        let mut closing = String::new();
+        for (i, iter) in quant.bindings.iter().enumerate() {
+            let src = self.expression(
+                iter.source
+                    .as_ref()
+                    .ok_or("missing quantified source")?,
+            )?;
+            let var_name = format!("qi_{serial}_{i}");
+            if let Some(end_expr) = &iter.range_end {
+                let end = self.expression(end_expr)?;
+                write!(
+                    code,
+                    "if let Some(__qitems_{serial}_{i}) = for_range_values({}, {}) {{ for {var_name} in __qitems_{serial}_{i} {{ ",
+                    src.value, end.value
+                )
+                .unwrap();
+            } else {
+                write!(
+                    code,
+                    "if let Some(__qitems_{serial}_{i}) = for_iter_values({}) {{ for {var_name} in __qitems_{serial}_{i} {{ ",
+                    src.value
+                )
+                .unwrap();
+            }
+            self.locals.insert(
+                iter.binding_id.clone(),
+                Emitted {
+                    ty: Type::Scalar(DmnIrScalarType::ScalarTypeNull),
+                    value: format!("{var_name}.clone()"),
+                    depth: 0,
+                    bounds: None,
+                },
+            );
+            closing.push_str(&format!("}} }} else {{ q_err_{serial} = true; }} "));
+        }
+        let sat = self.expression(
+            quant
+                .satisfies
+                .as_deref()
+                .ok_or("missing quantified satisfies")?,
+        )?;
+        write!(
+            code,
+            "match {} {{ Value::Boolean(true) => q_true_{serial} = true, Value::Boolean(false) => q_false_{serial} = true, Value::Null => q_null_{serial} = true, _ => q_err_{serial} = true }} ",
+            sat.value
+        )
+        .unwrap();
+        code.push_str(&closing);
+        if quant.every {
+            write!(
+                code,
+                "if q_err_{serial} {{ Value::Null }} else if q_false_{serial} {{ Value::Boolean(false) }} else if q_null_{serial} {{ Value::Null }} else {{ Value::Boolean(true) }} }}"
+            )
+            .unwrap();
+        } else {
+            write!(
+                code,
+                "if q_err_{serial} {{ Value::Null }} else if q_true_{serial} {{ Value::Boolean(true) }} else if q_null_{serial} {{ Value::Null }} else {{ Value::Boolean(false) }} }}"
+            )
+            .unwrap();
+        }
+        self.locals = outer;
+        Ok(code)
+    }
+}
+
+fn emit_type_descriptor(desc: &DmnIrTypeDescriptor) -> String {
+    let elem = match desc.element_type.as_deref() {
+        Some(e) => format!("Some(Box::new({}))", emit_type_descriptor(e)),
+        None => "None".into(),
+    };
+    let fields: Vec<String> = desc
+        .fields
+        .iter()
+        .map(|f| {
+            let ft = f
+                .r#type
+                .as_ref()
+                .map(emit_type_descriptor)
+                .unwrap_or_else(|| "TypeDesc::any()".into());
+            format!("({:?}, {ft})", f.name)
+        })
+        .collect();
+    let params: Vec<String> = desc
+        .parameter_types
+        .iter()
+        .map(emit_type_descriptor)
+        .collect();
+    let ret = match desc.return_type.as_deref() {
+        Some(r) => format!("Some(Box::new({}))", emit_type_descriptor(r)),
+        None => "None".into(),
+    };
+    format!(
+        "TypeDesc {{ kind: {:?}, element_type: {elem}, fields: vec![{}], parameter_types: vec![{}], return_type: {ret} }}",
+        desc.kind,
+        fields.join(", "),
+        params.join(", ")
+    )
 }
 
 fn key(reference: &DmnIrReference) -> Key<'_> {
@@ -2115,14 +2830,26 @@ fn nonempty(value: &str) -> Check<&str> {
 }
 
 fn assignable(actual: impl Into<Type>, expected: impl Into<Type>) -> bool {
+    assignable_ext(actual, expected, false)
+}
+
+pub(super) fn assignable_ext(
+    actual: impl Into<Type>,
+    expected: impl Into<Type>,
+    extended: bool,
+) -> bool {
     let actual = actual.into();
-    actual == expected.into() || actual == DmnIrScalarType::ScalarTypeNull
+    let expected = expected.into();
+    actual == expected
+        || actual == DmnIrScalarType::ScalarTypeNull
+        || (extended && expected == DmnIrScalarType::ScalarTypeNull)
 }
 
 fn literal_source(
     literal: &DmnIrLiteral,
     expected: Type,
     dates: bool,
+    extended: bool,
 ) -> Check<(String, Option<NumericBounds>)> {
     use DmnIrScalarType::*;
     let mut bounds = None;
@@ -2142,6 +2869,15 @@ fn literal_source(
                 format!("Value::Date {{ year: {year}, month: {month}, day: {day} }}"),
             )
         }
+        Value::TimeValue(value) if extended => {
+            (ScalarTypeTime, format!("Value::Time({value:?}.into())"))
+        }
+        Value::DateTimeValue(value) if extended => {
+            (ScalarTypeDateTime, format!("Value::DateTime({value:?}.into())"))
+        }
+        Value::DurationValue(value) if extended => {
+            (ScalarTypeDuration, format!("Value::Duration({value:?}.into())"))
+        }
         Value::NumberValue(value) => {
             let scale = value.scale.ok_or("missing decimal scale")?;
             let coefficient = &value.unscaled_value;
@@ -2156,7 +2892,7 @@ fn literal_source(
         }
         _ => return Err("literal outside scalar profile"),
     };
-    if !assignable(actual, expected) {
+    if !assignable_ext(actual, expected, extended) {
         return Err("literal type mismatch");
     }
     Ok((source, bounds))

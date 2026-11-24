@@ -1,7 +1,26 @@
 fn table_compare(candidate: &Value, endpoint: Value, op: i32) -> bool {
     match op {
-        6 => matches!(equal(candidate.clone(), endpoint), Value::Boolean(true)),
-        7 => matches!(equal(candidate.clone(), endpoint), Value::Boolean(false)),
+        6 => {
+            if let Value::Range {
+                lower,
+                upper,
+                lower_inclusive,
+                upper_inclusive,
+            } = endpoint
+            {
+                return table_range_open(candidate, *lower, *upper, lower_inclusive, upper_inclusive);
+            }
+            if matches!(equal(candidate.clone(), endpoint.clone()), Value::Boolean(true)) {
+                return true;
+            }
+            if let Value::List(items) = endpoint {
+                return items
+                    .into_iter()
+                    .any(|it| matches!(equal(candidate.clone(), it), Value::Boolean(true)));
+            }
+            false
+        }
+        7 => !table_compare(candidate, endpoint, 6),
         _ => compare(candidate, &endpoint).is_some_and(|order| match op {
             8 => order.is_lt(),
             9 => order.is_le(),
@@ -10,6 +29,27 @@ fn table_compare(candidate: &Value, endpoint: Value, op: i32) -> bool {
             _ => false,
         }),
     }
+}
+fn table_range_open(
+    candidate: &Value,
+    lower: Value,
+    upper: Value,
+    lower_inclusive: bool,
+    upper_inclusive: bool,
+) -> bool {
+    let low_ok = match &lower {
+        Value::Null => true,
+        _ => compare(candidate, &lower).is_some_and(|order| {
+            if lower_inclusive { order.is_ge() } else { order.is_gt() }
+        }),
+    };
+    let high_ok = match &upper {
+        Value::Null => true,
+        _ => compare(candidate, &upper).is_some_and(|order| {
+            if upper_inclusive { order.is_le() } else { order.is_lt() }
+        }),
+    };
+    low_ok && high_ok
 }
 fn table_range(
     candidate: &Value,
@@ -41,6 +81,9 @@ fn table_result(
     defaults: impl FnOnce() -> Result<Vec<Value>, &'static str>,
 ) -> Result<Value, &'static str> {
     if policy == 7 {
+        if rows.is_empty() {
+            return Ok(defaults()?.into_iter().next().unwrap_or(Value::Null));
+        }
         let mut sum = Value::Number { coefficient: "0".into(), scale: 0 };
         for row in rows {
             let val = row.into_iter().next().unwrap();
@@ -49,6 +92,9 @@ fn table_result(
         return Ok(sum);
     }
     if policy == 8 {
+        if rows.is_empty() {
+            return Ok(defaults()?.into_iter().next().unwrap_or(Value::Null));
+        }
         let mut min: Option<Value> = None;
         for row in rows {
             let val = row.into_iter().next().unwrap();
@@ -60,6 +106,9 @@ fn table_result(
         return Ok(min.unwrap_or(Value::Null));
     }
     if policy == 9 {
+        if rows.is_empty() {
+            return Ok(defaults()?.into_iter().next().unwrap_or(Value::Null));
+        }
         let mut max: Option<Value> = None;
         for row in rows {
             let val = row.into_iter().next().unwrap();

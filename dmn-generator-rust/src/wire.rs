@@ -1,7 +1,7 @@
 //! Strict preflight for the admitted scalar shapes. Prost discards unknown fields.
 
 pub const MAX_BYTES: usize = 4 * 1024 * 1024;
-const MAX_DEPTH: usize = 32;
+const MAX_DEPTH: usize = 64;
 const MAX_FIELDS: usize = 200_000;
 const MAX_MESSAGES: usize = 50_000;
 const MAX_STRING: usize = 16_384;
@@ -18,6 +18,7 @@ enum Message {
     Import,
     Input,
     Decision,
+    DecisionService,
     Variable,
     Expression,
     Unary,
@@ -29,6 +30,7 @@ enum Message {
     FieldAccess,
     LocalReference,
     Context,
+    ContextLiteral,
     LocalBinding,
     Literal,
     Decimal,
@@ -53,6 +55,15 @@ enum Message {
     Test,
     Comparison,
     Range,
+    RangeExpression,
+    InstanceOfExpression,
+    TypeDescriptor,
+    TypeField,
+    ForExpression,
+    ForIteration,
+    QuantifiedExpression,
+    DynamicInvocation,
+    NamedArgument,
 }
 
 #[derive(Clone, Copy)]
@@ -90,7 +101,43 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Closure, 2) => (Nested(TypeReference), false, false),
         (Closure, 3) => (Text, true, false),
         (Closure, 4) => (Nested(Expression), false, false),
+        (Closure, 5) => (Boolean, false, false),
         (Expression, 16) => (Nested(ClosureCall), false, true),
+        (Expression, 17) => (Nested(Closure), false, true),
+        (Expression, 18) => (Nested(ContextLiteral), false, true),
+        (ContextLiteral, 1) => (Nested(LocalBinding), true, false),
+        (Expression, 19) => (Nested(RangeExpression), false, true),
+        (RangeExpression, 1 | 2) => (Nested(Expression), false, false),
+        (RangeExpression, 3 | 4) => (Boolean, false, false),
+        (Expression, 20) => (Nested(InstanceOfExpression), false, true),
+        (InstanceOfExpression, 1) => (Nested(Expression), false, false),
+        (InstanceOfExpression, 2) => (Nested(TypeDescriptor), false, false),
+        (TypeDescriptor, 1) => (Text, false, false),
+        (TypeDescriptor, 2 | 5) => (Nested(TypeDescriptor), false, false),
+        (TypeDescriptor, 3) => (Nested(TypeField), true, false),
+        (TypeDescriptor, 4) => (Nested(TypeDescriptor), true, false),
+        (TypeField, 1) => (Text, false, false),
+        (TypeField, 2) => (Nested(TypeDescriptor), false, false),
+        (Expression, 21) => (Nested(ForExpression), false, true),
+        (ForExpression, 1) => (Nested(ForIteration), true, false),
+        (ForExpression, 2) => (Text, false, false),
+        (ForExpression, 3) => (Nested(Expression), false, false),
+        (ForIteration, 1 | 2) => (Text, false, false),
+        (ForIteration, 3 | 4) => (Nested(Expression), false, false),
+        (Expression, 22) => (Nested(QuantifiedExpression), false, true),
+        (QuantifiedExpression, 1) => (Boolean, false, false),
+        (QuantifiedExpression, 2) => (Nested(ForIteration), true, false),
+        (QuantifiedExpression, 3) => (Nested(Expression), false, false),
+        (Expression, 23) => (Nested(DynamicInvocation), false, true),
+        (DynamicInvocation, 1) => (Nested(Expression), false, false),
+        (DynamicInvocation, 2) => (Nested(Expression), true, false),
+        (DynamicInvocation, 3) => (Nested(NamedArgument), true, false),
+        (NamedArgument, 1) => (Text, false, false),
+        (NamedArgument, 2) => (Nested(Expression), false, false),
+        (Model, 9) => (Nested(DecisionService), true, false),
+        (DecisionService, 1) => (Nested(Identity), false, false),
+        (DecisionService, 2) => (Nested(Variable), false, false),
+        (DecisionService, 3..=6) => (Nested(Reference), true, false),
         (ClosureCall, 1) => (Text, false, true),
         (ClosureCall, 2) => (Nested(Closure), false, true),
         (ClosureCall, 3) => (Nested(Expression), true, false),
@@ -170,6 +217,7 @@ fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
         (Literal, 5) => (Nested(Date), false, true),
         (Date, 1..=3) => (Integer, false, false),
         (Literal, 4) => (Nested(Decimal), false, true),
+        (Literal, 6 | 7 | 8) => (Text, false, true),
         _ => return None,
     };
     Some(rule)

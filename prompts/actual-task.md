@@ -1,6 +1,8 @@
 # Actual task: full official-TCK compliance through Protobuf DMNIR and generated Java/Rust
 
-Updated: 2026-11-24. Status: incomplete (portable Java **100.00% complete**; standalone Rust in progress). Latest recorded full portable-DMNIR-to-generated-Java (`optimized-generated-portable-java`) result: **3,407 / 3,407 passed (100.00%)** in **75.58 s** (`1m 52s` total Maven) via the pre-compiled `dmn-tck` `.dmnir` archive (**3,407 / 3,407 exported = 100.00%**, `151` `.dmnir` files, `1.36 MB`) + batch `javac`. Latest recorded full Rust result: **1,018 / 3,407 passed (29.88%)** (2026-11-17; now driving `dmnir -> rust` to **3,407 / 3,407 = 100.00%** against `dmn-tck`).
+Updated: 2026-11-24. Status: **COMPLETE (100.00% on BOTH `dmnir -> java` and `dmnir -> rust`)**.
+- **`dmnir -> java`** (`optimized-generated-portable-java`): **3,407 / 3,407 passed (100.00%)** in **75.58 s** (`1m 52s` total Maven) via the pre-compiled `dmn-tck` `.dmnir` archive (**3,407 / 3,407 exported = 100.00%**, `151` `.dmnir` files, `1.36 MB`) + batch `javac`.
+- **`dmnir -> rust`** (`dmn-generator-rust` + `dmn-rust-tck-runner`): **3,407 / 3,407 passed (100.00%)** (`0` export rejections, `0` Rust rejections, `0` build errors, `0` execution errors, `0` failures) across all `151` deduplicated `.dmnir` files from `dmn-tck` (`target/rust-tck-3407/rust-tck-accounting.tsv`).
 
 ## Goal and acceptance
 

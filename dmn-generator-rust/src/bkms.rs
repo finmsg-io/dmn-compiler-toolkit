@@ -164,7 +164,9 @@ impl ExpressionEmitter<'_, '_> {
         if !self.knowledge.contains(&target) {
             return Err("BKM call requires declared knowledge dependency");
         }
-        if bkm.ty != ty {
+        if !assignable_ext(bkm.ty, ty, self.types.extended)
+            && !assignable_ext(ty, bkm.ty, self.types.extended)
+        {
             return Err("BKM call result type mismatch");
         }
         if call.arguments.len() != bkm.parameters.len() {
@@ -173,6 +175,9 @@ impl ExpressionEmitter<'_, '_> {
         *self.call_serial += 1;
         let serial = *self.call_serial;
         let mut prefix = String::from("{ ");
+        if self.types.extended {
+            write!(prefix, "let mut b{serial}_ok = true; ").unwrap();
+        }
         let mut positions = BTreeSet::new();
         let mut locals = BTreeMap::new();
         let mut depth = 0;
@@ -184,11 +189,21 @@ impl ExpressionEmitter<'_, '_> {
             let mut value =
                 self.expression(argument.expression.as_ref().ok_or("missing BKM argument")?)?;
             let expected = bkm.parameters[position - 1];
-            if !assignable(value.ty, expected) {
+            if !self.types.extended && !assignable(value.ty, expected) {
                 return Err("BKM argument type mismatch");
             }
             depth = depth.max(value.depth);
-            write!(prefix, "let b{serial}_{position} = {}; ", value.value).unwrap();
+            if self.types.extended {
+                write!(
+                    prefix,
+                    "let b{serial}_{position}_raw = {}; let b{serial}_{position} = coerce_output(b{serial}_{position}_raw.clone(), {}); if !matches!(b{serial}_{position}_raw, Value::Null) && matches!(b{serial}_{position}, Value::Null) {{ b{serial}_ok = false; }} ",
+                    value.value,
+                    expected.source()
+                )
+                .unwrap();
+            } else {
+                write!(prefix, "let b{serial}_{position} = {}; ", value.value).unwrap();
+            }
             value.ty = expected;
             value.value = format!("b{serial}_{position}.clone()");
             locals.insert(
@@ -227,10 +242,20 @@ impl ExpressionEmitter<'_, '_> {
         self.validate_ids = outer_ids;
         self.table_cell = outer_table;
         self.filter_predicate = outer_filter;
-        if !assignable(result.ty, bkm.ty) {
+        if !self.types.extended && !assignable(result.ty, bkm.ty) {
             return Err("BKM body type mismatch");
         }
-        write!(prefix, "{} }}", result.value).unwrap();
+        if self.types.extended {
+            write!(
+                prefix,
+                "if !b{serial}_ok {{ Value::Null }} else {{ coerce_output({}, {}) }} }}",
+                result.value,
+                bkm.ty.source()
+            )
+            .unwrap();
+        } else {
+            write!(prefix, "{} }}", result.value).unwrap();
+        }
         result.ty = ty;
         result.value = prefix;
         result.depth = result.depth.max(depth);

@@ -53,7 +53,7 @@ fn endpoint(value: Option<&DmnIrExpression>, ty: Type, ordered: bool) -> Check<S
     {
         return Err("constraint endpoint type mismatch");
     }
-    Ok(literal_source(literal, actual, true)?.0)
+    Ok(literal_source(literal, actual, true, true)?.0)
 }
 fn tests(group: &DmnIrUnaryTests, ty: Type) -> Check<String> {
     if group.wildcard {

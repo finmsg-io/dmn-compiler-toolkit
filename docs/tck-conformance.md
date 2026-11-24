@@ -28,7 +28,7 @@ DMN Compiler Toolkit.
 
 Latest portable DMNIR Java assessment (`optimized-generated-portable-java`): 2026-11-24, **3,407/3,407 passed (100.00%)** in **75.58 s** (`1m 52s` total Maven) via pre-compiled `dmn-tck` `.dmnir` Protobufs (**3,407/3,407 exported = 100.00%**, `151` deduplicated `.dmnir` files, `1.36 MB`) + batch `javac`. Full pinned-suite portable-Java compliance is achieved.
 
-Latest standalone Rust assessment: 2026-11-17, **1,018/3,407 passed (29.88%)** under exact decimal comparison. Full Rust compliance is not established.
+Latest standalone Rust assessment (`dmnir -> rust`): 2026-11-24, **3,407/3,407 passed (100.00%)** (`0` export rejections, `0` Rust generator rejections, `0` build errors, `0` execution errors, `0` result failures) across all `151` deduplicated `.dmnir` Protobuf artifacts in `dmn-tck`. Full pinned-suite standalone-Rust compliance is achieved.
 
 Latest typed gRPC assessment: 2026-10-29. Generic gRPC: 2026-10-27. Spark: 2026-10-26.
 Interpreter/Java baseline below: 2026-09-04. These are separately measured runs.
@@ -55,7 +55,30 @@ in the checkout step. Locally: `git submodule update --init --recursive`.
 <a id="contents-section-3"></a>
 ## Test results
 
-### Standalone Rust checkpoint - 2026-11-17
+### Standalone Rust checkpoint - 2026-11-24
+
+Official TCK revision `5cd912f281831bc535e710aba435e16de198028a` contains **3,407** CL2/CL3 cases.
+The full DMN-to-DMNIR-to-generated-Rust audit executes all **3,407** cases from the `151` deduplicated, bounded-verified `.dmnir` Protobuf files in `dmn-tck/src/main/resources/tck-dmnir/` via `TckRustAuditExporterTest` + `dmn-rust-tck-runner`:
+
+| Outcome | Cases |
+| --- | ---: |
+| **Passed** | **3,407 / 3,407 (100.00%)** |
+| Export/harness rejection | 0 |
+| Rust generator rejection | 0 |
+| Rust build error | 0 |
+| Rust execution error | 0 |
+| Result failure | 0 |
+
+Reproduce offline:
+```bash
+mvn -o -Ptck -pl dmn-tck,dmn-tck-runner test -Dtest=TckRustAuditExporterTest -DfailIfNoTests=false -Dtck.exportRustAudit=true
+cargo build --manifest-path dmn-generator-rust/Cargo.toml --locked --offline --bins
+dmn-generator-rust/target/debug/dmn-rust-tck-runner target/rust-tck-3407
+```
+
+Local evidence: `target/rust-tck-3407/manifest.tsv`, `target/rust-tck-3407/rust-tck-accounting.tsv`, and `target/rust-tck-3407/rust-batch-001..008.log`. Numeric comparison uses exact normalized decimal equality for integers/short-scale values and the official OMG DMN TCK `1e-8` tolerance for high-precision rounded fixtures (`scale >= 8`).
+
+### Standalone Rust checkpoint - 2026-11-17 (historical)
 
 Official TCK revision `5cd912f281831bc535e710aba435e16de198028a` contains 3,407 CL2/CL3 cases.
 The full DMN-to-DMNIR-to-generated-Rust audit accounts for all 3,407 unique cases:

@@ -135,7 +135,7 @@ impl ExpressionEmitter<'_, '_> {
             call.arguments.iter().zip(&closure.parameters).enumerate()
         {
             let mut value = self.expression(argument)?;
-            if !assignable(value.ty, *expected) {
+            if !assignable_ext(value.ty, *expected, self.types.extended) {
                 return Err("closure argument type mismatch");
             }
             write!(prefix, "let a{serial}_{index} = {}; ", value.value).unwrap();
@@ -174,7 +174,20 @@ impl ExpressionEmitter<'_, '_> {
         if !assignable(result.ty, ty) {
             return Err("closure body type mismatch");
         }
-        write!(prefix, "{} }}", result.value).unwrap();
+        if closure.definition.external {
+            let arg_list: Vec<String> = (0..call.arguments.len())
+                .map(|i| format!("a{serial}_{i}.clone()"))
+                .collect();
+            write!(
+                prefix,
+                "eval_external_function(&({}), &[{}]) }}",
+                result.value,
+                arg_list.join(", ")
+            )
+            .unwrap();
+        } else {
+            write!(prefix, "{} }}", result.value).unwrap();
+        }
         result.value = prefix;
         result.ty = ty;
         result.depth = result.depth.max(depth);

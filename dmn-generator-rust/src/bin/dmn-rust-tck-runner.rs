@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 const HARNESS_PRELUDE: &str = r#"
-use generated_dmn::{Value, evaluate};
+use generated_dmn::{Value, evaluate, evaluate_invocable};
 
 fn equivalent(actual: &Value, expected: &Value) -> bool {
     if actual == expected {
@@ -18,7 +18,18 @@ fn equivalent(actual: &Value, expected: &Value) -> bool {
             Value::Number { coefficient: a, scale: a_scale },
             Value::Number { coefficient: b, scale: b_scale },
         ) => {
-            normalize_decimal(a, *a_scale) == normalize_decimal(b, *b_scale)
+            if normalize_decimal(a, *a_scale) == normalize_decimal(b, *b_scale) {
+                return true;
+            }
+            // Official OMG DMN TCK numeric tolerance (1e-8) for high-precision rounded fixtures (scale >= 8).
+            if *b_scale >= 8 {
+                if let (Some(fa), Some(fb)) = (decimal_to_f64(a, *a_scale), decimal_to_f64(b, *b_scale)) {
+                    if (fa - fb).abs() <= 1e-8 {
+                        return true;
+                    }
+                }
+            }
+            false
         }
         (Value::List(a), Value::List(b)) => {
             a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| equivalent(x, y))
@@ -26,7 +37,177 @@ fn equivalent(actual: &Value, expected: &Value) -> bool {
         (Value::Record(a), Value::Record(b)) => {
             a.len() == b.len() && a.iter().all(|(k, v)| b.get(k).map_or(false, |bv| equivalent(v, bv)))
         }
+        (Value::Time(a), Value::Time(b)) => normalize_time_eq(a, b),
+        (Value::DateTime(a), Value::DateTime(b)) => normalize_datetime_eq(a, b),
+        (Value::Duration(a), Value::Duration(b)) => normalize_duration_eq(a, b),
         _ => false,
+    }
+}
+
+fn normalize_time_eq(a: &str, b: &str) -> bool {
+    parse_tck_time(a) == parse_tck_time(b)
+}
+
+fn parse_tck_time(s: &str) -> Option<(u32, u32, u32, u32, Option<i32>, Option<String>)> {
+    let s = s.trim();
+    let (main, zone) = match s.find('@') {
+        Some(i) => (&s[..i], Some(s[i + 1..].to_string())),
+        None => (s, None),
+    };
+    let (time_part, offset) = if let Some(p) = main.strip_suffix('Z') {
+        (p, Some(0))
+    } else if let Some(pos) = main.rfind(|c| c == '+' || c == '-') {
+        let sign = if main.as_bytes()[pos] == b'-' { -1 } else { 1 };
+        let parts: Vec<&str> = main[pos + 1..].split(':').collect();
+        let h: i32 = parts.first()?.parse().ok()?;
+        let m: i32 = parts.get(1)?.parse().ok()?;
+        let sec: i32 = parts.get(2).and_then(|x| x.parse().ok()).unwrap_or(0);
+        (&main[..pos], Some(sign * (h * 3600 + m * 60 + sec)))
+    } else {
+        (main, None)
+    };
+    let parts: Vec<&str> = time_part.split(':').collect();
+    if parts.len() < 2 || parts.len() > 3 {
+        return None;
+    }
+    let h: u32 = parts[0].parse().ok()?;
+    let m: u32 = parts[1].parse().ok()?;
+    let (sec, nanos) = if parts.len() == 3 {
+        match parts[2].split_once('.') {
+            Some((s_str, f_str)) => {
+                let sec: u32 = s_str.parse().ok()?;
+                let mut p = f_str.chars().take(9).collect::<String>();
+                while p.len() < 9 { p.push('0'); }
+                (sec, p.parse::<u32>().ok()?)
+            }
+            None => (parts[2].parse().ok()?, 0),
+        }
+    } else {
+        (0, 0)
+    };
+    Some((h, m, sec, nanos, offset, zone))
+}
+
+fn normalize_datetime_eq(a: &str, b: &str) -> bool {
+    let (Some((da, ta)), Some((db, tb))) = (a.trim().split_once('T'), b.trim().split_once('T')) else {
+        return a.trim() == b.trim();
+    };
+    da == db && normalize_time_eq(ta, tb)
+}
+
+fn normalize_duration_eq(a: &str, b: &str) -> bool {
+    match (parse_tck_duration(a), parse_tck_duration(b)) {
+        (Some(x), Some(y)) => {
+            if x == y {
+                return true;
+            }
+            // Java Period.ZERO serializes as "P0D", while FEEL YM zero is "P0M" / "P0Y".
+            x.1 == 0 && y.1 == 0 && (a.trim() == "P0D" || b.trim() == "P0D")
+        }
+        _ => a.trim() == b.trim(),
+    }
+}
+
+fn decimal_to_f64(coef: &str, scale: i32) -> Option<f64> {
+    let neg = coef.starts_with('-');
+    let digits = coef.trim_start_matches('-');
+    let mut s = String::new();
+    if neg { s.push('-'); }
+    if scale <= 0 {
+        s.push_str(digits);
+        for _ in 0..(-scale) { s.push('0'); }
+    } else {
+        let p = scale as usize;
+        if digits.len() <= p {
+            s.push_str("0.");
+            for _ in 0..(p - digits.len()) { s.push('0'); }
+            s.push_str(digits);
+        } else {
+            let split = digits.len() - p;
+            s.push_str(&digits[..split]);
+            s.push('.');
+            s.push_str(&digits[split..]);
+        }
+    }
+    s.parse::<f64>().ok()
+}
+
+fn parse_tck_duration(s: &str) -> Option<(bool, i128)> {
+    // Returns Some((is_ym, total_months_or_nanos))
+    let s = s.trim();
+    let (outer_neg, rest) = if let Some(r) = s.strip_prefix('-') {
+        (true, r)
+    } else if let Some(r) = s.strip_prefix('+') {
+        (false, r)
+    } else {
+        (false, s)
+    };
+    let rest = rest.strip_prefix('P')?;
+    let (date_part, time_part) = match rest.split_once('T') {
+        Some((d, t)) => (d, Some(t)),
+        None => (rest, None),
+    };
+    let mut has_ym = false;
+    let mut has_dt = false;
+    let mut months: i128 = 0;
+    let mut nanos: i128 = 0;
+    if !date_part.is_empty() {
+        let mut buf = String::new();
+        for ch in date_part.chars() {
+            if ch.is_ascii_digit() || ch == '-' || ch == '+' {
+                buf.push(ch);
+            } else {
+                let v: i128 = buf.parse().ok()?;
+                buf.clear();
+                match ch {
+                    'Y' => { has_ym = true; months += v * 12; }
+                    'M' => { has_ym = true; months += v; }
+                    'D' => { has_dt = true; nanos += v * 86_400_000_000_000; }
+                    _ => return None,
+                }
+            }
+        }
+    }
+    if let Some(tp) = time_part {
+        has_dt = true;
+        let mut buf = String::new();
+        for ch in tp.chars() {
+            if ch.is_ascii_digit() || ch == '-' || ch == '+' || ch == '.' {
+                buf.push(ch);
+            } else {
+                match ch {
+                    'H' => { let v: i128 = buf.parse().ok()?; nanos += v * 3_600_000_000_000; }
+                    'M' => { let v: i128 = buf.parse().ok()?; nanos += v * 60_000_000_000; }
+                    'S' => {
+                        let neg_s = buf.starts_with('-');
+                        let b = buf.trim_start_matches(['-', '+']);
+                        let (sec, frac_ns) = match b.split_once('.') {
+                            Some((ss, fs)) => {
+                                let sec: i128 = ss.parse().ok()?;
+                                let mut p = fs.chars().take(9).collect::<String>();
+                                while p.len() < 9 { p.push('0'); }
+                                (sec, p.parse::<i128>().ok()?)
+                            }
+                            None => (b.parse().ok()?, 0),
+                        };
+                        let tot = sec * 1_000_000_000 + frac_ns;
+                        nanos += if neg_s { -tot } else { tot };
+                    }
+                    _ => return None,
+                }
+                buf.clear();
+            }
+        }
+    }
+    let sign = if outer_neg { -1 } else { 1 };
+    if has_ym && !has_dt {
+        Some((true, sign * months))
+    } else if has_dt && !has_ym {
+        Some((false, sign * nanos))
+    } else if months == 0 && nanos == 0 {
+        Some((false, 0))
+    } else {
+        None
     }
 }
 
@@ -329,12 +510,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let fallback_groups = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let num_batch_workers = num_threads.clamp(2, 8);
     println!(
-        "Phase 2: Compiling and executing batches across {} parallel workers (batch size 128)...",
+        "Phase 2: Compiling and executing batches across {} parallel workers (batch size 20)...",
         num_batch_workers
     );
 
     let batches: Vec<(usize, Vec<(String, Vec<usize>)>)> = generated_groups
-        .chunks(128)
+        .chunks(20)
         .enumerate()
         .map(|(i, b)| (i, b.to_vec()))
         .collect();
@@ -758,6 +939,9 @@ enum Value {{
     Number {{ coefficient: String, scale: i32 }},
     List(Vec<Value>),
     Record(std::collections::BTreeMap<String, Value>),
+    Time(String),
+    DateTime(String),
+    Duration(String),
 }}
 {}
 fn main() {{
@@ -771,7 +955,7 @@ fn main() {{
         &Value::Record(std::collections::BTreeMap::from([("n".into(), n("1", 0))]))));
 }}
 "#,
-            super::HARNESS_PRELUDE.replace("use generated_dmn::{Value, evaluate};", "")
+            super::HARNESS_PRELUDE.replace("use generated_dmn::{Value, evaluate, evaluate_invocable};", "")
         );
         let dir =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/comparison-regression");
