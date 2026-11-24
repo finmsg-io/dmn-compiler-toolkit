@@ -382,7 +382,7 @@ public final class DmnIrArtifactReader {
 			}
 			DmnIrExpression expression = decision.getExpression();
 			var resultType = typeOf(expression, path + ".expression.type");
-			check(assignable(resultType, owner.type()), INVALID_TYPE, path + ".expression.type",
+			check(builtinProfile || assignable(resultType, owner.type()), INVALID_TYPE, path + ".expression.type",
 					"Expression type is incompatible with its declared result.");
 			node(expression, owner, dependencies, path + ".expression", 1);
 		}
@@ -429,7 +429,7 @@ public final class DmnIrArtifactReader {
 			formals(bkm.getParametersList(), owner, owner.path());
 			String bodyPath = owner.path() + ".body";
 			check(bkm.hasBody(), INVALID_EXPRESSION, bodyPath, "A BKM body is required.");
-			check(assignable(typeOf(bkm.getBody(), bodyPath), owner.type()), INVALID_TYPE, bodyPath,
+			check(builtinProfile || assignable(typeOf(bkm.getBody(), bodyPath), owner.type()), INVALID_TYPE, bodyPath,
 					"BKM body type must be compatible with the declared result.");
 			node(bkm.getBody(), owner, Set.of(), bodyPath, 1);
 		}
@@ -1019,7 +1019,8 @@ public final class DmnIrArtifactReader {
 					node(access.getSource(), owner, dependencies, path + ".field_access.source", depth + 1);
 					if ((datesProfile && isTemporal(access.getSource().getType()))
 							|| (localsProfile && (access.getSource().getType() == DmnIrScalarType.SCALAR_TYPE_NULL
-									|| access.getSource().hasCollectionType()))) {
+									|| access.getSource().hasCollectionType()))
+							|| (builtinProfile && !access.getSource().hasRecordType())) {
 						check(!access.getFieldName().isBlank(), INVALID_REFERENCE, path + ".field_access.field_name",
 								"Property name is required.");
 					} else {

@@ -29,6 +29,7 @@ final class DmnIrRecordProducer {
 	private final Map<DmnIrReference, DmnIrTypeReference> typeAliasesByRef = new HashMap<>();
 	private final Map<DmnIrReference, DmnIrTypeReference> declarations = new HashMap<>();
 	private final Map<DmnIrReference, BusinessKnowledgeModel> bkms = new HashMap<>();
+	private final Map<DmnIrReference, DecisionService> decisionServices = new HashMap<>();
 	private Set<DmnIrReference> knowledge = Set.of();
 	private final Map<DmnIrReference, DmnIrRecordDefinition> records = new HashMap<>();
 	private final Map<DmnIrReference, DmnIrCollectionDefinition> collections = new HashMap<>();
@@ -136,7 +137,10 @@ final class DmnIrRecordProducer {
 				else if (element.hasBusinessKnowledgeModel()) {
 					var bkm = element.getBusinessKnowledgeModel();
 					bkms.put(ref(model.identity().namespace(), bkm.getNode().getId()), bkm);
-				} else if (element.hasKnowledgeSource() || element.hasDecisionService()) {
+				} else if (element.hasDecisionService()) {
+					var ds = element.getDecisionService();
+					decisionServices.put(ref(model.identity().namespace(), ds.getNode().getId()), ds);
+				} else if (element.hasKnowledgeSource()) {
 					continue;
 				} else
 					throw unsupported();
@@ -148,7 +152,7 @@ final class DmnIrRecordProducer {
 						: tableProfile ? 5 : dateProfile ? 4 : (localProfile || usedLocalProfile) ? 3 : 2;
 		if (closures)
 			minor = 11;
-		else if (!bkms.isEmpty())
+		else if (!bkms.isEmpty() || !decisionServices.isEmpty())
 			minor = 10;
 		else if (builtinCalls)
 			minor = 9;
@@ -217,7 +221,12 @@ final class DmnIrRecordProducer {
 							.setVariable(variable(input.getVariable(), model)).build());
 				} else if (element.hasBusinessKnowledgeModel()) {
 					modelBkms.add(bkm(element.getBusinessKnowledgeModel(), model));
-				} else if (element.hasKnowledgeSource() || element.hasDecisionService()) {
+				} else if (element.hasDecisionService()) {
+					var dsBkm = decisionServiceBkm(element.getDecisionService(), model);
+					if (dsBkm != null) {
+						modelBkms.add(dsBkm);
+					}
+				} else if (element.hasKnowledgeSource()) {
 					continue;
 				} else {
 					var decision = element.getDecision();
@@ -314,7 +323,7 @@ final class DmnIrRecordProducer {
 						: tableProfile ? 5 : dateProfile ? 4 : (localProfile || usedLocalProfile) ? 3 : 2;
 		if (closures)
 			finalMinor = 11;
-		else if (!bkms.isEmpty())
+		else if (!bkms.isEmpty() || !decisionServices.isEmpty())
 			finalMinor = 10;
 		else if (builtinCalls)
 			finalMinor = 9;
@@ -447,10 +456,127 @@ final class DmnIrRecordProducer {
 		Set<DmnIrReference> targets = new TreeSet<>(ORDER);
 		for (var requirement : requirements) {
 			var target = address(requirement.getRequiredKnowledge(), model);
-			if (!bkms.containsKey(target) || !targets.add(target))
+			if (!(bkms.containsKey(target) || decisionServices.containsKey(target)) || !targets.add(target))
 				throw unsupported();
 		}
 		return targets;
+	}
+
+	private List<InformationItem> decisionServiceParameters(DecisionService ds, DmnSemanticModel owner) {
+		List<InformationItem> params = new ArrayList<>();
+		List<ElementReference> refs = new ArrayList<>();
+		refs.addAll(ds.getInputDataList());
+		refs.addAll(ds.getInputDecisionsList());
+		for (var ref : refs) {
+			String href = ref.getHref();
+			String targetId = href.startsWith("#") ? href.substring(1) : href;
+			String paramName = targetId;
+			TypeReference paramType = TypeReference.getDefaultInstance();
+			for (var el : owner.model().getDrgElementsList()) {
+				if (el.hasInputData() && el.getInputData().getNode().getId().equals(targetId)) {
+					paramName = el.getInputData().getVariable().getNode().getName();
+					paramType = el.getInputData().getVariable().getType();
+					break;
+				}
+				if (el.hasDecision() && el.getDecision().getNode().getId().equals(targetId)) {
+					paramName = el.getDecision().getVariable().getNode().getName();
+					paramType = el.getDecision().getVariable().getType();
+					break;
+				}
+			}
+			params.add(InformationItem.newBuilder().setNode(Node.newBuilder().setName(paramName)).setType(paramType)
+					.build());
+		}
+		return params;
+	}
+
+	private DmnIrBkm decisionServiceBkm(DecisionService ds, DmnSemanticModel model) {
+		localBindings.clear();
+		knowledge = Set.of();
+		String path = "definitions/decisionService[" + ds.getNode().getName() + "]";
+		var params = decisionServiceParameters(ds, model);
+		var dsVar = DmnIrVariable.newBuilder()
+				.setName(ds.getVariable().getNode().getName().isBlank()
+						? ds.getNode().getName()
+						: ds.getVariable().getNode().getName())
+				.setType(DmnIrScalarType.SCALAR_TYPE_NULL);
+		if (!ds.getVariable().getNode().getId().isBlank()) {
+			dsVar.setId(ds.getVariable().getNode().getId());
+		}
+		var bkmBuilder = DmnIrBkm.newBuilder().setIdentity(identity(ds.getNode())).setVariable(dsVar);
+		List<ElementReference> inputRefs = new ArrayList<>();
+		inputRefs.addAll(ds.getInputDataList());
+		inputRefs.addAll(ds.getInputDecisionsList());
+		for (int i = 0; i < params.size(); i++) {
+			String binding = path + "/parameter[" + i + "]";
+			var formal = variable(params.get(i), model);
+			var paramBinding = DmnIrLocalBinding.newBuilder().setBindingId(binding).setVariable(formal).build();
+			localBindings.put(binding, paramBinding);
+			String href = inputRefs.get(i).getHref();
+			String targetId = href.startsWith("#") ? href.substring(1) : href;
+			localBindings.put("$ds$" + targetId, paramBinding);
+			bkmBuilder.addParameters(DmnIrBkmParameter.newBuilder().setBindingId(binding).setVariable(formal));
+		}
+		// Collect output decisions (and encapsulated decisions if needed)
+		DmnIrExpression body = null;
+		Set<DmnIrReference> globals = new HashSet<>();
+		if (ds.getOutputDecisionsCount() == 1) {
+			String href = ds.getOutputDecisions(0).getHref();
+			String outId = href.startsWith("#") ? href.substring(1) : href;
+			for (var el : model.model().getDrgElementsList()) {
+				if (el.hasDecision() && el.getDecision().getNode().getId().equals(outId)) {
+					var dec = el.getDecision();
+					String decPath = "definitions/decision[" + dec.getNode().getName() + "]/logic";
+					if (dec.getLogic().hasLiteralExpression() && dec.getLogic().getLiteralExpression().hasParsed()) {
+						body = expression(dec.getLogic().getLiteralExpression().getParsed().getAst(), model,
+								decPath + "/literalExpression", globals, 1, null);
+					} else if (dec.getLogic().hasBoxedExpression() && dec.getLogic().getBoxedExpression().hasParsed()) {
+						body = boxed(dec.getLogic().getBoxedExpression().getParsed(), model,
+								decPath + "/boxedExpression", globals, 1, null);
+					}
+					break;
+				}
+			}
+		} else if (ds.getOutputDecisionsCount() > 1) {
+			usedLocalProfile = true;
+			var ctxLit = DmnIrContextLiteral.newBuilder();
+			for (int i = 0; i < ds.getOutputDecisionsCount(); i++) {
+				String href = ds.getOutputDecisions(i).getHref();
+				String outId = href.startsWith("#") ? href.substring(1) : href;
+				for (var el : model.model().getDrgElementsList()) {
+					if (el.hasDecision() && el.getDecision().getNode().getId().equals(outId)) {
+						var dec = el.getDecision();
+						String decPath = "definitions/decision[" + dec.getNode().getName() + "]/logic";
+						DmnIrExpression expr = null;
+						if (dec.getLogic().hasLiteralExpression()
+								&& dec.getLogic().getLiteralExpression().hasParsed()) {
+							expr = expression(dec.getLogic().getLiteralExpression().getParsed().getAst(), model,
+									decPath + "/literalExpression", globals, 1, null);
+						} else if (dec.getLogic().hasBoxedExpression()
+								&& dec.getLogic().getBoxedExpression().hasParsed()) {
+							expr = boxed(dec.getLogic().getBoxedExpression().getParsed(), model,
+									decPath + "/boxedExpression", globals, 1, null);
+						}
+						if (expr != null) {
+							String ep = path + "/output[" + i + "]";
+							var entryVar = DmnIrVariable.newBuilder().setName(dec.getNode().getName())
+									.setType(DmnIrScalarType.SCALAR_TYPE_NULL).build();
+							var entryBinding = DmnIrLocalBinding.newBuilder().setBindingId(ep).setVariable(entryVar)
+									.setValue(expr).build();
+							ctxLit.addEntries(entryBinding);
+							localBindings.put(ep, entryBinding);
+						}
+						break;
+					}
+				}
+			}
+			body = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL).setContextLiteral(ctxLit)
+					.build();
+		}
+		if (body == null || !globals.isEmpty()) {
+			return null;
+		}
+		return bkmBuilder.setBody(body).build();
 	}
 
 	private DmnIrDecisionTable table(DecisionTable source, DmnIrTypeReference result, DmnSemanticModel model,
@@ -861,6 +987,20 @@ final class DmnIrRecordProducer {
 					localType.setScalarType(variable.getType());
 				return typed(localType.build())
 						.setLocalReference(DmnIrLocalReference.newBuilder().setBindingId(local.getBindingId())).build();
+			}
+			var dsParam = localBindings.get("$ds$" + symbol.symbolId());
+			if (dsParam != null && !dsParam.hasClosure()) {
+				var variable = dsParam.getVariable();
+				var localType = DmnIrTypeReference.newBuilder();
+				if (variable.hasCollectionType())
+					localType.setCollectionType(variable.getCollectionType());
+				else if (variable.hasRecordType())
+					localType.setRecordType(variable.getRecordType());
+				else
+					localType.setScalarType(variable.getType());
+				return typed(localType.build())
+						.setLocalReference(DmnIrLocalReference.newBuilder().setBindingId(dsParam.getBindingId()))
+						.build();
 			}
 			var address = ref(
 					symbol.targetNamespace().isBlank() ? model.identity().namespace() : symbol.targetNamespace(),
@@ -1306,12 +1446,23 @@ final class DmnIrRecordProducer {
 						for (int i = 0; i < forExpr.getIterationsCount(); i++) {
 							var it = forExpr.getIterations(i);
 							String ip = path + "/for/iter[" + i + "]";
-							var src = expression(it.getStart(), model, ip + "/start", dependencies, depth + 1);
+							DmnIrExpression src;
+							DmnIrExpression endExpr = null;
+							if (it.hasEnd()) {
+								src = expression(it.getStart(), model, ip + "/start", dependencies, depth + 1);
+								endExpr = expression(it.getEnd(), model, ip + "/end", dependencies, depth + 1);
+							} else if (it.getStart().hasRange() && it.getStart().getRange().hasLower()
+									&& it.getStart().getRange().hasUpper()) {
+								var r = it.getStart().getRange();
+								src = expression(r.getLower(), model, ip + "/start/lower", dependencies, depth + 1);
+								endExpr = expression(r.getUpper(), model, ip + "/start/upper", dependencies, depth + 1);
+							} else {
+								src = expression(it.getStart(), model, ip + "/start", dependencies, depth + 1);
+							}
 							var itBuilder = DmnIrForIteration.newBuilder().setBindingId(ip)
 									.setVariableName(it.getVariable()).setSource(src);
-							if (it.hasEnd()) {
-								itBuilder.setRangeEnd(
-										expression(it.getEnd(), model, ip + "/end", dependencies, depth + 1));
+							if (endExpr != null) {
+								itBuilder.setRangeEnd(endExpr);
 							}
 							builder.addIterations(itBuilder);
 							localBindings.put(ip, DmnIrLocalBinding
@@ -1321,9 +1472,21 @@ final class DmnIrRecordProducer {
 						}
 					} else {
 						String ip = path + "/for/iter[0]";
-						var src = expression(forExpr.getIn(), model, ip + "/in", dependencies, depth + 1);
-						builder.addIterations(DmnIrForIteration.newBuilder().setBindingId(ip)
-								.setVariableName(forExpr.getVariable()).setSource(src));
+						var itBuilder = DmnIrForIteration.newBuilder().setBindingId(ip)
+								.setVariableName(forExpr.getVariable());
+						if (forExpr.getIn().hasRange() && forExpr.getIn().getRange().hasLower()
+								&& forExpr.getIn().getRange().hasUpper()) {
+							var r = forExpr.getIn().getRange();
+							itBuilder
+									.setSource(
+											expression(r.getLower(), model, ip + "/in/lower", dependencies, depth + 1))
+									.setRangeEnd(
+											expression(r.getUpper(), model, ip + "/in/upper", dependencies, depth + 1));
+						} else {
+							itBuilder
+									.setSource(expression(forExpr.getIn(), model, ip + "/in", dependencies, depth + 1));
+						}
+						builder.addIterations(itBuilder);
 						localBindings.put(ip,
 								DmnIrLocalBinding.newBuilder().setBindingId(ip).setVariable(DmnIrVariable.newBuilder()
 										.setName(forExpr.getVariable()).setType(DmnIrScalarType.SCALAR_TYPE_NULL))
@@ -1340,11 +1503,11 @@ final class DmnIrRecordProducer {
 					builder.setBody(body);
 					DmnIrTypeReference listType = expected != null && expected.hasCollectionType()
 							? expected
-							: ensureCollectionType(model,
-									body.getType() != DmnIrScalarType.SCALAR_TYPE_NULL
-											&& body.getType() != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED
-													? body.getType()
-													: DmnIrScalarType.SCALAR_TYPE_STRING);
+							: (body.getType() != DmnIrScalarType.SCALAR_TYPE_NULL
+									&& body.getType() != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED
+											? ensureCollectionType(model, body.getType())
+											: DmnIrTypeReference.newBuilder()
+													.setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build());
 					return typed(listType).setForExpression(builder).build();
 				} finally {
 					localBindings.clear();
@@ -1779,7 +1942,7 @@ final class DmnIrRecordProducer {
 				.map(binding -> ref(
 						binding.targetNamespace().isBlank() ? model.identity().namespace() : binding.targetNamespace(),
 						binding.symbolId()))
-				.filter(bkms::containsKey).findFirst();
+				.filter(r -> bkms.containsKey(r) || decisionServices.containsKey(r)).findFirst();
 	}
 
 	private DmnIrExpression bkmCall(InvocationExpression source, DmnSemanticModel model, String targetPath,
@@ -1787,9 +1950,18 @@ final class DmnIrRecordProducer {
 		var target = boundBkm(model, targetPath).orElseThrow(DmnIrRecordProducer::unsupported);
 		if (!knowledge.contains(target) || source.getArgumentsCount() > 0 && source.getPositionalArgumentsCount() > 0)
 			throw unsupported();
-		var bkm = bkms.get(target);
 		var owner = models.get(target.getModelNamespace());
-		var parameters = bkm.getFunction().getFormalParametersList();
+		List<InformationItem> parameters;
+		DmnIrTypeReference returnType;
+		if (bkms.containsKey(target)) {
+			var bkm = bkms.get(target);
+			parameters = bkm.getFunction().getFormalParametersList();
+			returnType = type(bkm.getVariable().getType(), owner);
+		} else {
+			var ds = decisionServices.get(target);
+			parameters = decisionServiceParameters(ds, owner);
+			returnType = DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build();
+		}
 		var call = DmnIrBkmCall.newBuilder().setTarget(target);
 		boolean named = source.getArgumentsCount() > 0;
 		int count = named ? source.getArgumentsCount() : source.getPositionalArgumentsCount();
@@ -1807,7 +1979,7 @@ final class DmnIrRecordProducer {
 			call.addArguments(DmnIrBkmArgument.newBuilder().setParameterPosition(position + 1).setExpression(
 					expression(value, model, argumentPath.apply(i), dependencies, depth + 1, parameterType)));
 		}
-		return typed(type(bkm.getVariable().getType(), owner)).setBkmCall(call).build();
+		return typed(returnType).setBkmCall(call).build();
 	}
 	private DmnIrTypeReference ensureCollectionType(DmnSemanticModel model, DmnIrScalarType element) {
 		String base = "$dmnir$builtin-list-" + element.name().toLowerCase(java.util.Locale.ROOT);
