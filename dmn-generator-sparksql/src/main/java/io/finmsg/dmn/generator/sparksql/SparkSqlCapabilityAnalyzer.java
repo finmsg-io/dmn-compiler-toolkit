@@ -27,8 +27,7 @@ public final class SparkSqlCapabilityAnalyzer {
 		model.decisions().stream().filter(d -> d.expression().orElse(null) instanceof RuntimeFunctionDefinition)
 				.forEach(d -> staticFunctions.add(d.resultSlot()));
 		if (hybridBoundary) {
-			var targetDecision = model.decisions().stream().filter(d -> d.id() == decisionId).findFirst()
-					.orElse(null);
+			var targetDecision = model.decisions().stream().filter(d -> d.id() == decisionId).findFirst().orElse(null);
 			if (targetDecision != null
 					&& SparkSqlExpressionEmitter.nativeClosedConstantValue(model, targetDecision) != null) {
 				return new Capability(List.of(), List.of());

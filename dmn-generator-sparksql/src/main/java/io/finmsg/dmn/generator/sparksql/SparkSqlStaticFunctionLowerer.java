@@ -53,8 +53,7 @@ final class SparkSqlStaticFunctionLowerer {
 							List.of(new HashMap<>()), 0);
 					boolean tightenedNativeContext = !lowerer.contextFunctions
 							&& decision.type().kind() == RuntimeTypeKind.CONTEXT
-							&& !SparkSqlFeelValueCodec.isNativeType(decision.type())
-							&& expression.type() != null
+							&& !SparkSqlFeelValueCodec.isNativeType(decision.type()) && expression.type() != null
 							&& expression.type().kind() == RuntimeTypeKind.CONTEXT
 							&& SparkSqlFeelValueCodec.isNativeType(expression.type())
 							&& expression.type().fieldLayout().size() == decision.type().fieldLayout().size();
@@ -62,8 +61,7 @@ final class SparkSqlStaticFunctionLowerer {
 							? expression
 							: (RuntimeExpression) lowerer.coerce(expression, decision.type());
 					RuntimeType updatedType = tightenedNativeContext
-							|| (!SparkSqlFeelValueCodec.isNativeType(decision.type())
-									&& resultExpression.type() != null
+							|| (!SparkSqlFeelValueCodec.isNativeType(decision.type()) && resultExpression.type() != null
 									&& SparkSqlFeelValueCodec.isNativeType(resultExpression.type())
 									&& (decision.type().kind() == RuntimeTypeKind.ANY
 											|| decision.type().kind() == resultExpression.type().kind()))
@@ -88,9 +86,8 @@ final class SparkSqlStaticFunctionLowerer {
 								.forEach(d -> dependencies.add(d.id()));
 						model.businessKnowledgeModels().stream().filter(b -> slots.contains(b.resultSlot()))
 								.forEach(b -> dependencies.add(b.id()));
-						result = new RuntimeDecision(decision.id(), decision.resultSlot(), updatedType,
-								dependencies, Optional.of(resultExpression), Optional.empty(),
-								decision.localSlotCount());
+						result = new RuntimeDecision(decision.id(), decision.resultSlot(), updatedType, dependencies,
+								Optional.of(resultExpression), Optional.empty(), decision.localSlotCount());
 					}
 				} catch (Unsupported ignored) {
 					// Keep the original complete function graph for the established fallback.

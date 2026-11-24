@@ -3399,8 +3399,7 @@ public final class SparkSqlExpressionEmitter {
 		}
 		if (expression instanceof RuntimePathExpression path)
 			expression = nativeTemporalPropertyConstant(path);
-		if (!(expression instanceof RuntimeConstant constant)
-				|| decision.type().kind() != RuntimeTypeKind.ANY
+		if (!(expression instanceof RuntimeConstant constant) || decision.type().kind() != RuntimeTypeKind.ANY
 				|| !Set.of(RuntimeConstantKind.TIME, RuntimeConstantKind.DATE_TIME, RuntimeConstantKind.DURATION)
 						.contains(constant.kind())
 				|| constant.value().length() > 256)
@@ -3430,9 +3429,8 @@ public final class SparkSqlExpressionEmitter {
 				return null;
 		}
 		for (RuntimeBkm bkm : model.businessKnowledgeModels()) {
-			if (required.contains(bkm.id())
-					&& (bkm.functionKind() != RuntimeFunctionKind.FEEL || bkm.function().isEmpty()
-							|| bkm.function().get().external()))
+			if (required.contains(bkm.id()) && (bkm.functionKind() != RuntimeFunctionKind.FEEL
+					|| bkm.function().isEmpty() || bkm.function().get().external()))
 				return null;
 		}
 		boolean[] disallowed = {false};

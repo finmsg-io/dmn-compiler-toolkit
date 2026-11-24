@@ -123,10 +123,10 @@ final class SparkSqlNumericLoopInput {
 		String value = "aggregate(sequence(0," + (steps.size() - 1)
 				+ "),CAST(array() AS ARRAY<STRUCT<digits:STRING,scale:BIGINT,negative:BOOLEAN,invalid:BOOLEAN>>),(numeric_values,numeric_step) -> concat(numeric_values,array("
 				+ branches + ")),numeric_done -> element_at(numeric_done,-1))";
-		return "transform(`" + column(d.id(), names) + "`,numeric_item -> " + SparkSqlDecimalSql.let("numeric_result",
-				value,
-				"CASE WHEN numeric_result.digits IS NULL THEN CAST(NULL AS BINARY) ELSE "
-						+ SparkSqlDecimalSql.payload("numeric_result") + " END")
+		return "transform(`" + column(d.id(), names) + "`,numeric_item -> "
+				+ SparkSqlDecimalSql.let("numeric_result", value,
+						"CASE WHEN numeric_result.digits IS NULL THEN CAST(NULL AS BINARY) ELSE "
+								+ SparkSqlDecimalSql.payload("numeric_result") + " END")
 				+ ")";
 	}
 	private static void instructions(RuntimeExpression e, List<RuntimeExpression> steps,

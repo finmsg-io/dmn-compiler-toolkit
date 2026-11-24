@@ -446,8 +446,7 @@ class OfficialTckSuiteTest {
 	private Preparation getPreparation(List<DmnSource> sources, TckTestCase testCase, RuntimeModelMode modelMode) {
 		List<String> sourceIds = sources.stream().map(source -> source.id().toString()).toList();
 		PreparationKey fullKey = new PreparationKey(sourceIds, Set.of(), modelMode);
-		Preparation full = preparationCache.computeIfAbsent(fullKey,
-				ignored -> prepare(sources, Set.of(), modelMode));
+		Preparation full = preparationCache.computeIfAbsent(fullKey, ignored -> prepare(sources, Set.of(), modelMode));
 		if (full.failureDiagnostic() == null) {
 			return full;
 		}
@@ -1115,8 +1114,7 @@ class OfficialTckSuiteTest {
 		}
 
 		double elapsed = (System.nanoTime() - startNanos) / 1e9;
-		System.out.printf(
-				"[INFO] Precompiled %d unique DMN models in %.2f s (directJava=%d, grpc=%d, typedGrpc=%d)%n",
+		System.out.printf("[INFO] Precompiled %d unique DMN models in %.2f s (directJava=%d, grpc=%d, typedGrpc=%d)%n",
 				compiled.size(), elapsed, generatedPreparationCache.size(), grpcPreparationCache.size(),
 				typedPreparationCache.size());
 	}

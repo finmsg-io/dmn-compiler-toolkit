@@ -18,8 +18,7 @@ final class SparkSqlRankedContextLoop {
 		if (expr instanceof RuntimeInvocationExpression inv && inv.function().isEmpty()
 				&& inv.namedArguments().isEmpty() && inv.positionalArguments().size() == 1
 				&& inv.target().orElse(null) instanceof RuntimeFunctionDefinition fn && !fn.external()
-				&& fn.parameters().size() == 1
-				&& fn.body().orElse(null) instanceof RuntimeLocalReference ref
+				&& fn.parameters().size() == 1 && fn.body().orElse(null) instanceof RuntimeLocalReference ref
 				&& ref.lexicalDepth() == 0 && ref.localSlot() == fn.parameters().getFirst().localSlot()) {
 			return inv.positionalArguments().getFirst();
 		}

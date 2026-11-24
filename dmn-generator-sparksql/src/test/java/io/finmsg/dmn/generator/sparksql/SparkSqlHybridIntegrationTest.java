@@ -304,7 +304,7 @@ class SparkSqlHybridIntegrationTest {
 						generated.inputSchema()).repartition(1).createOrReplaceTempView("hybrid_inputs");
 				if (value == null || value instanceof BigDecimal) {
 					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
-					.decisionValue(model.decisions().getFirst().id());
+							.decisionValue(model.decisions().getFirst().id());
 					for (var file : List.of("Decision_2.sql", "AllDecisions.sql"))
 						assertThat(SparkSqlFeelValueCodec
 								.fromSpark(spark.sql(generated.sqlFiles().get(file)).head().get(0)))
@@ -372,7 +372,7 @@ class SparkSqlHybridIntegrationTest {
 				inputs.put(1, sample[1]);
 				inputs.put(2, sample[2]);
 				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
-					.decisionValue(model.decisions().getFirst().id());
+						.decisionValue(model.decisions().getFirst().id());
 				spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 						generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 				for (var file : List.of("Decision_4.sql", "AllDecisions.sql")) {
@@ -468,7 +468,7 @@ class SparkSqlHybridIntegrationTest {
 					List.<BigDecimal>of())) {
 				var inputs = Map.<Integer, Object>of(0, nested ? Map.of("amounts", values, "label", "x") : values);
 				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
-					.decisionValue(model.decisions().getFirst().id());
+						.decisionValue(model.decisions().getFirst().id());
 				spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 						generated.inputSchema()).repartition(2).createOrReplaceTempView("hybrid_inputs");
 				for (var file : List.of("Decision_1.sql", "AllDecisions.sql"))
@@ -1273,11 +1273,10 @@ class SparkSqlHybridIntegrationTest {
 		var model = indexedJoinFixture();
 		var generated = SparkSqlHybridTest.generate(model);
 		var one = BigDecimal.ONE;
-		var cases = List.<Object[]>of(
-				new Object[]{
-						List.of(joinRow("number", one, "manager", "first"),
-								joinRow("number", Double.NaN, "manager", "invalid later")),
-						List.of(joinRow("dept", one, "name", "Name")), "Name"});
+		var cases = List.<Object[]>of(new Object[]{
+				List.of(joinRow("number", one, "manager", "first"),
+						joinRow("number", Double.NaN, "manager", "invalid later")),
+				List.of(joinRow("dept", one, "name", "Name")), "Name"});
 		for (var pair : cases) {
 			Map<Integer, Object> inputs = new HashMap<>();
 			inputs.put(0, pair[0]);
@@ -1292,10 +1291,8 @@ class SparkSqlHybridIntegrationTest {
 				assertThatThrownBy(() -> spark.sql(generated.sqlFiles().get(file)).collectAsList())
 						.hasMessageContaining("FEEL join");
 		}
-		var nullCases = List.of(
-				new Object[]{List.of(joinRow("number", null, "manager", "null key")), Arrays.asList((Object) null),
-						null},
-				new Object[]{Arrays.asList((Object) null), null, "Name"});
+		var nullCases = List.of(new Object[]{List.of(joinRow("number", null, "manager", "null key")),
+				Arrays.asList((Object) null), null}, new Object[]{Arrays.asList((Object) null), null, "Name"});
 		for (var pair : nullCases) {
 			Map<Integer, Object> inputs = new HashMap<>();
 			inputs.put(0, pair[0]);
@@ -1354,7 +1351,7 @@ class SparkSqlHybridIntegrationTest {
 						.isEqualTo((byte[]) SparkSqlFeelValueCodec.inputRow(model, inputs).get(0));
 				spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
-					.decisionValue(model.decisions().getFirst().id());
+						.decisionValue(model.decisions().getFirst().id());
 				assertThat(SparkSqlFeelValueCodec
 						.fromSpark(spark.sql(generated.sqlFiles().get("Decision_1.sql")).head().get(0), any))
 						.as("%s input=%s", function, value).isEqualTo(expected);
@@ -1612,7 +1609,7 @@ class SparkSqlHybridIntegrationTest {
 					spark.createDataFrame(List.of(row), generated.inputSchema())
 							.createOrReplaceTempView("hybrid_inputs");
 					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
-					.decisionValue(model.decisions().getFirst().id());
+							.decisionValue(model.decisions().getFirst().id());
 					assertThat(SparkSqlFeelValueCodec
 							.fromSpark(spark.sql(generated.sqlFiles().get("Decision_1.sql")).head().get(0), resultType))
 							.as("literal=%s result=%s source=%s", literal, resultType, source).isEqualTo(expected);
@@ -1669,7 +1666,7 @@ class SparkSqlHybridIntegrationTest {
 					spark.createDataFrame(List.of(row), generated.inputSchema())
 							.createOrReplaceTempView("hybrid_inputs");
 					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
-					.decisionValue(model.decisions().getFirst().id());
+							.decisionValue(model.decisions().getFirst().id());
 					assertThat(spark.sql(generated.sqlFiles().get("Decision_2.sql")).head().get(0))
 							.as("named=%s first=%s second=%s", named, first, second).isEqualTo(expected);
 					assertThat(spark.sql(generated.sqlFiles().get("AllDecisions.sql")).head().get(0))
@@ -3850,7 +3847,7 @@ class SparkSqlHybridIntegrationTest {
 					Object actual = SparkSqlFeelValueCodec
 							.fromSpark(spark.sql(generated.sqlFiles().get("Decision_3.sql")).head().get(0));
 					Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
-					.decisionValue(model.decisions().getFirst().id());
+							.decisionValue(model.decisions().getFirst().id());
 					assertThat(actual).as("%s on %s", call, values).isEqualTo(expected);
 				}
 			}
@@ -4883,7 +4880,7 @@ class SparkSqlHybridIntegrationTest {
 				Object actual = SparkSqlFeelValueCodec
 						.fromSpark(spark.sql(generated.sqlFiles().get("Decision_1.sql")).head().get(0));
 				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
-					.decisionValue(model.decisions().getFirst().id());
+						.decisionValue(model.decisions().getFirst().id());
 				if (expected instanceof BigDecimal decimal)
 					assertThat((BigDecimal) actual).as("%s(%s)", name, value).isEqualByComparingTo(decimal);
 				else
@@ -5296,7 +5293,7 @@ class SparkSqlHybridIntegrationTest {
 				Map<Integer, Object> inputs = new HashMap<>();
 				inputs.put(0, value);
 				Object expected = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, inputs)
-					.decisionValue(model.decisions().getFirst().id());
+						.decisionValue(model.decisions().getFirst().id());
 				spark.createDataFrame(List.of(SparkSqlFeelValueCodec.inputRow(model, inputs, generated.inputSchema())),
 						generated.inputSchema()).createOrReplaceTempView("hybrid_inputs");
 				Object actual = SparkSqlFeelValueCodec
