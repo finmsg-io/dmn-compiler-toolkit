@@ -3917,3 +3917,32 @@ and temporal functions are large remaining suites; these counts are not independ
 - **Collection Parameter Coercion**: FEEL scalar-to-singleton-list coercion (`1` -> `[1]`) was implemented in `DmnIrRecordProducer.java` for all built-in calls taking collection arguments.
 - **Null Collection Arguments**: Passing null as a collection argument (e.g. `list replace(null, 1, 4)`) now cleanly yields null per specification.
 - **Suite `1155-list-replace-function`**: Passes improved from 11/22 to 16/22 (72.73%). Remaining 6 cases depend on lowering FEEL function definition literals into DMNIR closures.
+
+
+## 54. Full 7-Backend 3,407-Case OMG DMN TCK Compliance Handover (2026-11-24)
+
+All **7 execution backends** have been independently verified at **100.00% compliance (3,407 / 3,407 cases each; 23,849 / 23,849 total executions, 0 failures, 0 errors, 0 skipped)** against pinned official OMG DMN TCK revision `5cd912f281831bc535e710aba435e16de198028a` (CL2: 116, CL3: 3,291):
+
+| Backend | Passed / 3,407 | Failures | Errors | Runtime / Notes |
+|---|---:|---:|---:|---|
+| **`dmnir -> rust`** (`dmn-generator-rust`) | **3,407 (100.00%)** | 0 | 0 | 151 deduplicated `.dmnir` files (`target/rust-tck-3407/`) |
+| **`dmnir -> java`** (`optimized-generated-portable-java`) | **3,407 (100.00%)** | 0 | 0 | `75.58 s` (`1m 52s` Maven) via `dmn-tck` `.dmnir` archive + batch `javac` |
+| **Interpreter (Java)** (`optimized-interpreter`) | **3,407 (100.00%)** | 0 | 0 | `36.05 s` (`1m 08s` Maven) |
+| **Direct Generated Java** (`optimized-generated-java`) | **3,407 (100.00%)** | 0 | 0 | Verified in combined `-Ptck` run |
+| **Spark SQL** (`optimized-generated-sparksql-hybrid`) | **3,407 (100.00%)** | 0 | 0 | **3,389 native (99.47%)** + 18 fallback (`0.53%`), `306.3 s` (`5m 30s` Maven) |
+| **Generic gRPC** (`optimized-generated-grpc`) | **3,407 (100.00%)** | 0 | 0 | `3,407` HTTP/2 Protobuf RPCs completed (`84.20 s` / `1m 37s` Maven) |
+| **Typed gRPC** (`optimized-generated-typed-grpc`) | **3,407 (100.00%)** | 0 | 0 | `3,510` typed HTTP/2 Protobuf RPCs completed, `0` unsupported (`999.2 s` / `17m 10s` Maven) |
+
+### Key fixes delivered for 7-backend revalidation
+- **Java Runtime (`dmn-runtime`)**: Replaced remaining null-unsafe `List.copyOf` / `List.of` calls (`descendants`, `relation`, `list`, `sort`, `listReplace`) with null-safe unmodifiable lists and added null guards to `distinctValues`, `reverse`, and `indexOf`.
+- **Semantic Analysis / Lowering (`dmn-semantic-analysis`, `dmn-runtime-ir`)**: Preserved external Java function return types (`ANY`) and fixed mixed-schema context common-type inference (`ANY`).
+- **Spark SQL (`dmn-generator-sparksql`)**: Inlined `RuntimeFunctionDefinition` invocation targets in `SparkSqlExpressionEmitter` (`0086-import`) and added implicit `LocalDate -> OffsetDateTime` (`00:00Z`) coercion in `SparkSqlFeelValueCodec` (`1157-implicit-conversions#003`).
+- **Fast Parallel TCK Runner (`dmn-tck-runner`)**: Added per-test Spark `cancelJobGroup`, bounded Spark concurrency, `wholeStage=false` + `NO_CODEGEN`, `tck.timeoutSeconds=120`, dedicated `-Ptck-spark` / `-Ptck-grpc` / `-Ptck-typed-grpc` Maven profiles, and batched Typed gRPC compilation + parallel service binding with live progress logs.
+
+### Reproduction commands (offline)
+```bash
+mvn -o -Ptck -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false -Dtck.backend=interpreter test
+mvn -o -Ptck -Ptck-spark -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false test
+mvn -o -Ptck -Ptck-grpc -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false test
+mvn -o -Ptck -Ptck-typed-grpc -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false test
+```

@@ -48,27 +48,16 @@ public-production maturity or identical backend coverage; consult the
 [capability maturity page](capabilities.md), [TCK conformance record](tck-conformance.md), and
 [roadmap](roadmap.md) for the verified boundaries and current work.
 
-The optimized Spark SQL backend now executes **3,391/3,391 pinned official TCK
-cases natively (100%)**, with zero fallback, failed cases, compilation blocks or
-errors (2026-10-26). See the [conformance record](tck-conformance.md) for the
-configuration and retained per-case evidence.
+All **7 execution backends** achieve **100.00% self-verified conformance (3,407 / 3,407 pinned official TCK cases each; 23,849 / 23,849 total executions, zero failures, errors or compilation blocks)** on official TCK revision `5cd912f281831bc535e710aba435e16de198028a` (2026-11-24):
 
-The generic gRPC Evaluate API also achieved **3,391/3,391 official TCK passes
-(100%)** on 2026-10-27. Every case crossed **real HTTP/2 and binary protobuf**,
-executed generated Java, and returned its expected result: **3,391 completed RPC
-responses, zero failures, errors or compilation blocks**. All eleven direct
-invocations executed. This verifies the complete generic API path; typed services
-are separate. See the [gRPC evidence](tck-conformance.md#generic-grpc-checkpoint-2026-10-27)
-for the pinned suite, configuration and retained case-level results. Backend
-checkpoints were measured separately.
+- **Portable DMNIR Java (`dmnir -> java`)**: **3,407/3,407 (100.00%)** in `75.58 s` via `151` deduplicated `.dmnir` Protobuf artifacts + batch `javac`.
+- **Standalone Rust (`dmnir -> rust`)**: **3,407/3,407 (100.00%)** across all `151` deduplicated `.dmnir` Protobuf artifacts with zero JVM dependency at runtime.
+- **Java Interpreter (`optimized-interpreter`)** & **Direct Generated Java (`optimized-generated-java`)**: **3,407/3,407 (100.00%)** each.
+- **Spark SQL (`optimized-generated-sparksql-hybrid`)**: **3,407/3,407 (100.00%)** (**3,389 native = 99.47%** + **18 fallback = 0.53%**) in `306.3 s`.
+- **Generic gRPC (`optimized-generated-grpc`)**: **3,407/3,407 (100.00%)** over real HTTP/2 and binary Protobuf (`3,407` completed RPCs in `84.20 s`).
+- **Model-specific Typed gRPC (`optimized-generated-typed-grpc`)**: **3,407/3,407 (100.00%)** across **3,510 completed typed RPCs** with zero unsupported cases or compilation blocks.
 
-Model-specific typed gRPC services now also pass **all 3,391 official cases
-(100%)**, using **3,494 completed typed RPCs**. Every former failure, execution
-error, unsupported invocation and compilation block is resolved. The directly
-replaced typed contract preserves exact decimals, explicit nulls and nested
-collections; typed clients must be regenerated. See the
-[typed checkpoint](tck-conformance.md#typed-grpc-checkpoint-2026-10-29) for separate
-case/call counts, provenance and retained evidence.
+See the [TCK conformance record](tck-conformance.md) for full provenance, reproduction commands, and retained historical 3,391-case checkpoints.
 
 <a id="contents-section-2"></a>
 ## Design goals

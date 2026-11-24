@@ -825,7 +825,9 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 					for (InformationItem parameter : function.getParametersList()) {
 						type.addParameterType(parameter.getType());
 					}
-					type.setReturnType(expressionParsedType(function.getBody()));
+					type.setReturnType("Java".equalsIgnoreCase(function.getSourceKind())
+							? ANY
+							: expressionParsedType(function.getBody()));
 					yield TypeReference.newBuilder().setFunction(type).build();
 				}
 				case RELATION -> {

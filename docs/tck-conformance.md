@@ -6,6 +6,7 @@
 - [Overview](#contents-section-1)
 - [TCK suite version](#contents-section-2)
 - [Test results](#contents-section-3)
+  - [Full 7-backend checkpoint (2026-11-24)](#full-7-backend-checkpoint-2026-11-24)
   - [Standalone Rust checkpoint](#standalone-rust-checkpoint-2026-11-24)
   - [Standalone Rust checkpoint (historical)](#standalone-rust-checkpoint-2026-11-17-historical)
   - [Typed gRPC checkpoint](#typed-grpc-checkpoint-2026-10-29)
@@ -27,16 +28,16 @@ This document pins the exact OMG DMN TCK revision used for conformance
 testing and records per-backend, per-compliance-level results for the
 DMN Compiler Toolkit.
 
-Latest portable DMNIR Java assessment (`optimized-generated-portable-java`): 2026-11-24, **3,407/3,407 passed (100.00%)** in **75.58 s** (`1m 52s` total Maven) via pre-compiled `dmn-tck` `.dmnir` Protobufs (**3,407/3,407 exported = 100.00%**, `151` deduplicated `.dmnir` files, `1.36 MB`) + batch `javac`. Full pinned-suite portable-Java compliance is achieved.
+Latest full 7-backend assessment (2026-11-24, pinned TCK revision `5cd912f281831bc535e710aba435e16de198028a`, **3,407 CL2/CL3 cases**): **100.00% compliance across all 7 backends (23,849 / 23,849 passing executions, 0 failures, 0 errors, 0 skipped)**:
+- **`dmnir -> java`** (`optimized-generated-portable-java`): **3,407/3,407 passed (100.00%)** in **75.58 s** (`1m 52s` total Maven) via pre-compiled `dmn-tck` `.dmnir` Protobufs (`151` deduplicated `.dmnir` files, `1.36 MB`) + batch `javac`.
+- **`dmnir -> rust`** (`dmn-generator-rust` + `dmn-rust-tck-runner`): **3,407/3,407 passed (100.00%)** across all `151` deduplicated `.dmnir` Protobuf artifacts in `dmn-tck`.
+- **Interpreter (Java)** (`optimized-interpreter`): **3,407/3,407 passed (100.00%)** in **36.05 s** (`1m 08s` Maven).
+- **Direct Generated Java** (`optimized-generated-java`): **3,407/3,407 passed (100.00%)**.
+- **Spark SQL** (`optimized-generated-sparksql-hybrid`): **3,407/3,407 passed (100.00%)** (**3,389 native = 99.47%** + **18 fallback = 0.53%**) in **306.3 s** (`5m 30s` Maven, `NO_CODEGEN`, `120 s` per-case timeout).
+- **Generic gRPC** (`optimized-generated-grpc`): **3,407/3,407 passed (100.00%)** (`3,407` completed HTTP/2 Protobuf RPCs) in **84.20 s** (`1m 37s` Maven).
+- **Typed gRPC** (`optimized-generated-typed-grpc`): **3,407/3,407 passed (100.00%)** (`3,510` completed typed HTTP/2 Protobuf RPCs, `0` unsupported, `0` compilation errors) in **999.2 s** (`17m 10s` Maven).
 
-Latest standalone Rust assessment (`dmnir -> rust`): 2026-11-24, **3,407/3,407 passed (100.00%)** (`0` export rejections, `0` Rust generator rejections, `0` build errors, `0` execution errors, `0` result failures) across all `151` deduplicated `.dmnir` Protobuf artifacts in `dmn-tck`. Full pinned-suite standalone-Rust compliance is achieved.
-
-Latest typed gRPC assessment: 2026-10-29. Generic gRPC: 2026-10-27. Spark: 2026-10-26.
-Interpreter/Java baseline below: 2026-09-04. These are separately measured runs.
-
-Spark implementation source: `f2af3954273a60c56dff3de5804fb05057ab37c2`. The measured
-generator JAR SHA-256 is recorded below. The earlier interpreter/Java baseline used
-`1.0.0-SNAPSHOT`; these are separately dated runs, not one combined execution.
+Historical 3,391-case checkpoints from 2026-09-04 through 2026-10-29 are retained below for provenance.
 
 <a id="contents-section-2"></a>
 ## TCK suite version
@@ -55,6 +56,30 @@ in the checkout step. Locally: `git submodule update --init --recursive`.
 
 <a id="contents-section-3"></a>
 ## Test results
+
+### Full 7-backend checkpoint - 2026-11-24
+
+Official TCK revision `5cd912f281831bc535e710aba435e16de198028a` contains **3,407** CL2/CL3 cases (CL2: 116, CL3: 3,291).
+Every backend passes all **3,407 / 3,407 cases (100.00%)** with `0` failures, `0` errors, and `0` skipped:
+
+| Backend | Passed / 3,407 | Failures | Errors | Runtime / Notes |
+| --- | ---: | ---: | ---: | --- |
+| **`dmnir -> rust`** (`dmn-generator-rust`) | **3,407 (100.00%)** | 0 | 0 | 151 deduplicated `.dmnir` files |
+| **`dmnir -> java`** (`optimized-generated-portable-java`) | **3,407 (100.00%)** | 0 | 0 | `75.58 s` (`1m 52s` Maven) |
+| **Interpreter (Java)** (`optimized-interpreter`) | **3,407 (100.00%)** | 0 | 0 | `36.05 s` (`1m 08s` Maven) |
+| **Direct Generated Java** (`optimized-generated-java`) | **3,407 (100.00%)** | 0 | 0 | Combined `-Ptck` run |
+| **Spark SQL** (`optimized-generated-sparksql-hybrid`) | **3,407 (100.00%)** | 0 | 0 | **3,389 native (99.47%)** + 18 fallback (`0.53%`), `306.3 s` |
+| **Generic gRPC** (`optimized-generated-grpc`) | **3,407 (100.00%)** | 0 | 0 | `3,407` RPCs completed (`84.20 s`) |
+| **Typed gRPC** (`optimized-generated-typed-grpc`) | **3,407 (100.00%)** | 0 | 0 | `3,510` RPCs completed, `0` unsupported (`999.2 s`) |
+| **Total (all 7 backends)** | **23,849 / 23,849 (100.00%)** | **0** | **0** | All backends independently verified on `5cd912f2...` |
+
+Reproduce individual JVM/Spark/gRPC backends offline via dedicated Maven profiles in `dmn-tck-runner/pom.xml`:
+```bash
+mvn -o -Ptck -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false -Dtck.backend=interpreter test
+mvn -o -Ptck -Ptck-spark -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false test
+mvn -o -Ptck -Ptck-grpc -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false test
+mvn -o -Ptck -Ptck-typed-grpc -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false test
+```
 
 ### Standalone Rust checkpoint - 2026-11-24
 

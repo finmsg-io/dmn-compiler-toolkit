@@ -499,7 +499,7 @@ public final class DmnRuntime {
 		private List<Object> descendants(Object source, String name, int index) {
 			List<Object> result = new ArrayList<>();
 			descend(source, name, index, result);
-			return List.copyOf(result);
+			return Collections.unmodifiableList(result);
 		}
 		private void descend(Object source, String name, int index, List<Object> result) {
 			if (source instanceof List<?> list) {
@@ -552,14 +552,14 @@ public final class DmnRuntime {
 					result.add(item);
 				}
 			}
-			return scalarPredicate ? Collections.unmodifiableList(result) : List.copyOf(result);
+			return Collections.unmodifiableList(result);
 		}
 
 		private List<Object> iterate(RuntimeForExpression forExpr, List<RuntimeIteration> iterations, int index,
 				Frame frame, List<Object> output) {
 			if (index == iterations.size()) {
 				if (forExpr.partialSlot() >= 0) {
-					frame.set(forExpr.partialSlot(), List.copyOf(output));
+					frame.set(forExpr.partialSlot(), Collections.unmodifiableList(new ArrayList<>(output)));
 				}
 				output.add(expression(forExpr.result(), frame));
 				return output;
@@ -573,7 +573,7 @@ public final class DmnRuntime {
 				if (iterate(forExpr, iterations, index + 1, frame, output) == null)
 					return null;
 			}
-			return List.copyOf(output);
+			return Collections.unmodifiableList(new ArrayList<>(output));
 		}
 
 		private List<Object> iterationValues(RuntimeIteration iteration, Frame frame) {
@@ -758,7 +758,7 @@ public final class DmnRuntime {
 					named.put(relation.columns().get(index).name(), fields.get(index));
 				rows.add(new RuntimeContextValue(fields, named));
 			}
-			return List.copyOf(rows);
+			return Collections.unmodifiableList(rows);
 		}
 
 		Object table(RuntimeDecisionTable table, Frame frame) {
@@ -991,10 +991,31 @@ public final class DmnRuntime {
 						? null
 						: DmnRuntime.parseDuration(String.valueOf(argument(arguments, 0)));
 				case COUNT -> BigDecimal.valueOf(listArgument(arguments).size());
-				case SUM ->
-					listArgument(arguments).stream().map(DmnRuntime::number).reduce(BigDecimal.ZERO, BigDecimal::add);
-				case MIN -> listArgument(arguments).stream().min(DmnRuntime::compare).orElse(null);
-				case MAX -> listArgument(arguments).stream().max(DmnRuntime::compare).orElse(null);
+				case SUM -> {
+					List<Object> items = listArgument(arguments);
+					if (items.isEmpty())
+						yield null;
+					BigDecimal sum = BigDecimal.ZERO;
+					for (Object item : items) {
+						BigDecimal num = number(item);
+						if (num == null)
+							yield null;
+						sum = sum.add(num);
+					}
+					yield sum;
+				}
+				case MIN -> {
+					List<Object> items = listArgument(arguments);
+					if (items.isEmpty() || items.stream().anyMatch(Objects::isNull))
+						yield null;
+					yield items.stream().min(DmnRuntime::compare).orElse(null);
+				}
+				case MAX -> {
+					List<Object> items = listArgument(arguments);
+					if (items.isEmpty() || items.stream().anyMatch(Objects::isNull))
+						yield null;
+					yield items.stream().max(DmnRuntime::compare).orElse(null);
+				}
 				case ABS -> feelAbs(arguments);
 				case SUBSTRING -> substring(arguments);
 				case SUBSTRING_BEFORE -> feelSubstringBefore(arguments);
@@ -1127,7 +1148,7 @@ public final class DmnRuntime {
 					if (idx < 0 || idx > list.size())
 						yield null;
 					list.add(idx, newItem);
-					yield List.copyOf(list);
+					yield Collections.unmodifiableList(list);
 				}
 				case REMOVE -> {
 					if (argument(arguments, 0) == null || argument(arguments, 1) == null)
@@ -1137,7 +1158,7 @@ public final class DmnRuntime {
 					int idx = pos > 0 ? pos - 1 : list.size() + pos;
 					if (idx >= 0 && idx < list.size())
 						list.remove(idx);
-					yield List.copyOf(list);
+					yield Collections.unmodifiableList(list);
 				}
 				case APPEND -> {
 					if (argument(arguments, 0) == null)
@@ -1148,7 +1169,7 @@ public final class DmnRuntime {
 					for (int i = 1; i < arguments.size(); i++) {
 						list.add(arguments.get(i));
 					}
-					yield List.copyOf(list);
+					yield Collections.unmodifiableList(list);
 				}
 				case UNION -> {
 					List<Object> result = new ArrayList<>();
@@ -1163,7 +1184,7 @@ public final class DmnRuntime {
 								result.add(arg);
 						}
 					}
-					yield List.copyOf(result);
+					yield Collections.unmodifiableList(result);
 				}
 				case LIST_CONTAINS -> {
 					if (argument(arguments, 0) == null)
@@ -1564,10 +1585,12 @@ public final class DmnRuntime {
 				else if (arg != null)
 					result.add(arg);
 			}
-			return List.copyOf(result);
+			return Collections.unmodifiableList(result);
 		}
 
 		private Object distinctValues(List<Object> args) {
+			if (args.isEmpty() || args.get(0) == null)
+				return null;
 			List<Object> list = list(args.get(0));
 			List<Object> result = new ArrayList<>();
 			for (Object item : list) {
@@ -1575,13 +1598,13 @@ public final class DmnRuntime {
 					result.add(item);
 				}
 			}
-			return List.copyOf(result);
+			return Collections.unmodifiableList(result);
 		}
 
 		private Object flatten(List<Object> args) {
 			List<Object> result = new ArrayList<>();
 			flattenInto(args.size() == 1 ? args.getFirst() : args, result);
-			return List.copyOf(result);
+			return Collections.unmodifiableList(result);
 		}
 
 		private void flattenInto(Object item, List<Object> target) {
@@ -1593,12 +1616,16 @@ public final class DmnRuntime {
 		}
 
 		private Object reverse(List<Object> args) {
+			if (args.isEmpty() || args.get(0) == null)
+				return null;
 			List<Object> list = new ArrayList<>(list(args.get(0)));
 			Collections.reverse(list);
-			return List.copyOf(list);
+			return Collections.unmodifiableList(list);
 		}
 
 		private Object indexOf(List<Object> args) {
+			if (args.size() < 2 || args.get(0) == null)
+				return null;
 			List<Object> list = list(args.get(0));
 			Object target = args.get(1);
 			List<Object> indices = new ArrayList<>();
@@ -1607,7 +1634,7 @@ public final class DmnRuntime {
 					indices.add(BigDecimal.valueOf(i + 1));
 				}
 			}
-			return List.copyOf(indices);
+			return Collections.unmodifiableList(indices);
 		}
 
 		private Object sort(List<Object> args) {
@@ -1616,13 +1643,13 @@ public final class DmnRuntime {
 			List<Object> list = new ArrayList<>(list(args.get(0)));
 			if (args.size() > 1 && args.get(1) instanceof CallableValue fn) {
 				list.sort((a, b) -> {
-					Object res = fn.call(List.of(a, b), Map.of());
+					Object res = fn.call(Arrays.asList(a, b), Map.of());
 					return Boolean.TRUE.equals(res) ? -1 : (Boolean.FALSE.equals(res) ? 1 : 0);
 				});
 			} else {
 				list.sort((a, b) -> compare(a, b));
 			}
-			return List.copyOf(list);
+			return Collections.unmodifiableList(list);
 		}
 
 		private Object listReplace(List<Object> args) {
@@ -1644,7 +1671,7 @@ public final class DmnRuntime {
 					return null;
 				}
 				for (int i = 0; i < list.size(); i++) {
-					Object res = fn.call(List.of(list.get(i), newItem), Map.of());
+					Object res = fn.call(Arrays.asList(list.get(i), newItem), Map.of());
 					if (!(res instanceof Boolean)) {
 						return null;
 					}
@@ -2076,6 +2103,8 @@ public final class DmnRuntime {
 		return true;
 	}
 	private static List<Object> list(Object value) {
+		if (value == null)
+			return Collections.singletonList(null);
 		if (value instanceof List<?> list)
 			return new ArrayList<>(list);
 		return List.of(value);

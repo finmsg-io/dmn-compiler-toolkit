@@ -44,10 +44,24 @@ final class RuntimeBoxedExpressionLowerer {
 						entries.add(new RuntimeContextEntry("", -1, expression));
 					} else {
 						String name = entry.getVariable().getNode().getName();
+						RuntimeType fieldType = expression.type();
+						if (entry.getVariable().hasType()) {
+							RuntimeType declaredType = RuntimeTypeLowerer.lower(entry.getVariable().getType(),
+									itemTypes);
+							if (declaredType.kind() != RuntimeTypeKind.ANY && !declaredType.equals(expression.type())) {
+								var coerceFn = new RuntimeFunctionDefinition(
+										List.of(new RuntimeFunctionParameter("_v", 0, declaredType)),
+										Optional.of(new RuntimeLocalReference(0, 0, declaredType)), false, 1,
+										declaredType);
+								expression = new RuntimeInvocationExpression(Optional.empty(), Optional.of(coerceFn),
+										List.of(), List.of(expression), declaredType);
+								fieldType = declaredType;
+							}
+						}
 						int localSlot = nextLocalSlot[0]++;
 						contextSlots.put(path + "/context/entry[" + index + "]", new LocalSlotAddress(0, localSlot));
 						entries.add(new RuntimeContextEntry(name, localSlot, expression));
-						fields.add(new RuntimeField(fields.size(), name, expression.type()));
+						fields.add(new RuntimeField(fields.size(), name, fieldType));
 					}
 				}
 				yield new RuntimeContextExpression(entries,
@@ -103,11 +117,13 @@ final class RuntimeBoxedExpressionLowerer {
 				}
 				RuntimeExpression body = lowerParsedExpression(function.getBody(), path + "/body", bindings, slots,
 						itemTypes, parameterSlots, nextLocalSlot);
+				boolean isExternal = "Java".equalsIgnoreCase(function.getSourceKind());
+				RuntimeType returnType = isExternal ? RuntimeType.scalar(RuntimeTypeKind.ANY) : body.type();
 				RuntimeType functionType = expectedType == null
 						? RuntimeType.function(parameters.stream().map(RuntimeFunctionParameter::type).toList(),
-								body.type())
+								returnType)
 						: expectedType;
-				yield new RuntimeFunctionDefinition(parameters, Optional.of(body), false, nextLocalSlot[0],
+				yield new RuntimeFunctionDefinition(parameters, Optional.of(body), isExternal, nextLocalSlot[0],
 						functionType);
 			}
 			case TYPE_NOT_SET -> throw new RuntimeIrLoweringException("Empty boxed expression at " + path + ".");

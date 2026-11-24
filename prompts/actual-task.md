@@ -1,8 +1,13 @@
 # Actual task: full official-TCK compliance through Protobuf DMNIR and generated Java/Rust
 
-Updated: 2026-11-24. Status: **COMPLETE (100.00% on BOTH `dmnir -> java` and `dmnir -> rust`)**.
+Updated: 2026-11-24. Status: **COMPLETE (100.00% across ALL 7 backends — 23,849 / 23,849 executions on pinned TCK revision `5cd912f281831bc535e710aba435e16de198028a`)**.
 - **`dmnir -> java`** (`optimized-generated-portable-java`): **3,407 / 3,407 passed (100.00%)** in **75.58 s** (`1m 52s` total Maven) via the pre-compiled `dmn-tck` `.dmnir` archive (**3,407 / 3,407 exported = 100.00%**, `151` `.dmnir` files, `1.36 MB`) + batch `javac`.
 - **`dmnir -> rust`** (`dmn-generator-rust` + `dmn-rust-tck-runner`): **3,407 / 3,407 passed (100.00%)** (`0` export rejections, `0` Rust rejections, `0` build errors, `0` execution errors, `0` failures) across all `151` deduplicated `.dmnir` files from `dmn-tck` (`target/rust-tck-3407/rust-tck-accounting.tsv`).
+- **Interpreter (Java)** (`optimized-interpreter`): **3,407 / 3,407 passed (100.00%)** in **36.05 s** (`1m 08s` Maven), `0` failures, `0` errors.
+- **Direct Generated Java** (`optimized-generated-java`): **3,407 / 3,407 passed (100.00%)**, `0` failures, `0` errors.
+- **Spark SQL** (`optimized-generated-sparksql-hybrid`): **3,407 / 3,407 passed (100.00%)** (**3,389 native = 99.47%** + **18 fallback = 0.53%**, `0` failures, `0` errors) in **306.3 s** (`5m 30s` Maven, `NO_CODEGEN`, `120 s` per-case timeout).
+- **Generic gRPC** (`optimized-generated-grpc`): **3,407 / 3,407 passed (100.00%)** (`3,407` HTTP/2 Protobuf RPCs completed, `0` failures, `0` errors) in **84.20 s** (`1m 37s` Maven).
+- **Typed gRPC** (`optimized-generated-typed-grpc`): **3,407 / 3,407 passed (100.00%)** (`3,510` typed HTTP/2 Protobuf RPCs completed, `0` unsupported, `0` compilation errors, `0` failures, `0` errors) in **999.2 s** (`17m 10s` Maven).
 
 ## Goal and acceptance
 
@@ -120,12 +125,17 @@ Follow [general instructions](generall-prompt.md), [guardrails](details/guardrai
 
 ## Next action and remaining Release 1.2 scope
 
-The core DMNIR Java + Rust 3,407-case TCK compliance goal is **complete (100.00% on both paths)**.
-Remaining Release 1.2 follow-up items:
-1. **Revalidate existing backends on the 3,407-case TCK revision (`5cd912f2...`) with fast parallelized TCK runners**:
-   - Interpreter (Java), Direct Generated Java, Typed/Generic gRPC, and Native Spark SQL.
-2. **DMNIR -> DMN XML regeneration (`dmn-generator`, default DMN 1.6)** and DMN 1.3/1.5/1.6 round-trip verification.
-3. **DSL authoring / parity** and full multi-module reactor regression check.
+The core DMNIR Java + Rust 3,407-case TCK compliance goal **and** full-suite revalidation of all 5 existing JVM/Spark/gRPC backends on `5cd912f2...` are **complete (7 / 7 backends at 100.00%, 23,849 / 23,849 passing executions)**.
 
-Usage accounting is unavailable. Rust runs do not measure Spark native/fallback routing.
+Dedicated fast Maven TCK profiles in `dmn-tck-runner/pom.xml`:
+- `-Ptck` (combined Interpreter, Direct Java, Portable DMNIR Java, Spark SQL)
+- `-Ptck -Ptck-spark` (Spark SQL only, `306.3 s`)
+- `-Ptck -Ptck-grpc` (Generic gRPC only, `84.20 s`)
+- `-Ptck -Ptck-typed-grpc` (Typed gRPC only, `999.2 s`)
+
+Remaining Release 1.2 follow-up items:
+1. **DMNIR -> DMN XML regeneration (`dmn-generator`, default DMN 1.6)** and DMN 1.3/1.5/1.6 round-trip verification.
+2. **DSL authoring / parity** and full multi-module reactor regression check.
+
+Usage accounting is unavailable.
 Detailed historical Rust commands and caveats: [work package, section 52](details/release-1.2-dmnir-work-package.md#52-current-rust-tck-handover-2026-11-17-strict-3407-case-audit).

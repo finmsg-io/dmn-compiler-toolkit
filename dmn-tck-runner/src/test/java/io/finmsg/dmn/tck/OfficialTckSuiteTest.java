@@ -88,6 +88,8 @@ class OfficialTckSuiteTest {
 	private int totalTestCount = 0;
 	private TckCatalogueInventory inventory;
 	private SparkSession spark;
+	private final Semaphore sparkConcurrency = new Semaphore(
+			Integer.getInteger("tck.spark.concurrency", Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors()))));
 	private static final boolean SPARK_HYBRID = Boolean.parseBoolean(System.getProperty("tck.spark.hybrid", "true"));
 	private final Map<String, String> sparkRoutes = new ConcurrentHashMap<>();
 	private final Map<String, String> expectedRejectionDiagnostics = new ConcurrentHashMap<>();
@@ -104,8 +106,11 @@ class OfficialTckSuiteTest {
 		if (!Set.of("spark", "sparksql", "all").contains(backend))
 			return;
 		try {
-			spark = SparkSession.builder().appName("OfficialTckSuiteTest").master("local[1]")
+			String sparkMaster = System.getProperty("tck.spark.master", "local[*]");
+			spark = SparkSession.builder().appName("OfficialTckSuiteTest").master(sparkMaster)
 					.config("spark.ui.enabled", "false").config("spark.sql.shuffle.partitions", "1")
+					.config("spark.sql.codegen.wholeStage", "false")
+					.config("spark.sql.codegen.factoryMode", "NO_CODEGEN")
 					.config("spark.sql.datetime.java8API.enabled", "true").config("spark.sql.session.timeZone", "UTC")
 					.config("spark.sql.mapKeyDedupPolicy", "LAST_WIN").getOrCreate();
 			if (spark != null && spark.sparkContext() != null) {
@@ -198,6 +203,12 @@ class OfficialTckSuiteTest {
 		if (activeBackends.stream().anyMatch(b -> b.contains("portable-java"))
 				&& Boolean.parseBoolean(System.getProperty("tck.useDmnIrArchive", "true"))) {
 			precompilePortableArchive(inventory);
+		}
+		boolean needDirectJava = activeBackends.stream().anyMatch(b -> b.endsWith("-generated-java"));
+		boolean needGenericGrpc = activeBackends.stream().anyMatch(b -> b.endsWith("-generated-grpc"));
+		boolean needTypedGrpc = activeBackends.stream().anyMatch(b -> b.endsWith("-generated-typed-grpc"));
+		if (needDirectJava || needGenericGrpc || needTypedGrpc) {
+			precompileModelsBatch(inventory, activeModelModes, needDirectJava, needGenericGrpc, needTypedGrpc);
 		}
 		List<DynamicTest> dynamicTests = new ArrayList<>();
 		DmnToolkitTckEngine interpreterEngine = new DmnToolkitTckEngine(OfficialExternalJavaPolicy.POLICY);
@@ -354,10 +365,20 @@ class OfficialTckSuiteTest {
 		}
 	}
 
+	private PreparationKey effectivePreparationKey(List<DmnSource> sources, TckTestCase testCase,
+			RuntimeModelMode mode) {
+		List<String> sourceIds = sources.stream().map(source -> source.id().toString()).toList();
+		PreparationKey fullKey = new PreparationKey(sourceIds, Set.of(), mode);
+		Preparation full = preparationCache.get(fullKey);
+		if (full != null && full.failureDiagnostic() == null) {
+			return fullKey;
+		}
+		return new PreparationKey(sourceIds, Set.copyOf(testCase.expectedResults().keySet()), mode);
+	}
+
 	private void executeTypedGrpc(List<DmnSource> sources, DmnCompilationResult compilation, TckTestCase testCase,
 			RuntimeModelMode mode, String testName) throws Exception {
-		var key = new PreparationKey(sources.stream().map(source -> source.id().toString()).toList(),
-				Set.copyOf(testCase.expectedResults().keySet()), mode);
+		var key = effectivePreparationKey(sources, testCase, mode);
 		var prepared = typedPreparationCache.computeIfAbsent(key, ignored -> {
 			try {
 				return new TypedPreparation(
@@ -394,13 +415,14 @@ class OfficialTckSuiteTest {
 
 	private void executeGeneratedGrpc(List<DmnSource> sources, DmnCompilationResult compilation, TckTestCase testCase,
 			RuntimeModelMode mode, String testName) throws Exception {
-		var key = new PreparationKey(sources.stream().map(source -> source.id().toString()).toList(),
-				Set.copyOf(testCase.expectedResults().keySet()), mode);
-		var grpc = grpcPreparationCache.get(key);
-		if (grpc == null) {
-			grpc = GrpcTckExecution.prepare(compilation);
-			grpcPreparationCache.put(key, grpc);
-		}
+		var key = effectivePreparationKey(sources, testCase, mode);
+		var grpc = grpcPreparationCache.computeIfAbsent(key, ignored -> {
+			try {
+				return GrpcTckExecution.prepare(compilation);
+			} catch (Exception failure) {
+				throw new RuntimeException(failure);
+			}
+		});
 		var model = compilation.compiledModel().orElseThrow();
 		var request = io.finmsg.dmn.grpc.DmnEvaluationRequest.newBuilder().setModelNamespace(model.namespace())
 				.setModelName(model.modelName());
@@ -423,17 +445,21 @@ class OfficialTckSuiteTest {
 	}
 
 	private Preparation getPreparation(List<DmnSource> sources, TckTestCase testCase, RuntimeModelMode modelMode) {
+		List<String> sourceIds = sources.stream().map(source -> source.id().toString()).toList();
+		PreparationKey fullKey = new PreparationKey(sourceIds, Set.of(), modelMode);
+		Preparation full = preparationCache.computeIfAbsent(fullKey,
+				ignored -> prepare(sources, Set.of(), modelMode));
+		if (full.failureDiagnostic() == null) {
+			return full;
+		}
 		Set<String> resultNames = Set.copyOf(testCase.expectedResults().keySet());
-		PreparationKey preparationKey = new PreparationKey(
-				sources.stream().map(source -> source.id().toString()).toList(), resultNames, modelMode);
+		PreparationKey preparationKey = new PreparationKey(sourceIds, resultNames, modelMode);
 		return preparationCache.computeIfAbsent(preparationKey, ignored -> prepare(sources, resultNames, modelMode));
 	}
 
 	private GeneratedPreparation getGeneratedPreparation(List<DmnSource> sources, TckTestCase testCase,
 			RuntimeModelMode modelMode, Preparation preparation) {
-		Set<String> resultNames = Set.copyOf(testCase.expectedResults().keySet());
-		PreparationKey key = new PreparationKey(sources.stream().map(source -> source.id().toString()).toList(),
-				resultNames, modelMode);
+		PreparationKey key = effectivePreparationKey(sources, testCase, modelMode);
 		return generatedPreparationCache.computeIfAbsent(key, ignored -> prepareGenerated(preparation.compilation()));
 	}
 
@@ -712,16 +738,18 @@ class OfficialTckSuiteTest {
 		DmnToolkitTckEngine.getRuntimeBkmSlots(compilation).forEach((name, slot) -> slotNames.put(slot, name));
 		if (invocationPlan != null)
 			invocationPlan.parameterNames().forEach((slot, name) -> slotNames.put(slot, "__dmn_parameter_" + slot));
-		var sourceKey = new ArrayList<>(sources.stream().map(source -> source.id().toString()).toList());
+		var effectiveKey = effectivePreparationKey(sources, testCase, modelMode);
+		var sourceKey = new ArrayList<>(effectiveKey.sourceIds());
 		sourceKey.add(testCase.invocableName().orElse(""));
-		PreparationKey key = new PreparationKey(sourceKey, Set.copyOf(testCase.expectedResults().keySet()), modelMode);
+		PreparationKey key = new PreparationKey(sourceKey, effectiveKey.resultNames(), modelMode);
 		DmnSparkSqlGeneratorResult generated = sparkSqlPreparationCache.computeIfAbsent(key,
 				ignored -> sparkSqlGenerator.generate(new RuntimeOptimizedModel(model, List.of(), List.of(), List.of()),
 						DmnSparkSqlGeneratorOptions.of("input_table", SPARK_HYBRID, slotNames)
 								.withExternalJavaPolicy(OfficialExternalJavaPolicy.POLICY)));
-		generated.registerUdfs(spark);
+		SparkSession session = spark.newSession();
+		generated.registerUdfs(session);
 		if (model.inputs().isEmpty()) {
-			spark.sql("SELECT 1 AS _dummy").createOrReplaceTempView("input_table");
+			session.sql("SELECT 1 AS _dummy").createOrReplaceTempView("input_table");
 		} else {
 			Object[] values = new Object[model.inputs().size()];
 			Map<Integer, Object> feelInputs = new HashMap<>();
@@ -742,7 +770,7 @@ class OfficialTckSuiteTest {
 			Row row = SPARK_HYBRID
 					? SparkSqlFeelValueCodec.inputRow(model, feelInputs, generated.inputSchema())
 					: RowFactory.create(values);
-			spark.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("input_table");
+			session.createDataFrame(List.of(row), generated.inputSchema()).createOrReplaceTempView("input_table");
 		}
 		Map<String, Object> results = new LinkedHashMap<>();
 		boolean fallback = false;
@@ -751,7 +779,7 @@ class OfficialTckSuiteTest {
 		if (invocationPlan != null) {
 			String sql = Objects
 					.requireNonNull(generated.sqlFiles().get("Decision_" + invocationPlan.resultSlot() + ".sql"));
-			List<Row> rows = spark.sql(sql).collectAsList();
+			List<Row> rows = session.sql(sql).collectAsList();
 			if (rows.size() != 1)
 				throw new IllegalStateException("Expected one Spark invocation result row");
 			Object raw = rows.getFirst().get(0);
@@ -776,7 +804,7 @@ class OfficialTckSuiteTest {
 				String sql = Objects.requireNonNull(generated.sqlFiles().get("Decision_" + slot + ".sql"));
 				// Run only requested decisions. No exception-to-null conversion or
 				// runtime-triggered fallback.
-				List<Row> rows = spark.sql(sql).collectAsList();
+				List<Row> rows = session.sql(sql).collectAsList();
 				if (rows.size() != 1)
 					throw new IllegalStateException("Expected one Spark result row, got " + rows.size());
 				Object raw = rows.getFirst().get(0);
@@ -982,6 +1010,116 @@ class OfficialTckSuiteTest {
 		} catch (Throwable exception) {
 			return GeneratedPreparation.failure("Generated-Java preparation threw: " + exception, exception);
 		}
+	}
+
+	private void precompileModelsBatch(TckCatalogueInventory inv, List<RuntimeModelMode> modes, boolean needDirectJava,
+			boolean needGenericGrpc, boolean needTypedGrpc) throws Exception {
+		long startNanos = System.nanoTime();
+		Map<List<String>, List<DmnSource>> uniqueSources = new LinkedHashMap<>();
+		for (TckCatalogueEntry entry : inv.entries()) {
+			if (!entry.executable())
+				continue;
+			List<Path> orderedModels = new ArrayList<>();
+			orderedModels.add(entry.rootDmn().orElseThrow());
+			entry.dmnFiles().stream().filter(path -> !path.equals(entry.rootDmn().orElseThrow()))
+					.forEach(orderedModels::add);
+			List<String> sourceIds = orderedModels.stream().map(p -> p.toUri().toString()).toList();
+			if (!uniqueSources.containsKey(sourceIds)) {
+				List<DmnSource> sources = new ArrayList<>(orderedModels.size());
+				for (Path model : orderedModels) {
+					sources.add(new DmnSource(new DmnSourceId(model.toUri()), Files.readAllBytes(model)));
+				}
+				uniqueSources.put(sourceIds, sources);
+			}
+		}
+
+		Map<PreparationKey, DmnCompilationResult> compiled = new ConcurrentHashMap<>();
+		List<Map.Entry<PreparationKey, List<DmnSource>>> work = new ArrayList<>();
+		for (RuntimeModelMode mode : modes) {
+			for (var e : uniqueSources.entrySet()) {
+				work.add(Map.entry(new PreparationKey(e.getKey(), Set.of(), mode), e.getValue()));
+			}
+		}
+		work.parallelStream().forEach(item -> {
+			Preparation prep = preparationCache.computeIfAbsent(item.getKey(),
+					ignored -> prepare(item.getValue(), Set.of(), item.getKey().modelMode()));
+			if (prep.failureDiagnostic() == null && prep.compilation() != null) {
+				compiled.put(item.getKey(), prep.compilation());
+			}
+		});
+
+		if (needDirectJava && !compiled.isEmpty()) {
+			Path tempDir = Files.createTempDirectory("dmn-direct-java-batch-");
+			Path pkgDir = tempDir.resolve("io/finmsg/dmn/tck/gen");
+			Files.createDirectories(pkgDir);
+			record DirectUnit(PreparationKey key, String fqcn, Path sourceFile) {
+			}
+			List<DirectUnit> units = Collections.synchronizedList(new ArrayList<>());
+			compiled.entrySet().parallelStream().forEach(entry -> {
+				try {
+					String className = "OmgTckEngine_" + ENGINE_COUNTER.getAndIncrement();
+					String fqcn = "io.finmsg.dmn.tck.gen." + className;
+					DmnJavaGeneratorResult generated = new DmnJavaGenerator().generate(
+							entry.getValue().optimizedRuntimeModel().orElseThrow(),
+							DmnJavaGeneratorOptions.of("io.finmsg.dmn.tck.gen", className));
+					String code = generated.sources().get(fqcn);
+					Path sourceFile = pkgDir.resolve(className + ".java");
+					Files.writeString(sourceFile, code, java.nio.charset.StandardCharsets.UTF_8);
+					units.add(new DirectUnit(entry.getKey(), fqcn, sourceFile));
+				} catch (Throwable ignored) {
+				}
+			});
+			int batchSize = 150;
+			List<List<DirectUnit>> batches = new ArrayList<>();
+			for (int i = 0; i < units.size(); i += batchSize) {
+				batches.add(units.subList(i, Math.min(i + batchSize, units.size())));
+			}
+			List<DirectUnit> compiledUnits = Collections.synchronizedList(new ArrayList<>());
+			batches.parallelStream().forEach(batch -> {
+				try {
+					Path argFile = Files.createTempFile(tempDir, "javac-direct-", ".args");
+					StringBuilder sb = new StringBuilder();
+					for (DirectUnit u : batch) {
+						sb.append('"').append(u.sourceFile().toAbsolutePath().toString().replace('\\', '/'))
+								.append("\"\n");
+					}
+					Files.writeString(argFile, sb.toString(), java.nio.charset.StandardCharsets.UTF_8);
+					var errOut = new java.io.ByteArrayOutputStream();
+					int exitCode = ToolProvider.getSystemJavaCompiler().run(null, null, errOut, "-encoding", "UTF-8",
+							"-d", tempDir.toAbsolutePath().toString(), "@" + argFile.toAbsolutePath());
+					if (exitCode == 0) {
+						compiledUnits.addAll(batch);
+					}
+				} catch (Throwable ignored) {
+				}
+			});
+			URLClassLoader loader = new URLClassLoader(new URL[]{tempDir.toUri().toURL()},
+					OfficialTckSuiteTest.class.getClassLoader());
+			for (DirectUnit u : compiledUnits) {
+				try {
+					Class<?> cls = loader.loadClass(u.fqcn());
+					Object instance = cls.getDeclaredConstructor(io.finmsg.dmn.runtime.ExternalJavaPolicy.class)
+							.newInstance(OfficialExternalJavaPolicy.POLICY);
+					generatedPreparationCache.put(u.key(), GeneratedPreparation.success(cls, instance));
+				} catch (Throwable ignored) {
+				}
+			}
+		}
+
+		if (needGenericGrpc && !compiled.isEmpty()) {
+			grpcPreparationCache.putAll(GrpcTckExecution.prepareBatch(compiled));
+		}
+
+		if (needTypedGrpc && !compiled.isEmpty()) {
+			var prepared = TypedGrpcTckExecution.prepareBatch(compiled, OfficialExternalJavaPolicy.POLICY);
+			prepared.forEach((k, v) -> typedPreparationCache.put(k, new TypedPreparation(v, null)));
+		}
+
+		double elapsed = (System.nanoTime() - startNanos) / 1e9;
+		System.out.printf(
+				"[INFO] Precompiled %d unique DMN models in %.2f s (directJava=%d, grpc=%d, typedGrpc=%d)%n",
+				compiled.size(), elapsed, generatedPreparationCache.size(), grpcPreparationCache.size(),
+				typedPreparationCache.size());
 	}
 
 	private void precompilePortableArchive(TckCatalogueInventory inv) throws Exception {
@@ -1278,37 +1416,55 @@ class OfficialTckSuiteTest {
 			org.junit.jupiter.api.function.Executable executable) {
 		return DynamicTest.dynamicTest(name, () -> {
 			int idx = currentTestIndex.incrementAndGet();
+			boolean isSpark = backend.contains("sparksql");
+			String jobGroup = "tck-" + idx;
 			try {
-				Future<?> future = TEST_EXECUTOR.submit(() -> {
-					try {
-						executable.execute();
-					} catch (Throwable t) {
-						if (t instanceof RuntimeException re)
-							throw re;
-						if (t instanceof Error e)
-							throw e;
-						throw new RuntimeException(t);
-					}
-				});
+				if (isSpark) {
+					sparkConcurrency.acquire();
+				}
 				try {
-					future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-				} catch (TimeoutException te) {
-					future.cancel(true);
-					if (spark != null) {
-						try {
-							spark.sparkContext().cancelAllJobs();
-						} catch (Throwable ignored) {
+					Future<?> future = TEST_EXECUTOR.submit(() -> {
+						if (isSpark && spark != null) {
+							spark.sparkContext().setJobGroup(jobGroup, name, true);
 						}
+						try {
+							executable.execute();
+						} catch (Throwable t) {
+							if (t instanceof RuntimeException re)
+								throw re;
+							if (t instanceof Error e)
+								throw e;
+							throw new RuntimeException(t);
+						} finally {
+							if (isSpark && spark != null) {
+								spark.sparkContext().clearJobGroup();
+							}
+						}
+					});
+					try {
+						future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+					} catch (TimeoutException te) {
+						future.cancel(true);
+						if (isSpark && spark != null) {
+							try {
+								spark.sparkContext().cancelJobGroup(jobGroup);
+							} catch (Throwable ignored) {
+							}
+						}
+						throw new AssertionError("timeout: execution exceeded " + TIMEOUT_SECONDS + " seconds");
+					} catch (ExecutionException ee) {
+						Throwable cause = ee.getCause();
+						if (cause instanceof RuntimeException re && cause.getCause() != null
+								&& !(cause instanceof TypedGrpcTckExecution.PreparationFailure)
+								&& !(cause instanceof AssertionError)) {
+							throw cause.getCause();
+						}
+						throw cause;
 					}
-					throw new AssertionError("timeout: execution exceeded " + TIMEOUT_SECONDS + " seconds");
-				} catch (ExecutionException ee) {
-					Throwable cause = ee.getCause();
-					if (cause instanceof RuntimeException re && cause.getCause() != null
-							&& !(cause instanceof TypedGrpcTckExecution.PreparationFailure)
-							&& !(cause instanceof AssertionError)) {
-						throw cause.getCause();
+				} finally {
+					if (isSpark) {
+						sparkConcurrency.release();
 					}
-					throw cause;
 				}
 				System.out.printf("[INFO] [TCK %4d/%4d] [PASS] %s%n", idx, totalTestCount, name);
 				System.out.flush();

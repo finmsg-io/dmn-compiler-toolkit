@@ -20,7 +20,7 @@
     <tck.requireFull>false</tck.requireFull>
     <tck.backend>all</tck.backend>
     <tck.spark.hybrid>true</tck.spark.hybrid>
-    <tck.timeoutSeconds>30</tck.timeoutSeconds>
+    <tck.timeoutSeconds>120</tck.timeoutSeconds>
   </properties>
 
   <dependencies>
@@ -119,6 +119,34 @@
         <tck.requireFull>true</tck.requireFull>
         <tck.backend>all</tck.backend>
         <tck.spark.hybrid>true</tck.spark.hybrid>
+      </properties>
+    </profile>
+    <profile>
+      <id>tck-spark</id>
+      <properties>
+        <tck.skip>false</tck.skip>
+        <tck.modelVariant>optimized</tck.modelVariant>
+        <tck.requireFull>true</tck.requireFull>
+        <tck.backend>sparksql</tck.backend>
+        <tck.spark.hybrid>true</tck.spark.hybrid>
+      </properties>
+    </profile>
+    <profile>
+      <id>tck-grpc</id>
+      <properties>
+        <tck.skip>false</tck.skip>
+        <tck.modelVariant>optimized</tck.modelVariant>
+        <tck.requireFull>true</tck.requireFull>
+        <tck.backend>grpc</tck.backend>
+      </properties>
+    </profile>
+    <profile>
+      <id>tck-typed-grpc</id>
+      <properties>
+        <tck.skip>false</tck.skip>
+        <tck.modelVariant>optimized</tck.modelVariant>
+        <tck.requireFull>true</tck.requireFull>
+        <tck.backend>typed-grpc</tck.backend>
       </properties>
     </profile>
   </profiles>

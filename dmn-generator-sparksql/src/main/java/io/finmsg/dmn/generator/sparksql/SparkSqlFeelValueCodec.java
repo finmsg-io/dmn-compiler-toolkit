@@ -123,6 +123,9 @@ public final class SparkSqlFeelValueCodec {
 				throw new IllegalArgumentException("Native TIME must use the 1970-01-01 anchor");
 			return time.toLocalTime();
 		}
+		if (type != null && type.kind() == RuntimeTypeKind.DATE_TIME && decoded instanceof LocalDate date) {
+			return date.atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime();
+		}
 		return decoded;
 	}
 

@@ -780,8 +780,9 @@ public final class FeelTypeAnalyzer {
 					define(parameter.getName(), parameterType);
 				}
 				TypedExpression body = infer(value.getBody(), path + "/body");
+				TypeReference returnType = value.getExternal() ? ANY : body.type;
 				TypeReference functionType = TypeReference.newBuilder().setFunction(
-						FunctionTypeReference.newBuilder().addAllParameterType(parameterTypes).setReturnType(body.type))
+						FunctionTypeReference.newBuilder().addAllParameterType(parameterTypes).setReturnType(returnType))
 						.build();
 				return typed(
 						input.toBuilder().setFunctionDefinition(value.toBuilder().setBody(body.expression)).build(),
@@ -1128,21 +1129,21 @@ public final class FeelTypeAnalyzer {
 			return left;
 		}
 		if (left.hasContext() && right.hasContext()) {
-			ContextTypeReference.Builder builder = ContextTypeReference.newBuilder();
-			java.util.Map<String, TypeReference> map = new java.util.LinkedHashMap<>();
+			java.util.Map<String, TypeReference> leftMap = new java.util.LinkedHashMap<>();
 			for (ContextEntryTypeReference e : left.getContext().getEntriesList()) {
-				map.put(e.getName(), e.getType());
+				leftMap.put(e.getName(), e.getType());
 			}
+			java.util.Map<String, TypeReference> rightMap = new java.util.LinkedHashMap<>();
 			for (ContextEntryTypeReference e : right.getContext().getEntriesList()) {
-				if (map.containsKey(e.getName())) {
-					map.put(e.getName(), commonType(map.get(e.getName()), e.getType()));
-				} else {
-					map.put(e.getName(), e.getType());
-				}
+				rightMap.put(e.getName(), e.getType());
 			}
-			for (java.util.Map.Entry<String, TypeReference> entry : map.entrySet()) {
-				builder.addEntries(
-						ContextEntryTypeReference.newBuilder().setName(entry.getKey()).setType(entry.getValue()));
+			if (!leftMap.keySet().equals(rightMap.keySet())) {
+				return ANY;
+			}
+			ContextTypeReference.Builder builder = ContextTypeReference.newBuilder();
+			for (java.util.Map.Entry<String, TypeReference> entry : leftMap.entrySet()) {
+				builder.addEntries(ContextEntryTypeReference.newBuilder().setName(entry.getKey())
+						.setType(commonType(entry.getValue(), rightMap.get(entry.getKey()))));
 			}
 			return TypeReference.newBuilder().setContext(builder).build();
 		}

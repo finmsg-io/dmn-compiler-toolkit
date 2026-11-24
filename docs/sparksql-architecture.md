@@ -2,17 +2,13 @@
 
 ## Status and scope
 
-The optimized Spark SQL backend executed **all 3,391 pinned official TCK cases
-natively (100%)** on 2026-10-26, with **zero fallback, failed cases, compilation
-blocks, errors or unknown routes**. See the [conformance record](tck-conformance.md)
-for configuration, reproduction and retained per-case accounting.
+On 2026-11-24, the optimized Spark SQL backend passed **all 3,407 / 3,407 pinned official TCK cases (100.00%)** on TCK revision `5cd912f281831bc535e710aba435e16de198028a` (**3,389 native = 99.47%** + **18 fallback = 0.53%**, zero failed cases, compilation blocks, errors, or unknown routes; `306.3 s` with `NO_CODEGEN` and `120 s` per-case timeout). Earlier on 2026-10-26, the historical 3,391-case revision executed **3,391 / 3,391 natively (100%)**. See the [conformance record](tck-conformance.md) for configuration, reproduction, and retained per-case accounting.
 
 ## Native coverage: what the TCK rate means
 
-The denominator is all 3,391 official CL2/CL3 cases, including the formerly
+The denominator is all **3,407** official CL2/CL3 cases (previously 3,391), including the formerly
 compiler-blocked negative cases. Every requested result is produced and checked;
-compilation rejection cannot count as passing. The measured configuration allows
-hybrid fallback but used none. Earlier milestones excluding rejected cases are
+compilation rejection cannot count as passing. Earlier milestones excluding rejected cases are
 historical and do not describe this result.
 
 This establishes self-verified conformance for the pinned suite. It does not prove
@@ -299,9 +295,9 @@ A differential test suite that runs the same inputs through a reference FEEL eng
 
 ### TCK Conformance and Native Promotion Results
 
-The full pinned TCK suite achieves **100.00% conformance** (3,391 / 3,391 passes, 0 failures, 0 execution errors).
+The full pinned TCK suite (`5cd912f2...`, 2026-11-24) achieves **100.00% conformance** (**3,407 / 3,407 passes**, **3,389 native = 99.47%** + **18 fallback = 0.53%**, `0` failures, `0` execution errors).
 
 - **Compliance Level 2 Status:** **100% Native (116 / 116 passes native, 0 fallback, 0 failures)**.
   - Decision tables across all hit policies (`UNIQUE`, `FIRST`, `ANY`, `PRIORITY`, `RULE_ORDER`, `OUTPUT_ORDER`, `COLLECT` with `SUM`, `COUNT`, `MIN`, `MAX`) execute natively via Spark SQL `CASE WHEN` CTEs.
   - Numbers and arithmetic (`+`, `-`, `*`, `/`, `**`), structs (`CONTEXT` as `StructType`), typed lists (`ArrayType`), path expressions (`src.member`), static BKM inlining, and 3-valued boolean logic (`not()`) run without JVM fallback.
-- **Compliance Level 3 Status:** In progress. Subgraphs requiring higher-order FEEL list expressions, dates/durations, and decision services are being incrementally promoted from fallback UDFs to native Spark SQL expressions.
+- **Compliance Level 3 Status:** **100.00% passing (3,291 / 3,291)**, with **99.45% native** and only 18 cases routed through deterministic decision-level JVM fallback.

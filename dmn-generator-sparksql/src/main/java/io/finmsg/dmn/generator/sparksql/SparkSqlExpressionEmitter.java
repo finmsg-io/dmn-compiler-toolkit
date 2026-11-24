@@ -1509,6 +1509,10 @@ public final class SparkSqlExpressionEmitter {
 				}
 				return inlineBkm(bkm, inv.positionalArguments(), inv.namedArguments(), bkmBySlot, slotNameResolver);
 			}
+			if (target instanceof RuntimeFunctionDefinition fn && fn.body().isPresent()) {
+				return inlineFunction(fn, inv.type(), inv.positionalArguments(), inv.namedArguments(), bkmBySlot,
+						slotNameResolver);
+			}
 			return emitWithBkms(target, bkmBySlot, slotNameResolver);
 		}
 		return "NULL";
@@ -1520,12 +1524,20 @@ public final class SparkSqlExpressionEmitter {
 		if (bkm.function().isEmpty() || bkm.function().get().body().isEmpty()) {
 			return "NULL";
 		}
-		RuntimeFunctionDefinition fn = bkm.function().get();
+		return inlineFunction(bkm.function().get(), declaredBkmReturnType(bkm), posArgs, namedArgs, bkmBySlot,
+				slotNameResolver);
+	}
+
+	private static String inlineFunction(RuntimeFunctionDefinition fn, RuntimeType expectedReturn,
+			List<RuntimeExpression> posArgs, List<RuntimeNamedArgument> namedArgs, Map<Integer, RuntimeBkm> bkmBySlot,
+			IntFunction<String> slotNameResolver) {
+		if (fn.body().isEmpty()) {
+			return "NULL";
+		}
 		List<RuntimeFunctionParameter> params = fn.parameters();
 		if (posArgs.size() + (namedArgs == null ? 0 : namedArgs.size()) != params.size())
 			return "NULL";
 		Map<Integer, String> paramValues = new HashMap<>();
-		RuntimeType expectedReturn = declaredBkmReturnType(bkm);
 
 		for (int i = 0; i < params.size(); i++) {
 			RuntimeFunctionParameter param = params.get(i);
