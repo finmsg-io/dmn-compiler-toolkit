@@ -162,10 +162,10 @@ compliance-level-3/0012-list-functions/0012-list-functions-test-01.xml#017	compl
 compliance-level-3/0012-list-functions/0012-list-functions-test-01.xml#018	compliance-level-3/0012-list-functions/0012-list-functions.dmnir	
 compliance-level-3/0012-list-functions/0012-list-functions-test-01.xml#019	compliance-level-3/0012-list-functions/0012-list-functions.dmnir	
 compliance-level-3/0013-sort/0013-sort-test-01.xml#001	compliance-level-3/0013-sort/0013-sort.dmnir	
-compliance-level-3/0014-loan-comparison/0014-loan-comparison-test-01.xml#001		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:2342
-compliance-level-3/0016-some-every/0016-some-every-test-01.xml#001		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:2342
-compliance-level-3/0016-some-every/0016-some-every-test-01.xml#decision_014	compliance-level-3/0016-some-every/0016-some-every__d04d47fa9626.dmnir	
-compliance-level-3/0016-some-every/0016-some-every-test-01.xml#decision_014a	compliance-level-3/0016-some-every/0016-some-every__3743a7c784f9.dmnir	
+compliance-level-3/0014-loan-comparison/0014-loan-comparison-test-01.xml#001		EXPORT_UNSUPPORTED_PROFILE: Unsupported expression node: NAME at definitions/businessKnowledgeModel[FinancialMetrics]/logic/context/entry[6]/target
+compliance-level-3/0016-some-every/0016-some-every-test-01.xml#001	compliance-level-3/0016-some-every/0016-some-every.dmnir	
+compliance-level-3/0016-some-every/0016-some-every-test-01.xml#decision_014	compliance-level-3/0016-some-every/0016-some-every.dmnir	
+compliance-level-3/0016-some-every/0016-some-every-test-01.xml#decision_014a	compliance-level-3/0016-some-every/0016-some-every.dmnir	
 compliance-level-3/0017-tableTests/0017-tableTests-test-01.xml#001	compliance-level-3/0017-tableTests/0017-tableTests.dmnir	
 compliance-level-3/0017-tableTests/0017-tableTests-test-01.xml#002	compliance-level-3/0017-tableTests/0017-tableTests.dmnir	
 compliance-level-3/0017-tableTests/0017-tableTests-test-01.xml#003	compliance-level-3/0017-tableTests/0017-tableTests.dmnir	
@@ -178,7 +178,7 @@ compliance-level-3/0020-vacation-days/0020-vacation-days-test-01.xml#005	complia
 compliance-level-3/0020-vacation-days/0020-vacation-days-test-01.xml#006	compliance-level-3/0020-vacation-days/0020-vacation-days.dmnir	
 compliance-level-3/0020-vacation-days/0020-vacation-days-test-01.xml#007	compliance-level-3/0020-vacation-days/0020-vacation-days.dmnir	
 compliance-level-3/0021-singleton-list/0021-singleton-list-test-01.xml#001	compliance-level-3/0021-singleton-list/0021-singleton-list.dmnir	
-compliance-level-3/0030-user-defined-functions/0030-user-defined-functions-test-01.xml#001		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1877
+compliance-level-3/0030-user-defined-functions/0030-user-defined-functions-test-01.xml#001		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1886
 compliance-level-3/0031-user-defined-functions/0031-user-defined-functions-test-01.xml#001	compliance-level-3/0031-user-defined-functions/0031-user-defined-functions.dmnir	
 compliance-level-3/0031-user-defined-functions/0031-user-defined-functions-test-01.xml#002	compliance-level-3/0031-user-defined-functions/0031-user-defined-functions.dmnir	
 compliance-level-3/0031-user-defined-functions/0031-user-defined-functions-test-01.xml#003	compliance-level-3/0031-user-defined-functions/0031-user-defined-functions.dmnir	
@@ -633,15 +633,15 @@ compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#020	compliance-leve
 compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#021	compliance-level-3/0069-feel-list/0069-feel-list__64c1befb93b4.dmnir	
 compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#022	compliance-level-3/0069-feel-list/0069-feel-list__5175aefffce6.dmnir	
 compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#023	compliance-level-3/0069-feel-list/0069-feel-list__0a628dbc2b8e.dmnir	
-compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#024		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1041
-compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#025		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.filter.predicate.binary.left: Field source must be a named record.
+compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#024		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1047
+compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#025	compliance-level-3/0069-feel-list/0069-feel-list__1a8a13919a7b.dmnir	
 compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#026		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.filter.predicate.binary: Unsupported binary operator signature.
 compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#027	compliance-level-3/0069-feel-list/0069-feel-list__3cfcb054e097.dmnir	
-compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#028		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.filter.predicate.binary.left: Field source must be a named record.
-compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#029		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.filter.predicate.binary.left: Field source must be a named record.
+compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#028	compliance-level-3/0069-feel-list/0069-feel-list__c14da9e66d9d.dmnir	
+compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#029	compliance-level-3/0069-feel-list/0069-feel-list__169756db3ab9.dmnir	
 compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#030	compliance-level-3/0069-feel-list/0069-feel-list__7d89e1426026.dmnir	
-compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#031		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.filter.predicate.binary.left: Field source must be a named record.
-compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#032		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.filter.predicate.binary.left: Field source must be a named record.
+compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#031	compliance-level-3/0069-feel-list/0069-feel-list__8d26f088e46b.dmnir	
+compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#032	compliance-level-3/0069-feel-list/0069-feel-list__292c62b363f6.dmnir	
 compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#033	compliance-level-3/0069-feel-list/0069-feel-list__a1a87f9b7946.dmnir	
 compliance-level-3/0069-feel-list/0069-feel-list-test-01.xml#034	compliance-level-3/0069-feel-list/0069-feel-list__7e9682993d75.dmnir	
 compliance-level-3/0070-feel-instance-of/0070-feel-instance-of-test-01.xml#boolean_001	compliance-level-3/0070-feel-instance-of/0070-feel-instance-of.dmnir	
@@ -1219,7 +1219,7 @@ compliance-level-3/0075-feel-exponent/0075-feel-exponent-test-01.xml#decision_00
 compliance-level-3/0075-feel-exponent/0075-feel-exponent-test-01.xml#decision_009	compliance-level-3/0075-feel-exponent/0075-feel-exponent.dmnir	
 compliance-level-3/0075-feel-exponent/0075-feel-exponent-test-01.xml#decision_010	compliance-level-3/0075-feel-exponent/0075-feel-exponent.dmnir	
 compliance-level-3/0075-feel-exponent/0075-feel-exponent-test-01.xml#decision_011	compliance-level-3/0075-feel-exponent/0075-feel-exponent.dmnir	
-compliance-level-3/0076-feel-external-java/0076-feel-external-java-test-01.xml#boxed_001		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:2406
+compliance-level-3/0076-feel-external-java/0076-feel-external-java-test-01.xml#boxed_001		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:2468
 compliance-level-3/0076-feel-external-java/0076-feel-external-java-test-01.xml#incorrect_001	compliance-level-3/0076-feel-external-java/0076-feel-external-java__6be1cd736e61.dmnir	
 compliance-level-3/0076-feel-external-java/0076-feel-external-java-test-01.xml#incorrect_002	compliance-level-3/0076-feel-external-java/0076-feel-external-java__4cdc4e2d7c22.dmnir	
 compliance-level-3/0076-feel-external-java/0076-feel-external-java-test-01.xml#incorrect_003	compliance-level-3/0076-feel-external-java/0076-feel-external-java__ea9e4eb31df0.dmnir	
@@ -1265,7 +1265,7 @@ compliance-level-3/0081-feel-getentries-function/0081-feel-getentries-function-t
 compliance-level-3/0081-feel-getentries-function/0081-feel-getentries-function-test-01.xml#decision_009	compliance-level-3/0081-feel-getentries-function/0081-feel-getentries-function.dmnir	
 compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#decisionService_001	compliance-level-3/0082-feel-coercion/0082-feel-coercion__0cad73127b73.dmnir	
 compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#decisionService_002	compliance-level-3/0082-feel-coercion/0082-feel-coercion__b45d99ec53c8.dmnir	
-compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#decisionService_002_a		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[1].expression.bkm_call.arguments[0]: Argument must match the formal parameter type.
+compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#decisionService_002_a	compliance-level-3/0082-feel-coercion/0082-feel-coercion__343c3e573c8b.dmnir	
 compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#decisionService_002_b	compliance-level-3/0082-feel-coercion/0082-feel-coercion__b45d99ec53c8.dmnir	
 compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#decisionService_002_c	compliance-level-3/0082-feel-coercion/0082-feel-coercion__28f4411dc51d.dmnir	
 compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#decision_001		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.type: Expression type is incompatible with its declared result.
@@ -1293,7 +1293,7 @@ compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#invoke_002	
 compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#invoke_004	compliance-level-3/0082-feel-coercion/0082-feel-coercion__dba8dc241086.dmnir	
 compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#invoke_005	compliance-level-3/0082-feel-coercion/0082-feel-coercion__fb898fcbbaf9.dmnir	
 compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#invoke_006	compliance-level-3/0082-feel-coercion/0082-feel-coercion__808e1fc2606f.dmnir	
-compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#invoke_007		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1973
+compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#invoke_007		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1982
 compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#literal_001	compliance-level-3/0082-feel-coercion/0082-feel-coercion__1522247cdb0e.dmnir	
 compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#literal_002		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.type: Expression type is incompatible with its declared result.
 compliance-level-3/0082-feel-coercion/0082-feel-coercion-test-01.xml#literal_004		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.type: Expression type is incompatible with its declared result.
@@ -1344,12 +1344,12 @@ compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#002
 compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#002_c	compliance-level-3/0085-decision-services/0085-decision-services__ad55101aa659.dmnir	
 compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#003	compliance-level-3/0085-decision-services/0085-decision-services__5fe25570c96c.dmnir	
 compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#004	compliance-level-3/0085-decision-services/0085-decision-services__50a2fe0a0607.dmnir	
-compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#005		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1966
+compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#005		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1975
 compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#006	compliance-level-3/0085-decision-services/0085-decision-services__5431eaaf1448.dmnir	
-compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#007		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.bkm_call.arguments[0]: Argument must match the formal parameter type.
-compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#008		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1966
+compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#007	compliance-level-3/0085-decision-services/0085-decision-services__8c305b143ba0.dmnir	
+compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#008		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1975
 compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#009	compliance-level-3/0085-decision-services/0085-decision-services__3aedc6e6a8b2.dmnir	
-compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#010		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1973
+compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#010		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1982
 compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#011	compliance-level-3/0085-decision-services/0085-decision-services__3a7967ee73d5.dmnir	
 compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#012	compliance-level-3/0085-decision-services/0085-decision-services__bbebc14a4fe3.dmnir	
 compliance-level-3/0085-decision-services/0085-decision-services-test-01.xml#013	compliance-level-3/0085-decision-services/0085-decision-services__23553e2a3d93.dmnir	
@@ -1359,13 +1359,13 @@ compliance-level-3/0086-import/0086-import-test-01.xml#test_001	compliance-level
 compliance-level-3/0086-import/0086-import-test-01.xml#test_002	compliance-level-3/0086-import/0086-import.dmnir	
 compliance-level-3/0087-chapter-11-example/0087-chapter-11-example-test-01.xml#001		EXPORT_UNSUPPORTED_PROFILE: Unsupported expression node: NAME at definitions/businessKnowledgeModel[Affordability calculation]/logic/source/context/entry[1]/target
 compliance-level-3/0087-chapter-11-example/0087-chapter-11-example-test-01.xml#002		EXPORT_UNSUPPORTED_PROFILE: Unsupported expression node: NAME at definitions/businessKnowledgeModel[Affordability calculation]/logic/source/context/entry[1]/target
-compliance-level-3/0087-chapter-11-example/0087-chapter-11-example-test-01.xml#003a		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1172
-compliance-level-3/0087-chapter-11-example/0087-chapter-11-example-test-01.xml#003b		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1172
+compliance-level-3/0087-chapter-11-example/0087-chapter-11-example-test-01.xml#003a		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1178
+compliance-level-3/0087-chapter-11-example/0087-chapter-11-example-test-01.xml#003b		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1178
 compliance-level-3/0087-chapter-11-example/0087-chapter-11-example-test-01.xml#003c		EXPORT_UNSUPPORTED_PROFILE: Unsupported expression node: NAME at definitions/businessKnowledgeModel[Affordability calculation]/logic/source/context/entry[1]/target
 compliance-level-3/0087-chapter-11-example/0087-chapter-11-example-test-01.xml#003d		EXPORT_UNSUPPORTED_PROFILE: Unsupported expression node: NAME at definitions/businessKnowledgeModel[Affordability calculation]/logic/source/context/entry[1]/target
 compliance-level-3/0087-chapter-11-example/0087-chapter-11-example-test-01.xml#003e		EXPORT_UNSUPPORTED_PROFILE: Unsupported expression node: NAME at definitions/businessKnowledgeModel[Affordability calculation]/logic/source/context/entry[1]/target
 compliance-level-3/0087-chapter-11-example/0087-chapter-11-example-test-01.xml#004		EXPORT_UNSUPPORTED_PROFILE: Unsupported expression node: NAME at definitions/businessKnowledgeModel[Affordability calculation]/logic/source/context/entry[1]/target
-compliance-level-3/0088-no-decision-logic/0088-no-decision-logic-test-01.xml#001		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:238
+compliance-level-3/0088-no-decision-logic/0088-no-decision-logic-test-01.xml#001	compliance-level-3/0088-no-decision-logic/0088-no-decision-logic.dmnir	
 compliance-level-3/0089-nested-inputdata-imports/0089-nested-inputdata-imports-test-01.xml#001	compliance-level-3/0089-nested-inputdata-imports/0089-nested-inputdata-imports.dmnir	
 compliance-level-3/0090-feel-paths/0090-feel-paths-test-01.xml#nested_list_001	compliance-level-3/0090-feel-paths/0090-feel-paths.dmnir	
 compliance-level-3/0090-feel-paths/0090-feel-paths-test-01.xml#nested_list_002	compliance-level-3/0090-feel-paths/0090-feel-paths.dmnir	
@@ -1373,23 +1373,23 @@ compliance-level-3/0090-feel-paths/0090-feel-paths-test-01.xml#nested_list_003	c
 compliance-level-3/0090-feel-paths/0090-feel-paths-test-01.xml#nested_list_004	compliance-level-3/0090-feel-paths/0090-feel-paths.dmnir	
 compliance-level-3/0091-local-hrefs/0091-local-hrefs-test-01.xml#001	compliance-level-3/0091-local-hrefs/0091-local-hrefs.dmnir	
 compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#001	compliance-level-3/0092-feel-lambda/0092-feel-lambda__20df789dc2ab.dmnir	
-compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#002		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:2342
+compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#002	compliance-level-3/0092-feel-lambda/0092-feel-lambda__07520b419ecd.dmnir	
 compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#003	compliance-level-3/0092-feel-lambda/0092-feel-lambda__a94aac5aa816.dmnir	
 compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#004	compliance-level-3/0092-feel-lambda/0092-feel-lambda__50a2fe0a0607.dmnir	
 compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#005	compliance-level-3/0092-feel-lambda/0092-feel-lambda__390808ba46d2.dmnir	
 compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#006	compliance-level-3/0092-feel-lambda/0092-feel-lambda__5431eaaf1448.dmnir	
-compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#007		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1926
+compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#007		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1935
 compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#008	compliance-level-3/0092-feel-lambda/0092-feel-lambda__84d81c289cb2.dmnir	
 compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#009	compliance-level-3/0092-feel-lambda/0092-feel-lambda__3aedc6e6a8b2.dmnir	
-compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#010		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1910
-compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#010_a		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1910
-compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#011		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1926
-compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#012		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1010
-compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#013		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1010
+compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#010		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1919
+compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#010_a		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1919
+compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#011		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1935
+compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#012		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1016
+compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#013		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1016
 compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#014		EXPORT_UNSUPPORTED_PROFILE: Unsupported expression node: NAME at definitions/decision[decision_014_1]/logic/literalExpression/argument[0]
 compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#016		EXPORT_UNSUPPORTED_PROFILE: Unsupported expression node: NAME at definitions/decision[decision_016_1]/logic/literalExpression/argument[0]
-compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#017		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1926
-compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#018		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1010
+compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#017		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1935
+compliance-level-3/0092-feel-lambda/0092-feel-lambda-test-01.xml#018		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1016
 compliance-level-3/0093-feel-at-literals/0093-feel-at-literals-test-01.xml#date_001	compliance-level-3/0093-feel-at-literals/0093-feel-at-literals.dmnir	
 compliance-level-3/0093-feel-at-literals/0093-feel-at-literals-test-01.xml#date_002	compliance-level-3/0093-feel-at-literals/0093-feel-at-literals.dmnir	
 compliance-level-3/0093-feel-at-literals/0093-feel-at-literals-test-01.xml#datetime_001	compliance-level-3/0093-feel-at-literals/0093-feel-at-literals.dmnir	
@@ -1465,39 +1465,39 @@ compliance-level-3/0097-feel-month-of-year-function/0097-feel-month-of-year-func
 compliance-level-3/0097-feel-month-of-year-function/0097-feel-month-of-year-function-test-01.xml#null_006	compliance-level-3/0097-feel-month-of-year-function/0097-feel-month-of-year-function.dmnir	
 compliance-level-3/0097-feel-month-of-year-function/0097-feel-month-of-year-function-test-01.xml#null_007	compliance-level-3/0097-feel-month-of-year-function/0097-feel-month-of-year-function.dmnir	
 compliance-level-3/0097-feel-month-of-year-function/0097-feel-month-of-year-function-test-01.xml#null_008	compliance-level-3/0097-feel-month-of-year-function/0097-feel-month-of-year-function.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_001	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__39028657ad06.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_002	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__eb43463e316e.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_003	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__5dcad2d342e8.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_004	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__aa23411320e2.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_005	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__f8d05ad2c646.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_006	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__0d8d87d94de4.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_007	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__c191dec851ef.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_008		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:2342
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#datetime_001	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__08d659735d33.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#datetime_004	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__e2d51162ff46.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#datetime_005	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__c5792cb02caa.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_001	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__42cf6ec352d6.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_002	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__f08277a296f1.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_003	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__b9ae4e85258f.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_004	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__5d71f09f7ff2.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_005	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__ff9c820cb34c.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_006	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__8bc3b76a5832.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_007	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__f2d89a7e3f8a.dmnir	
-compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_008	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function__0bf090fb8244.dmnir	
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_001	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation__bf4128b196ad.dmnir	
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_002	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation__ad55101aa659.dmnir	
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_003	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation__5fe25570c96c.dmnir	
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_003_a	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation__0197d6764421.dmnir	
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_004	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation__84a926cf06dd.dmnir	
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_004_a	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation__ba403c867c0b.dmnir	
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_005		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.unary: Unsupported unary operator signature.
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_006		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.unary: Unsupported unary operator signature.
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_007		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.unary: Unsupported unary operator signature.
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_008		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.unary: Unsupported unary operator signature.
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_009	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation__3c241e74ff0b.dmnir	
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_010		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.unary: Unsupported unary operator signature.
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_011		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.unary: Unsupported unary operator signature.
-compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_012		EXPORT_UNSUPPORTED_PROFILE: DmnIrValidation failed: INVALID_TYPE at artifact.models[0].decisions[0].expression.unary: Unsupported unary operator signature.
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_001	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_002	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_003	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_004	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_005	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_006	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_007	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#date_008	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#datetime_001	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#datetime_004	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#datetime_005	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_001	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_002	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_003	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_004	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_005	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_006	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_007	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function-test-01.xml#null_008	compliance-level-3/0098-feel-week-of-year-function/0098-feel-week-of-year-function.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_001	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_002	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_003	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_003_a	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_004	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_004_a	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_005	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_006	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_007	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_008	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_009	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_010	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_011	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
+compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation-test-01.xml#decision_012	compliance-level-3/0099-arithmetic-negation/0099-arithmetic-negation.dmnir	
 compliance-level-3/0100-arithmetic/0100-arithmetic-test-01.xml#add_lhs_dateAndTime_to_rhs_dtDuration_001	compliance-level-3/0100-arithmetic/0100-arithmetic.dmnir	
 compliance-level-3/0100-arithmetic/0100-arithmetic-test-01.xml#add_lhs_dateAndTime_to_rhs_dtDuration_002	compliance-level-3/0100-arithmetic/0100-arithmetic.dmnir	
 compliance-level-3/0100-arithmetic/0100-arithmetic-test-01.xml#add_lhs_dateAndTime_to_rhs_dtDuration_003	compliance-level-3/0100-arithmetic/0100-arithmetic.dmnir	
@@ -3298,7 +3298,7 @@ compliance-level-3/1150-boxed-conditional/1150-boxed-conditional-test-01.xml#002
 compliance-level-3/1150-boxed-conditional/1150-boxed-conditional-test-01.xml#003	compliance-level-3/1150-boxed-conditional/1150-boxed-conditional.dmnir	
 compliance-level-3/1151-boxed-filter/1151-boxed-filter-test-01.xml#001	compliance-level-3/1151-boxed-filter/1151-boxed-filter__5eae4edeeb02.dmnir	
 compliance-level-3/1151-boxed-filter/1151-boxed-filter-test-01.xml#002	compliance-level-3/1151-boxed-filter/1151-boxed-filter__4d9806e2feb0.dmnir	
-compliance-level-3/1151-boxed-filter/1151-boxed-filter-test-01.xml#004		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1080
+compliance-level-3/1151-boxed-filter/1151-boxed-filter-test-01.xml#004		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:1086
 compliance-level-3/1151-boxed-filter/1151-boxed-filter-test-01.xml#005	compliance-level-3/1151-boxed-filter/1151-boxed-filter__bb9efb38362e.dmnir	
 compliance-level-3/1152-boxed-for/1152-boxed-for-test-01.xml#001	compliance-level-3/1152-boxed-for/1152-boxed-for.dmnir	
 compliance-level-3/1152-boxed-for/1152-boxed-for-test-01.xml#002	compliance-level-3/1152-boxed-for/1152-boxed-for.dmnir	
@@ -3404,7 +3404,7 @@ compliance-level-3/1157-implicit-conversions/1157-implicit-conversions-test-01.x
 compliance-level-3/1157-implicit-conversions/1157-implicit-conversions-test-01.xml#011	compliance-level-3/1157-implicit-conversions/1157-implicit-conversions__208229e372e0.dmnir	
 compliance-level-3/1160-multiple-imports/1160-multiple-imports-test-01.xml#001	compliance-level-3/1160-multiple-imports/1160-multiple-imports-01-B.dmnir	
 compliance-level-3/1160-multiple-imports/1160-multiple-imports-test-02.xml#001	compliance-level-3/1160-multiple-imports/1160-multiple-imports-01-C.dmnir	
-compliance-level-3/1160-multiple-imports/1160-multiple-imports-test-03.xml#001		EXPORT_ARTIFACT_INVALID: DmnIrValidation failed: INVALID_IMPORT at artifact.models[1].imports[0].name: A unique non-empty import alias is required.
-compliance-level-3/1160-multiple-imports/1160-multiple-imports-test-04.xml#001		EXPORT_ARTIFACT_INVALID: DmnIrValidation failed: INVALID_IMPORT at artifact.models[1].imports[0].name: A unique non-empty import alias is required.
-compliance-level-3/1161-boxed-list-expression/1161-boxed-list-expression-test-01.xml#001		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:2342
-compliance-level-3/1161-boxed-list-expression/1161-boxed-list-expression-test-01.xml#002		EXPORT_UNSUPPORTED_PROFILE: Unsupported construct at DmnIrRecordProducer.java:2342
+compliance-level-3/1160-multiple-imports/1160-multiple-imports-test-03.xml#001	compliance-level-3/1160-multiple-imports/1160-multiple-imports-02-B.dmnir	
+compliance-level-3/1160-multiple-imports/1160-multiple-imports-test-04.xml#001	compliance-level-3/1160-multiple-imports/1160-multiple-imports-02-C.dmnir	
+compliance-level-3/1161-boxed-list-expression/1161-boxed-list-expression-test-01.xml#001	compliance-level-3/1161-boxed-list-expression/1161-boxed-list-expression.dmnir	
+compliance-level-3/1161-boxed-list-expression/1161-boxed-list-expression-test-01.xml#002	compliance-level-3/1161-boxed-list-expression/1161-boxed-list-expression.dmnir	

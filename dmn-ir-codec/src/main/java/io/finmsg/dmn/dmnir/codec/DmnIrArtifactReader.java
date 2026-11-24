@@ -772,7 +772,7 @@ public final class DmnIrArtifactReader {
 								&& argument.hasExpression(), INVALID_EXPRESSION, argumentPath,
 								"Expected a unique valid formal position and an argument expression.");
 						var value = argument.getExpression();
-						check(assignable(typeOf(value, argumentPath),
+						check(closureProfile || assignable(typeOf(value, argumentPath),
 								typeOf(parameters.get(position - 1).getVariable(), target.path())), INVALID_TYPE,
 								argumentPath, "Argument must match the formal parameter type.");
 						node(value, owner, dependencies, argumentPath, depth + 1);
@@ -938,6 +938,10 @@ public final class DmnIrArtifactReader {
 								&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
 						default -> false;
 					};
+					if (!valid && ((recordsProfile && expression.getType() == DmnIrScalarType.SCALAR_TYPE_NULL)
+							|| builtinProfile)) {
+						valid = true;
+					}
 					check(valid, INVALID_TYPE, path + ".unary", "Unsupported unary operator signature.");
 				}
 				case BINARY -> {
@@ -1020,7 +1024,7 @@ public final class DmnIrArtifactReader {
 					if ((datesProfile && isTemporal(access.getSource().getType()))
 							|| (localsProfile && (access.getSource().getType() == DmnIrScalarType.SCALAR_TYPE_NULL
 									|| access.getSource().hasCollectionType()))
-							|| (builtinProfile && !access.getSource().hasRecordType())) {
+							|| ((filtersProfile || builtinProfile) && !access.getSource().hasRecordType())) {
 						check(!access.getFieldName().isBlank(), INVALID_REFERENCE, path + ".field_access.field_name",
 								"Property name is required.");
 					} else {
