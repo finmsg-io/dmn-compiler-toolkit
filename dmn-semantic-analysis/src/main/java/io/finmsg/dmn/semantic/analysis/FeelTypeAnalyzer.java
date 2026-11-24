@@ -781,9 +781,8 @@ public final class FeelTypeAnalyzer {
 				}
 				TypedExpression body = infer(value.getBody(), path + "/body");
 				TypeReference returnType = value.getExternal() ? ANY : body.type;
-				TypeReference functionType = TypeReference.newBuilder().setFunction(
-						FunctionTypeReference.newBuilder().addAllParameterType(parameterTypes).setReturnType(returnType))
-						.build();
+				TypeReference functionType = TypeReference.newBuilder().setFunction(FunctionTypeReference.newBuilder()
+						.addAllParameterType(parameterTypes).setReturnType(returnType)).build();
 				return typed(
 						input.toBuilder().setFunctionDefinition(value.toBuilder().setBody(body.expression)).build(),
 						functionType);
