@@ -812,6 +812,40 @@ final class DmnIrRecordProducer {
 					local = localBindings.values().stream()
 							.filter(b -> !b.hasClosure() && b.getVariable().getName().equals(targetName)).findFirst()
 							.orElse(null);
+					if (local == null) {
+						var itemBinding = localBindings.values().stream()
+								.filter(b -> !b.hasClosure() && b.getVariable().getName().equals("item")).findFirst()
+								.orElse(null);
+						if (itemBinding != null) {
+							var itemVar = itemBinding.getVariable();
+							var itemType = DmnIrTypeReference.newBuilder();
+							if (itemVar.hasCollectionType())
+								itemType.setCollectionType(itemVar.getCollectionType());
+							else if (itemVar.hasRecordType())
+								itemType.setRecordType(itemVar.getRecordType());
+							else
+								itemType.setScalarType(itemVar.getType());
+							var itemRef = typed(itemType.build())
+									.setLocalReference(
+											DmnIrLocalReference.newBuilder().setBindingId(itemBinding.getBindingId()))
+									.build();
+							DmnIrTypeReference fieldType = DmnIrTypeReference.newBuilder()
+									.setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build();
+							if (itemVar.hasRecordType()) {
+								var rec = records.get(itemVar.getRecordType());
+								if (rec != null) {
+									fieldType = rec.getFieldsList().stream().filter(f -> f.getName().equals(targetName))
+											.findFirst().map(DmnIrRecordField::getType).orElse(fieldType);
+								}
+							} else {
+								usedLocalProfile = true;
+							}
+							return typed(fieldType)
+									.setFieldAccess(
+											DmnIrFieldAccess.newBuilder().setSource(itemRef).setFieldName(targetName))
+									.build();
+						}
+					}
 				}
 				if (local == null || local.hasClosure())
 					throw unsupported();
@@ -1026,16 +1060,22 @@ final class DmnIrRecordProducer {
 							.setLiteral(DmnIrLiteral.newBuilder().setDateValue(DmnIrDates.wire(date))).build();
 				}
 			}
-			var signature = DmnIrBuiltinSignature.forFeelName(call.getTarget().getName().getName());
-			if (signature.isPresent())
-				return builtinCall(call, signature.get(), model, path, dependencies, depth, expected);
+			if (call.getTarget().hasName()) {
+				String fnName = call.getTarget().getName().getName();
+				boolean shadowed = localBindings.values().stream()
+						.anyMatch(local -> !local.hasClosure() && local.getVariable().getName().equals(fnName))
+						|| model.bindings().stream().anyMatch(b -> b.referencePath().equals(path + "/target"));
+				if (!shadowed) {
+					var signature = DmnIrBuiltinSignature.forFeelName(fnName);
+					if (signature.isPresent())
+						return builtinCall(call, signature.get(), model, path, dependencies, depth, expected);
+				}
+			}
 			if (boundBkm(model, path + "/target").isPresent())
 				return bkmCall(call, model, path + "/target", dependencies, depth,
 						index -> path + "/argument[" + index + "]");
 		}
 		var output = typed(type(source.getInferredType(), model));
-		if (!source.hasLiteral() && source.getInferredType().getBuiltin() == BuiltinType.BUILTIN_TYPE_NULL)
-			return nullLiteral();
 		switch (source.getNodeCase()) {
 			case LITERAL -> {
 				var literal = DmnIrLiteral.newBuilder();
@@ -1859,14 +1899,11 @@ final class DmnIrRecordProducer {
 		builtinCalls = true;
 		var call = DmnIrBuiltinCall.newBuilder().setOperation(signature.operation()).addArguments(argument);
 		if (signature.collectionResult()) {
-			if (argument.getType() == DmnIrScalarType.SCALAR_TYPE_NULL && !argument.hasCollectionType()) {
-				return nullLiteral();
-			}
 			DmnIrTypeReference resultType = expected != null && expected.hasCollectionType()
 					? expected
 					: argument.hasCollectionType()
 							? DmnIrTypeReference.newBuilder().setCollectionType(argument.getCollectionType()).build()
-							: ensureCollectionType(model, signature.result());
+							: DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build();
 			return typed(resultType).setBuiltinCall(call).build();
 		}
 		return DmnIrExpression.newBuilder().setType(signature.result()).setBuiltinCall(call).build();
@@ -1880,9 +1917,7 @@ final class DmnIrRecordProducer {
 				|| model.bindings().stream().anyMatch(binding -> binding.referencePath().equals(path + "/target")))
 			throw unsupported();
 
-		if (signature.collectionParameter() && signature != DmnIrBuiltinSignature.STRING_JOIN
-				&& signature != DmnIrBuiltinSignature.INDEX_OF && signature != DmnIrBuiltinSignature.LIST_REPLACE
-				&& signature != DmnIrBuiltinSignature.INSERT_BEFORE && signature != DmnIrBuiltinSignature.REMOVE)
+		if (signature.parameters().size() == 1 && signature.collectionParameter(0))
 			return collectionBuiltinCall(source, signature, model, path, dependencies, depth, expected);
 
 		boolean named = source.getArgumentsCount() > 0;

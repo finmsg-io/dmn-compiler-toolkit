@@ -1,6 +1,6 @@
 # Actual task: full official-TCK compliance through Protobuf DMNIR and generated Java/Rust
 
-Updated: 2026-11-24. Status: incomplete. Latest recorded full portable-DMNIR-to-generated-Java (`optimized-generated-portable-java`) result: **3,230 / 3,407 passed (94.80%)** in **2m 14s** via the pre-compiled `dmn-tck` `.dmnir` archive (`3,311` exported / `278` `.dmnir` files) + batch `javac`. Latest recorded full Rust result: **1,018 / 3,407 passed (29.88%)** (2026-11-17; pending re-run against `dmn-tck`).
+Updated: 2026-11-24. Status: incomplete. Latest recorded full portable-DMNIR-to-generated-Java (`optimized-generated-portable-java`) result: **3,262 / 3,407 passed (95.74%)** in **2m 18s** via the pre-compiled `dmn-tck` `.dmnir` archive (`3,323` exported / `313` `.dmnir` files) + batch `javac`. Latest recorded full Rust result: **1,018 / 3,407 passed (29.88%)** (2026-11-17; pending re-run against `dmn-tck`).
 
 ## Goal and acceptance
 
@@ -58,6 +58,7 @@ The pure portable DMNIR Java runner (`optimized-generated-portable-java`) execut
 | **Null-type binary + local fallback + dynamic/index `FILTER` + `<decisionService>` (`task-2509`)** | **2,430 `.dmnir` files (1.61 MB, `3,102` exported) in `dmn-tck` + batch `javac`** | **`4m 59s`** | **`05:29 min`** | **3,006 (88.23%)** (+128 / +1,258 today) |
 | **Boxed context literals + nested `<itemComponent>` + dynamic `LIST`/`==`/`FIELD_ACCESS`/`ANY` (`task-2756`)** | **1,410 `.dmnir` files (1.36 MB, `3,231` exported) in `dmn-tck` + batch `javac`** | **`4m 30s`** | **`05:00 min`** | **3,156 (92.63%)** (+150 / +1,408 total) |
 | **`DYNAMIC_INVOCATION` + external closures + `NAME` fallback + `variableType ANY` (`task-2850`)** | **278 `.dmnir` files (1.11 MB, `3,311` exported) in `dmn-tck` + batch `javac`** | **`2m 14s`** | **`02:23 min`** | **3,230 (94.80%)** (+74 / +1,482 total) |
+| **15 FEEL built-ins (`is` + 14 intervals) + multi-arg list built-ins + filter fields (`task-2936`)** | **313 `.dmnir` files (1.22 MB, `3,323` exported) in `dmn-tck` + batch `javac`** | **`2m 18s`** | **`02:25 min`** | **3,262 (95.74%)** (+32 / +1,514 total) |
 
 Implemented in `feature/release-1.2-dmnir`:
 - **Inline FEEL Closures (`DmnIrClosure`)**: Added `DmnIrClosure closure = 17` to `dmnir.proto`, codec validation, `DmnIrRecordProducer` lowering (`FUNCTION_DEFINITION`), and `DmnIrRuntimeAdapter` adaptation (`1155-list-replace-function` -> 22/22, `0051-feel-sqrt-function` -> 15/15).

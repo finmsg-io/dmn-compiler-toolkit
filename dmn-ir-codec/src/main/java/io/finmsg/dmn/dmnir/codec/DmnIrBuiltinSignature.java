@@ -468,7 +468,126 @@ public enum DmnIrBuiltinSignature {
 																																																																																																																																													SCALAR_TYPE_NULL,
 																																																																																																																																													List.of(SCALAR_TYPE_NULL),
 																																																																																																																																													List.of("entries"),
-																																																																																																																																													1);
+																																																																																																																																													1), IS(BUILTIN_OPERATION_IS,
+																																																																																																																																															"is",
+																																																																																																																																															SCALAR_TYPE_BOOLEAN,
+																																																																																																																																															List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																	SCALAR_TYPE_NULL),
+																																																																																																																																															List.of("value1",
+																																																																																																																																																	"value2"),
+																																																																																																																																															2), BEFORE(
+																																																																																																																																																	BUILTIN_OPERATION_BEFORE,
+																																																																																																																																																	"before",
+																																																																																																																																																	SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																	List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																			SCALAR_TYPE_NULL),
+																																																																																																																																																	List.of("point1",
+																																																																																																																																																			"point2"),
+																																																																																																																																																	2), AFTER(
+																																																																																																																																																			BUILTIN_OPERATION_AFTER,
+																																																																																																																																																			"after",
+																																																																																																																																																			SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																			List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																					SCALAR_TYPE_NULL),
+																																																																																																																																																			List.of("point1",
+																																																																																																																																																					"point2"),
+																																																																																																																																																			2), MEETS(
+																																																																																																																																																					BUILTIN_OPERATION_MEETS,
+																																																																																																																																																					"meets",
+																																																																																																																																																					SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																					List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																							SCALAR_TYPE_NULL),
+																																																																																																																																																					List.of("range1",
+																																																																																																																																																							"range2"),
+																																																																																																																																																					2), MET_BY(
+																																																																																																																																																							BUILTIN_OPERATION_MET_BY,
+																																																																																																																																																							"met by",
+																																																																																																																																																							SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																							List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																									SCALAR_TYPE_NULL),
+																																																																																																																																																							List.of("range1",
+																																																																																																																																																									"range2"),
+																																																																																																																																																							2), OVERLAPS(
+																																																																																																																																																									BUILTIN_OPERATION_OVERLAPS,
+																																																																																																																																																									"overlaps",
+																																																																																																																																																									SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																									List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																											SCALAR_TYPE_NULL),
+																																																																																																																																																									List.of("range1",
+																																																																																																																																																											"range2"),
+																																																																																																																																																									2), OVERLAPS_BEFORE(
+																																																																																																																																																											BUILTIN_OPERATION_OVERLAPS_BEFORE,
+																																																																																																																																																											"overlaps before",
+																																																																																																																																																											SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																											List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																													SCALAR_TYPE_NULL),
+																																																																																																																																																											List.of("range1",
+																																																																																																																																																													"range2"),
+																																																																																																																																																											2), OVERLAPS_AFTER(
+																																																																																																																																																													BUILTIN_OPERATION_OVERLAPS_AFTER,
+																																																																																																																																																													"overlaps after",
+																																																																																																																																																													SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																													List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																															SCALAR_TYPE_NULL),
+																																																																																																																																																													List.of("range1",
+																																																																																																																																																															"range2"),
+																																																																																																																																																													2), FINISHES(
+																																																																																																																																																															BUILTIN_OPERATION_FINISHES,
+																																																																																																																																																															"finishes",
+																																																																																																																																																															SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																															List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																																	SCALAR_TYPE_NULL),
+																																																																																																																																																															List.of("point",
+																																																																																																																																																																	"range"),
+																																																																																																																																																															2), FINISHED_BY(
+																																																																																																																																																																	BUILTIN_OPERATION_FINISHED_BY,
+																																																																																																																																																																	"finished by",
+																																																																																																																																																																	SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																																	List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																																			SCALAR_TYPE_NULL),
+																																																																																																																																																																	List.of("range",
+																																																																																																																																																																			"point"),
+																																																																																																																																																																	2), INCLUDES(
+																																																																																																																																																																			BUILTIN_OPERATION_INCLUDES,
+																																																																																																																																																																			"includes",
+																																																																																																																																																																			SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																																			List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																																					SCALAR_TYPE_NULL),
+																																																																																																																																																																			List.of("range",
+																																																																																																																																																																					"point"),
+																																																																																																																																																																			2), DURING(
+																																																																																																																																																																					BUILTIN_OPERATION_DURING,
+																																																																																																																																																																					"during",
+																																																																																																																																																																					SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																																					List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																																							SCALAR_TYPE_NULL),
+																																																																																																																																																																					List.of("point",
+																																																																																																																																																																							"range"),
+																																																																																																																																																																					2), STARTS(
+																																																																																																																																																																							BUILTIN_OPERATION_STARTS,
+																																																																																																																																																																							"starts",
+																																																																																																																																																																							SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																																							List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																																									SCALAR_TYPE_NULL),
+																																																																																																																																																																							List.of("point",
+																																																																																																																																																																									"range"),
+																																																																																																																																																																							2), STARTED_BY(
+																																																																																																																																																																									BUILTIN_OPERATION_STARTED_BY,
+																																																																																																																																																																									"started by",
+																																																																																																																																																																									SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																																									List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																																											SCALAR_TYPE_NULL),
+																																																																																																																																																																									List.of("range",
+																																																																																																																																																																											"point"),
+																																																																																																																																																																									2), COINCIDES(
+																																																																																																																																																																											BUILTIN_OPERATION_COINCIDES,
+																																																																																																																																																																											"coincides",
+																																																																																																																																																																											SCALAR_TYPE_BOOLEAN,
+																																																																																																																																																																											List.of(SCALAR_TYPE_NULL,
+																																																																																																																																																																													SCALAR_TYPE_NULL),
+																																																																																																																																																																											List.of("point1",
+																																																																																																																																																																													"point2"),
+																																																																																																																																																																											2);
 
 	private final DmnIrBuiltinOperation operation;
 	private final String feelName;
@@ -556,6 +675,20 @@ public enum DmnIrBuiltinSignature {
 			return 0;
 		if (this == DATE_AND_TIME && "date".equals(name))
 			return 0;
+		if ((this == BEFORE || this == AFTER || this == COINCIDES || this == FINISHES || this == FINISHED_BY
+				|| this == INCLUDES || this == DURING || this == STARTS || this == STARTED_BY)
+				&& ("range1".equals(name) || "point1".equals(name) || "point".equals(name) || "range".equals(name))) {
+			if ("range1".equals(name) || "point1".equals(name))
+				return 0;
+			if ("range2".equals(name) || "point2".equals(name))
+				return 1;
+		}
+		if ("range2".equals(name) || "point2".equals(name))
+			return 1;
+		if ((this == BEFORE || this == AFTER) && "point".equals(name))
+			return this == BEFORE ? 0 : 1;
+		if ((this == BEFORE || this == AFTER) && "range".equals(name))
+			return this == BEFORE ? 1 : 0;
 		return null;
 	}
 
