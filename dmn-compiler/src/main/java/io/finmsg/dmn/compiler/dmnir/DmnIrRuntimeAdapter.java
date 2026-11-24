@@ -425,8 +425,105 @@ public final class DmnIrRuntimeAdapter {
 			case LIST -> new RuntimeListExpression(expression.getList().getElementsList().stream()
 					.map(element -> expression(element, slots, types, locals, nextSlot)).toList(), type);
 			case CLOSURE -> closure(expression.getClosure(), slots, types, locals);
+			case CONTEXT_LITERAL -> {
+				var ctx = expression.getContextLiteral();
+				Map<String, Local> child = new HashMap<>(locals);
+				List<RuntimeContextEntry> entries = new ArrayList<>();
+				for (var entry : ctx.getEntriesList()) {
+					int slot = nextSlot[0]++;
+					if (entry.hasClosure()) {
+						var fn = closure(entry.getClosure().getDefinition(), slots, types, child);
+						entries.add(new RuntimeContextEntry(entry.getClosure().getName(), slot, fn));
+					} else {
+						var val = expression(entry.getValue(), slots, types, child, nextSlot);
+						entries.add(new RuntimeContextEntry(entry.getVariable().getName(), slot, val));
+					}
+					child.put(entry.getBindingId(), new Local(0, slot));
+				}
+				yield new RuntimeContextExpression(entries, RuntimeType.scalar(RuntimeTypeKind.CONTEXT));
+			}
+			case RANGE -> {
+				var range = expression.getRange();
+				Optional<RuntimeExpression> lower = range.hasLower()
+						? Optional.of(expression(range.getLower(), slots, types, locals, nextSlot))
+						: Optional.empty();
+				Optional<RuntimeExpression> upper = range.hasUpper()
+						? Optional.of(expression(range.getUpper(), slots, types, locals, nextSlot))
+						: Optional.empty();
+				yield new RuntimeRangeExpression(lower, upper,
+						range.getLowerInclusive() ? RuntimeRangeBoundary.CLOSED : RuntimeRangeBoundary.OPEN,
+						range.getUpperInclusive() ? RuntimeRangeBoundary.CLOSED : RuntimeRangeBoundary.OPEN,
+						RuntimeType.scalar(RuntimeTypeKind.RANGE));
+			}
+			case INSTANCE_OF -> {
+				var inst = expression.getInstanceOf();
+				var targetExpr = expression(inst.getExpression(), slots, types, locals, nextSlot);
+				yield new RuntimeInstanceOfExpression(targetExpr, adaptTypeDescriptor(inst.getTestedType()),
+						RuntimeType.scalar(RuntimeTypeKind.BOOLEAN));
+			}
+			case FOR_EXPRESSION -> {
+				var forExpr = expression.getForExpression();
+				Map<String, Local> child = new HashMap<>(locals);
+				List<RuntimeIteration> iterations = new ArrayList<>();
+				for (var it : forExpr.getIterationsList()) {
+					var src = expression(it.getSource(), slots, types, child, nextSlot);
+					Optional<RuntimeExpression> end = it.hasRangeEnd()
+							? Optional.of(expression(it.getRangeEnd(), slots, types, child, nextSlot))
+							: Optional.empty();
+					int slot = nextSlot[0]++;
+					child.put(it.getBindingId(), new Local(0, slot));
+					iterations.add(new RuntimeIteration(slot, src, end));
+				}
+				int partialSlot = nextSlot[0]++;
+				if (!forExpr.getPartialBindingId().isBlank()) {
+					child.put(forExpr.getPartialBindingId(), new Local(0, partialSlot));
+				}
+				var body = expression(forExpr.getBody(), slots, types, child, nextSlot);
+				yield new RuntimeForExpression(iterations, body, partialSlot,
+						RuntimeType.element(RuntimeTypeKind.LIST, body.type()));
+			}
+			case QUANTIFIED -> {
+				var q = expression.getQuantified();
+				Map<String, Local> child = new HashMap<>(locals);
+				List<RuntimeQuantifiedBinding> bindings = new ArrayList<>();
+				for (var b : q.getBindingsList()) {
+					var src = expression(b.getSource(), slots, types, child, nextSlot);
+					int slot = nextSlot[0]++;
+					child.put(b.getBindingId(), new Local(0, slot));
+					bindings.add(new RuntimeQuantifiedBinding(slot, src));
+				}
+				var satisfies = expression(q.getSatisfies(), slots, types, child, nextSlot);
+				yield new RuntimeQuantifiedExpression(q.getEvery() ? RuntimeQuantifier.EVERY : RuntimeQuantifier.SOME,
+						bindings, satisfies, RuntimeType.scalar(RuntimeTypeKind.BOOLEAN));
+			}
 			default -> throw new IllegalArgumentException("Unsupported expression in runtime adapter.");
 		};
+	}
+
+	private static RuntimeType adaptTypeDescriptor(DmnIrTypeDescriptor desc) {
+		RuntimeTypeKind kind = RuntimeTypeKind.valueOf(desc.getKind());
+		if (kind == RuntimeTypeKind.LIST || kind == RuntimeTypeKind.RANGE) {
+			return desc.hasElementType()
+					? RuntimeType.element(kind, adaptTypeDescriptor(desc.getElementType()))
+					: RuntimeType.scalar(kind);
+		}
+		if (kind == RuntimeTypeKind.CONTEXT && desc.getFieldsCount() > 0) {
+			List<RuntimeField> fields = new ArrayList<>();
+			for (int i = 0; i < desc.getFieldsCount(); i++) {
+				var f = desc.getFields(i);
+				fields.add(new RuntimeField(i, f.getName(), adaptTypeDescriptor(f.getType())));
+			}
+			return RuntimeType.contextFields(fields);
+		}
+		if (kind == RuntimeTypeKind.FUNCTION && (desc.getParameterTypesCount() > 0 || desc.hasReturnType())) {
+			List<RuntimeType> params = desc.getParameterTypesList().stream()
+					.map(DmnIrRuntimeAdapter::adaptTypeDescriptor).toList();
+			RuntimeType ret = desc.hasReturnType()
+					? adaptTypeDescriptor(desc.getReturnType())
+					: RuntimeType.scalar(RuntimeTypeKind.ANY);
+			return RuntimeType.function(params, ret);
+		}
+		return RuntimeType.scalar(kind);
 	}
 
 	static RuntimeConstant literal(DmnIrLiteral literal, RuntimeType type) {

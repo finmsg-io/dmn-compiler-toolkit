@@ -37,6 +37,9 @@ public final class DmnIrScalarProducer {
 												&& inv.getTarget().getName().getName().equals("not")))
 								|| node instanceof io.finmsg.dmn.model.FilterExpression
 								|| node instanceof io.finmsg.dmn.model.ForExpression
+								|| node instanceof io.finmsg.dmn.model.RangeExpression
+								|| node instanceof io.finmsg.dmn.model.InstanceOfExpression
+								|| node instanceof io.finmsg.dmn.model.QuantifiedExpression
 								|| (node instanceof io.finmsg.dmn.model.LiteralExpression lit && (lit
 										.getKind() == io.finmsg.dmn.model.LiteralKind.LITERAL_KIND_DURATION
 										|| lit.getKind() == io.finmsg.dmn.model.LiteralKind.LITERAL_KIND_TIME

@@ -16,6 +16,8 @@ final class DmnIrRecordProducer {
 	private boolean filters;
 	private boolean builtinCalls;
 	private boolean closures;
+	private boolean usedLocalProfile;
+	private boolean usedCollectionProfile;
 	private Set<String> captures;
 	private Set<String> captureScope = Set.of();
 	private final Map<String, DmnIrLocalBinding> localBindings = new HashMap<>();
@@ -56,8 +58,12 @@ final class DmnIrRecordProducer {
 						.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasDecisionTable());
 		boolean dateProfile = tableProfile
 				|| models.values().stream().anyMatch(m -> DmnIrDates.containsDate(m.model()));
-		boolean localProfile = models.values().stream().anyMatch(m -> m.model().getDrgElementsList().stream()
-				.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasBoxedExpression()));
+		boolean localProfile = models.values().stream()
+				.anyMatch(m -> m.model().getDrgElementsList().stream()
+						.anyMatch(e -> e.hasDecision() && e.getDecision().getLogic().hasBoxedExpression())
+						|| DmnIrDates.containsNode(m.model(), node -> node instanceof ContextExpression));
+		usedCollectionProfile = models.values().stream().anyMatch(m -> DmnIrDates.containsNode(m.model(),
+				node -> node instanceof ForExpression || node instanceof QuantifiedExpression));
 		for (var model : models.values()) {
 			for (var item : model.model().getItemDefinitionsList()) {
 				String id = itemId(item);
@@ -150,14 +156,16 @@ final class DmnIrRecordProducer {
 				else if (element.hasBusinessKnowledgeModel()) {
 					var bkm = element.getBusinessKnowledgeModel();
 					bkms.put(ref(model.identity().namespace(), bkm.getNode().getId()), bkm);
-				} else if (element.hasKnowledgeSource()) {
+				} else if (element.hasKnowledgeSource() || element.hasDecisionService()) {
 					continue;
 				} else
 					throw unsupported();
 			}
-		int minor = !collections.isEmpty()
+		int minor = (!collections.isEmpty() || usedCollectionProfile)
 				? 7
-				: fieldConstraintsProfile ? 6 : tableProfile ? 5 : dateProfile ? 4 : localProfile ? 3 : 2;
+				: fieldConstraintsProfile
+						? 6
+						: tableProfile ? 5 : dateProfile ? 4 : (localProfile || usedLocalProfile) ? 3 : 2;
 		if (closures)
 			minor = 11;
 		else if (!bkms.isEmpty())
@@ -753,6 +761,12 @@ final class DmnIrRecordProducer {
 			if (symbol.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.LOCAL_VARIABLE
 					|| symbol.kind() == io.finmsg.dmn.semantic.analysis.DmnSymbolKind.PARAMETER) {
 				var local = localBindings.get(symbol.declarationPath());
+				if (local == null && source.hasName()) {
+					String targetName = source.getName().getName();
+					local = localBindings.values().stream()
+							.filter(b -> !b.hasClosure() && b.getVariable().getName().equals(targetName)).findFirst()
+							.orElse(null);
+				}
 				if (local == null || local.hasClosure())
 					throw unsupported();
 				if (captures != null && captureScope.contains(local.getBindingId()))
@@ -797,6 +811,13 @@ final class DmnIrRecordProducer {
 									DmnIrFieldAccess.newBuilder().setSource(parent).setFieldName(value.getMember()))
 							.build();
 				}
+				if (pt == DmnIrScalarType.SCALAR_TYPE_NULL || parent.hasCollectionType()) {
+					usedLocalProfile = true;
+					return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL)
+							.setFieldAccess(
+									DmnIrFieldAccess.newBuilder().setSource(parent).setFieldName(value.getMember()))
+							.build();
+				}
 				throw unsupported();
 			}
 			var record = records.get(parent.getRecordType());
@@ -811,20 +832,32 @@ final class DmnIrRecordProducer {
 		if (source.hasFilter()) {
 			var filter = source.getFilter();
 			var input = expression(filter.getSource(), model, path + "/source", dependencies, depth + 1, expected);
-			if (!input.hasCollectionType())
-				throw unsupported();
-			var collection = collections.get(input.getCollectionType());
+			DmnIrScalarType itemScalar = DmnIrScalarType.SCALAR_TYPE_NULL;
+			if (input.hasCollectionType()) {
+				var collection = collections.get(input.getCollectionType());
+				if (collection != null && !collection.hasRecordType() && !collection.hasCollectionType()) {
+					itemScalar = collection.getElementType();
+				}
+			} else {
+				builtinCalls = true;
+			}
 			String itemId = path + "/filter/item";
-			localBindings.put(itemId,
-					DmnIrLocalBinding.newBuilder().setBindingId(itemId)
-							.setVariable(
-									DmnIrVariable.newBuilder().setName("item").setType(collection.getElementType()))
-							.build());
+			localBindings.put(itemId, DmnIrLocalBinding.newBuilder().setBindingId(itemId)
+					.setVariable(DmnIrVariable.newBuilder().setName("item").setType(itemScalar)).build());
 			try {
 				var predicate = expression(filter.getFilter(), model, path + "/filter", dependencies, depth + 1);
-				if (predicate.getType() != DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+				boolean numericIndex = predicate.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER;
+				if (predicate.getType() != DmnIrScalarType.SCALAR_TYPE_BOOLEAN && !numericIndex
+						&& predicate.getType() != DmnIrScalarType.SCALAR_TYPE_NULL)
 					throw unsupported();
 				filters = true;
+				if (numericIndex || predicate.getType() == DmnIrScalarType.SCALAR_TYPE_NULL) {
+					builtinCalls = true;
+					return DmnIrExpression
+							.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL).setFilter(DmnIrFilterExpression
+									.newBuilder().setSource(input).setItemBindingId(itemId).setPredicate(predicate))
+							.build();
+				}
 				return typed(expressionType(input)).setFilter(DmnIrFilterExpression.newBuilder().setSource(input)
 						.setItemBindingId(itemId).setPredicate(predicate)).build();
 			} finally {
@@ -1052,8 +1085,267 @@ final class DmnIrRecordProducer {
 				var def = closure(formals, body, model, path + "/function", depth + 1);
 				return output.setType(DmnIrScalarType.SCALAR_TYPE_NULL).setClosure(def).build();
 			}
+			case CONTEXT -> {
+				usedLocalProfile = true;
+				var ctx = source.getContext();
+				var builder = DmnIrContextLiteral.newBuilder();
+				var outer = new HashMap<>(localBindings);
+				try {
+					for (int i = 0; i < ctx.getEntriesCount(); i++) {
+						var entry = ctx.getEntries(i);
+						String ep = path + "/context/entry[" + i + "]";
+						var val = expression(entry.getExpression(), model, ep, dependencies, depth + 1);
+						var valType = expressionType(val);
+						var varBuilder = DmnIrVariable.newBuilder().setName(entry.getName());
+						if (valType.hasCollectionType()) {
+							varBuilder.setCollectionType(valType.getCollectionType());
+						} else if (valType.hasRecordType()) {
+							varBuilder.setRecordType(valType.getRecordType());
+						} else {
+							varBuilder.setType(valType.getScalarType());
+						}
+						var ctxBinding = DmnIrLocalBinding.newBuilder().setBindingId(ep).setVariable(varBuilder)
+								.setValue(val).build();
+						builder.addEntries(ctxBinding);
+						localBindings.put(ep, ctxBinding);
+					}
+					return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL)
+							.setContextLiteral(builder).build();
+				} finally {
+					localBindings.clear();
+					localBindings.putAll(outer);
+				}
+			}
+			case RANGE -> {
+				var range = source.getRange();
+				var builder = DmnIrRangeExpression.newBuilder()
+						.setLowerInclusive(range.getLowerBoundary() == RangeBoundary.RANGE_BOUNDARY_CLOSED)
+						.setUpperInclusive(range.getUpperBoundary() == RangeBoundary.RANGE_BOUNDARY_CLOSED);
+				if (range.hasLower()) {
+					builder.setLower(expression(range.getLower(), model, path + "/lower", dependencies, depth + 1));
+				}
+				if (range.hasUpper()) {
+					builder.setUpper(expression(range.getUpper(), model, path + "/upper", dependencies, depth + 1));
+				}
+				return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL).setRange(builder).build();
+			}
+			case INSTANCE_OF -> {
+				var inst = source.getInstanceOf();
+				var expr = expression(inst.getExpression(), model, path + "/expression", dependencies, depth + 1);
+				var testedType = feelTypeDescriptor(inst.getType(), model);
+				return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+						.setInstanceOf(
+								DmnIrInstanceOfExpression.newBuilder().setExpression(expr).setTestedType(testedType))
+						.build();
+			}
+			case FOR_EXPRESSION -> {
+				usedCollectionProfile = true;
+				var forExpr = source.getForExpression();
+				var builder = DmnIrForExpression.newBuilder();
+				var outer = new HashMap<>(localBindings);
+				try {
+					if (forExpr.getIterationsCount() > 0) {
+						for (int i = 0; i < forExpr.getIterationsCount(); i++) {
+							var it = forExpr.getIterations(i);
+							String ip = path + "/for/iter[" + i + "]";
+							var src = expression(it.getStart(), model, ip + "/start", dependencies, depth + 1);
+							var itBuilder = DmnIrForIteration.newBuilder().setBindingId(ip)
+									.setVariableName(it.getVariable()).setSource(src);
+							if (it.hasEnd()) {
+								itBuilder.setRangeEnd(
+										expression(it.getEnd(), model, ip + "/end", dependencies, depth + 1));
+							}
+							builder.addIterations(itBuilder);
+							localBindings.put(ip, DmnIrLocalBinding
+									.newBuilder().setBindingId(ip).setVariable(DmnIrVariable.newBuilder()
+											.setName(it.getVariable()).setType(DmnIrScalarType.SCALAR_TYPE_NULL))
+									.build());
+						}
+					} else {
+						String ip = path + "/for/iter[0]";
+						var src = expression(forExpr.getIn(), model, ip + "/in", dependencies, depth + 1);
+						builder.addIterations(DmnIrForIteration.newBuilder().setBindingId(ip)
+								.setVariableName(forExpr.getVariable()).setSource(src));
+						localBindings.put(ip,
+								DmnIrLocalBinding.newBuilder().setBindingId(ip).setVariable(DmnIrVariable.newBuilder()
+										.setName(forExpr.getVariable()).setType(DmnIrScalarType.SCALAR_TYPE_NULL))
+										.build());
+					}
+					String partialId = path + "/for/partial";
+					builder.setPartialBindingId(partialId);
+					localBindings.put(partialId,
+							DmnIrLocalBinding.newBuilder().setBindingId(partialId).setVariable(DmnIrVariable
+									.newBuilder().setName("partial").setType(DmnIrScalarType.SCALAR_TYPE_NULL))
+									.build());
+					var body = expression(forExpr.getReturnExpression(), model, path + "/return", dependencies,
+							depth + 1);
+					builder.setBody(body);
+					DmnIrTypeReference listType = expected != null && expected.hasCollectionType()
+							? expected
+							: ensureCollectionType(model,
+									body.getType() != DmnIrScalarType.SCALAR_TYPE_NULL
+											&& body.getType() != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED
+													? body.getType()
+													: DmnIrScalarType.SCALAR_TYPE_STRING);
+					return typed(listType).setForExpression(builder).build();
+				} finally {
+					localBindings.clear();
+					localBindings.putAll(outer);
+				}
+			}
+			case QUANTIFIED -> {
+				usedCollectionProfile = true;
+				var q = source.getQuantified();
+				var builder = DmnIrQuantifiedExpression.newBuilder()
+						.setEvery(q.getQuantifier() == Quantifier.QUANTIFIER_EVERY);
+				var outer = new HashMap<>(localBindings);
+				try {
+					if (q.getBindingsCount() > 0) {
+						for (int i = 0; i < q.getBindingsCount(); i++) {
+							var b = q.getBindings(i);
+							String bp = path + "/quantified/binding[" + i + "]";
+							var src = expression(b.getIn(), model, bp + "/in", dependencies, depth + 1);
+							builder.addBindings(DmnIrForIteration.newBuilder().setBindingId(bp)
+									.setVariableName(b.getVariable()).setSource(src));
+							localBindings.put(bp,
+									DmnIrLocalBinding
+											.newBuilder().setBindingId(bp).setVariable(DmnIrVariable.newBuilder()
+													.setName(b.getVariable()).setType(DmnIrScalarType.SCALAR_TYPE_NULL))
+											.build());
+						}
+					} else {
+						String bp = path + "/quantified/binding[0]";
+						var src = expression(q.getIn(), model, bp + "/in", dependencies, depth + 1);
+						builder.addBindings(DmnIrForIteration.newBuilder().setBindingId(bp)
+								.setVariableName(q.getVariable()).setSource(src));
+						localBindings.put(bp,
+								DmnIrLocalBinding
+										.newBuilder().setBindingId(bp).setVariable(DmnIrVariable.newBuilder()
+												.setName(q.getVariable()).setType(DmnIrScalarType.SCALAR_TYPE_NULL))
+										.build());
+					}
+					builder.setSatisfies(
+							expression(q.getSatisfies(), model, path + "/satisfies", dependencies, depth + 1));
+					return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+							.setQuantified(builder).build();
+				} finally {
+					localBindings.clear();
+					localBindings.putAll(outer);
+				}
+			}
 			default -> throw unsupported("Unsupported expression node: " + source.getNodeCase() + " at " + path);
 		}
+	}
+
+	private DmnIrTypeDescriptor feelTypeDescriptor(FeelType ft, DmnSemanticModel model) {
+		var b = DmnIrTypeDescriptor.newBuilder();
+		return switch (ft.getTypeCase()) {
+			case QUALIFIED_NAME -> {
+				String qn = ft.getQualifiedName().trim();
+				String kind = switch (qn) {
+					case "Any", "any" -> "ANY";
+					case "Null", "null" -> "NULL";
+					case "boolean" -> "BOOLEAN";
+					case "number" -> "NUMBER";
+					case "string" -> "STRING";
+					case "date" -> "DATE";
+					case "time" -> "TIME";
+					case "date and time" -> "DATE_TIME";
+					case "days and time duration" -> "DAYS_TIME_DURATION";
+					case "years and months duration" -> "YEARS_MONTHS_DURATION";
+					case "duration" -> "DURATION";
+					case "list" -> "LIST";
+					case "range" -> "RANGE";
+					case "context" -> "CONTEXT";
+					case "function" -> "FUNCTION";
+					default -> null;
+				};
+				if (kind != null) {
+					yield b.setKind(kind).build();
+				}
+				// Resolve named ItemDefinition in current or imported model.
+				var itemOpt = model.model().getItemDefinitionsList().stream()
+						.filter(i -> i.getNode().getName().equals(qn)).findFirst();
+				if (itemOpt.isPresent()) {
+					yield itemTypeDescriptor(itemOpt.get(), model);
+				}
+				yield b.setKind("ANY").build();
+			}
+			case LIST ->
+				b.setKind("LIST").setElementType(feelTypeDescriptor(ft.getList().getElementType(), model)).build();
+			case RANGE ->
+				b.setKind("RANGE").setElementType(feelTypeDescriptor(ft.getRange().getElementType(), model)).build();
+			case CONTEXT -> {
+				b.setKind("CONTEXT");
+				for (var entry : ft.getContext().getEntriesList()) {
+					b.addFields(DmnIrTypeField.newBuilder().setName(entry.getName())
+							.setType(feelTypeDescriptor(entry.getType(), model)));
+				}
+				yield b.build();
+			}
+			case FUNCTION -> {
+				b.setKind("FUNCTION");
+				for (var param : ft.getFunction().getParameterTypesList()) {
+					b.addParameterTypes(feelTypeDescriptor(param, model));
+				}
+				if (ft.getFunction().hasReturnType()) {
+					b.setReturnType(feelTypeDescriptor(ft.getFunction().getReturnType(), model));
+				}
+				yield b.build();
+			}
+			default -> b.setKind("ANY").build();
+		};
+	}
+
+	private DmnIrTypeDescriptor itemTypeDescriptor(ItemDefinition item, DmnSemanticModel model) {
+		DmnIrTypeDescriptor inner;
+		if (item.getComponentsCount() > 0) {
+			var ctx = DmnIrTypeDescriptor.newBuilder().setKind("CONTEXT");
+			for (var comp : item.getComponentsList()) {
+				ctx.addFields(DmnIrTypeField.newBuilder().setName(comp.getNode().getName())
+						.setType(typeRefDescriptor(comp.getType(), comp.getIsCollection(), model)));
+			}
+			inner = ctx.build();
+		} else {
+			inner = typeRefDescriptor(item.getType(), false, model);
+		}
+		if (item.getIsCollection()) {
+			return DmnIrTypeDescriptor.newBuilder().setKind("LIST").setElementType(inner).build();
+		}
+		return inner;
+	}
+
+	private DmnIrTypeDescriptor typeRefDescriptor(TypeReference tr, boolean isCollection, DmnSemanticModel model) {
+		DmnIrTypeDescriptor base;
+		if (tr.hasBuiltin()) {
+			String kind = switch (tr.getBuiltin()) {
+				case BUILTIN_TYPE_NULL -> "NULL";
+				case BUILTIN_TYPE_BOOLEAN -> "BOOLEAN";
+				case BUILTIN_TYPE_NUMBER -> "NUMBER";
+				case BUILTIN_TYPE_STRING -> "STRING";
+				case BUILTIN_TYPE_DATE -> "DATE";
+				case BUILTIN_TYPE_TIME -> "TIME";
+				case BUILTIN_TYPE_DATE_AND_TIME -> "DATE_TIME";
+				case BUILTIN_TYPE_DAYS_AND_TIME_DURATION -> "DAYS_TIME_DURATION";
+				case BUILTIN_TYPE_YEARS_AND_MONTHS_DURATION -> "YEARS_MONTHS_DURATION";
+				case BUILTIN_TYPE_DURATION -> "DURATION";
+				case BUILTIN_TYPE_RANGE -> "RANGE";
+				default -> "ANY";
+			};
+			base = DmnIrTypeDescriptor.newBuilder().setKind(kind).build();
+		} else if (tr.hasNamed()) {
+			String name = tr.getNamed().getName();
+			var itemOpt = model.model().getItemDefinitionsList().stream()
+					.filter(i -> i.getNode().getName().equals(name)).findFirst();
+			base = itemOpt.map(i -> itemTypeDescriptor(i, model))
+					.orElseGet(() -> DmnIrTypeDescriptor.newBuilder().setKind("ANY").build());
+		} else {
+			base = DmnIrTypeDescriptor.newBuilder().setKind("ANY").build();
+		}
+		if (isCollection) {
+			return DmnIrTypeDescriptor.newBuilder().setKind("LIST").setElementType(base).build();
+		}
+		return base;
 	}
 
 	private DmnIrExpression lowerIn(Expression subjectExpr, UnaryTestsExpression tests, DmnSemanticModel model,

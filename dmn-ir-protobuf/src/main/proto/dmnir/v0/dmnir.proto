@@ -209,6 +209,11 @@ message DmnIrExpression {
     DmnIrBkmCall bkm_call = 15;
     DmnIrClosureInvocation closure_invocation = 16;
     DmnIrClosure closure = 17;
+    DmnIrContextLiteral context_literal = 18;
+    DmnIrRangeExpression range = 19;
+    DmnIrInstanceOfExpression instance_of = 20;
+    DmnIrForExpression for_expression = 21;
+    DmnIrQuantifiedExpression quantified = 22;
   }
 }
 
@@ -367,6 +372,54 @@ message DmnIrClosureInvocation {
 message DmnIrContextExpression {
   repeated DmnIrLocalBinding bindings = 1;
   DmnIrExpression result = 2;
+}
+
+message DmnIrContextLiteral {
+  repeated DmnIrLocalBinding entries = 1;
+}
+
+message DmnIrRangeExpression {
+  DmnIrExpression lower = 1;
+  DmnIrExpression upper = 2;
+  bool lower_inclusive = 3;
+  bool upper_inclusive = 4;
+}
+
+message DmnIrTypeField {
+  string name = 1;
+  DmnIrTypeDescriptor type = 2;
+}
+
+message DmnIrTypeDescriptor {
+  string kind = 1;
+  DmnIrTypeDescriptor element_type = 2;
+  repeated DmnIrTypeField fields = 3;
+  repeated DmnIrTypeDescriptor parameter_types = 4;
+  DmnIrTypeDescriptor return_type = 5;
+}
+
+message DmnIrInstanceOfExpression {
+  DmnIrExpression expression = 1;
+  DmnIrTypeDescriptor tested_type = 2;
+}
+
+message DmnIrForIteration {
+  string binding_id = 1;
+  string variable_name = 2;
+  DmnIrExpression source = 3;
+  DmnIrExpression range_end = 4;
+}
+
+message DmnIrForExpression {
+  repeated DmnIrForIteration iterations = 1;
+  string partial_binding_id = 2;
+  DmnIrExpression body = 3;
+}
+
+message DmnIrQuantifiedExpression {
+  bool every = 1;
+  repeated DmnIrForIteration bindings = 2;
+  DmnIrExpression satisfies = 3;
 }
 
 message DmnIrUnaryExpression {

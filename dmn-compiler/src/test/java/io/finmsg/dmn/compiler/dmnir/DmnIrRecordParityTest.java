@@ -94,15 +94,17 @@ class DmnIrRecordParityTest {
 		assertTrue(withTime.artifact().getModels(0).getRecordDefinitionsList().stream()
 				.flatMap(r -> r.getFieldsList().stream())
 				.anyMatch(f -> f.getType().getScalarType() == DmnIrScalarType.SCALAR_TYPE_TIME));
-		for (String changed : List.of(
-				xml.replace("<typeRef>number</typeRef>",
-						"<typeRef>number</typeRef><allowedValues><text>&gt; 1 + 2</text></allowedValues>"),
-				xml.replace("<text>Driver</text>", "<text>{Name: \"Synthetic\", Points: 1}</text>"))) {
-			var error = assertThrows(DmnIrProductionException.class, () -> new DmnIrScalarProducer()
-					.produce(new DmnSource(source.id(), changed.getBytes(StandardCharsets.UTF_8))));
-			assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE, error.category(),
-					error.diagnostics().toString());
-		}
+		var withContext = new DmnIrScalarProducer().produce(new DmnSource(source.id(),
+				xml.replace("<text>Driver</text>", "<text>{Name: \"Synthetic\", Points: 1}</text>")
+						.getBytes(StandardCharsets.UTF_8)));
+		assertTrue(withContext.artifact().getModels(0).getDecisionsList().stream()
+				.anyMatch(d -> d.hasExpression() && d.getExpression().hasContextLiteral()));
+		String unsupportedConstraint = xml.replace("<typeRef>number</typeRef>",
+				"<typeRef>number</typeRef><allowedValues><text>&gt; 1 + 2</text></allowedValues>");
+		var error = assertThrows(DmnIrProductionException.class, () -> new DmnIrScalarProducer()
+				.produce(new DmnSource(source.id(), unsupportedConstraint.getBytes(StandardCharsets.UTF_8))));
+		assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE, error.category(),
+				error.diagnostics().toString());
 	}
 
 	@Test

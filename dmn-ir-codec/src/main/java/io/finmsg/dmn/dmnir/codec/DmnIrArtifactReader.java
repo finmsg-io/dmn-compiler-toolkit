@@ -830,23 +830,36 @@ public final class DmnIrArtifactReader {
 					var filter = expression.getFilter();
 					check(filter.hasSource() && filter.hasPredicate(), INVALID_EXPRESSION, path,
 							"A filter source and predicate are required.");
-					check(nodeType.hasCollectionType()
-							&& nodeType.equals(typeOf(filter.getSource(), path + ".filter.source")), INVALID_TYPE, path,
-							"Filter source and result must have the same named collection type.");
+					boolean numericIndex = builtinProfile
+							&& filter.getPredicate().getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER;
+					boolean dynamicFilter = builtinProfile && (!nodeType.hasCollectionType()
+							|| !typeOf(filter.getSource(), path + ".filter.source").hasCollectionType());
+					if (!dynamicFilter && !numericIndex) {
+						check(nodeType.hasCollectionType()
+								&& nodeType.equals(typeOf(filter.getSource(), path + ".filter.source")), INVALID_TYPE,
+								path, "Filter source and result must have the same named collection type.");
+					}
 					node(filter.getSource(), owner, dependencies, path + ".filter.source", depth + 1);
 					var binding = filter.getItemBindingId();
 					budget(path + ".filter.item_binding_id");
 					check(!binding.isBlank() && bindingIds.add(binding), INVALID_IDENTITY, path,
 							"A unique filter item binding ID is required.");
-					check(filter.getPredicate().getType() == DmnIrScalarType.SCALAR_TYPE_BOOLEAN, INVALID_TYPE,
-							path + ".filter.predicate", "A statically boolean predicate is required.");
-					var colDef = collections.get(Address.of(nodeType.getCollectionType()));
-					var itemType = colDef.hasRecordType()
-							? DmnIrTypeReference.newBuilder().setRecordType(colDef.getRecordType()).build()
-							: colDef.hasCollectionType()
-									? DmnIrTypeReference.newBuilder().setCollectionType(colDef.getCollectionType())
-											.build()
-									: DmnIrTypeReference.newBuilder().setScalarType(colDef.getElementType()).build();
+					check(filter.getPredicate().getType() == DmnIrScalarType.SCALAR_TYPE_BOOLEAN || numericIndex
+							|| (builtinProfile && filter.getPredicate().getType() == DmnIrScalarType.SCALAR_TYPE_NULL),
+							INVALID_TYPE, path + ".filter.predicate", "A statically boolean predicate is required.");
+					var srcType = typeOf(filter.getSource(), path + ".filter.source");
+					var itemType = DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL)
+							.build();
+					if (srcType.hasCollectionType()) {
+						var colDef = collections.get(Address.of(srcType.getCollectionType()));
+						itemType = colDef.hasRecordType()
+								? DmnIrTypeReference.newBuilder().setRecordType(colDef.getRecordType()).build()
+								: colDef.hasCollectionType()
+										? DmnIrTypeReference.newBuilder().setCollectionType(colDef.getCollectionType())
+												.build()
+										: DmnIrTypeReference.newBuilder().setScalarType(colDef.getElementType())
+												.build();
+					}
 					visibleLocals.put(binding, itemType);
 					filterPredicate = true;
 					try {
@@ -957,6 +970,9 @@ public final class DmnIrArtifactReader {
 								&& right != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED && booleanResult;
 						default -> false;
 					};
+					if (!valid && recordsProfile && expression.getType() == DmnIrScalarType.SCALAR_TYPE_NULL) {
+						valid = true;
+					}
 					check(valid, INVALID_TYPE, path + ".binary", "Unsupported binary operator signature.");
 				}
 				case CONDITIONAL -> {
@@ -979,9 +995,11 @@ public final class DmnIrArtifactReader {
 					var access = expression.getFieldAccess();
 					check(access.hasSource(), INVALID_EXPRESSION, path, "Field source is required.");
 					node(access.getSource(), owner, dependencies, path + ".field_access.source", depth + 1);
-					if (datesProfile && isTemporal(access.getSource().getType())) {
+					if ((datesProfile && isTemporal(access.getSource().getType()))
+							|| (localsProfile && (access.getSource().getType() == DmnIrScalarType.SCALAR_TYPE_NULL
+									|| access.getSource().hasCollectionType()))) {
 						check(!access.getFieldName().isBlank(), INVALID_REFERENCE, path + ".field_access.field_name",
-								"Temporal property name is required.");
+								"Property name is required.");
 					} else {
 						check(access.getSource().hasRecordType(), INVALID_TYPE, path,
 								"Field source must be a named record.");
@@ -997,6 +1015,103 @@ public final class DmnIrArtifactReader {
 				case CLOSURE -> {
 					check(closureProfile, UNSUPPORTED_CAPABILITY, path, "Closures require profile 0.11.");
 					closure(expression.getClosure(), owner, path + ".closure", depth + 1);
+				}
+				case CONTEXT_LITERAL -> {
+					check(localsProfile, UNSUPPORTED_CAPABILITY, path, "Context literals require profile 0.3.");
+					var ctx = expression.getContextLiteral();
+					Map<String, DmnIrTypeReference> savedLocals = new HashMap<>(visibleLocals);
+					Map<String, DmnIrClosure> savedClosures = new HashMap<>(visibleClosures);
+					try {
+						for (int i = 0; i < ctx.getEntriesCount(); i++) {
+							var entry = ctx.getEntries(i);
+							String entryPath = path + ".context_literal.entries[" + i + "]";
+							budget(entryPath);
+							check(!entry.getBindingId().isBlank(), INVALID_IDENTITY, entryPath + ".binding_id",
+									"Context entry binding ID is required.");
+							if (entry.hasClosure()) {
+								closure(entry.getClosure().getDefinition(), owner, entryPath + ".closure", depth + 1);
+								visibleClosures.put(entry.getBindingId(), entry.getClosure().getDefinition());
+							} else {
+								check(entry.hasValue(), INVALID_EXPRESSION, entryPath + ".value",
+										"Context entry value is required.");
+								node(entry.getValue(), owner, dependencies, entryPath + ".value", depth + 1);
+								visibleLocals.put(entry.getBindingId(), typeOf(entry.getValue(), entryPath + ".value"));
+							}
+						}
+					} finally {
+						visibleLocals.clear();
+						visibleLocals.putAll(savedLocals);
+						visibleClosures.clear();
+						visibleClosures.putAll(savedClosures);
+					}
+				}
+				case RANGE -> {
+					check(expressions, UNSUPPORTED_CAPABILITY, path, "Range expressions require profile 0.1.");
+					var range = expression.getRange();
+					if (range.hasLower()) {
+						node(range.getLower(), owner, dependencies, path + ".range.lower", depth + 1);
+					}
+					if (range.hasUpper()) {
+						node(range.getUpper(), owner, dependencies, path + ".range.upper", depth + 1);
+					}
+				}
+				case INSTANCE_OF -> {
+					check(expressions, UNSUPPORTED_CAPABILITY, path, "Instance-of expressions require profile 0.1.");
+					var inst = expression.getInstanceOf();
+					check(inst.hasExpression() && inst.hasTestedType(), INVALID_EXPRESSION, path + ".instance_of",
+							"Instance-of expression and tested type are required.");
+					node(inst.getExpression(), owner, dependencies, path + ".instance_of.expression", depth + 1);
+				}
+				case FOR_EXPRESSION -> {
+					check(collectionsProfile, UNSUPPORTED_CAPABILITY, path, "For expressions require profile 0.7.");
+					var forExpr = expression.getForExpression();
+					check(forExpr.getIterationsCount() > 0 && forExpr.hasBody(), INVALID_EXPRESSION,
+							path + ".for_expression", "For expression requires iterations and body.");
+					Map<String, DmnIrTypeReference> savedLocals = new HashMap<>(visibleLocals);
+					try {
+						var anyType = DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL)
+								.build();
+						for (int i = 0; i < forExpr.getIterationsCount(); i++) {
+							var it = forExpr.getIterations(i);
+							String itPath = path + ".for_expression.iterations[" + i + "]";
+							budget(itPath);
+							node(it.getSource(), owner, dependencies, itPath + ".source", depth + 1);
+							if (it.hasRangeEnd()) {
+								node(it.getRangeEnd(), owner, dependencies, itPath + ".range_end", depth + 1);
+							}
+							visibleLocals.put(it.getBindingId(), anyType);
+						}
+						if (!forExpr.getPartialBindingId().isBlank()) {
+							visibleLocals.put(forExpr.getPartialBindingId(), anyType);
+						}
+						node(forExpr.getBody(), owner, dependencies, path + ".for_expression.body", depth + 1);
+					} finally {
+						visibleLocals.clear();
+						visibleLocals.putAll(savedLocals);
+					}
+				}
+				case QUANTIFIED -> {
+					check(collectionsProfile, UNSUPPORTED_CAPABILITY, path,
+							"Quantified expressions require profile 0.7.");
+					var q = expression.getQuantified();
+					check(q.getBindingsCount() > 0 && q.hasSatisfies(), INVALID_EXPRESSION, path + ".quantified",
+							"Quantified expression requires bindings and satisfies.");
+					Map<String, DmnIrTypeReference> savedLocals = new HashMap<>(visibleLocals);
+					try {
+						var anyType = DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL)
+								.build();
+						for (int i = 0; i < q.getBindingsCount(); i++) {
+							var b = q.getBindings(i);
+							String bPath = path + ".quantified.bindings[" + i + "]";
+							budget(bPath);
+							node(b.getSource(), owner, dependencies, bPath + ".source", depth + 1);
+							visibleLocals.put(b.getBindingId(), anyType);
+						}
+						node(q.getSatisfies(), owner, dependencies, path + ".quantified.satisfies", depth + 1);
+					} finally {
+						visibleLocals.clear();
+						visibleLocals.putAll(savedLocals);
+					}
 				}
 				default -> check(false, INVALID_EXPRESSION, path, "An expression node is required.");
 			}

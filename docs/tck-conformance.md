@@ -26,7 +26,7 @@ This document pins the exact OMG DMN TCK revision used for conformance
 testing and records per-backend, per-compliance-level results for the
 DMN Compiler Toolkit.
 
-Latest portable DMNIR Java assessment (`optimized-generated-portable-java`): 2026-11-23, **2,613/3,407 passed (76.70%)** via pre-compiled `dmn-tck` `.dmnir` Protobufs + batch `javac` (`5m 17s`). Full portable-Java compliance is not yet established.
+Latest portable DMNIR Java assessment (`optimized-generated-portable-java`): 2026-11-23, **3,006/3,407 passed (88.23%)** via pre-compiled `dmn-tck` `.dmnir` Protobufs (`3,102` exported / `2,430` `.dmnir` files) + batch `javac` (`4m 59s`). Full portable-Java compliance is not yet established.
 
 Latest standalone Rust assessment: 2026-11-17, **1,018/3,407 passed (29.88%)** under exact decimal comparison. Full Rust compliance is not established.
 
