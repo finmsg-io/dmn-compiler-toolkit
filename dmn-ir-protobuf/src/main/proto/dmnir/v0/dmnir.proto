@@ -37,6 +37,16 @@ message DmnIrModel {
   repeated DmnIrRecordDefinition record_definitions = 6;
   repeated DmnIrCollectionDefinition collection_definitions = 7;
   repeated DmnIrBkm bkms = 8;
+  repeated DmnIrDecisionService decision_services = 9;
+}
+
+message DmnIrDecisionService {
+  DmnIrElementIdentity identity = 1;
+  DmnIrVariable variable = 2;
+  repeated DmnIrReference output_decisions = 3;
+  repeated DmnIrReference encapsulated_decisions = 4;
+  repeated DmnIrReference input_decisions = 5;
+  repeated DmnIrReference input_data = 6;
 }
 
 message DmnIrElementIdentity {
@@ -214,7 +224,19 @@ message DmnIrExpression {
     DmnIrInstanceOfExpression instance_of = 20;
     DmnIrForExpression for_expression = 21;
     DmnIrQuantifiedExpression quantified = 22;
+    DmnIrDynamicInvocation dynamic_invocation = 23;
   }
+}
+
+message DmnIrDynamicInvocation {
+  DmnIrExpression target = 1;
+  repeated DmnIrExpression positional_arguments = 2;
+  repeated DmnIrNamedArgument named_arguments = 3;
+}
+
+message DmnIrNamedArgument {
+  string name = 1;
+  DmnIrExpression value = 2;
 }
 
 message DmnIrTypeReference {
@@ -360,6 +382,7 @@ message DmnIrClosure {
   DmnIrTypeReference result_type = 2;
   repeated string captured_binding_ids = 3;
   DmnIrExpression body = 4;
+  bool external = 5;
 }
 
 message DmnIrClosureInvocation {

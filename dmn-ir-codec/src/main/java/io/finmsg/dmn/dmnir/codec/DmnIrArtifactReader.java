@@ -991,7 +991,8 @@ public final class DmnIrArtifactReader {
 								&& right != DmnIrScalarType.SCALAR_TYPE_UNSPECIFIED && booleanResult;
 						default -> false;
 					};
-					if (!valid && recordsProfile && expression.getType() == DmnIrScalarType.SCALAR_TYPE_NULL) {
+					if (!valid && ((recordsProfile && expression.getType() == DmnIrScalarType.SCALAR_TYPE_NULL)
+							|| builtinProfile)) {
 						valid = true;
 					}
 					check(valid, INVALID_TYPE, path + ".binary", "Unsupported binary operator signature.");
@@ -1132,6 +1133,25 @@ public final class DmnIrArtifactReader {
 					} finally {
 						visibleLocals.clear();
 						visibleLocals.putAll(savedLocals);
+					}
+				}
+				case DYNAMIC_INVOCATION -> {
+					check(closureProfile, UNSUPPORTED_CAPABILITY, path, "Dynamic invocations require profile 0.11.");
+					var inv = expression.getDynamicInvocation();
+					check(inv.hasTarget(), INVALID_EXPRESSION, path + ".dynamic_invocation.target",
+							"Dynamic invocation target is required.");
+					node(inv.getTarget(), owner, dependencies, path + ".dynamic_invocation.target", depth + 1);
+					for (int i = 0; i < inv.getPositionalArgumentsCount(); i++) {
+						node(inv.getPositionalArguments(i), owner, dependencies,
+								path + ".dynamic_invocation.positional_arguments[" + i + "]", depth + 1);
+					}
+					for (int i = 0; i < inv.getNamedArgumentsCount(); i++) {
+						var arg = inv.getNamedArguments(i);
+						check(!arg.getName().isBlank() && arg.hasValue(), INVALID_EXPRESSION,
+								path + ".dynamic_invocation.named_arguments[" + i + "]",
+								"Named argument requires name and value.");
+						node(arg.getValue(), owner, dependencies,
+								path + ".dynamic_invocation.named_arguments[" + i + "].value", depth + 1);
 					}
 				}
 				default -> check(false, INVALID_EXPRESSION, path, "An expression node is required.");
@@ -1311,6 +1331,11 @@ public final class DmnIrArtifactReader {
 						return true;
 					}
 				}
+			}
+			if (datesProfile && actual.hasScalarType() && expected.hasScalarType()
+					&& actual.getScalarType() == DmnIrScalarType.SCALAR_TYPE_DATE
+					&& expected.getScalarType() == DmnIrScalarType.SCALAR_TYPE_DATE_TIME) {
+				return true;
 			}
 			return false;
 		}

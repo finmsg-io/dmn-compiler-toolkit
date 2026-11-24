@@ -1021,10 +1021,10 @@ final class DmnIrRecordProducer {
 					&& call.getPositionalArguments(0).getLiteral().getKind() == LiteralKind.LITERAL_KIND_STRING
 					&& model.bindings().stream().noneMatch(b -> b.referencePath().equals(path + "/target"))) {
 				var date = DmnIrDates.fromFeel(call.getPositionalArguments(0).getLiteral().getValue());
-				if (date == null)
-					throw unsupported();
-				return typed(type(source.getInferredType(), model))
-						.setLiteral(DmnIrLiteral.newBuilder().setDateValue(DmnIrDates.wire(date))).build();
+				if (date != null) {
+					return typed(type(source.getInferredType(), model))
+							.setLiteral(DmnIrLiteral.newBuilder().setDateValue(DmnIrDates.wire(date))).build();
+				}
 			}
 			var signature = DmnIrBuiltinSignature.forFeelName(call.getTarget().getName().getName());
 			if (signature.isPresent())
@@ -1137,14 +1137,27 @@ final class DmnIrRecordProducer {
 						return nullLiteral();
 					}
 				}
-				if (!value.getTarget().hasName() || !value.getTarget().getName().getName().equals("not")
-						|| value.getArgumentsCount() != 0 || value.getPositionalArgumentsCount() != 1)
-					throw unsupported();
-				return output
-						.setUnary(DmnIrUnaryExpression.newBuilder().setOperator(DmnIrUnaryOperator.UNARY_OPERATOR_NOT)
-								.setOperand(expression(value.getPositionalArguments(0), model, path + "/argument[0]",
-										dependencies, depth + 1)))
-						.build();
+				if (value.getTarget().hasName() && value.getTarget().getName().getName().equals("not")
+						&& value.getArgumentsCount() == 0 && value.getPositionalArgumentsCount() == 1) {
+					return output.setUnary(
+							DmnIrUnaryExpression.newBuilder().setOperator(DmnIrUnaryOperator.UNARY_OPERATOR_NOT)
+									.setOperand(expression(value.getPositionalArguments(0), model,
+											path + "/argument[0]", dependencies, depth + 1)))
+							.build();
+				}
+				closures = true;
+				var dyn = DmnIrDynamicInvocation.newBuilder()
+						.setTarget(expression(value.getTarget(), model, path + "/target", dependencies, depth + 1));
+				for (int i = 0; i < value.getPositionalArgumentsCount(); i++) {
+					dyn.addPositionalArguments(expression(value.getPositionalArguments(i), model,
+							path + "/argument[" + i + "]", dependencies, depth + 1));
+				}
+				for (int i = 0; i < value.getArgumentsCount(); i++) {
+					var arg = value.getArguments(i);
+					dyn.addNamedArguments(DmnIrNamedArgument.newBuilder().setName(arg.getName()).setValue(expression(
+							arg.getExpression(), model, path + "/named[" + i + "]", dependencies, depth + 1)));
+				}
+				return output.setDynamicInvocation(dyn).build();
 			}
 			case BETWEEN -> {
 				var between = source.getBetween();
@@ -1173,8 +1186,6 @@ final class DmnIrRecordProducer {
 			}
 			case FUNCTION_DEFINITION -> {
 				var fn = source.getFunctionDefinition();
-				if (fn.getExternal())
-					throw unsupported();
 				var types = source.getInferredType().hasFunction()
 						? source.getInferredType().getFunction().getParameterTypeList()
 						: java.util.Collections.<TypeReference>nCopies(fn.getParametersCount(),
@@ -1187,6 +1198,9 @@ final class DmnIrRecordProducer {
 				}
 				var body = ExpressionParsed.newBuilder().setFeel(FeelParsed.newBuilder().setAst(fn.getBody())).build();
 				var def = closure(formals, body, model, path + "/function", depth + 1);
+				if (fn.getExternal()) {
+					def = def.toBuilder().setExternal(true).build();
+				}
 				return output.setType(DmnIrScalarType.SCALAR_TYPE_NULL).setClosure(def).build();
 			}
 			case CONTEXT -> {
@@ -1336,6 +1350,46 @@ final class DmnIrRecordProducer {
 					localBindings.clear();
 					localBindings.putAll(outer);
 				}
+			}
+			case NAME -> {
+				String targetName = source.getName().getName();
+				var local = localBindings.values().stream()
+						.filter(b -> !b.hasClosure() && b.getVariable().getName().equals(targetName)).findFirst()
+						.orElse(null);
+				if (local != null) {
+					if (captures != null && captureScope.contains(local.getBindingId()))
+						captures.add(local.getBindingId());
+					var variable = local.getVariable();
+					var localType = DmnIrTypeReference.newBuilder();
+					if (variable.hasCollectionType())
+						localType.setCollectionType(variable.getCollectionType());
+					else if (variable.hasRecordType())
+						localType.setRecordType(variable.getRecordType());
+					else
+						localType.setScalarType(variable.getType());
+					return typed(localType.build())
+							.setLocalReference(DmnIrLocalReference.newBuilder().setBindingId(local.getBindingId()))
+							.build();
+				}
+				for (var element : model.model().getDrgElementsList()) {
+					if (element.hasInputData()
+							&& element.getInputData().getVariable().getNode().getName().equals(targetName)) {
+						var address = ref(model.identity().namespace(), element.getInputData().getNode().getId());
+						dependencies.add(address);
+						return typed(declarations.getOrDefault(address, DmnIrTypeReference.newBuilder()
+								.setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build())).setGlobalReference(address)
+								.build();
+					}
+					if (element.hasDecision()
+							&& element.getDecision().getVariable().getNode().getName().equals(targetName)) {
+						var address = ref(model.identity().namespace(), element.getDecision().getNode().getId());
+						dependencies.add(address);
+						return typed(declarations.getOrDefault(address, DmnIrTypeReference.newBuilder()
+								.setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build())).setGlobalReference(address)
+								.build();
+					}
+				}
+				throw unsupported("Unsupported expression node: NAME at " + path);
 			}
 			default -> throw unsupported("Unsupported expression node: " + source.getNodeCase() + " at " + path);
 		}

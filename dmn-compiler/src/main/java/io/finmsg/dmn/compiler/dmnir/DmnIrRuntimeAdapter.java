@@ -124,9 +124,11 @@ public final class DmnIrRuntimeAdapter {
 		for (Declaration declaration : declarations) {
 			int slot = slots.get(declaration.id());
 			var variable = declaration.variable();
-			RuntimeType type = variable.hasCollectionType()
-					? types.collectionType(variable.getCollectionType())
-					: types.type(variable.getType(), variable.hasRecordType(), variable.getRecordType());
+			RuntimeType type = declaration.decision() == null && artifact.getSchemaVersion().getMinor() < 2
+					? (variable.hasCollectionType()
+							? types.collectionType(variable.getCollectionType())
+							: types.type(variable.getType(), variable.hasRecordType(), variable.getRecordType()))
+					: variableType(variable, types);
 			Binding binding = new Binding(declaration.id(), declaration.identity().getName(),
 					declaration.variable().hasId() ? Optional.of(declaration.variable().getId()) : Optional.empty(),
 					declaration.variable().getName(), type, slot);
@@ -184,9 +186,10 @@ public final class DmnIrRuntimeAdapter {
 	}
 
 	private static RuntimeType variableType(DmnIrVariable variable, DmnIrRecordTypes types) {
-		return variable.hasCollectionType()
+		RuntimeType type = variable.hasCollectionType()
 				? types.collectionType(variable.getCollectionType())
 				: types.type(variable.getType(), variable.hasRecordType(), variable.getRecordType());
+		return type.kind() == RuntimeTypeKind.NULL ? RuntimeType.scalar(RuntimeTypeKind.ANY) : type;
 	}
 
 	private static void orderBkm(ElementId address, Map<ElementId, DmnIrBkm> bkms, Map<ElementId, Integer> slots,
@@ -290,7 +293,8 @@ public final class DmnIrRuntimeAdapter {
 				: types.type(result.getScalarType(), result.hasRecordType(), result.getRecordType());
 		var signature = RuntimeType.function(parameters.stream().map(RuntimeFunctionParameter::type).toList(),
 				resultType);
-		return new RuntimeFunctionDefinition(parameters, Optional.of(body), false, nextSlot[0], signature);
+		return new RuntimeFunctionDefinition(parameters, Optional.of(body), source.getExternal(), nextSlot[0],
+				signature);
 	}
 
 	private static RuntimeExpression expression(DmnIrExpression expression, Map<ElementId, Integer> slots,
@@ -497,6 +501,15 @@ public final class DmnIrRuntimeAdapter {
 				var satisfies = expression(q.getSatisfies(), slots, types, child, nextSlot);
 				yield new RuntimeQuantifiedExpression(q.getEvery() ? RuntimeQuantifier.EVERY : RuntimeQuantifier.SOME,
 						bindings, satisfies, RuntimeType.scalar(RuntimeTypeKind.BOOLEAN));
+			}
+			case DYNAMIC_INVOCATION -> {
+				var inv = expression.getDynamicInvocation();
+				var target = expression(inv.getTarget(), slots, types, locals, nextSlot);
+				var positional = inv.getPositionalArgumentsList().stream()
+						.map(arg -> expression(arg, slots, types, locals, nextSlot)).toList();
+				var named = inv.getNamedArgumentsList().stream().map(arg -> new RuntimeNamedArgument(arg.getName(),
+						expression(arg.getValue(), slots, types, locals, nextSlot))).toList();
+				yield new RuntimeInvocationExpression(Optional.empty(), Optional.of(target), named, positional, type);
 			}
 			default -> throw new IllegalArgumentException("Unsupported expression in runtime adapter.");
 		};
