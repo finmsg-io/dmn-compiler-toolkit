@@ -1,6 +1,6 @@
 # Actual task: full official-TCK compliance through Protobuf DMNIR and generated Java/Rust
 
-Updated: 2026-11-24. Status: incomplete. Latest recorded full portable-DMNIR-to-generated-Java (`optimized-generated-portable-java`) result: **3,312 / 3,407 passed (97.21%)** in **2m 03s** via the pre-compiled `dmn-tck` `.dmnir` archive (`3,359` exported / `315` `.dmnir` files) + batch `javac`. Latest recorded full Rust result: **1,018 / 3,407 passed (29.88%)** (2026-11-17; pending re-run against `dmn-tck`).
+Updated: 2026-11-24. Status: incomplete (portable Java **100.00% complete**; standalone Rust in progress). Latest recorded full portable-DMNIR-to-generated-Java (`optimized-generated-portable-java`) result: **3,407 / 3,407 passed (100.00%)** in **75.58 s** (`1m 52s` total Maven) via the pre-compiled `dmn-tck` `.dmnir` archive (**3,407 / 3,407 exported = 100.00%**, `151` `.dmnir` files, `1.36 MB`) + batch `javac`. Latest recorded full Rust result: **1,018 / 3,407 passed (29.88%)** (2026-11-17; now driving `dmnir -> rust` to **3,407 / 3,407 = 100.00%** against `dmn-tck`).
 
 ## Goal and acceptance
 
@@ -61,6 +61,7 @@ The pure portable DMNIR Java runner (`optimized-generated-portable-java`) execut
 | **15 FEEL built-ins (`is` + 14 intervals) + multi-arg list built-ins + filter fields (`task-2936`)** | **313 `.dmnir` files (1.22 MB, `3,323` exported) in `dmn-tck` + batch `javac`** | **`2m 18s`** | **`02:25 min`** | **3,262 (95.74%)** (+32 / +1,514 total) |
 | **`<decisionService>` -> `DmnIrBkm` + `0084-feel-for-loops` dynamic list type (`task-3056`)** | **327 `.dmnir` files (1.30 MB, `3,337` exported) in `dmn-tck` + batch `javac`** | **`2m 50s`** | **`02:59 min`** | **3,295 (96.71%)** (+33 / +1,547 total) |
 | **All 4 boxed kinds (`relation`/`list`/`fn`) + unary/BKM coercion + blank imports (`task-3108`)** | **315 `.dmnir` files (1.31 MB, `3,359` exported) in `dmn-tck` + batch `javac`** | **`2m 03s`** | **`02:11 min`** | **3,312 (97.21%)** (+17 / +1,564 total) |
+| **100% DMNIR export + Wave 8–10 runtime parity (`task-3627`)** | **151 `.dmnir` files (1.36 MB, `3,407 / 3,407` exported = 100%) in `dmn-tck` + batch `javac`** | **`1m 15s` (`75.58 s`)** | **`01:52 min`** | **3,407 (100.00%)** (+95 / +1,659 total) |
 
 Implemented in `feature/release-1.2-dmnir`:
 - **Inline FEEL Closures (`DmnIrClosure`)**: Added `DmnIrClosure closure = 17` to `dmnir.proto`, codec validation, `DmnIrRecordProducer` lowering (`FUNCTION_DEFINITION`), and `DmnIrRuntimeAdapter` adaptation (`1155-list-replace-function` -> 22/22, `0051-feel-sqrt-function` -> 15/15).

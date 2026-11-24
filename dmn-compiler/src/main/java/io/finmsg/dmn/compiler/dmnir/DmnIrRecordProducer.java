@@ -117,8 +117,9 @@ final class DmnIrRecordProducer {
 							colBuilder.setCollectionType(elemType.getCollectionType());
 						} else {
 							var element = elemType.getScalarType();
-							if (element == DmnIrScalarType.SCALAR_TYPE_NULL && !elemType.hasCollectionType())
-								element = DmnIrScalarType.SCALAR_TYPE_STRING;
+							if (element == DmnIrScalarType.SCALAR_TYPE_NULL && !elemType.hasCollectionType()) {
+								builtinCalls = true;
+							}
 							colBuilder.setElementType(element);
 						}
 						collections.put(reference, colBuilder.build());
@@ -287,6 +288,10 @@ final class DmnIrRecordProducer {
 							}
 						}
 					}
+					if (declaredType != null && wire.hasExpression()
+							&& !expressionType(wire.getExpression()).equals(declaredType)) {
+						builtinCalls = true;
+					}
 					wire.setVariable(variable(decision.getVariable(), model, resolvedVarType));
 					declarations.put(ref(model.identity().namespace(), decision.getNode().getId()), resolvedVarType);
 					decisions.add(wire.addAllDependencies(dependencies).build());
@@ -441,8 +446,9 @@ final class DmnIrRecordProducer {
 		localBindings.clear();
 		knowledge = knowledge(source.getKnowledgeRequirementsList(), model);
 		String path = "definitions/businessKnowledgeModel[" + source.getNode().getName() + "]";
+		var bkmRetType = bkmReturnType(source.getVariable(), model);
 		var bkm = DmnIrBkm.newBuilder().setIdentity(identity(source.getNode()))
-				.setVariable(variable(source.getVariable(), model)).addAllKnowledgeDependencies(knowledge);
+				.setVariable(variable(source.getVariable(), model, bkmRetType)).addAllKnowledgeDependencies(knowledge);
 		for (int i = 0; i < function.getFormalParametersCount(); i++) {
 			String binding = path + "/parameter[" + i + "]";
 			var formal = variable(function.getFormalParameters(i), model);
@@ -501,13 +507,10 @@ final class DmnIrRecordProducer {
 		knowledge = Set.of();
 		String path = "definitions/decisionService[" + ds.getNode().getName() + "]";
 		var params = decisionServiceParameters(ds, model);
-		var dsVar = DmnIrVariable.newBuilder()
-				.setName(ds.getVariable().getNode().getName().isBlank()
-						? ds.getNode().getName()
-						: ds.getVariable().getNode().getName())
-				.setType(DmnIrScalarType.SCALAR_TYPE_NULL);
-		if (!ds.getVariable().getNode().getId().isBlank()) {
-			dsVar.setId(ds.getVariable().getNode().getId());
+		var dsRetType = bkmReturnType(ds.getVariable(), model);
+		var dsVar = variable(ds.getVariable(), model, dsRetType).toBuilder();
+		if (dsVar.getName().isBlank()) {
+			dsVar.setName(ds.getNode().getName());
 		}
 		var bkmBuilder = DmnIrBkm.newBuilder().setIdentity(identity(ds.getNode())).setVariable(dsVar);
 		List<ElementReference> inputRefs = new ArrayList<>();
@@ -524,8 +527,31 @@ final class DmnIrRecordProducer {
 			bkmBuilder.addParameters(DmnIrBkmParameter.newBuilder().setBindingId(binding).setVariable(formal));
 		}
 		// Collect output decisions (and encapsulated decisions if needed)
-		DmnIrExpression body = null;
+		List<DmnIrLocalBinding> encapsulatedBindings = new ArrayList<>();
 		Set<DmnIrReference> globals = new HashSet<>();
+		for (int i = 0; i < ds.getEncapsulatedDecisionsCount(); i++) {
+			String href = ds.getEncapsulatedDecisions(i).getHref();
+			String encId = href.startsWith("#") ? href.substring(1) : href;
+			for (var el : model.model().getDrgElementsList()) {
+				if (el.hasDecision() && el.getDecision().getNode().getId().equals(encId)) {
+					var dec = el.getDecision();
+					String decPath = "definitions/decision[" + dec.getNode().getName() + "]/logic";
+					DmnIrExpression encExpr = decisionExprForService(dec, model, decPath, globals);
+					if (encExpr != null) {
+						String ep = path + "/encapsulated[" + i + "]";
+						var encVar = variable(dec.getVariable(), model, expressionType(encExpr)).toBuilder().clearId()
+								.build();
+						var encBinding = DmnIrLocalBinding.newBuilder().setBindingId(ep).setVariable(encVar)
+								.setValue(encExpr).build();
+						encapsulatedBindings.add(encBinding);
+						localBindings.put(ep, encBinding);
+						localBindings.put("$ds$" + encId, encBinding);
+					}
+					break;
+				}
+			}
+		}
+		DmnIrExpression body = null;
 		if (ds.getOutputDecisionsCount() == 1) {
 			String href = ds.getOutputDecisions(0).getHref();
 			String outId = href.startsWith("#") ? href.substring(1) : href;
@@ -533,13 +559,7 @@ final class DmnIrRecordProducer {
 				if (el.hasDecision() && el.getDecision().getNode().getId().equals(outId)) {
 					var dec = el.getDecision();
 					String decPath = "definitions/decision[" + dec.getNode().getName() + "]/logic";
-					if (dec.getLogic().hasLiteralExpression() && dec.getLogic().getLiteralExpression().hasParsed()) {
-						body = expression(dec.getLogic().getLiteralExpression().getParsed().getAst(), model,
-								decPath + "/literalExpression", globals, 1, null);
-					} else if (dec.getLogic().hasBoxedExpression() && dec.getLogic().getBoxedExpression().hasParsed()) {
-						body = boxed(dec.getLogic().getBoxedExpression().getParsed(), model,
-								decPath + "/boxedExpression", globals, 1, null);
-					}
+					body = decisionExprForService(dec, model, decPath, globals);
 					break;
 				}
 			}
@@ -553,16 +573,7 @@ final class DmnIrRecordProducer {
 					if (el.hasDecision() && el.getDecision().getNode().getId().equals(outId)) {
 						var dec = el.getDecision();
 						String decPath = "definitions/decision[" + dec.getNode().getName() + "]/logic";
-						DmnIrExpression expr = null;
-						if (dec.getLogic().hasLiteralExpression()
-								&& dec.getLogic().getLiteralExpression().hasParsed()) {
-							expr = expression(dec.getLogic().getLiteralExpression().getParsed().getAst(), model,
-									decPath + "/literalExpression", globals, 1, null);
-						} else if (dec.getLogic().hasBoxedExpression()
-								&& dec.getLogic().getBoxedExpression().hasParsed()) {
-							expr = boxed(dec.getLogic().getBoxedExpression().getParsed(), model,
-									decPath + "/boxedExpression", globals, 1, null);
-						}
+						DmnIrExpression expr = decisionExprForService(dec, model, decPath, globals);
 						if (expr != null) {
 							String ep = path + "/output[" + i + "]";
 							var entryVar = DmnIrVariable.newBuilder().setName(dec.getNode().getName())
@@ -579,10 +590,63 @@ final class DmnIrRecordProducer {
 			body = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL).setContextLiteral(ctxLit)
 					.build();
 		}
+		if (body != null && !encapsulatedBindings.isEmpty()) {
+			usedLocalProfile = true;
+			var ctx = DmnIrContextExpression.newBuilder().addAllBindings(encapsulatedBindings).setResult(body);
+			body = typed(expressionType(body)).setContext(ctx).build();
+		}
 		if (body == null || !globals.isEmpty()) {
 			return null;
 		}
 		return bkmBuilder.setBody(body).build();
+	}
+
+	private DmnIrExpression decisionExprForService(Decision dec, DmnSemanticModel model, String decPath,
+			Set<DmnIrReference> globals) {
+		if (!dec.hasLogic() || dec.getLogic().getTypeCase() == DecisionLogic.TypeCase.TYPE_NOT_SET) {
+			return nullLiteral();
+		}
+		if (dec.getLogic().hasLiteralExpression() && dec.getLogic().getLiteralExpression().hasParsed()) {
+			return expression(dec.getLogic().getLiteralExpression().getParsed().getAst(), model,
+					decPath + "/literalExpression", globals, 1, null);
+		}
+		if (dec.getLogic().hasBoxedExpression() && dec.getLogic().getBoxedExpression().hasParsed()) {
+			return boxed(dec.getLogic().getBoxedExpression().getParsed(), model, decPath + "/boxedExpression", globals,
+					1, null);
+		}
+		if (dec.getLogic().hasDecisionTable()) {
+			var dt = dec.getLogic().getDecisionTable();
+			if (dt.getOutputsCount() == 1 && dt.getRulesCount() > 0) {
+				DmnIrExpression acc = nullLiteral();
+				for (int r = dt.getRulesCount() - 1; r >= 0; r--) {
+					var rule = dt.getRules(r);
+					DmnIrExpression cond = null;
+					for (int c = 0; c < dt.getInputsCount(); c++) {
+						var entry = rule.getInputEntries(c);
+						if (!entry.hasParsed() || entry.getParsed().getTests().getWildcard())
+							continue;
+						var inExpr = dt.getInputs(c).getInputExpression().getParsed().getAst();
+						var testExpr = lowerIn(inExpr, entry.getParsed().getTests(), model,
+								decPath + "/decisionTable/rule[" + r + "]/inputEntry[" + c + "]", globals, 1);
+						cond = cond == null
+								? testExpr
+								: DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+										.setBinary(DmnIrBinaryExpression.newBuilder()
+												.setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_AND).setLeft(cond)
+												.setRight(testExpr))
+										.build();
+					}
+					var outExpr = feel(rule.getOutputEntries(0), model,
+							decPath + "/decisionTable/rule[" + r + "]/outputEntry[0]", globals);
+					acc = cond == null
+							? outExpr
+							: typed(expressionType(outExpr)).setConditional(DmnIrConditionalExpression.newBuilder()
+									.setCondition(cond).setThenExpression(outExpr).setElseExpression(acc)).build();
+				}
+				return acc;
+			}
+		}
+		return null;
 	}
 
 	private DmnIrDecisionTable table(DecisionTable source, DmnIrTypeReference result, DmnSemanticModel model,
@@ -701,8 +765,41 @@ final class DmnIrRecordProducer {
 				var entry = sourceRule.getInputEntries(j);
 				if (!entry.hasParsed())
 					throw unsupported();
-				rule.addInputEntries(
-						tests(entry.getParsed().getTests(), model, rulePath + "/inputEntry[" + j + "]", dependencies));
+				var entryTests = tests(entry.getParsed().getTests(), model, rulePath + "/inputEntry[" + j + "]",
+						dependencies);
+				var colType = table.getInputs(j).getType();
+				if (colType == DmnIrScalarType.SCALAR_TYPE_NULL) {
+					builtinCalls = true;
+				} else {
+					for (var t : entryTests.getTestsList()) {
+						if (t.hasComparison()) {
+							var ep = t.getComparison().getEndpoint();
+							var op = t.getComparison().getOperator();
+							boolean ordered = op == DmnIrBinaryOperator.BINARY_OPERATOR_LESS
+									|| op == DmnIrBinaryOperator.BINARY_OPERATOR_LESS_EQUAL
+									|| op == DmnIrBinaryOperator.BINARY_OPERATOR_GREATER
+									|| op == DmnIrBinaryOperator.BINARY_OPERATOR_GREATER_EQUAL;
+							boolean standardOrdered = colType == DmnIrScalarType.SCALAR_TYPE_NUMBER
+									|| colType == DmnIrScalarType.SCALAR_TYPE_STRING
+									|| colType == DmnIrScalarType.SCALAR_TYPE_DATE;
+							if (ep.hasCollectionType() || ep.hasRecordType()
+									|| (ep.getType() != colType && ep.getType() != DmnIrScalarType.SCALAR_TYPE_NULL)
+									|| (ordered && !standardOrdered)) {
+								builtinCalls = true;
+							}
+						} else if (t.hasRange()) {
+							var lo = t.getRange().getLower();
+							var hi = t.getRange().getUpper();
+							boolean standardOrdered = colType == DmnIrScalarType.SCALAR_TYPE_NUMBER
+									|| colType == DmnIrScalarType.SCALAR_TYPE_STRING
+									|| colType == DmnIrScalarType.SCALAR_TYPE_DATE;
+							if (lo.getType() != colType || hi.getType() != colType || !standardOrdered) {
+								builtinCalls = true;
+							}
+						}
+					}
+				}
+				rule.addInputEntries(entryTests);
 			}
 			for (int j = 0; j < sourceRule.getOutputEntriesCount(); j++)
 				rule.addOutputEntries(feel(sourceRule.getOutputEntries(j), model, rulePath + "/outputEntry[" + j + "]",
@@ -838,6 +935,31 @@ final class DmnIrRecordProducer {
 		throw unsupported();
 	}
 
+	private DmnIrTypeReference bkmReturnType(InformationItem item, DmnSemanticModel model) {
+		if (item == null || !item.hasType())
+			return null;
+		var t = item.getType();
+		if (t.hasFunction() && t.getFunction().hasReturnType()) {
+			return type(t.getFunction().getReturnType(), model);
+		}
+		if (t.hasNamed()) {
+			String name = t.getNamed().getName();
+			String ns = t.getNamed().getNamespace().isBlank()
+					? model.identity().namespace()
+					: t.getNamed().getNamespace();
+			var targetModel = models.get(ns);
+			if (targetModel != null) {
+				var itemDef = targetModel.model().getItemDefinitionsList().stream()
+						.filter(i -> i.getNode().getName().equals(name)).findFirst();
+				if (itemDef.isPresent() && itemDef.get().hasType() && itemDef.get().getType().hasFunction()
+						&& itemDef.get().getType().getFunction().hasReturnType()) {
+					return type(itemDef.get().getType().getFunction().getReturnType(), targetModel);
+				}
+			}
+		}
+		return null;
+	}
+
 	private DmnIrTypeReference type(TypeReference type, DmnSemanticModel model) {
 		if (type == null)
 			return DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build();
@@ -911,7 +1033,7 @@ final class DmnIrRecordProducer {
 	}
 	private DmnIrExpression expression(Expression source, DmnSemanticModel model, String path,
 			Set<DmnIrReference> dependencies, int depth, DmnIrTypeReference expected) {
-		if (depth > 32)
+		if (depth > 64)
 			throw unsupported();
 		var binding = model.bindings().stream().filter(b -> b.referencePath().equals(path)).findFirst();
 		if (source.hasName() && binding.isEmpty()) {
@@ -946,8 +1068,9 @@ final class DmnIrRecordProducer {
 							.orElse(null);
 					if (local == null) {
 						var itemBinding = localBindings.values().stream()
-								.filter(b -> !b.hasClosure() && b.getVariable().getName().equals("item")).findFirst()
-								.orElse(null);
+								.filter(b -> !b.hasClosure() && (b.getVariable().getName().equals("item")
+										|| b.getVariable().getName().equals("$filter_item$")))
+								.findFirst().orElse(null);
 						if (itemBinding != null) {
 							var itemVar = itemBinding.getVariable();
 							var itemType = DmnIrTypeReference.newBuilder();
@@ -979,8 +1102,14 @@ final class DmnIrRecordProducer {
 						}
 					}
 				}
-				if (local == null || local.hasClosure())
+				if (local == null)
 					throw unsupported();
+				if (local.hasClosure()) {
+					closures = true;
+					return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL)
+							.setLocalReference(DmnIrLocalReference.newBuilder().setBindingId(local.getBindingId()))
+							.build();
+				}
 				if (captures != null && captureScope.contains(local.getBindingId()))
 					captures.add(local.getBindingId());
 				var variable = local.getVariable();
@@ -1012,8 +1141,12 @@ final class DmnIrRecordProducer {
 					symbol.targetNamespace().isBlank() ? model.identity().namespace() : symbol.targetNamespace(),
 					symbol.symbolId());
 			var type = declarations.get(address);
-			if (type == null)
+			if (type == null) {
+				if (bkms.containsKey(address) || decisionServices.containsKey(address)) {
+					return bkmAsClosure(address, path);
+				}
 				throw unsupported();
+			}
 			dependencies.add(address);
 			return typed(type).setGlobalReference(address).build();
 		}
@@ -1039,12 +1172,12 @@ final class DmnIrRecordProducer {
 				}
 				if (pt == DmnIrScalarType.SCALAR_TYPE_NULL || parent.hasCollectionType()) {
 					usedLocalProfile = true;
-					return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL)
-							.setFieldAccess(
-									DmnIrFieldAccess.newBuilder().setSource(parent).setFieldName(value.getMember()))
-							.build();
+				} else {
+					builtinCalls = true;
 				}
-				throw unsupported();
+				return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL)
+						.setFieldAccess(DmnIrFieldAccess.newBuilder().setSource(parent).setFieldName(value.getMember()))
+						.build();
 			}
 			var record = records.get(parent.getRecordType());
 			if (record == null)
@@ -1058,7 +1191,10 @@ final class DmnIrRecordProducer {
 		if (source.hasFilter()) {
 			var filter = source.getFilter();
 			var input = expression(filter.getSource(), model, path + "/source", dependencies, depth + 1, expected);
-			var itemVar = DmnIrVariable.newBuilder().setName("item");
+			boolean hasItemField = input.hasList() && input.getList().getElementsList().stream()
+					.anyMatch(el -> el.hasContextLiteral() && el.getContextLiteral().getEntriesList().stream()
+							.anyMatch(e -> !e.hasClosure() && "item".equals(e.getVariable().getName())));
+			var itemVar = DmnIrVariable.newBuilder().setName(hasItemField ? "$filter_item$" : "item");
 			if (input.hasCollectionType()) {
 				var collection = collections.get(input.getCollectionType());
 				if (collection != null) {
@@ -1081,11 +1217,8 @@ final class DmnIrRecordProducer {
 			try {
 				var predicate = expression(filter.getFilter(), model, path + "/filter", dependencies, depth + 1);
 				boolean numericIndex = predicate.getType() == DmnIrScalarType.SCALAR_TYPE_NUMBER;
-				if (predicate.getType() != DmnIrScalarType.SCALAR_TYPE_BOOLEAN && !numericIndex
-						&& predicate.getType() != DmnIrScalarType.SCALAR_TYPE_NULL)
-					throw unsupported();
 				filters = true;
-				if (numericIndex || predicate.getType() == DmnIrScalarType.SCALAR_TYPE_NULL) {
+				if (predicate.getType() != DmnIrScalarType.SCALAR_TYPE_BOOLEAN || !input.hasCollectionType()) {
 					builtinCalls = true;
 					return DmnIrExpression
 							.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL).setFilter(DmnIrFilterExpression
@@ -1140,7 +1273,8 @@ final class DmnIrRecordProducer {
 			DmnIrScalarType uniformScalar = null;
 			boolean uniform = true;
 			for (var el : list.getElementsList()) {
-				if (el.hasRecordType() || el.hasCollectionType()) {
+				if (el.hasRecordType() || el.hasCollectionType() || el.hasContextLiteral() || el.hasClosure()
+						|| el.hasRange()) {
 					uniform = false;
 					break;
 				}
@@ -1174,8 +1308,10 @@ final class DmnIrRecordProducer {
 			if (!yesType.hasScalarType() || !noType.hasScalarType()) {
 				result = yesType.hasScalarType() ? noType : yesType;
 				var other = yesType.hasScalarType() ? yesType : noType;
-				if (!other.equals(result) && other.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL)
-					throw unsupported();
+				if (!other.equals(result) && other.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+					builtinCalls = true;
+					result = DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build();
+				}
 			} else if (expected != null && expected.hasCollectionType()
 					&& yesType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL
 					&& noType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL) {
@@ -1192,7 +1328,8 @@ final class DmnIrRecordProducer {
 			var closureBinding = model.bindings().stream().filter(symbol -> symbol.referencePath().equals(targetPath))
 					.map(symbol -> localBindings.get(symbol.declarationPath())).filter(Objects::nonNull)
 					.filter(DmnIrLocalBinding::hasClosure).findFirst();
-			if (call.getTarget().hasFunctionDefinition() || closureBinding.isPresent())
+			if ((call.getTarget().hasFunctionDefinition() || closureBinding.isPresent())
+					&& call.getArgumentsCount() == 0)
 				return closureCall(call, closureBinding, model, path, dependencies, depth);
 			if (call.getTarget().hasName() && call.getTarget().getName().getName().equals("date")
 					&& source.getInferredType().getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE
@@ -1217,7 +1354,7 @@ final class DmnIrRecordProducer {
 						return builtinCall(call, signature.get(), model, path, dependencies, depth, expected);
 				}
 			}
-			if (boundBkm(model, path + "/target").isPresent())
+			if (boundBkm(model, path + "/target").isPresent() || boundBkmByName(call, model).isPresent())
 				return bkmCall(call, model, path + "/target", dependencies, depth,
 						index -> path + "/argument[" + index + "]");
 		}
@@ -1226,43 +1363,84 @@ final class DmnIrRecordProducer {
 			case LITERAL -> {
 				var literal = DmnIrLiteral.newBuilder();
 				var value = source.getLiteral();
+				DmnIrScalarType litType;
 				switch (value.getKind()) {
-					case LITERAL_KIND_NULL -> literal.setNullValue(DmnIrNull.NULL_VALUE);
-					case LITERAL_KIND_BOOLEAN -> literal.setBooleanValue(Boolean.parseBoolean(value.getValue()));
-					case LITERAL_KIND_STRING -> literal.setStringValue(value.getValue());
+					case LITERAL_KIND_NULL -> {
+						literal.setNullValue(DmnIrNull.NULL_VALUE);
+						litType = DmnIrScalarType.SCALAR_TYPE_NULL;
+					}
+					case LITERAL_KIND_BOOLEAN -> {
+						literal.setBooleanValue(Boolean.parseBoolean(value.getValue()));
+						litType = DmnIrScalarType.SCALAR_TYPE_BOOLEAN;
+					}
+					case LITERAL_KIND_STRING -> {
+						literal.setStringValue(value.getValue());
+						litType = DmnIrScalarType.SCALAR_TYPE_STRING;
+					}
 					case LITERAL_KIND_DATE -> {
 						var date = DmnIrDates.fromFeel(value.getValue());
 						if (date == null)
 							throw unsupported();
 						literal.setDateValue(DmnIrDates.wire(date));
+						litType = DmnIrScalarType.SCALAR_TYPE_DATE;
 					}
 					case LITERAL_KIND_NUMBER -> {
 						var number = new BigDecimal(value.getValue());
 						literal.setNumberValue(DmnIrDecimal.newBuilder()
 								.setUnscaledValue(number.unscaledValue().toString()).setScale(number.scale()));
+						litType = DmnIrScalarType.SCALAR_TYPE_NUMBER;
 					}
-					case LITERAL_KIND_TIME -> literal.setTimeValue(value.getValue());
-					case LITERAL_KIND_DATE_TIME -> literal.setDateTimeValue(value.getValue());
-					case LITERAL_KIND_DURATION -> literal.setDurationValue(value.getValue());
+					case LITERAL_KIND_TIME -> {
+						literal.setTimeValue(value.getValue());
+						litType = DmnIrScalarType.SCALAR_TYPE_TIME;
+					}
+					case LITERAL_KIND_DATE_TIME -> {
+						literal.setDateTimeValue(value.getValue());
+						litType = DmnIrScalarType.SCALAR_TYPE_DATE_TIME;
+					}
+					case LITERAL_KIND_DURATION -> {
+						literal.setDurationValue(value.getValue());
+						litType = DmnIrScalarType.SCALAR_TYPE_DURATION;
+					}
 					default -> throw unsupported();
 				}
-				return output.setLiteral(literal).build();
+				return DmnIrExpression.newBuilder().setType(litType).setLiteral(literal).build();
 			}
 			case UNARY -> {
 				var value = source.getUnary();
-				return output.setUnary(DmnIrUnaryExpression.newBuilder().setOperator(switch (value.getOperator()) {
+				var op = switch (value.getOperator()) {
 					case UNARY_OPERATOR_PLUS -> DmnIrUnaryOperator.UNARY_OPERATOR_POSITIVE;
 					case UNARY_OPERATOR_MINUS -> DmnIrUnaryOperator.UNARY_OPERATOR_NEGATE;
 					case UNARY_OPERATOR_NOT -> DmnIrUnaryOperator.UNARY_OPERATOR_NOT;
 					default -> throw unsupported();
-				}).setOperand(expression(value.getExpression(), model, path + "/unary", dependencies, depth + 1)))
-						.build();
+				};
+				var operand = expression(value.getExpression(), model, path + "/unary", dependencies, depth + 1);
+				if ((op == DmnIrUnaryOperator.UNARY_OPERATOR_POSITIVE || op == DmnIrUnaryOperator.UNARY_OPERATOR_NEGATE)
+						&& operand.getType() != DmnIrScalarType.SCALAR_TYPE_NUMBER
+						&& operand.getType() != DmnIrScalarType.SCALAR_TYPE_DURATION) {
+					builtinCalls = true;
+				} else if (op == DmnIrUnaryOperator.UNARY_OPERATOR_NOT
+						&& operand.getType() != DmnIrScalarType.SCALAR_TYPE_BOOLEAN
+						&& operand.getType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+					builtinCalls = true;
+				}
+				return output.setUnary(DmnIrUnaryExpression.newBuilder().setOperator(op).setOperand(operand)).build();
 			}
 			case BINARY -> {
 				var value = source.getBinary();
-				return output.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(binary(value.getOperator()))
-						.setLeft(expression(value.getLeft(), model, path + "/left", dependencies, depth + 1))
-						.setRight(expression(value.getRight(), model, path + "/right", dependencies, depth + 1)))
+				var op = binary(value.getOperator());
+				var left = expression(value.getLeft(), model, path + "/left", dependencies, depth + 1);
+				var right = expression(value.getRight(), model, path + "/right", dependencies, depth + 1);
+				boolean equality = op == DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL
+						|| op == DmnIrBinaryOperator.BINARY_OPERATOR_NOT_EQUAL;
+				if (!equality && (left.hasCollectionType() || left.hasRecordType() || right.hasCollectionType()
+						|| right.hasRecordType()
+						|| (left.getType() != right.getType() && left.getType() != DmnIrScalarType.SCALAR_TYPE_NULL
+								&& right.getType() != DmnIrScalarType.SCALAR_TYPE_NULL))) {
+					builtinCalls = true;
+				}
+				return output
+						.setBinary(DmnIrBinaryExpression.newBuilder().setOperator(op).setLeft(left).setRight(right))
 						.build();
 			}
 			case INVOCATION -> {
@@ -1325,11 +1503,14 @@ final class DmnIrRecordProducer {
 				}
 				if (value.getTarget().hasName() && value.getTarget().getName().getName().equals("not")
 						&& value.getArgumentsCount() == 0 && value.getPositionalArgumentsCount() == 1) {
-					return output.setUnary(
-							DmnIrUnaryExpression.newBuilder().setOperator(DmnIrUnaryOperator.UNARY_OPERATOR_NOT)
-									.setOperand(expression(value.getPositionalArguments(0), model,
-											path + "/argument[0]", dependencies, depth + 1)))
-							.build();
+					var operand = expression(value.getPositionalArguments(0), model, path + "/argument[0]",
+							dependencies, depth + 1);
+					if (operand.getType() != DmnIrScalarType.SCALAR_TYPE_BOOLEAN
+							&& operand.getType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+						builtinCalls = true;
+					}
+					return output.setUnary(DmnIrUnaryExpression.newBuilder()
+							.setOperator(DmnIrUnaryOperator.UNARY_OPERATOR_NOT).setOperand(operand)).build();
 				}
 				closures = true;
 				var dyn = DmnIrDynamicInvocation.newBuilder()
@@ -1383,7 +1564,7 @@ final class DmnIrRecordProducer {
 							.setNode(Node.newBuilder().setName(fn.getParameters(i).getName())).setType(type).build());
 				}
 				var body = ExpressionParsed.newBuilder().setFeel(FeelParsed.newBuilder().setAst(fn.getBody())).build();
-				var def = closure(formals, body, model, path + "/function", depth + 1);
+				var def = closure(formals, body, model, path + "/function", dependencies, depth + 1);
 				if (fn.getExternal()) {
 					def = def.toBuilder().setExternal(true).build();
 				}
@@ -1392,6 +1573,12 @@ final class DmnIrRecordProducer {
 			case CONTEXT -> {
 				usedLocalProfile = true;
 				var ctx = source.getContext();
+				Set<String> seenKeys = new HashSet<>();
+				for (int i = 0; i < ctx.getEntriesCount(); i++) {
+					if (!seenKeys.add(ctx.getEntries(i).getName())) {
+						return nullLiteral();
+					}
+				}
 				var builder = DmnIrContextLiteral.newBuilder();
 				var outer = new HashMap<>(localBindings);
 				try {
@@ -1457,11 +1644,6 @@ final class DmnIrRecordProducer {
 							if (it.hasEnd()) {
 								src = expression(it.getStart(), model, ip + "/start", dependencies, depth + 1);
 								endExpr = expression(it.getEnd(), model, ip + "/end", dependencies, depth + 1);
-							} else if (it.getStart().hasRange() && it.getStart().getRange().hasLower()
-									&& it.getStart().getRange().hasUpper()) {
-								var r = it.getStart().getRange();
-								src = expression(r.getLower(), model, ip + "/start/lower", dependencies, depth + 1);
-								endExpr = expression(r.getUpper(), model, ip + "/start/upper", dependencies, depth + 1);
 							} else {
 								src = expression(it.getStart(), model, ip + "/start", dependencies, depth + 1);
 							}
@@ -1480,18 +1662,7 @@ final class DmnIrRecordProducer {
 						String ip = path + "/for/iter[0]";
 						var itBuilder = DmnIrForIteration.newBuilder().setBindingId(ip)
 								.setVariableName(forExpr.getVariable());
-						if (forExpr.getIn().hasRange() && forExpr.getIn().getRange().hasLower()
-								&& forExpr.getIn().getRange().hasUpper()) {
-							var r = forExpr.getIn().getRange();
-							itBuilder
-									.setSource(
-											expression(r.getLower(), model, ip + "/in/lower", dependencies, depth + 1))
-									.setRangeEnd(
-											expression(r.getUpper(), model, ip + "/in/upper", dependencies, depth + 1));
-						} else {
-							itBuilder
-									.setSource(expression(forExpr.getIn(), model, ip + "/in", dependencies, depth + 1));
-						}
+						itBuilder.setSource(expression(forExpr.getIn(), model, ip + "/in", dependencies, depth + 1));
 						builder.addIterations(itBuilder);
 						localBindings.put(ip,
 								DmnIrLocalBinding.newBuilder().setBindingId(ip).setVariable(DmnIrVariable.newBuilder()
@@ -1580,6 +1751,27 @@ final class DmnIrRecordProducer {
 							.setLocalReference(DmnIrLocalReference.newBuilder().setBindingId(local.getBindingId()))
 							.build();
 				}
+				var closureLocal = localBindings.values().stream()
+						.filter(b -> b.hasClosure() && b.getClosure().getName().equals(targetName)).findFirst()
+						.orElse(null);
+				if (closureLocal != null) {
+					closures = true;
+					return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL)
+							.setClosure(closureLocal.getClosure().getDefinition()).build();
+				}
+				for (var bkmRef : knowledge) {
+					var bkmOwner = models.get(bkmRef.getModelNamespace());
+					if (bkmOwner == null)
+						continue;
+					String bkmName = bkms.containsKey(bkmRef)
+							? bkms.get(bkmRef).getVariable().getNode().getName()
+							: (decisionServices.containsKey(bkmRef)
+									? decisionServices.get(bkmRef).getVariable().getNode().getName()
+									: null);
+					if (targetName.equals(bkmName)) {
+						return bkmAsClosure(bkmRef, path);
+					}
+				}
 				for (var element : model.model().getDrgElementsList()) {
 					if (element.hasInputData()
 							&& element.getInputData().getVariable().getNode().getName().equals(targetName)) {
@@ -1598,7 +1790,11 @@ final class DmnIrRecordProducer {
 								.build();
 					}
 				}
-				throw unsupported("Unsupported expression node: NAME at " + path);
+				var builtinSig = DmnIrBuiltinSignature.forFeelName(targetName);
+				if (builtinSig.isPresent()) {
+					return builtinAsClosure(builtinSig.get(), path);
+				}
+				return nullLiteral();
 			}
 			default -> throw unsupported("Unsupported expression node: " + source.getNodeCase() + " at " + path);
 		}
@@ -1839,13 +2035,29 @@ final class DmnIrRecordProducer {
 			String subjectPath, String testPath, Set<DmnIrReference> dependencies, int depth) {
 		boolean subjectIsList = subjectExpr.hasList()
 				|| (subjectExpr.hasInferredType() && subjectExpr.getInferredType().hasList());
-		if (testExpr.hasList() && !subjectIsList) {
+		if (testExpr.hasList()) {
 			var list = testExpr.getList();
 			DmnIrExpression disjunction = null;
+			if (subjectIsList) {
+				disjunction = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+						.setBinary(DmnIrBinaryExpression.newBuilder()
+								.setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL)
+								.setLeft(expression(subjectExpr, model, subjectPath, dependencies, depth + 1))
+								.setRight(expression(testExpr, model, testPath, dependencies, depth + 1)))
+						.build();
+			}
 			for (int i = 0; i < list.getElementsCount(); i++) {
 				var elem = list.getElements(i);
-				DmnIrExpression term = lowerExpressionTest(subjectExpr, elem, model, subjectPath,
-						testPath + "/element[" + i + "]", dependencies, depth);
+				DmnIrExpression term = subjectIsList
+						? DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+								.setBinary(DmnIrBinaryExpression.newBuilder()
+										.setOperator(DmnIrBinaryOperator.BINARY_OPERATOR_EQUAL)
+										.setLeft(expression(subjectExpr, model, subjectPath, dependencies, depth + 1))
+										.setRight(expression(elem, model, testPath + "/element[" + i + "]",
+												dependencies, depth + 1)))
+								.build()
+						: lowerExpressionTest(subjectExpr, elem, model, subjectPath, testPath + "/element[" + i + "]",
+								dependencies, depth);
 				if (term == null)
 					continue;
 				if (disjunction == null) {
@@ -1862,6 +2074,18 @@ final class DmnIrRecordProducer {
 		}
 		if (testExpr.hasRange()) {
 			return lowerRangeTest(subjectExpr, testExpr.getRange(), model, subjectPath, testPath, dependencies, depth);
+		}
+		if ((testExpr.hasInferredType() && testExpr.getInferredType().hasRange())
+				|| (testExpr.hasInvocation() && testExpr.getInvocation().getTarget().hasName()
+						&& testExpr.getInvocation().getTarget().getName().getName().equals("range"))) {
+			builtinCalls = true;
+			var rangeVal = expression(testExpr, model, testPath, dependencies, depth + 1);
+			var subjVal = expression(subjectExpr, model, subjectPath, dependencies, depth + 1);
+			return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_BOOLEAN)
+					.setBuiltinCall(
+							DmnIrBuiltinCall.newBuilder().setOperation(DmnIrBuiltinOperation.BUILTIN_OPERATION_INCLUDES)
+									.addArguments(rangeVal).addArguments(subjVal))
+					.build();
 		}
 		var subjectType = findUnderlyingScalarType(subjectExpr);
 		var testType = findUnderlyingScalarType(testExpr);
@@ -1882,7 +2106,7 @@ final class DmnIrRecordProducer {
 
 	private DmnIrExpression closureCall(InvocationExpression source, Optional<DmnIrLocalBinding> binding,
 			DmnSemanticModel model, String path, Set<DmnIrReference> dependencies, int depth) {
-		if (captures != null || source.getArgumentsCount() != 0)
+		if (source.getArgumentsCount() != 0)
 			throw unsupported();
 		var call = DmnIrClosureInvocation.newBuilder();
 		DmnIrClosure definition;
@@ -1901,7 +2125,7 @@ final class DmnIrRecordProducer {
 						.setNode(Node.newBuilder().setName(inline.getParameters(i).getName())).setType(types.get(i))
 						.build());
 			var body = ExpressionParsed.newBuilder().setFeel(FeelParsed.newBuilder().setAst(inline.getBody())).build();
-			definition = closure(formals, body, model, path + "/target", depth + 1);
+			definition = closure(formals, body, model, path + "/target", dependencies, depth + 1);
 			call.setInline(definition);
 		}
 		if (source.getPositionalArgumentsCount() != definition.getParametersCount())
@@ -1913,11 +2137,61 @@ final class DmnIrRecordProducer {
 		return typed(definition.getResultType()).setClosureInvocation(call).build();
 	}
 
+	private DmnIrExpression bkmAsClosure(DmnIrReference target, String path) {
+		closures = true;
+		var owner = models.get(target.getModelNamespace());
+		List<InformationItem> parameters;
+		DmnIrTypeReference returnType;
+		if (bkms.containsKey(target)) {
+			var bkm = bkms.get(target);
+			parameters = bkm.getFunction().getFormalParametersList();
+			returnType = type(bkm.getVariable().getType(), owner);
+		} else {
+			var ds = decisionServices.get(target);
+			parameters = decisionServiceParameters(ds, owner);
+			returnType = DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL).build();
+		}
+		var def = DmnIrClosure.newBuilder().setResultType(returnType);
+		var call = DmnIrBkmCall.newBuilder().setTarget(target);
+		for (int i = 0; i < parameters.size(); i++) {
+			String id = path + "/bkm_wrap/parameter[" + i + "]";
+			var formal = variable(parameters.get(i), owner);
+			def.addParameters(DmnIrBkmParameter.newBuilder().setBindingId(id).setVariable(formal));
+			var argType = type(parameters.get(i).getType(), owner);
+			var refExpr = typed(argType).setLocalReference(DmnIrLocalReference.newBuilder().setBindingId(id)).build();
+			call.addArguments(DmnIrBkmArgument.newBuilder().setParameterPosition(i + 1).setExpression(refExpr));
+		}
+		def.setBody(typed(returnType).setBkmCall(call).build());
+		return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL).setClosure(def).build();
+	}
+
+	private DmnIrExpression builtinAsClosure(DmnIrBuiltinSignature sig, String path) {
+		closures = true;
+		builtinCalls = true;
+		var returnType = DmnIrTypeReference.newBuilder().setScalarType(sig.result()).build();
+		var def = DmnIrClosure.newBuilder().setResultType(returnType);
+		var call = DmnIrBuiltinCall.newBuilder().setOperation(sig.operation());
+		int arity = sig.minArity() > 0 ? sig.minArity() : sig.parameters().size();
+		for (int i = 0; i < arity; i++) {
+			String id = path + "/builtin_wrap/parameter[" + i + "]";
+			String pName = i < sig.parameterNames().size() ? sig.parameterNames().get(i) : "p" + i;
+			var pType = i < sig.parameters().size() ? sig.parameters().get(i) : DmnIrScalarType.SCALAR_TYPE_NULL;
+			var formal = DmnIrVariable.newBuilder().setName(pName).setType(pType).build();
+			def.addParameters(DmnIrBkmParameter.newBuilder().setBindingId(id).setVariable(formal));
+			call.addArguments(DmnIrExpression.newBuilder().setType(pType)
+					.setLocalReference(DmnIrLocalReference.newBuilder().setBindingId(id)));
+		}
+		def.setBody(DmnIrExpression.newBuilder().setType(sig.result()).setBuiltinCall(call).build());
+		return DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL).setClosure(def).build();
+	}
+
 	private DmnIrClosure closure(List<InformationItem> formals, ExpressionParsed source, DmnSemanticModel model,
-			String path, int depth) {
-		if (captures != null || depth > 32)
+			String path, Set<DmnIrReference> dependencies, int depth) {
+		if (depth > 64)
 			throw unsupported();
 		var outer = new HashMap<>(localBindings);
+		var prevCaptures = captures;
+		var prevCaptureScope = captureScope;
 		captureScope = outer.keySet();
 		captures = new TreeSet<>((left, right) -> Arrays.compareUnsigned(left.getBytes(StandardCharsets.UTF_8),
 				right.getBytes(StandardCharsets.UTF_8)));
@@ -1929,20 +2203,25 @@ final class DmnIrRecordProducer {
 				localBindings.put(id, DmnIrLocalBinding.newBuilder().setBindingId(id).setVariable(formal).build());
 				definition.addParameters(DmnIrBkmParameter.newBuilder().setBindingId(id).setVariable(formal));
 			}
-			Set<DmnIrReference> globals = new HashSet<>();
-			var body = parsed(source, model, path + "/body", globals, depth + 1, null);
-			if (!globals.isEmpty())
-				throw unsupported();
+			var body = parsed(source, model, path + "/body", dependencies, depth + 1, null);
 			closures = true;
+			if (prevCaptures != null) {
+				for (String cap : captures) {
+					if (prevCaptureScope.contains(cap)) {
+						prevCaptures.add(cap);
+					}
+				}
+			}
 			return definition.setResultType(expressionType(body)).addAllCapturedBindingIds(captures).setBody(body)
 					.build();
 		} finally {
-			captures = null;
-			captureScope = Set.of();
+			captures = prevCaptures;
+			captureScope = prevCaptureScope;
 			localBindings.clear();
 			localBindings.putAll(outer);
 		}
 	}
+
 	private Optional<DmnIrReference> boundBkm(DmnSemanticModel model, String path) {
 		return model.bindings().stream().filter(binding -> binding.referencePath().equals(path))
 				.map(binding -> ref(
@@ -1951,9 +2230,24 @@ final class DmnIrRecordProducer {
 				.filter(r -> bkms.containsKey(r) || decisionServices.containsKey(r)).findFirst();
 	}
 
+	private Optional<DmnIrReference> boundBkmByName(InvocationExpression call, DmnSemanticModel model) {
+		if (!call.getTarget().hasName())
+			return Optional.empty();
+		String name = call.getTarget().getName().getName();
+		for (var ref : knowledge) {
+			if (bkms.containsKey(ref) && bkms.get(ref).getVariable().getNode().getName().equals(name))
+				return Optional.of(ref);
+			if (decisionServices.containsKey(ref)
+					&& decisionServices.get(ref).getVariable().getNode().getName().equals(name))
+				return Optional.of(ref);
+		}
+		return Optional.empty();
+	}
+
 	private DmnIrExpression bkmCall(InvocationExpression source, DmnSemanticModel model, String targetPath,
 			Set<DmnIrReference> dependencies, int depth, java.util.function.IntFunction<String> argumentPath) {
-		var target = boundBkm(model, targetPath).orElseThrow(DmnIrRecordProducer::unsupported);
+		var target = boundBkm(model, targetPath).or(() -> boundBkmByName(source, model))
+				.orElseThrow(DmnIrRecordProducer::unsupported);
 		if (!knowledge.contains(target) || source.getArgumentsCount() > 0 && source.getPositionalArgumentsCount() > 0)
 			throw unsupported();
 		var owner = models.get(target.getModelNamespace());
@@ -1971,24 +2265,50 @@ final class DmnIrRecordProducer {
 		var call = DmnIrBkmCall.newBuilder().setTarget(target);
 		boolean named = source.getArgumentsCount() > 0;
 		int count = named ? source.getArgumentsCount() : source.getPositionalArgumentsCount();
-		if (count != parameters.size())
-			throw unsupported();
 		Map<String, Integer> positions = new HashMap<>();
 		for (int i = 0; i < parameters.size(); i++)
 			positions.put(parameters.get(i).getNode().getName(), i);
+		if (!named && count != parameters.size()) {
+			return nullLiteral();
+		}
+		if (named) {
+			Map<Integer, DmnIrExpression> provided = new LinkedHashMap<>();
+			for (int i = 0; i < count; i++) {
+				Integer position = positions.get(source.getArguments(i).getName());
+				if (position == null)
+					return nullLiteral();
+				var parameterType = type(parameters.get(position).getType(), owner);
+				var argExpr = expression(source.getArguments(i).getExpression(), model, argumentPath.apply(i),
+						dependencies, depth + 1, parameterType);
+				if (!expressionType(argExpr).equals(parameterType)
+						&& !(argExpr.getType() == DmnIrScalarType.SCALAR_TYPE_NULL && !argExpr.hasRecordType()
+								&& !argExpr.hasCollectionType())) {
+					closures = true;
+				}
+				provided.put(position, argExpr);
+			}
+			for (var entry : provided.entrySet()) {
+				call.addArguments(DmnIrBkmArgument.newBuilder().setParameterPosition(entry.getKey() + 1)
+						.setExpression(entry.getValue()));
+			}
+			for (int pos = 0; pos < parameters.size(); pos++) {
+				if (!provided.containsKey(pos)) {
+					call.addArguments(
+							DmnIrBkmArgument.newBuilder().setParameterPosition(pos + 1).setExpression(nullLiteral()));
+				}
+			}
+			return typed(returnType).setBkmCall(call).build();
+		}
 		for (int i = 0; i < count; i++) {
-			Integer position = named ? positions.get(source.getArguments(i).getName()) : Integer.valueOf(i);
-			if (position == null)
-				throw unsupported();
-			var value = named ? source.getArguments(i).getExpression() : source.getPositionalArguments(i);
-			var parameterType = type(parameters.get(position).getType(), owner);
+			var value = source.getPositionalArguments(i);
+			var parameterType = type(parameters.get(i).getType(), owner);
 			var argExpr = expression(value, model, argumentPath.apply(i), dependencies, depth + 1, parameterType);
 			if (!expressionType(argExpr).equals(parameterType)
 					&& !(argExpr.getType() == DmnIrScalarType.SCALAR_TYPE_NULL && !argExpr.hasRecordType()
 							&& !argExpr.hasCollectionType())) {
 				closures = true;
 			}
-			call.addArguments(DmnIrBkmArgument.newBuilder().setParameterPosition(position + 1).setExpression(argExpr));
+			call.addArguments(DmnIrBkmArgument.newBuilder().setParameterPosition(i + 1).setExpression(argExpr));
 		}
 		return typed(returnType).setBkmCall(call).build();
 	}
@@ -2015,7 +2335,8 @@ final class DmnIrRecordProducer {
 		int count = source.getPositionalArgumentsCount();
 		Expression single = null;
 		if (source.getArgumentsCount() > 0) {
-			if (count != 0 || source.getArgumentsCount() != 1 || !source.getArguments(0).getName().equals("list"))
+			if (count != 0 || source.getArgumentsCount() != 1
+					|| !signature.parameterNames().contains(source.getArguments(0).getName()))
 				return nullLiteral();
 			single = source.getArguments(0).getExpression();
 			count = 1;
@@ -2058,6 +2379,8 @@ final class DmnIrRecordProducer {
 			}
 		} else {
 			var list = DmnIrListExpression.newBuilder();
+			boolean homogeneous = true;
+			DmnIrScalarType inferredElem = element;
 			for (int i = 0; i < count; i++) {
 				var value = expression(source.getPositionalArguments(i), model, path + "/argument[" + i + "]",
 						dependencies, depth + 1);
@@ -2066,18 +2389,26 @@ final class DmnIrRecordProducer {
 						&& (!actual.hasScalarType() || actual.getScalarType() != element
 								&& actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL))
 					return nullLiteral();
-				if (element == DmnIrScalarType.SCALAR_TYPE_NULL && actual.hasScalarType()
-						&& actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
-					element = actual.getScalarType();
+				if (actual.hasRecordType() || actual.hasCollectionType()) {
+					homogeneous = false;
+				} else if (actual.getScalarType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+					if (inferredElem == DmnIrScalarType.SCALAR_TYPE_NULL) {
+						inferredElem = actual.getScalarType();
+					} else if (inferredElem != actual.getScalarType()) {
+						homogeneous = false;
+					}
 				}
 				list.addElements(value);
 			}
-			if (expectedListType == null && element != DmnIrScalarType.SCALAR_TYPE_NULL) {
-				expectedListType = ensureCollectionType(model, element);
+			if (homogeneous && inferredElem != DmnIrScalarType.SCALAR_TYPE_NULL) {
+				if (expectedListType == null) {
+					expectedListType = ensureCollectionType(model, inferredElem);
+				}
+				argument = typed(expectedListType).setList(list).build();
+			} else {
+				builtinCalls = true;
+				argument = DmnIrExpression.newBuilder().setType(DmnIrScalarType.SCALAR_TYPE_NULL).setList(list).build();
 			}
-			if (expectedListType == null)
-				return nullLiteral();
-			argument = typed(expectedListType).setList(list).build();
 		}
 		builtinCalls = true;
 		var call = DmnIrBuiltinCall.newBuilder().setOperation(signature.operation()).addArguments(argument);
@@ -2107,20 +2438,24 @@ final class DmnIrRecordProducer {
 		int positionalCount = source.getPositionalArgumentsCount();
 		int paramCount = signature.parameters().size();
 
+		boolean variadic = !named && (signature == DmnIrBuiltinSignature.APPEND
+				|| signature == DmnIrBuiltinSignature.CONCATENATE || signature == DmnIrBuiltinSignature.UNION);
+
 		if (named) {
 			if (source.getPositionalArgumentsCount() > 0)
 				return nullLiteral();
-			if (source.getArgumentsCount() < signature.minArity() || source.getArgumentsCount() > signature.maxArity())
+			int minNamed = signature == DmnIrBuiltinSignature.IS ? 1 : signature.minArity();
+			if (source.getArgumentsCount() < minNamed || source.getArgumentsCount() > signature.maxArity())
 				return nullLiteral();
 		} else {
-			if (positionalCount < signature.minArity() || positionalCount > signature.maxArity())
+			if (positionalCount < signature.minArity() || (!variadic && positionalCount > signature.maxArity()))
 				return nullLiteral();
 		}
 
 		if (signature == DmnIrBuiltinSignature.NUMBER_FROM_STRING
 				&& (named ? source.getArgumentsCount() : positionalCount) == 2)
 			return nullLiteral();
-		DmnIrExpression[] args = new DmnIrExpression[paramCount];
+		DmnIrExpression[] args = new DmnIrExpression[variadic ? Math.max(paramCount, positionalCount) : paramCount];
 		if (signature == DmnIrBuiltinSignature.STRING_JOIN) {
 			DmnIrTypeReference stringListType = ensureCollectionType(model, DmnIrScalarType.SCALAR_TYPE_STRING);
 			if (named) {
@@ -2218,11 +2553,23 @@ final class DmnIrRecordProducer {
 			for (int i = 0; i < source.getArgumentsCount(); i++) {
 				var namedArg = source.getArguments(i);
 				Integer pos = signature.parameterIndex(namedArg.getName());
+				if (pos == null && signature == DmnIrBuiltinSignature.CONTEXT_PUT
+						&& "keys".equals(namedArg.getName())) {
+					pos = 1;
+				}
 				if (pos == null || pos >= paramCount || args[pos] != null)
 					return nullLiteral();
 				try {
 					var argExpr = expression(namedArg.getExpression(), model, path + "/argument[" + i + "]",
 							dependencies, depth + 1);
+					if (signature == DmnIrBuiltinSignature.CONTEXT_PUT && pos == 1) {
+						boolean isListArg = argExpr.hasCollectionType() || argExpr.hasList();
+						if ("key".equals(namedArg.getName()) && isListArg)
+							return nullLiteral();
+						if ("keys".equals(namedArg.getName()) && !isListArg
+								&& argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL)
+							return nullLiteral();
+					}
 					var expectedParamType = signature.parameters().get(pos);
 					if (signature.collectionParameter(pos)) {
 						if (!argExpr.hasCollectionType() && argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
@@ -2233,7 +2580,12 @@ final class DmnIrRecordProducer {
 						}
 					} else if (expectedParamType != DmnIrScalarType.SCALAR_TYPE_NULL
 							&& argExpr.getType() != expectedParamType
-							&& argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+							&& argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL
+							&& !(signature == DmnIrBuiltinSignature.ABS
+									&& argExpr.getType() == DmnIrScalarType.SCALAR_TYPE_DURATION)
+							&& !(argExpr.hasCollectionType() && collections.containsKey(argExpr.getCollectionType())
+									&& collections.get(argExpr.getCollectionType())
+											.getElementType() == expectedParamType)) {
 						return nullLiteral();
 					}
 					args[pos] = argExpr;
@@ -2242,6 +2594,12 @@ final class DmnIrRecordProducer {
 				} catch (RuntimeException ex) {
 					return nullLiteral();
 				}
+			}
+			if (signature == DmnIrBuiltinSignature.IS) {
+				if (args[0] == null)
+					args[0] = nullLiteral();
+				if (args[1] == null)
+					args[1] = nullLiteral();
 			}
 			for (int i = 0; i < signature.minArity(); i++) {
 				if (args[i] == null)
@@ -2253,8 +2611,11 @@ final class DmnIrRecordProducer {
 				try {
 					var argExpr = expression(source.getPositionalArguments(i), model, path + "/argument[" + i + "]",
 							dependencies, depth + 1);
-					var expectedParamType = signature.parameters().get(i);
-					if (signature.collectionParameter(i)) {
+					int paramIdx = Math.min(i, paramCount - 1);
+					var expectedParamType = signature.parameters().get(paramIdx);
+					if (variadic && i >= paramCount) {
+						// Variadic trailing items accept any type
+					} else if (signature.collectionParameter(paramIdx)) {
 						if (!argExpr.hasCollectionType() && argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
 							// FEEL collection coercion: scalar to singleton list
 							var colType = ensureCollectionType(model, argExpr.getType());
@@ -2263,7 +2624,12 @@ final class DmnIrRecordProducer {
 						}
 					} else if (expectedParamType != DmnIrScalarType.SCALAR_TYPE_NULL
 							&& argExpr.getType() != expectedParamType
-							&& argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL) {
+							&& argExpr.getType() != DmnIrScalarType.SCALAR_TYPE_NULL
+							&& !(signature == DmnIrBuiltinSignature.ABS
+									&& argExpr.getType() == DmnIrScalarType.SCALAR_TYPE_DURATION)
+							&& !(argExpr.hasCollectionType() && collections.containsKey(argExpr.getCollectionType())
+									&& collections.get(argExpr.getCollectionType())
+											.getElementType() == expectedParamType)) {
 						return nullLiteral();
 					}
 					args[i] = argExpr;
@@ -2287,7 +2653,7 @@ final class DmnIrRecordProducer {
 		}
 		builtinCalls = true;
 		if (signature.collectionResult()) {
-			if (args[0].getType() == DmnIrScalarType.SCALAR_TYPE_NULL && !args[0].hasCollectionType()) {
+			if (args[0].hasLiteral() && args[0].getLiteral().hasNullValue()) {
 				return nullLiteral();
 			}
 			DmnIrTypeReference resultType = expected != null && expected.hasCollectionType()
@@ -2300,7 +2666,11 @@ final class DmnIrRecordProducer {
 											.build());
 			return typed(resultType).setBuiltinCall(call).build();
 		}
-		return DmnIrExpression.newBuilder().setType(signature.result()).setBuiltinCall(call).build();
+		var resultScalar = (signature == DmnIrBuiltinSignature.ABS && args.length > 0
+				&& args[0].getType() == DmnIrScalarType.SCALAR_TYPE_DURATION)
+						? DmnIrScalarType.SCALAR_TYPE_DURATION
+						: signature.result();
+		return DmnIrExpression.newBuilder().setType(resultScalar).setBuiltinCall(call).build();
 	}
 
 	private static DmnIrExpression nullLiteral() {
@@ -2352,7 +2722,7 @@ final class DmnIrRecordProducer {
 	}
 	private DmnIrExpression boxed(BoxedExpressionParsed source, DmnSemanticModel model, String path,
 			Set<DmnIrReference> dependencies, int depth, DmnIrTypeReference expected) {
-		if (depth > 32)
+		if (depth > 64)
 			throw unsupported();
 		if (source.hasList()) {
 			usedCollectionProfile = true;
@@ -2393,7 +2763,8 @@ final class DmnIrRecordProducer {
 			var fn = source.getFunctionDefinition();
 			if (!fn.hasBody())
 				throw unsupported();
-			var def = closure(fn.getParametersList(), fn.getBody(), model, path + "/functionDefinition", depth + 1);
+			var def = closure(fn.getParametersList(), fn.getBody(), model, path + "/functionDefinition", dependencies,
+					depth + 1);
 			boolean ext = !fn.getSourceKind().isEmpty() && !fn.getSourceKind().equals("FEEL");
 			if (ext) {
 				def = def.toBuilder().setExternal(true).build();
@@ -2425,13 +2796,19 @@ final class DmnIrRecordProducer {
 					if (entry.getExpression().getBoxed().hasFunctionDefinition()) {
 						var function = entry.getExpression().getBoxed().getFunctionDefinition();
 						var item = entry.getVariable();
-						if (!function.getSourceKind().isEmpty() && !function.getSourceKind().equals("FEEL"))
+						boolean isExternal = "Java".equalsIgnoreCase(function.getSourceKind());
+						if (!function.getSourceKind().isEmpty() && !function.getSourceKind().equals("FEEL")
+								&& !isExternal)
 							throw unsupported();
 						if (item.getType().getKindCase() != TypeReference.KindCase.KIND_NOT_SET || !function.hasBody())
 							throw unsupported();
+						var def = closure(function.getParametersList(), function.getBody(), model, ep + "/expression",
+								dependencies, depth + 1);
+						if (isExternal) {
+							def = def.toBuilder().setExternal(true).build();
+						}
 						var local = DmnIrClosureBinding.newBuilder().setName(item.getNode().getName())
-								.setDefinition(closure(function.getParametersList(), function.getBody(), model,
-										ep + "/expression", depth + 1));
+								.setDefinition(def);
 						if (!item.getNode().getId().isBlank())
 							local.setId(item.getNode().getId());
 						var binding = DmnIrLocalBinding.newBuilder().setBindingId(ep).setClosure(local).build();
@@ -2464,13 +2841,19 @@ final class DmnIrRecordProducer {
 					if (entry.getExpression().getBoxed().hasFunctionDefinition()) {
 						var function = entry.getExpression().getBoxed().getFunctionDefinition();
 						var item = entry.getVariable();
-						if (!function.getSourceKind().isEmpty() && !function.getSourceKind().equals("FEEL"))
+						boolean isExternal = "Java".equalsIgnoreCase(function.getSourceKind());
+						if (!function.getSourceKind().isEmpty() && !function.getSourceKind().equals("FEEL")
+								&& !isExternal)
 							throw unsupported();
 						if (item.getType().getKindCase() != TypeReference.KindCase.KIND_NOT_SET || !function.hasBody())
 							throw unsupported();
+						var def = closure(function.getParametersList(), function.getBody(), model, ep + "/expression",
+								dependencies, depth + 1);
+						if (isExternal) {
+							def = def.toBuilder().setExternal(true).build();
+						}
 						var local = DmnIrClosureBinding.newBuilder().setName(item.getNode().getName())
-								.setDefinition(closure(function.getParametersList(), function.getBody(), model,
-										ep + "/expression", depth + 1));
+								.setDefinition(def);
 						if (!item.getNode().getId().isBlank())
 							local.setId(item.getNode().getId());
 						var binding = DmnIrLocalBinding.newBuilder().setBindingId(ep).setClosure(local).build();

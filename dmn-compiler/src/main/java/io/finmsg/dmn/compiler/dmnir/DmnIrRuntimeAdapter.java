@@ -320,6 +320,19 @@ public final class DmnIrRuntimeAdapter {
 					var value = binding.hasClosure()
 							? closure(binding.getClosure().getDefinition(), slots, types, child)
 							: expression(binding.getValue(), slots, types, child, nextSlot);
+					if (!binding.hasClosure() && binding.hasVariable()) {
+						var declaredType = variableType(binding.getVariable(), types);
+						if (declaredType.kind() != RuntimeTypeKind.ANY && declaredType.kind() != RuntimeTypeKind.NULL
+								&& (declaredType.kind() == RuntimeTypeKind.LIST
+										|| declaredType.kind() == RuntimeTypeKind.DATE_TIME
+										|| !declaredType.equals(value.type()))) {
+							var coerceFn = new RuntimeFunctionDefinition(
+									List.of(new RuntimeFunctionParameter("_v", 0, declaredType)),
+									Optional.of(new RuntimeLocalReference(0, 0, declaredType)), false, 1, declaredType);
+							value = new RuntimeInvocationExpression(Optional.empty(), Optional.of(coerceFn), List.of(),
+									List.of(value), declaredType);
+						}
+					}
 					int slot = nextSlot[0]++;
 					String name = binding.hasClosure()
 							? binding.getClosure().getName()
@@ -333,7 +346,8 @@ public final class DmnIrRuntimeAdapter {
 			}
 			case FIELD_ACCESS -> {
 				var access = expression.getFieldAccess();
-				if (access.getSource().hasRecordType() && expression.getType() == DmnIrScalarType.SCALAR_TYPE_NULL)
+				if (types.minor() < 11 && access.getSource().hasRecordType()
+						&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_NULL)
 					yield new RuntimeConstant(RuntimeConstantKind.NULL, "null",
 							RuntimeType.scalar(RuntimeTypeKind.NULL));
 				var source = expression(access.getSource(), slots, types, locals, nextSlot);

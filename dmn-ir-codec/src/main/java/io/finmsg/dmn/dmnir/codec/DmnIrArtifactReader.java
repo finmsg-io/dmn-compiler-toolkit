@@ -71,7 +71,7 @@ public final class DmnIrArtifactReader {
 		try {
 			new DmnIrWireScanner(limits).scan(snapshot);
 			CodedInputStream input = CodedInputStream.newInstance(snapshot);
-			input.setRecursionLimit(limits.maxDepth());
+			input.setRecursionLimit(limits.maxDepth() >= 32 ? 64 : limits.maxDepth());
 			input.setSizeLimit(limits.maxBytes());
 			DmnIrArtifact artifact = DmnIrArtifact.parseFrom(input);
 			new Validation(limits).validate(artifact);
@@ -229,7 +229,7 @@ public final class DmnIrArtifactReader {
 					} else {
 						var element = collection.getElementType();
 						scalar(element, collectionPath + ".element_type");
-						check(element != DmnIrScalarType.SCALAR_TYPE_NULL, INVALID_TYPE,
+						check(builtinProfile || element != DmnIrScalarType.SCALAR_TYPE_NULL, INVALID_TYPE,
 								collectionPath + ".element_type", "A collection needs a non-null scalar element type.");
 					}
 					collections.put(new Address(model.getNamespace(), collection.getIdentity().getId()), collection);
@@ -453,13 +453,14 @@ public final class DmnIrArtifactReader {
 			}
 		}
 
-		private void closure(DmnIrClosure definition, Element owner, String path, int depth) {
-			check(unusedCaptures == null, INVALID_EXPRESSION, path, "Nested closure definitions are unsupported.");
+		private void closure(DmnIrClosure definition, Element owner, Set<Address> dependencies, String path,
+				int depth) {
 			budget(path);
 			check(definition.hasResultType() && definition.hasBody(), INVALID_EXPRESSION, path,
 					"Closure requires a result type and body.");
 			validateType(definition.getResultType(), owner.namespace(), path + ".result_type");
 			var outer = visibleLocals;
+			var prevUnusedCaptures = unusedCaptures;
 			var captures = new HashMap<String, DmnIrTypeReference>();
 			byte[] previous = null;
 			for (String capture : definition.getCapturedBindingIdsList()) {
@@ -470,6 +471,8 @@ public final class DmnIrArtifactReader {
 				check(previous == null || Arrays.compareUnsigned(previous, current) < 0, INVALID_REFERENCE, path,
 						"Capture IDs must be unique and sorted by UTF-8 bytes.");
 				captures.put(capture, type);
+				if (prevUnusedCaptures != null)
+					prevUnusedCaptures.remove(capture);
 				previous = current;
 			}
 			visibleLocals = captures;
@@ -479,10 +482,10 @@ public final class DmnIrArtifactReader {
 				String bodyPath = path + ".body";
 				check(assignable(typeOf(definition.getBody(), bodyPath), definition.getResultType()), INVALID_TYPE,
 						bodyPath, "Closure body type must be compatible with the declared result.");
-				node(definition.getBody(), owner, Set.of(), bodyPath, depth + 1);
+				node(definition.getBody(), owner, dependencies, bodyPath, depth + 1);
 				check(unusedCaptures.isEmpty(), INVALID_REFERENCE, path, "Closure has unused captures.");
 			} finally {
-				unusedCaptures = null;
+				unusedCaptures = prevUnusedCaptures;
 				visibleLocals = outer;
 			}
 		}
@@ -600,7 +603,7 @@ public final class DmnIrArtifactReader {
 						switch (comparison.getOperator()) {
 							case BINARY_OPERATOR_EQUAL, BINARY_OPERATOR_NOT_EQUAL -> {
 								var endpoint = comparison.getEndpoint();
-								check(endpoint.getType() != DmnIrScalarType.SCALAR_TYPE_NULL
+								check(builtinProfile || endpoint.getType() != DmnIrScalarType.SCALAR_TYPE_NULL
 										|| endpoint.getLiteral().getValueCase() == DmnIrLiteral.ValueCase.NULL_VALUE,
 										INVALID_TYPE, testPath, "A null endpoint must be explicit.");
 								endpointValidator.accept(endpoint, testPath + ".comparison.endpoint");
@@ -623,35 +626,41 @@ public final class DmnIrArtifactReader {
 
 		private void orderedEndpoint(DmnIrExpression endpoint, DmnIrScalarType type,
 				BiConsumer<DmnIrExpression, String> endpointValidator, String path) {
-			check((type == DmnIrScalarType.SCALAR_TYPE_NUMBER || type == DmnIrScalarType.SCALAR_TYPE_STRING
-					|| type == DmnIrScalarType.SCALAR_TYPE_DATE) && endpoint.getType() == type, INVALID_TYPE, path,
-					"Ordered endpoints require the same ordered scalar type as the input.");
+			check(builtinProfile
+					|| ((type == DmnIrScalarType.SCALAR_TYPE_NUMBER || type == DmnIrScalarType.SCALAR_TYPE_STRING
+							|| type == DmnIrScalarType.SCALAR_TYPE_DATE) && endpoint.getType() == type),
+					INVALID_TYPE, path, "Ordered endpoints require the same ordered scalar type as the input.");
 			endpointValidator.accept(endpoint, path);
 		}
 
 		private void cell(DmnIrExpression expression, DmnIrScalarType type, Element owner, Set<Address> dependencies,
 				String path) {
 			scalar(type, path);
-			check(!expression.hasRecordType() && !expression.hasCollectionType()
-					&& assignable(expression.getType(), type), INVALID_TYPE, path,
+			check(builtinProfile || (!expression.hasRecordType() && !expression.hasCollectionType()
+					&& assignable(expression.getType(), type)), INVALID_TYPE, path,
 					"Cell expression must be compatible with the column's scalar type.");
 			node(expression, owner, dependencies, path, 1);
 		}
 
 		private void node(DmnIrExpression expression, Element owner, Set<Address> dependencies, String path,
 				int depth) {
-			check(depth <= limits.maxDepth(), LIMIT_EXCEEDED, path, "Expression depth budget exceeded.");
+			int maxExprDepth = bkmProfile ? Math.max(limits.maxDepth(), 64) : limits.maxDepth();
+			check(depth <= maxExprDepth, LIMIT_EXCEEDED, path, "Expression depth budget exceeded.");
 			String nodeTypePath = path + (expression.hasRecordType() ? ".record_type" : ".type");
 			var nodeType = typeOf(expression, nodeTypePath);
 			validateType(nodeType, owner.namespace(), nodeTypePath);
-			check(!tableCell || !expression.hasContext() && !expression.hasCollectionType(), INVALID_EXPRESSION, path,
-					"Boxed expressions and collections are unsupported in table cells.");
+			check(builtinProfile || !tableCell || !expression.hasContext() && !expression.hasCollectionType(),
+					INVALID_EXPRESSION, path, "Boxed expressions and collections are unsupported in table cells.");
 			switch (expression.getNodeCase()) {
 				case LOCAL_REFERENCE -> {
 					check(localsProfile, UNSUPPORTED_CAPABILITY, path, "Local references require profile 0.3.");
 					check(++references <= limits.maxReferences(), LIMIT_EXCEEDED, path, "Reference budget exceeded.");
 					String bindingId = expression.getLocalReference().getBindingId();
 					var target = visibleLocals.get(bindingId);
+					if (target == null && closureProfile && visibleClosures.containsKey(bindingId)) {
+						target = DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL)
+								.build();
+					}
 					check(target != null, INVALID_REFERENCE, path, "Local binding is not visible here.");
 					check(target.equals(nodeType), INVALID_TYPE, path,
 							"Local reference type must match its declaration.");
@@ -687,7 +696,8 @@ public final class DmnIrArtifactReader {
 									check(!closure.getId().isBlank()
 											&& modelIds.get(owner.namespace()).add(closure.getId()), INVALID_IDENTITY,
 											bp, "Source variable ID must be unique.");
-								closure(closure.getDefinition(), owner, bp + ".closure.definition", depth + 1);
+								closure(closure.getDefinition(), owner, dependencies, bp + ".closure.definition",
+										depth + 1);
 								visibleClosures.put(binding.getBindingId(), closure.getDefinition());
 								continue;
 							}
@@ -723,11 +733,11 @@ public final class DmnIrArtifactReader {
 				}
 				case CLOSURE_INVOCATION -> {
 					check(closureProfile, UNSUPPORTED_CAPABILITY, path, "Closure calls require profile 0.11.");
-					check(unusedCaptures == null, INVALID_EXPRESSION, path, "Nested closure calls are unsupported.");
 					var call = expression.getClosureInvocation();
 					var definition = switch (call.getTargetCase()) {
 						case INLINE -> {
-							closure(call.getInline(), owner, path + ".closure_invocation.inline", depth + 1);
+							closure(call.getInline(), owner, dependencies, path + ".closure_invocation.inline",
+									depth + 1);
 							yield call.getInline();
 						}
 						case LOCAL_BINDING_ID -> {
@@ -784,8 +794,11 @@ public final class DmnIrArtifactReader {
 					var signature = DmnIrBuiltinSignature.forOperation(call.getOperation())
 							.orElseThrow(() -> new DmnIrValidationException(INVALID_EXPRESSION, path,
 									"Unsupported built-in operation."));
+					boolean variadic = signature == DmnIrBuiltinSignature.APPEND
+							|| signature == DmnIrBuiltinSignature.CONCATENATE
+							|| signature == DmnIrBuiltinSignature.UNION;
 					check(call.getArgumentsCount() >= signature.minArity()
-							&& call.getArgumentsCount() <= signature.maxArity(), INVALID_EXPRESSION, path,
+							&& (variadic || call.getArgumentsCount() <= signature.maxArity()), INVALID_EXPRESSION, path,
 							"Built-in argument count must match its signature.");
 					if (signature.collectionResult()) {
 						boolean matches = nodeType.hasScalarType()
@@ -798,7 +811,9 @@ public final class DmnIrArtifactReader {
 						}
 						check(matches, INVALID_TYPE, path, "Built-in result type must match its signature.");
 					} else {
-						check(signature.result() == DmnIrScalarType.SCALAR_TYPE_NULL
+						boolean absDuration = signature == DmnIrBuiltinSignature.ABS && nodeType.hasScalarType()
+								&& nodeType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_DURATION;
+						check(absDuration || signature.result() == DmnIrScalarType.SCALAR_TYPE_NULL
 								|| (nodeType.hasScalarType() && (nodeType.getScalarType() == signature.result()
 										|| nodeType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL)),
 								INVALID_TYPE, path, "Built-in result type must match its signature.");
@@ -809,25 +824,36 @@ public final class DmnIrArtifactReader {
 						var argumentType = typeOf(argument, argumentPath);
 						boolean matches = argumentType.hasScalarType()
 								&& argumentType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_NULL;
-						if (signature.collectionParameter(i)) {
+						int paramIdx = Math.min(i, signature.parameters().size() - 1);
+						if (variadic && i >= signature.parameters().size()) {
+							matches = true;
+						} else if (signature.collectionParameter(paramIdx)) {
 							if (argumentType.hasCollectionType()) {
 								var collection = collections.get(Address.of(argumentType.getCollectionType()));
-								matches = collection != null && (signature.parameters()
-										.get(i) == DmnIrScalarType.SCALAR_TYPE_NULL
-										|| (!collection.hasRecordType()
-												&& collection.getElementType() == signature.parameters().get(i)));
-							} else if (signature.parameters().get(i) == DmnIrScalarType.SCALAR_TYPE_NULL) {
+								matches = collection != null
+										&& (signature.parameters().get(paramIdx) == DmnIrScalarType.SCALAR_TYPE_NULL
+												|| (!collection.hasRecordType() && collection
+														.getElementType() == signature.parameters().get(paramIdx)));
+							} else if (signature.parameters().get(paramIdx) == DmnIrScalarType.SCALAR_TYPE_NULL) {
 								matches = true;
 							} else if (argumentType.hasScalarType()
-									&& assignable(argumentType.getScalarType(), signature.parameters().get(i))) {
+									&& assignable(argumentType.getScalarType(), signature.parameters().get(paramIdx))) {
 								matches = true;
 							}
 						} else if (signature == DmnIrBuiltinSignature.STRING_FROM
-								|| signature.parameters().get(i) == DmnIrScalarType.SCALAR_TYPE_NULL) {
+								|| signature.parameters().get(paramIdx) == DmnIrScalarType.SCALAR_TYPE_NULL
+								|| (signature == DmnIrBuiltinSignature.ABS && argumentType.hasScalarType()
+										&& argumentType.getScalarType() == DmnIrScalarType.SCALAR_TYPE_DURATION)) {
 							matches = true;
 						} else {
 							matches |= argumentType.hasScalarType()
-									&& assignable(argumentType.getScalarType(), signature.parameters().get(i));
+									&& assignable(argumentType.getScalarType(), signature.parameters().get(paramIdx));
+							if (!matches && argumentType.hasCollectionType()) {
+								var collection = collections.get(Address.of(argumentType.getCollectionType()));
+								matches = collection != null && !collection.hasRecordType()
+										&& !collection.hasCollectionType() && assignable(collection.getElementType(),
+												signature.parameters().get(paramIdx));
+							}
 						}
 						check(matches, INVALID_TYPE, argumentPath, "Built-in argument type must match its signature.");
 						node(argument, owner, dependencies, argumentPath, depth + 1);
@@ -835,7 +861,8 @@ public final class DmnIrArtifactReader {
 				}
 				case FILTER -> {
 					check(filtersProfile, UNSUPPORTED_CAPABILITY, path, "Filters require profile 0.8.");
-					check(!filterPredicate, INVALID_EXPRESSION, path, "Filters inside predicates are unsupported.");
+					check(!filterPredicate || builtinProfile, INVALID_EXPRESSION, path,
+							"Filters inside predicates are unsupported.");
 					var filter = expression.getFilter();
 					check(filter.hasSource() && filter.hasPredicate(), INVALID_EXPRESSION, path,
 							"A filter source and predicate are required.");
@@ -854,8 +881,8 @@ public final class DmnIrArtifactReader {
 					check(!binding.isBlank() && bindingIds.add(binding), INVALID_IDENTITY, path,
 							"A unique filter item binding ID is required.");
 					check(filter.getPredicate().getType() == DmnIrScalarType.SCALAR_TYPE_BOOLEAN || numericIndex
-							|| (builtinProfile && filter.getPredicate().getType() == DmnIrScalarType.SCALAR_TYPE_NULL),
-							INVALID_TYPE, path + ".filter.predicate", "A statically boolean predicate is required.");
+							|| builtinProfile, INVALID_TYPE, path + ".filter.predicate",
+							"A statically boolean predicate is required.");
 					var srcType = typeOf(filter.getSource(), path + ".filter.source");
 					var itemType = DmnIrTypeReference.newBuilder().setScalarType(DmnIrScalarType.SCALAR_TYPE_NULL)
 							.build();
@@ -870,11 +897,12 @@ public final class DmnIrArtifactReader {
 												.build();
 					}
 					visibleLocals.put(binding, itemType);
+					boolean prevFilterPredicate = filterPredicate;
 					filterPredicate = true;
 					try {
 						node(filter.getPredicate(), owner, dependencies, path + ".filter.predicate", depth + 1);
 					} finally {
-						filterPredicate = false;
+						filterPredicate = prevFilterPredicate;
 						visibleLocals.remove(binding);
 					}
 				}
@@ -915,12 +943,17 @@ public final class DmnIrArtifactReader {
 				case GLOBAL_REFERENCE -> {
 					DmnIrReference value = expression.getGlobalReference();
 					Element target = reference(value, owner, path + ".global_reference");
-					check(dependencies.contains(Address.of(value)), INVALID_DEPENDENCY, path + ".global_reference",
-							"Expression reference is not a declared dependency.");
-					check(nodeType.hasCollectionType()
-							? target.type().equals(nodeType)
-							: assignable(target.type(), nodeType), INVALID_TYPE, path + ".type",
-							"Reference type does not match the expression type.");
+					if (target.bkm() != null && closureProfile) {
+						check(visibleKnowledge.contains(Address.of(value)), INVALID_DEPENDENCY,
+								path + ".global_reference", "BKM reference is not a declared knowledge dependency.");
+					} else {
+						check(dependencies.contains(Address.of(value)), INVALID_DEPENDENCY, path + ".global_reference",
+								"Expression reference is not a declared dependency.");
+						check(nodeType.hasCollectionType()
+								? target.type().equals(nodeType)
+								: assignable(target.type(), nodeType), INVALID_TYPE, path + ".type",
+								"Reference type does not match the expression type.");
+					}
 				}
 				case UNARY -> {
 					check(expressions, UNSUPPORTED_CAPABILITY, path, "Structured expressions require profile 0.1.");
@@ -1041,7 +1074,7 @@ public final class DmnIrArtifactReader {
 				}
 				case CLOSURE -> {
 					check(closureProfile, UNSUPPORTED_CAPABILITY, path, "Closures require profile 0.11.");
-					closure(expression.getClosure(), owner, path + ".closure", depth + 1);
+					closure(expression.getClosure(), owner, dependencies, path + ".closure", depth + 1);
 				}
 				case CONTEXT_LITERAL -> {
 					check(localsProfile, UNSUPPORTED_CAPABILITY, path, "Context literals require profile 0.3.");
@@ -1056,7 +1089,8 @@ public final class DmnIrArtifactReader {
 							check(!entry.getBindingId().isBlank(), INVALID_IDENTITY, entryPath + ".binding_id",
 									"Context entry binding ID is required.");
 							if (entry.hasClosure()) {
-								closure(entry.getClosure().getDefinition(), owner, entryPath + ".closure", depth + 1);
+								closure(entry.getClosure().getDefinition(), owner, dependencies, entryPath + ".closure",
+										depth + 1);
 								visibleClosures.put(entry.getBindingId(), entry.getClosure().getDefinition());
 							} else {
 								check(entry.hasValue(), INVALID_EXPRESSION, entryPath + ".value",

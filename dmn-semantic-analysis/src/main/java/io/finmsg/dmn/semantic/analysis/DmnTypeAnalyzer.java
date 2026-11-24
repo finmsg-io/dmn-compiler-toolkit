@@ -873,6 +873,10 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 			if (isDuration(actual) && isDuration(expected)) {
 				return true;
 			}
+			if (actual.hasBuiltin() && actual.getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE && expected.hasBuiltin()
+					&& expected.getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE_AND_TIME) {
+				return true;
+			}
 			if (actual.hasList() && expected.hasList()) {
 				return assignable(actual.getList().getElementType(), expected.getList().getElementType());
 			}

@@ -53,7 +53,8 @@ final class DmnIrWireScanner {
 	}
 
 	private void message(CodedInputStream input, Descriptor descriptor, String path, int depth) throws IOException {
-		check(depth <= limits.maxDepth() && ++messages <= limits.maxMessages(), LIMIT_EXCEEDED, path,
+		int maxWireDepth = limits.maxDepth() >= 32 ? 64 : limits.maxDepth();
+		check(depth <= maxWireDepth && ++messages <= limits.maxMessages(), LIMIT_EXCEEDED, path,
 				"Wire depth or message budget exceeded.");
 		if (descriptor == DmnIrModel.getDescriptor()) {
 			check(++models <= limits.maxModels(), LIMIT_EXCEEDED, path, "Model budget exceeded.");

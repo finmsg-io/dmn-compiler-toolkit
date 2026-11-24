@@ -163,8 +163,10 @@ public final class DmnRuntime {
 			case TIME -> (value instanceof LocalTime || value instanceof OffsetTime || value instanceof NamedZoneTime)
 					? value
 					: null;
-			case DATE_TIME -> (value instanceof LocalDateTime || value instanceof OffsetDateTime
-					|| value instanceof ZonedDateTime || value instanceof NamedZoneDateTime) ? value : null;
+			case DATE_TIME -> value instanceof LocalDate ld
+					? ld.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime()
+					: (value instanceof LocalDateTime || value instanceof OffsetDateTime
+							|| value instanceof ZonedDateTime || value instanceof NamedZoneDateTime) ? value : null;
 			case DURATION -> value instanceof TemporalAmount ? value : null;
 			case DAYS_TIME_DURATION -> value instanceof Duration ? value : null;
 			case YEARS_MONTHS_DURATION -> value instanceof Period ? value : null;

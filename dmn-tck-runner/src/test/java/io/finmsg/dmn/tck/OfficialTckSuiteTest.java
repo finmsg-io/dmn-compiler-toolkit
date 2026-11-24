@@ -545,6 +545,7 @@ class OfficialTckSuiteTest {
 			String invocableName = testCase.invocableName().get();
 			int bkmSlot = -1;
 			List<String> paramNames = new ArrayList<>();
+			int bkmIndex = 0;
 			for (var model : adapted.source().artifact().getModelsList()) {
 				for (var bkm : model.getBkmsList()) {
 					if (bkm.getVariable().getName().equals(invocableName)
@@ -552,26 +553,12 @@ class OfficialTckSuiteTest {
 						for (var param : bkm.getParametersList()) {
 							paramNames.add(param.getVariable().getName());
 						}
-						for (var rbkm : adapted.runtimeModel().businessKnowledgeModels()) {
-							if (rbkm.function().isPresent()) {
-								var fn = rbkm.function().get();
-								if (fn.parameters().size() == paramNames.size()) {
-									boolean match = true;
-									for (int i = 0; i < paramNames.size(); i++) {
-										if (!fn.parameters().get(i).name().equals(paramNames.get(i))) {
-											match = false;
-											break;
-										}
-									}
-									if (match) {
-										bkmSlot = rbkm.resultSlot();
-										break;
-									}
-								}
-							}
+						if (bkmIndex < adapted.runtimeModel().businessKnowledgeModels().size()) {
+							bkmSlot = adapted.runtimeModel().businessKnowledgeModels().get(bkmIndex).resultSlot();
 						}
 						break;
 					}
+					bkmIndex++;
 				}
 				if (bkmSlot >= 0)
 					break;

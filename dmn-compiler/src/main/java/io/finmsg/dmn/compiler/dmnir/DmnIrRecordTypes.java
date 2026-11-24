@@ -9,11 +9,13 @@ import java.util.*;
  * declarations.
  */
 final class DmnIrRecordTypes {
+	private final int minor;
 	private final Map<DmnIrReference, DmnIrRecordDefinition> definitions = new LinkedHashMap<>();
 	private final Map<DmnIrReference, DmnIrCollectionDefinition> collections = new HashMap<>();
 	private final Map<DmnIrReference, RuntimeType> layouts = new HashMap<>();
 
 	DmnIrRecordTypes(DmnIrArtifact artifact) {
+		this.minor = artifact.getSchemaVersion().getMinor();
 		Set<DmnIrReference> pendingCollections = new LinkedHashSet<>();
 		for (var model : artifact.getModelsList()) {
 			for (var record : model.getRecordDefinitionsList())
@@ -24,8 +26,10 @@ final class DmnIrRecordTypes {
 				if (collection.hasRecordType() || collection.hasCollectionType()) {
 					pendingCollections.add(reference);
 				} else {
-					layouts.put(reference, RuntimeType.element(RuntimeTypeKind.LIST,
-							type(collection.getElementType(), false, DmnIrReference.getDefaultInstance())));
+					RuntimeType elemType = collection.getElementType() == DmnIrScalarType.SCALAR_TYPE_NULL
+							? RuntimeType.scalar(RuntimeTypeKind.ANY)
+							: type(collection.getElementType(), false, DmnIrReference.getDefaultInstance());
+					layouts.put(reference, RuntimeType.element(RuntimeTypeKind.LIST, elemType));
 				}
 			}
 		}
@@ -77,6 +81,10 @@ final class DmnIrRecordTypes {
 	DmnIrCollectionDefinition collection(DmnIrReference reference) {
 		return Objects.requireNonNull(collections.get(reference));
 	}
+	int minor() {
+		return minor;
+	}
+
 	RuntimeType collectionType(DmnIrReference reference) {
 		return Objects.requireNonNull(layouts.get(reference));
 	}

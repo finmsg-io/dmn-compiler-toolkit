@@ -224,7 +224,7 @@ class DmnIrCollectionParityTest {
 		var resolver = new InMemoryDmnModelResolver(List.of(source("catalog.dmn", CATALOG)));
 		var producer = new DmnIrScalarProducer();
 		var verified = producer.produce(source, resolver);
-		var external = source("policy.dmn", policy.replace("kind=\"FEEL\"", "kind=\"Java\""));
+		var external = source("policy.dmn", policy.replace("kind=\"FEEL\"", "kind=\"PMML\""));
 		assertEquals(DmnIrProductionException.Category.UNSUPPORTED_PROFILE,
 				assertThrows(DmnIrProductionException.class, () -> producer.produce(external, resolver)).category());
 		assertEquals(11, verified.artifact().getSchemaVersion().getMinor());

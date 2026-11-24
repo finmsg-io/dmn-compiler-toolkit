@@ -32,9 +32,14 @@ public final class DmnIrScalarProducer {
 						node -> node instanceof io.finmsg.dmn.model.FunctionDefinitionExpression
 								|| node instanceof io.finmsg.dmn.model.ContextExpression
 								|| node instanceof io.finmsg.dmn.model.ListExpression
-								|| (node instanceof io.finmsg.dmn.model.InvocationExpression inv
-										&& !(inv.getTarget().hasName()
-												&& inv.getTarget().getName().getName().equals("not")))
+								|| (node instanceof io.finmsg.dmn.model.InvocationExpression inv && !(inv.getTarget()
+										.hasName() && inv.getTarget().getName().getName().equals("not")
+										&& inv.getArgumentsCount() == 0 && inv.getPositionalArgumentsCount() == 1
+										&& (!inv.getPositionalArguments(0).hasLiteral() || inv.getPositionalArguments(0)
+												.getLiteral()
+												.getKind() == io.finmsg.dmn.model.LiteralKind.LITERAL_KIND_BOOLEAN
+												|| inv.getPositionalArguments(0).getLiteral()
+														.getKind() == io.finmsg.dmn.model.LiteralKind.LITERAL_KIND_NULL)))
 								|| node instanceof io.finmsg.dmn.model.FilterExpression
 								|| node instanceof io.finmsg.dmn.model.ForExpression
 								|| node instanceof io.finmsg.dmn.model.RangeExpression
