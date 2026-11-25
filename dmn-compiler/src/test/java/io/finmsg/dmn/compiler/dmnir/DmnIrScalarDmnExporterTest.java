@@ -55,11 +55,23 @@ class DmnIrScalarDmnExporterTest {
 	@Test
 	void explicitUnsupportedVersionDoesNotChangeLegacyWriterDefault() {
 		var exporter = new DmnIrScalarDmnExporter();
-		for (var version : DmnVersion.values())
-			if (version != DmnVersion.DMN_1_6) {
+		var supported = Set.of(DmnVersion.DMN_1_3, DmnVersion.DMN_1_5, DmnVersion.DMN_1_6);
+		for (var version : DmnVersion.values()) {
+			if (supported.contains(version)) {
+				var bundle = exporter.export(fixture(), version);
+				String expectedNs = switch (version) {
+					case DMN_1_3 -> "https://www.omg.org/spec/DMN/20191111/MODEL/";
+					case DMN_1_5 -> "https://www.omg.org/spec/DMN/20230324/MODEL/";
+					case DMN_1_6 -> "https://www.omg.org/spec/DMN/20240513/MODEL/";
+					default -> throw new AssertionError();
+				};
+				assertTrue(bundle.documents().get(bundle.rootDocument()).contains(expectedNs),
+						"Expected namespace " + expectedNs + " for " + version);
+			} else {
 				var error = assertThrows(DmnIrExportException.class, () -> exporter.export(fixture(), version));
 				assertEquals(DmnIrExportException.Category.UNSUPPORTED_VERSION, error.category());
 			}
+		}
 		var definitions = io.finmsg.dmn.model.Definitions.newBuilder().setNamespace(NS)
 				.setNode(io.finmsg.dmn.model.Node.newBuilder().setId("legacy").setName("Legacy")).build();
 		assertTrue(new String(new io.finmsg.dmn.frontend.xml.dmn.DmnWriter().write(definitions), StandardCharsets.UTF_8)

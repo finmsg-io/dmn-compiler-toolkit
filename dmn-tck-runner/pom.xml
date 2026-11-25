@@ -149,5 +149,12 @@
         <tck.backend>typed-grpc</tck.backend>
       </properties>
     </profile>
+    <profile>
+      <id>tck-dmn-roundtrip</id>
+      <properties>
+        <tck.skip>false</tck.skip>
+        <tck.requireFull>false</tck.requireFull>
+      </properties>
+    </profile>
   </profiles>
 </project>

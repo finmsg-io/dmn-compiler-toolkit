@@ -1,8 +1,9 @@
 # Actual task: full official-TCK compliance through Protobuf DMNIR and generated Java/Rust
 
-Updated: 2026-11-24. Status: **COMPLETE (100.00% across ALL 7 backends — 23,849 / 23,849 executions on pinned TCK revision `5cd912f281831bc535e710aba435e16de198028a`)**.
+Updated: 2026-11-25. Status: **COMPLETE (100.00% across ALL 7 backends + DMNIR -> DMN 1.3/1.5/1.6 XML round-trip — 34,070 / 34,070 TCK executions on pinned TCK revision `5cd912f281831bc535e710aba435e16de198028a`)**.
 - **`dmnir -> java`** (`optimized-generated-portable-java`): **3,407 / 3,407 passed (100.00%)** in **75.58 s** (`1m 52s` total Maven) via the pre-compiled `dmn-tck` `.dmnir` archive (**3,407 / 3,407 exported = 100.00%**, `151` `.dmnir` files, `1.36 MB`) + batch `javac`.
 - **`dmnir -> rust`** (`dmn-generator-rust` + `dmn-rust-tck-runner`): **3,407 / 3,407 passed (100.00%)** (`0` export rejections, `0` Rust rejections, `0` build errors, `0` execution errors, `0` failures) across all `151` deduplicated `.dmnir` files from `dmn-tck` (`target/rust-tck-3407/rust-tck-accounting.tsv`).
+- **`dmnir -> dmn xml` (`DmnIrScalarDmnExporter`, DMN 1.3 / 1.5 / 1.6)**: **3,407 / 3,407 passed (100.00%)** on each of **DMN 1.3, DMN 1.5, and DMN 1.6** (**151 / 151** `.dmnir` exported, **151 / 151** recompiled with zero access to original XML, **10,221 / 10,221** round-trip TCK executions in **29.67 s** via `-Ptck -Ptck-dmn-roundtrip -Dtest=TckDmnIrDmnXmlRoundTripTest`), plus deterministic multi-file round-trip parity across **DMN 1.3 / 1.5 / 1.6** for `dmn-models` (`discount-calculation`, `loan-approval`, `order-fulfillment`).
 - **Interpreter (Java)** (`optimized-interpreter`): **3,407 / 3,407 passed (100.00%)** in **36.05 s** (`1m 08s` Maven), `0` failures, `0` errors.
 - **Direct Generated Java** (`optimized-generated-java`): **3,407 / 3,407 passed (100.00%)**, `0` failures, `0` errors.
 - **Spark SQL** (`optimized-generated-sparksql-hybrid`): **3,407 / 3,407 passed (100.00% native, 0 fallback)** (`0` failures, `0` errors, `0` compilation blocks, `0` unknown routes) in **409.2 s** (`7m 20s` Maven, `NO_CODEGEN`, `120 s` per-case timeout).
@@ -132,9 +133,10 @@ Dedicated fast Maven TCK profiles in `dmn-tck-runner/pom.xml`:
 - `-Ptck -Ptck-spark` (Spark SQL only, `306.3 s`)
 - `-Ptck -Ptck-grpc` (Generic gRPC only, `84.20 s`)
 - `-Ptck -Ptck-typed-grpc` (Typed gRPC only, `999.2 s`)
+- `-Ptck -Ptck-dmn-roundtrip -Dtest=TckDmnIrDmnXmlRoundTripTest` (DMNIR -> DMN 1.3/1.5/1.6 XML round-trip + `dmn-models`, `29.67 s`)
 
 Remaining Release 1.2 follow-up items:
-1. **DMNIR -> DMN XML regeneration (`dmn-generator`, default DMN 1.6)** and DMN 1.3/1.5/1.6 round-trip verification.
+1. ~~**DMNIR -> DMN XML regeneration (`dmn-generator`, default DMN 1.6)** and DMN 1.3/1.5/1.6 round-trip verification.~~ **DONE (2026-11-25): 151/151 artifacts, 3,407/3,407 TCK cases on DMN 1.3, 1.5, and 1.6 + `dmn-models` (`discount-calculation`, `loan-approval`, `order-fulfillment`).**
 2. **DSL authoring / parity** and full multi-module reactor regression check.
 
 Usage accounting is unavailable.

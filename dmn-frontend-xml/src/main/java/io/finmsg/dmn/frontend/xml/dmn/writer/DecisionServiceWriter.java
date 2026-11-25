@@ -7,6 +7,7 @@ import io.finmsg.dmn.model.DecisionService;
 public final class DecisionServiceWriter implements XmlWriter<DecisionService> {
 
 	private final NodeWriter nodeWriter = new NodeWriter();
+	private final InformationItemWriter informationItemWriter = new InformationItemWriter();
 	private final ElementReferenceWriter referenceWriter = new ElementReferenceWriter();
 
 	@Override
@@ -14,6 +15,9 @@ public final class DecisionServiceWriter implements XmlWriter<DecisionService> {
 		xml.startElement("decisionService");
 		nodeWriter.writeAttributes(xml, value.getNode());
 		nodeWriter.writeChildren(xml, value.getNode());
+		if (value.hasVariable()) {
+			informationItemWriter.write(xml, "variable", value.getVariable());
+		}
 		value.getOutputDecisionsList().forEach(reference -> referenceWriter.write(xml, "outputDecision", reference));
 		value.getEncapsulatedDecisionsList()
 				.forEach(reference -> referenceWriter.write(xml, "encapsulatedDecision", reference));
