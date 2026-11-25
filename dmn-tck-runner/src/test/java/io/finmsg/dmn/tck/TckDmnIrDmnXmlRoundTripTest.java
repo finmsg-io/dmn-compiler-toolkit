@@ -132,6 +132,93 @@ class TckDmnIrDmnXmlRoundTripTest {
 		}
 	}
 
+	@Test
+	void roundTripAdditionalComplexDmnModelsAcrossSupportedVersions() throws Exception {
+		Path modelsRoot = Path.of("..", "dmn-models", "src", "main", "resources", "models").toAbsolutePath()
+				.normalize();
+		if (!Files.isDirectory(modelsRoot)) {
+			modelsRoot = Path.of("dmn-models", "src", "main", "resources", "models").toAbsolutePath().normalize();
+		}
+		assertTrue(Files.isDirectory(modelsRoot), "Missing dmn-models directory at " + modelsRoot);
+
+		record ComplexFixture(String dir, String rootFile, List<String> importFiles, String decision,
+				Map<String, Object> inputs) {
+		}
+		List<ComplexFixture> fixtures = List.of(
+				// 1. data-quality (MT564 SWIFT DQM with imported reusable BKM - multi-violation
+				// case)
+				new ComplexFixture("data-quality", "swift-mt564-dqm.dmn", List.of("reusable-dq-bkm.dmn"),
+						"QualityReport",
+						Map.of("Message",
+								Map.of("semeRef", "", "msgFunction", "INVALID_FUNC", "caEvent", "BAD_EVENT"))),
+				// 2. data-quality (MT564 SWIFT DQM - valid message case)
+				new ComplexFixture("data-quality", "swift-mt564-dqm.dmn", List.of("reusable-dq-bkm.dmn"),
+						"QualityReport",
+						Map.of("Message", Map.of("semeRef", "01787", "msgFunction", "NEWM", "caEvent", "ACTV"))));
+
+		DmnCompiler compiler = new DmnCompiler();
+		DmnIrScalarProducer producer = new DmnIrScalarProducer();
+		DmnIrArtifactReader reader = new DmnIrArtifactReader();
+		DmnIrScalarDmnExporter exporter = new DmnIrScalarDmnExporter();
+
+		for (ComplexFixture fixture : fixtures) {
+			Path dir = modelsRoot.resolve(fixture.dir());
+			Path rootPath = dir.resolve(fixture.rootFile());
+			DmnSource rootSrc = new DmnSource(DmnSourceId.of(rootPath.toUri().toString()),
+					Files.readAllBytes(rootPath));
+			List<DmnSource> importSrcs = new ArrayList<>();
+			for (String imp : fixture.importFiles()) {
+				Path impPath = dir.resolve(imp);
+				importSrcs.add(new DmnSource(DmnSourceId.of(impPath.toUri().toString()), Files.readAllBytes(impPath)));
+			}
+			DmnModelResolver origResolver = new InMemoryDmnModelResolver(importSrcs);
+			DmnCompilationResult origCompiled = compiler.compile(rootSrc, origResolver, DmnCompilerOptions.optimized());
+			assertTrue(origCompiled.isSuccess(),
+					"Original model must compile: " + fixture.dir() + " -> " + origCompiled.diagnostics());
+			Object expectedValue = origCompiled.compiledModel().orElseThrow().evaluateDecision(fixture.decision(),
+					fixture.inputs());
+
+			byte[] dmnirBytes = producer.produce(rootSrc, origResolver).artifact().toByteArray();
+			var verified = reader.read(dmnirBytes);
+
+			for (DmnVersion version : List.of(DmnVersion.DMN_1_3, DmnVersion.DMN_1_5, DmnVersion.DMN_1_6)) {
+				var bundle = exporter.export(verified, version);
+				assertEquals(bundle.documents(), exporter.export(verified, version).documents(),
+						"Export must be deterministic for " + fixture.dir() + " (" + version + ")");
+				String expectedNs = switch (version) {
+					case DMN_1_3 -> DmnNamespaces.DMN_1_3;
+					case DMN_1_5 -> DmnNamespaces.DMN_1_5;
+					case DMN_1_6 -> DmnNamespaces.DMN_1_6;
+					default -> throw new AssertionError();
+				};
+				for (String xml : bundle.documents().values()) {
+					assertTrue(xml.contains(expectedNs),
+							"Exported XML for " + fixture.dir() + " must declare namespace " + expectedNs);
+				}
+
+				List<DmnSource> regenImports = new ArrayList<>();
+				DmnSource regenRoot = null;
+				for (var doc : bundle.documents().entrySet()) {
+					DmnSource src = new DmnSource(DmnSourceId.of("memory:/" + doc.getKey()),
+							doc.getValue().getBytes(StandardCharsets.UTF_8));
+					if (doc.getKey().equals(bundle.rootDocument())) {
+						regenRoot = src;
+					} else {
+						regenImports.add(src);
+					}
+				}
+				DmnCompilationResult regenCompiled = compiler.compile(regenRoot,
+						new InMemoryDmnModelResolver(regenImports), DmnCompilerOptions.optimized());
+				assertTrue(regenCompiled.isSuccess(), "Regenerated " + version + " model must compile: " + fixture.dir()
+						+ " -> " + regenCompiled.diagnostics());
+				Object actualValue = regenCompiled.compiledModel().orElseThrow().evaluateDecision(fixture.decision(),
+						fixture.inputs());
+				assertEquals(expectedValue, actualValue,
+						"Semantic parity mismatch for " + fixture.dir() + " (" + version + ")");
+			}
+		}
+	}
+
 	private void runRoundTrip(DmnVersion version) throws Exception {
 		java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));
 		long startNanos = System.nanoTime();
