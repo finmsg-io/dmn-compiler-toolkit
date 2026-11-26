@@ -11,7 +11,7 @@ from documentation_links import documentation_link_errors
 
 ROOT = Path(__file__).resolve().parents[1]
 SPARK_BACKEND = "optimized-generated-sparksql-hybrid"
-TCK_REVISION = "20274cd2ba9cad805db6114f331c743f4b2603a1"
+TCK_REVISION = "5cd912f281831bc535e710aba435e16de198028a"
 
 
 def validate_spark_evidence(data: dict, page: str) -> list[str]:
@@ -23,8 +23,8 @@ def validate_spark_evidence(data: dict, page: str) -> list[str]:
             raise ValueError("expected the optimized Spark hybrid backend only")
         outcomes = data["outcomes"]
         denominator = data["inventory"]["decodedCases"]
-        if denominator != 3391 or len(outcomes) != denominator:
-            raise ValueError("expected all 3,391 pinned official cases")
+        if denominator != 3407 or len(outcomes) != denominator:
+            raise ValueError("expected all 3,407 pinned official cases")
         keys = set()
         counts = Counter()
         for outcome in outcomes:
@@ -44,8 +44,8 @@ def validate_spark_evidence(data: dict, page: str) -> list[str]:
         # This published checkpoint specifically claims every case executed natively.
         if any(o["status"] != "PASSED" or o["diagnostic"] != "NATIVE" for o in outcomes):
             raise ValueError("all-native achievement requires every case to pass with NATIVE routing")
-        block = page.split("### Native Spark SQL checkpoint - 2026-10-26\n", 1)[1]
-        block = block.split("### Historical interpreter/Java baseline", 1)[0]
+        block = page.split("### Native Spark SQL checkpoint - 2026-11-24\n", 1)[1]
+        block = block.split("### Native Spark SQL checkpoint - 2026-10-26", 1)[0]
         expected = {"Native passed": (denominator, "100.00%"), "Fallback passed": (0, "0.00%"),
                     "Failed": (0, "0.00%"), "Compilation blocked": (0, "0.00%"),
                     "Execution / compilation errors": (0, "0.00%"), "Unknown routes": (0, "0.00%")}
@@ -112,7 +112,7 @@ def main() -> int:
         print("\n".join(f"- {error}" for error in errors))
         return 1
     print(f"Documentation facts verified for {len(expected)} reactor modules; "
-          "current Spark checkpoint matches 3,391 unique native passing outcomes. "
+          "current Spark checkpoint matches 3,407 unique native passing outcomes. "
           f"Publication/orphan policy enforced; local links/fragments checked on {page_count} maintained pages and all navigation targets. "
           "Historical/proposal/ADR bodies and remote URLs are outside the link-check scope; "
           "architectural claims are not proved by these checks.")

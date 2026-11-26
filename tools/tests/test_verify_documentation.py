@@ -43,7 +43,7 @@ class VerifyDocumentationTest(unittest.TestCase):
     def test_missing_case_and_inconsistent_totals_fail(self) -> None:
         data = copy.deepcopy(self.data)
         data["outcomes"].pop()
-        self.assert_evidence_error(data, self.page, "all 3,391")
+        self.assert_evidence_error(data, self.page, "all 3,407")
         self.data["statusCounts"]["PASSED"] -= 1
         self.assert_evidence_error(self.data, self.page, "status totals")
 
@@ -53,7 +53,10 @@ class VerifyDocumentationTest(unittest.TestCase):
             self.assert_evidence_error(self.data, self.page, "NATIVE routing")
 
     def test_wrong_count_or_percentage_in_current_table_fails(self) -> None:
-        for old, new in (("**3,391**", "**3,390**"), ("**100.00%**", "**99.97%**")):
+        for old, new in (
+            ("| Native passed | **3,407** | **100.00%** |", "| Native passed | **3,406** | **100.00%** |"),
+            ("| Native passed | **3,407** | **100.00%** |", "| Native passed | **3,407** | **99.97%** |"),
+        ):
             self.assert_evidence_error(self.data, self.page.replace(old, new, 1), "table does not match")
 
     def test_missing_or_malformed_evidence_fails(self) -> None:

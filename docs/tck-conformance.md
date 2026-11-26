@@ -12,7 +12,8 @@
   - [Typed gRPC checkpoint](#typed-grpc-checkpoint-2026-10-29)
   - [Original typed baseline (historical)](#typed-grpc-coverage-2026-10-28)
   - [Generic gRPC checkpoint](#generic-grpc-checkpoint-2026-10-27)
-  - [Native Spark SQL checkpoint](#native-spark-sql-checkpoint-2026-10-26)
+  - [Native Spark SQL checkpoint (2026-11-24)](#native-spark-sql-checkpoint-2026-11-24)
+  - [Native Spark SQL checkpoint (2026-10-26, historical)](#native-spark-sql-checkpoint-2026-10-26)
   - [Historical interpreter/Java baseline](#historical-interpreterjava-baseline-2026-09-04-officialtcksuitetest)
   - [Overall summary](#contents-section-3-1)
   - [Compliance level breakdown](#contents-section-3-2)
@@ -297,6 +298,27 @@ The separate model-specific typed service generator, deployment security, remote
 network conditions and performance are outside this checkpoint. SQL native and
 fallback counts/rates are not applicable to gRPC execution. The existing CI TCK
 jobs do not yet include this opt-in backend.
+
+### Native Spark SQL checkpoint - 2026-11-24
+
+All **3,407 official CL2/CL3 cases** on pinned TCK revision `5cd912f281831bc535e710aba435e16de198028a` executed as native Spark SQL and produced their expected results (**100.00% native, 0.00% fallback**).
+
+| Result | Cases | Rate of all 3,407 cases |
+| --- | ---: | ---: |
+| Native passed | **3,407** | **100.00%** |
+| Fallback passed | **0** | **0.00%** |
+| Failed | 0 | 0.00% |
+| Compilation blocked | 0 | 0.00% |
+| Execution / compilation errors | 0 | 0.00% |
+| Unknown routes | 0 | 0.00% |
+
+Configuration: `optimized-generated-sparksql-hybrid`, Spark 4.2.0 (`NO_CODEGEN`), JDK 25, 120-second per-case timeout, elapsed **409.2 s** (`7m 20s` Maven), Maven exit 0.
+The retained [per-case Spark accounting](assets/tck-accounting-sparksql-native.json) contains all **3,407** distinct passing `NATIVE` outcomes (`0` fallback, `0` failures, `0` errors).
+
+Reproduce offline:
+```bash
+mvn -o -Ptck -Ptck-spark -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false test
+```
 
 ### Native Spark SQL checkpoint - 2026-10-26
 
