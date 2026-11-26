@@ -1,0 +1,26 @@
+struct FilterBudget {
+    visits: usize,
+    products: usize,
+    divisions: usize,
+}
+impl FilterBudget {
+    fn charge(
+        &mut self,
+        count: usize,
+        products: usize,
+        divisions: usize,
+    ) -> Result<(), &'static str> {
+        self.visits = self.visits.saturating_add(count);
+        let repetitions = count.saturating_sub(1);
+        self.products = self
+            .products
+            .saturating_add(products.saturating_mul(repetitions));
+        self.divisions = self
+            .divisions
+            .saturating_add(divisions.saturating_mul(repetitions));
+        if self.visits > 50_000 || self.products > 8_388_608 || self.divisions > 8_388_608 {
+            return Err("filter evaluation budget exceeded");
+        }
+        Ok(())
+    }
+}

@@ -466,13 +466,16 @@ public final class DmnSparkSqlGenerator {
 			return SparkSqlExpressionEmitter.emitDecisionTable(decision.decisionTable().get(), bkmBySlot, resolver);
 		} else if (decision.expression().isPresent()) {
 			RuntimeExpression expr = decision.expression().get();
-			Object terminalTemporal = SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision);
-			if (terminalTemporal != null)
-				return "X'" + java.util.HexFormat.of().formatHex(SparkSqlFeelValueCodec.encode(terminalTemporal)) + "'";
 			if (SparkSqlCapabilityAnalyzer.nativeConstantTemporalResult(decision)) {
 				var constant = (io.finmsg.dmn.ir.RuntimeConstant) expr;
 				return SparkSqlLiterals.string(constant.value());
 			}
+			Object terminalTemporal = SparkSqlExpressionEmitter.nativeTerminalTemporalValue(decision);
+			if (terminalTemporal != null)
+				return "X'" + java.util.HexFormat.of().formatHex(SparkSqlFeelValueCodec.encode(terminalTemporal)) + "'";
+			Object closedConstant = SparkSqlExpressionEmitter.nativeClosedConstantValue(model, decision);
+			if (closedConstant != null)
+				return "X'" + java.util.HexFormat.of().formatHex(SparkSqlFeelValueCodec.encode(closedConstant)) + "'";
 			String emitted = SparkSqlExpressionEmitter.emitWithBkms(expr, bkmBySlot, resolver);
 			if (decision.type() != null && decision.type().kind() != io.finmsg.dmn.ir.RuntimeTypeKind.LIST
 					&& decision.type().kind() != io.finmsg.dmn.ir.RuntimeTypeKind.ANY) {

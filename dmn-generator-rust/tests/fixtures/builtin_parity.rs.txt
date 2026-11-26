@@ -1,0 +1,71 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+fn number(coefficient: &str, scale: i32) -> Value {
+    Value::Number {
+        coefficient: coefficient.into(),
+        scale,
+    }
+}
+fn encode(value: &Value) -> String {
+    match value {
+        Value::Null => "N".into(),
+        Value::Boolean(true) => "T".into(),
+        Value::Boolean(false) => "F".into(),
+        Value::Number { coefficient, scale } => format!("D{coefficient},{scale}"),
+        Value::List(values) => format!(
+            "[{}]",
+            values.iter().map(encode).collect::<Vec<_>>().join("|")
+        ),
+        _ => panic!("unexpected builtin result"),
+    }
+}
+#[test]
+fn builtins_match_java_with_unicode_nulls_and_exact_decimals() {
+    const NS: &str = "urn:rust-proof:builtins";
+    let numbers = [
+        Value::Null,
+        number("-12500", 3),
+        number("0", 3),
+        number("-1", -12),
+        number("-1", 4096),
+        number(&format!("-{}", "9".repeat(4096)), 0),
+    ];
+    let texts = [
+        None,
+        Some(""),
+        Some("A\u{1f30d}e\u{301}"),
+        Some("\u{df}\u{1d11e}"),
+        Some("ababa"),
+        Some("\u{4f60}\u{597d}"),
+    ];
+    let needles = [
+        None,
+        Some(""),
+        Some("\u{1f30d}"),
+        Some("a"),
+        Some("e\u{301}"),
+        Some("\u{754c}"),
+    ];
+    let text = |s: Option<&str>| s.map_or(Value::Null, |s| Value::Text(s.into()));
+    let mut count = 0;
+    for line in include_str!("builtin_vectors.tsv").lines() {
+        let columns: Vec<_> = line.split('\t').collect();
+        let n: usize = columns[0].parse().unwrap();
+        let t: usize = columns[1].parse().unwrap();
+        let k: usize = columns[2].parse().unwrap();
+        let values = evaluate(&BTreeMap::from([
+            ((NS, "number"), numbers[n].clone()),
+            ((NS, "text"), text(texts[t])),
+            ((NS, "needle"), text(needles[k])),
+        ]))
+        .unwrap();
+        let actual = values
+            .iter()
+            .map(|((_, id), v)| format!("{id}={}", encode(v)))
+            .collect::<Vec<_>>()
+            .join(";");
+        assert_eq!(actual, columns[3], "vector {n}/{t}/{k}");
+        count += 1;
+    }
+    assert_eq!(count, 216);
+}

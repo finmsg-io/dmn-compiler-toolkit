@@ -26,6 +26,13 @@ public final class SparkSqlCapabilityAnalyzer {
 		model.businessKnowledgeModels().forEach(b -> staticFunctions.add(b.resultSlot()));
 		model.decisions().stream().filter(d -> d.expression().orElse(null) instanceof RuntimeFunctionDefinition)
 				.forEach(d -> staticFunctions.add(d.resultSlot()));
+		if (hybridBoundary) {
+			var targetDecision = model.decisions().stream().filter(d -> d.id() == decisionId).findFirst().orElse(null);
+			if (targetDecision != null
+					&& SparkSqlExpressionEmitter.nativeClosedConstantValue(model, targetDecision) != null) {
+				return new Capability(List.of(), List.of());
+			}
+		}
 		for (RuntimeBkm bkm : model.businessKnowledgeModels()) {
 			if (!required.contains(bkm.id()))
 				continue;

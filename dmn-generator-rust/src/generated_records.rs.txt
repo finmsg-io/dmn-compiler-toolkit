@@ -1,0 +1,53 @@
+fn bind_record(value: &Value, index: usize) -> Result<Value, &'static str> {
+    let Value::Record(fields) = value else {
+        if DYNAMIC_ANY {
+            return Ok(Value::Null);
+        }
+        return Err("record input type mismatch");
+    };
+    let mut out = fields.clone();
+    for &(name, ty) in record_fields(index) {
+        match fields.get(name) {
+            Some(v) => {
+                let bound = bind(v, ty)?;
+                out.insert(name.to_string(), bound);
+            }
+            None if DYNAMIC_ANY => {
+                out.insert(name.to_string(), Value::Null);
+            }
+            None => return Err("missing record input field"),
+        }
+    }
+    Ok(Value::Record(out))
+}
+
+fn field(source: Value, name: &str) -> Value {
+    match source {
+        Value::Record(mut fields) => fields.remove(name).unwrap_or(Value::Null),
+        Value::List(items) => Value::List(items.into_iter().map(|it| field(it, name)).collect()),
+        Value::Date { year, month, day } => match name {
+            "year" => Value::Number { coefficient: year.to_string(), scale: 0 },
+            "month" => Value::Number { coefficient: month.to_string(), scale: 0 },
+            "day" => Value::Number { coefficient: day.to_string(), scale: 0 },
+            "weekday" => {
+                let wd = date_weekday(year, month, day);
+                Value::Number { coefficient: wd.to_string(), scale: 0 }
+            }
+            _ => Value::Null,
+        },
+        Value::Time(ref s) => temporal_time_property(s, name),
+        Value::DateTime(ref s) => temporal_datetime_property(s, name),
+        Value::Duration(ref s) => temporal_duration_property(s, name),
+        Value::Range { lower, upper, lower_inclusive, upper_inclusive } => {
+            let is_eq_range = !matches!(*lower, Value::Null) && matches!(*upper, Value::Null) && upper_inclusive;
+            match name {
+                "start" => *lower,
+                "end" => if is_eq_range { *lower } else { *upper },
+                "start included" => Value::Boolean(!matches!(*lower, Value::Null) && lower_inclusive),
+                "end included" => Value::Boolean(if is_eq_range { true } else { !matches!(*upper, Value::Null) && upper_inclusive }),
+                _ => Value::Null,
+            }
+        }
+        _ => Value::Null,
+    }
+}

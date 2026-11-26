@@ -1,0 +1,660 @@
+package io.finmsg.dmn.compiler.dmnir;
+
+import io.finmsg.dmn.dmnir.codec.DmnIrArtifactReader.VerifiedArtifact;
+import io.finmsg.dmn.dmnir.codec.DmnIrBuiltinSignature;
+import io.finmsg.dmn.dmnir.proto.v0.*;
+import io.finmsg.dmn.ir.*;
+import io.finmsg.dmn.runtime.DmnRuntime;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.*;
+import java.util.function.Function;
+
+/**
+ * Derives process-local scalar Runtime IR from the verified, authoritative
+ * portable graph.
+ */
+public final class DmnIrRuntimeAdapter {
+	public record ElementId(String modelNamespace, String elementId) {
+		public ElementId {
+			Objects.requireNonNull(modelNamespace, "modelNamespace");
+			Objects.requireNonNull(elementId, "elementId");
+			if (modelNamespace.isBlank() || elementId.isBlank()) {
+				throw new IllegalArgumentException("Namespace and element ID must be non-empty.");
+			}
+		}
+	}
+
+	/**
+	 * Public identity and preserved interchange metadata; slot is derived, not a
+	 * wire identity.
+	 */
+	public record Binding(ElementId id, String elementName, Optional<String> variableId, String variableName,
+			RuntimeType type, int slot) {
+		public Binding {
+			Objects.requireNonNull(id, "id");
+			Objects.requireNonNull(elementName, "elementName");
+			Objects.requireNonNull(variableId, "variableId");
+			Objects.requireNonNull(variableName, "variableName");
+			Objects.requireNonNull(type, "type");
+			if (slot < 0) {
+				throw new IllegalArgumentException("Slot must be non-negative.");
+			}
+		}
+	}
+
+	public AdaptedModel adapt(VerifiedArtifact verified) {
+		Objects.requireNonNull(verified, "verified");
+		DmnIrArtifact artifact = verified.artifact();
+		// Pin this consumer's profile independently of future reader extensions.
+		boolean scalarProfile = artifact.getSchemaVersion().getMinor() == 0
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar"));
+		boolean expressionProfile = artifact.getSchemaVersion().getMinor() == 1
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar-expressions/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions"));
+		boolean recordProfile = artifact.getSchemaVersion().getMinor() == 2
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-records/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records"));
+		boolean localProfile = artifact.getSchemaVersion().getMinor() == 3
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-local-bindings/0")
+				&& artifact.getRequiredCapabilitiesList().equals(
+						List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records", "dmnir.local-bindings"));
+		boolean dateProfile = artifact.getSchemaVersion().getMinor() == 4
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-dates/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions",
+						"dmnir.records", "dmnir.local-bindings", "dmnir.date"));
+		boolean tableProfile = artifact.getSchemaVersion().getMinor() == 5
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-tables/0")
+				&& artifact.getRequiredCapabilitiesList().equals(List.of("dmnir.scalar", "dmnir.scalar-expressions",
+						"dmnir.records", "dmnir.local-bindings", "dmnir.date", "dmnir.tables"));
+		boolean constraintProfile = artifact.getSchemaVersion().getMinor() == 6
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-field-constraints/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
+								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints"));
+		boolean collectionProfile = artifact.getSchemaVersion().getMinor() == 7
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar-collections/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
+								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
+								"dmnir.scalar-collections"));
+		boolean filterProfile = artifact.getSchemaVersion().getMinor() == 8
+				&& artifact.getSemanticsVersion().equals("finmsg-dmnir-scalar-filters/0")
+				&& artifact.getRequiredCapabilitiesList()
+						.equals(List.of("dmnir.scalar", "dmnir.scalar-expressions", "dmnir.records",
+								"dmnir.local-bindings", "dmnir.date", "dmnir.tables", "dmnir.field-constraints",
+								"dmnir.scalar-collections", "dmnir.scalar-filters"));
+		if (artifact.getSchemaVersion().getMajor() != 0 || !(scalarProfile || expressionProfile || recordProfile
+				|| localProfile || dateProfile || tableProfile || constraintProfile || collectionProfile
+				|| filterProfile || artifact.getSchemaVersion().getMinor() == 9
+				|| artifact.getSchemaVersion().getMinor() == 10 || artifact.getSchemaVersion().getMinor() == 11))
+			throw new IllegalArgumentException("Unsupported runtime adapter profile.");
+		var types = new DmnIrRecordTypes(artifact);
+		List<Declaration> declarations = new ArrayList<>();
+		for (DmnIrModel model : artifact.getModelsList()) {
+			for (DmnIrInput input : model.getInputsList()) {
+				declarations.add(new Declaration(new ElementId(model.getNamespace(), input.getIdentity().getId()),
+						input.getIdentity(), input.getVariable(), null));
+			}
+			for (DmnIrDecision decision : model.getDecisionsList()) {
+				declarations.add(new Declaration(new ElementId(model.getNamespace(), decision.getIdentity().getId()),
+						decision.getIdentity(), decision.getVariable(), decision));
+			}
+		}
+		declarations.sort(Comparator.comparing(Declaration::id,
+				Comparator.comparing(ElementId::modelNamespace).thenComparing(ElementId::elementId)));
+		Map<ElementId, Integer> slots = new LinkedHashMap<>();
+		for (Declaration declaration : declarations) {
+			slots.put(declaration.id(), slots.size());
+		}
+		Map<ElementId, DmnIrBkm> bkms = new LinkedHashMap<>();
+		for (var model : artifact.getModelsList()) {
+			for (var bkm : model.getBkmsList()) {
+				var address = new ElementId(model.getNamespace(), bkm.getIdentity().getId());
+				bkms.put(address, bkm);
+				slots.put(address, slots.size());
+			}
+		}
+		List<RuntimeInput> runtimeInputs = new ArrayList<>();
+		List<RuntimeDecision> runtimeDecisions = new ArrayList<>();
+		Map<ElementId, Binding> inputs = new LinkedHashMap<>();
+		Map<ElementId, Binding> decisions = new LinkedHashMap<>();
+		for (Declaration declaration : declarations) {
+			int slot = slots.get(declaration.id());
+			var variable = declaration.variable();
+			RuntimeType type = declaration.decision() == null && artifact.getSchemaVersion().getMinor() < 2
+					? (variable.hasCollectionType()
+							? types.collectionType(variable.getCollectionType())
+							: types.type(variable.getType(), variable.hasRecordType(), variable.getRecordType()))
+					: variableType(variable, types);
+			Binding binding = new Binding(declaration.id(), declaration.identity().getName(),
+					declaration.variable().hasId() ? Optional.of(declaration.variable().getId()) : Optional.empty(),
+					declaration.variable().getName(), type, slot);
+			if (declaration.decision() == null) {
+				inputs.put(declaration.id(), binding);
+				runtimeInputs.add(new RuntimeInput(slot, slot, type));
+			} else {
+				decisions.put(declaration.id(), binding);
+				DmnIrDecision decision = declaration.decision();
+				List<Integer> dependencies = new ArrayList<>();
+				decision.getDependenciesList().forEach(reference -> dependencies.add(slots.get(id(reference))));
+				decision.getKnowledgeDependenciesList()
+						.forEach(reference -> dependencies.add(slots.get(id(reference))));
+				int[] nextLocalSlot = {0};
+				if (decision.hasDecisionTable()) {
+					var table = table(decision.getDecisionTable(), types,
+							cell -> expression(cell, slots, types, Map.of(), nextLocalSlot));
+					runtimeDecisions.add(new RuntimeDecision(slot, slot, type, dependencies, Optional.empty(),
+							Optional.of(table), nextLocalSlot[0]));
+				} else {
+					var body = expression(decision.getExpression(), slots, types, new HashMap<>(), nextLocalSlot);
+					runtimeDecisions.add(new RuntimeDecision(slot, slot, type, dependencies, Optional.of(body),
+							Optional.empty(), nextLocalSlot[0]));
+				}
+			}
+		}
+		List<RuntimeBkm> runtimeBkms = new ArrayList<>();
+		for (var entry : bkms.entrySet()) {
+			var bkm = entry.getValue();
+			int slot = slots.get(entry.getKey());
+			Map<String, Local> locals = new HashMap<>();
+			List<RuntimeFunctionParameter> parameters = new ArrayList<>();
+			for (var parameter : bkm.getParametersList()) {
+				int localSlot = parameters.size();
+				locals.put(parameter.getBindingId(), new Local(0, localSlot));
+				parameters.add(new RuntimeFunctionParameter(parameter.getVariable().getName(), localSlot,
+						variableType(parameter.getVariable(), types)));
+			}
+			int[] nextSlot = {parameters.size()};
+			var body = expression(bkm.getBody(), slots, types, locals, nextSlot);
+			var resultType = variableType(bkm.getVariable(), types);
+			var function = new RuntimeFunctionDefinition(parameters, Optional.of(body), false, nextSlot[0], resultType);
+			var dependencies = bkm.getKnowledgeDependenciesList().stream().map(reference -> slots.get(id(reference)))
+					.toList();
+			runtimeBkms.add(new RuntimeBkm(slot, slot, resultType, dependencies, RuntimeFunctionKind.FEEL,
+					Optional.of(function)));
+		}
+		Set<ElementId> complete = new HashSet<>();
+		List<Integer> order = new ArrayList<>();
+		for (var address : bkms.keySet())
+			orderBkm(address, bkms, slots, complete, order);
+		artifact.getEvaluationOrderList().forEach(value -> order.add(slots.get(id(value))));
+		RuntimeModel model = new RuntimeModel(runtimeInputs, runtimeDecisions, runtimeBkms, order, slots.size());
+		return new AdaptedModel(verified, model, inputs, decisions);
+	}
+
+	private static RuntimeType variableType(DmnIrVariable variable, DmnIrRecordTypes types) {
+		RuntimeType type = variable.hasCollectionType()
+				? types.collectionType(variable.getCollectionType())
+				: types.type(variable.getType(), variable.hasRecordType(), variable.getRecordType());
+		return type.kind() == RuntimeTypeKind.NULL ? RuntimeType.scalar(RuntimeTypeKind.ANY) : type;
+	}
+
+	private static void orderBkm(ElementId address, Map<ElementId, DmnIrBkm> bkms, Map<ElementId, Integer> slots,
+			Set<ElementId> complete, List<Integer> order) {
+		if (!complete.add(address))
+			return;
+		for (var dependency : bkms.get(address).getKnowledgeDependenciesList())
+			orderBkm(id(dependency), bkms, slots, complete, order);
+		order.add(slots.get(address));
+	}
+
+	private static RuntimeDecisionTable table(DmnIrDecisionTable table, DmnIrRecordTypes types,
+			Function<DmnIrExpression, RuntimeExpression> expression) {
+		var inputs = table.getInputsList().stream().map(input -> {
+			var value = expression.apply(input.getExpression());
+			return new RuntimeDecisionTableInput(value, Optional.empty(),
+					types.type(input.getType(), false, DmnIrReference.getDefaultInstance()));
+		}).toList();
+		var outputs = table.getOutputsList().stream()
+				.map(output -> new RuntimeDecisionTableOutput(
+						output.hasName() ? Optional.of(output.getName()) : Optional.empty(),
+						types.type(output.getType(), false, DmnIrReference.getDefaultInstance()), Optional.empty(),
+						output.hasDefaultExpression()
+								? Optional.of(expression.apply(output.getDefaultExpression()))
+								: Optional.empty()))
+				.toList();
+		List<RuntimeDecisionTableRule> rules = new ArrayList<>();
+		for (var rule : table.getRulesList()) {
+			rules.add(new RuntimeDecisionTableRule(rules.size(), rule.getInputEntriesList().stream()
+					.map(group -> new RuntimeUnaryTests(group.getNegated(), group.getWildcard(),
+							group.getTestsList().stream().map(test -> test(test, expression)).toList()))
+					.toList(), rule.getOutputEntriesList().stream().map(expression).toList(), List.of()));
+		}
+		var hitPolicy = switch (table.getHitPolicy()) {
+			case TABLE_HIT_POLICY_UNIQUE -> RuntimeHitPolicy.UNIQUE;
+			case TABLE_HIT_POLICY_FIRST -> RuntimeHitPolicy.FIRST;
+			case TABLE_HIT_POLICY_ANY -> RuntimeHitPolicy.ANY;
+			case TABLE_HIT_POLICY_RULE_ORDER -> RuntimeHitPolicy.RULE_ORDER;
+			case TABLE_HIT_POLICY_OUTPUT_ORDER -> RuntimeHitPolicy.OUTPUT_ORDER;
+			case TABLE_HIT_POLICY_COLLECT, TABLE_HIT_POLICY_COLLECT_SUM, TABLE_HIT_POLICY_COLLECT_MIN,
+					TABLE_HIT_POLICY_COLLECT_MAX, TABLE_HIT_POLICY_COLLECT_COUNT ->
+				RuntimeHitPolicy.COLLECT;
+			default -> throw new IllegalArgumentException("Unsupported verified hit policy.");
+		};
+		var aggregation = switch (table.getHitPolicy()) {
+			case TABLE_HIT_POLICY_COLLECT_SUM -> Optional.of(RuntimeAggregation.SUM);
+			case TABLE_HIT_POLICY_COLLECT_MIN -> Optional.of(RuntimeAggregation.MIN);
+			case TABLE_HIT_POLICY_COLLECT_MAX -> Optional.of(RuntimeAggregation.MAX);
+			case TABLE_HIT_POLICY_COLLECT_COUNT -> Optional.of(RuntimeAggregation.COUNT);
+			default -> Optional.<RuntimeAggregation>empty();
+		};
+		return new RuntimeDecisionTable(hitPolicy, aggregation, inputs, outputs, rules, 0);
+	}
+
+	static RuntimeUnaryTest test(DmnIrUnaryTest test, Function<DmnIrExpression, RuntimeExpression> expression) {
+		return switch (test.getTestCase()) {
+			case COMPARISON -> new RuntimeComparisonUnaryTest(switch (test.getComparison().getOperator()) {
+				case BINARY_OPERATOR_EQUAL -> RuntimeUnaryTestOperator.EQUAL;
+				case BINARY_OPERATOR_NOT_EQUAL -> RuntimeUnaryTestOperator.NOT_EQUAL;
+				case BINARY_OPERATOR_LESS -> RuntimeUnaryTestOperator.LESS;
+				case BINARY_OPERATOR_LESS_EQUAL -> RuntimeUnaryTestOperator.LESS_EQUAL;
+				case BINARY_OPERATOR_GREATER -> RuntimeUnaryTestOperator.GREATER;
+				case BINARY_OPERATOR_GREATER_EQUAL -> RuntimeUnaryTestOperator.GREATER_EQUAL;
+				default -> throw new IllegalArgumentException("Unsupported verified comparison.");
+			}, expression.apply(test.getComparison().getEndpoint()));
+			case RANGE -> {
+				var range = test.getRange();
+				var lower = expression.apply(range.getLower());
+				yield new RuntimeRangeUnaryTest(
+						new RuntimeRangeExpression(Optional.of(lower), Optional.of(expression.apply(range.getUpper())),
+								range.getLowerInclusive() ? RuntimeRangeBoundary.CLOSED : RuntimeRangeBoundary.OPEN,
+								range.getUpperInclusive() ? RuntimeRangeBoundary.CLOSED : RuntimeRangeBoundary.OPEN,
+								RuntimeType.element(RuntimeTypeKind.RANGE, lower.type())));
+			}
+			case TEST_NOT_SET -> throw new IllegalArgumentException("Missing verified test.");
+		};
+	}
+
+	private record Local(int depth, int slot) {
+	}
+
+	private static RuntimeFunctionDefinition closure(DmnIrClosure source, Map<ElementId, Integer> slots,
+			DmnIrRecordTypes types, Map<String, Local> locals) {
+		Map<String, Local> frame = new HashMap<>();
+		for (String capture : source.getCapturedBindingIdsList()) {
+			var local = locals.get(capture);
+			frame.put(capture, new Local(local.depth() + 1, local.slot()));
+		}
+		List<RuntimeFunctionParameter> parameters = new ArrayList<>();
+		for (var formal : source.getParametersList()) {
+			int slot = parameters.size();
+			frame.put(formal.getBindingId(), new Local(0, slot));
+			parameters.add(new RuntimeFunctionParameter(formal.getVariable().getName(), slot,
+					variableType(formal.getVariable(), types)));
+		}
+		int[] nextSlot = {parameters.size()};
+		var body = expression(source.getBody(), slots, types, frame, nextSlot);
+		var result = source.getResultType();
+		var resultType = result.hasCollectionType()
+				? types.collectionType(result.getCollectionType())
+				: types.type(result.getScalarType(), result.hasRecordType(), result.getRecordType());
+		var signature = RuntimeType.function(parameters.stream().map(RuntimeFunctionParameter::type).toList(),
+				resultType);
+		return new RuntimeFunctionDefinition(parameters, Optional.of(body), source.getExternal(), nextSlot[0],
+				signature);
+	}
+
+	private static RuntimeExpression expression(DmnIrExpression expression, Map<ElementId, Integer> slots,
+			DmnIrRecordTypes types, Map<String, Local> locals, int[] nextSlot) {
+		RuntimeType type = expression.hasCollectionType()
+				? types.collectionType(expression.getCollectionType())
+				: types.type(expression.getType(), expression.hasRecordType(), expression.getRecordType());
+		if (!expression.hasLiteral() && type.kind() == RuntimeTypeKind.NULL) {
+			type = RuntimeType.scalar(RuntimeTypeKind.ANY);
+		}
+		return switch (expression.getNodeCase()) {
+			case LOCAL_REFERENCE -> {
+				var local = locals.get(expression.getLocalReference().getBindingId());
+				yield new RuntimeLocalReference(local.depth(), local.slot(), type);
+			}
+			case CONTEXT -> {
+				Map<String, Local> child = new HashMap<>();
+				// Context scopes share the decision frame, matching source lowering.
+				// Distinct binding IDs get distinct slots; scopes control visibility.
+				child.putAll(locals);
+				List<RuntimeContextEntry> entries = new ArrayList<>();
+				for (var binding : expression.getContext().getBindingsList()) {
+					var value = binding.hasClosure()
+							? closure(binding.getClosure().getDefinition(), slots, types, child)
+							: expression(binding.getValue(), slots, types, child, nextSlot);
+					if (!binding.hasClosure() && binding.hasVariable()) {
+						var declaredType = variableType(binding.getVariable(), types);
+						if (declaredType.kind() != RuntimeTypeKind.ANY && declaredType.kind() != RuntimeTypeKind.NULL
+								&& (declaredType.kind() == RuntimeTypeKind.LIST
+										|| declaredType.kind() == RuntimeTypeKind.DATE_TIME
+										|| !declaredType.equals(value.type()))) {
+							var coerceFn = new RuntimeFunctionDefinition(
+									List.of(new RuntimeFunctionParameter("_v", 0, declaredType)),
+									Optional.of(new RuntimeLocalReference(0, 0, declaredType)), false, 1, declaredType);
+							value = new RuntimeInvocationExpression(Optional.empty(), Optional.of(coerceFn), List.of(),
+									List.of(value), declaredType);
+						}
+					}
+					int slot = nextSlot[0]++;
+					String name = binding.hasClosure()
+							? binding.getClosure().getName()
+							: binding.getVariable().getName();
+					entries.add(new RuntimeContextEntry(name, slot, value));
+					child.put(binding.getBindingId(), new Local(0, slot));
+				}
+				entries.add(new RuntimeContextEntry("", -1,
+						expression(expression.getContext().getResult(), slots, types, child, nextSlot)));
+				yield new RuntimeContextExpression(entries, type);
+			}
+			case FIELD_ACCESS -> {
+				var access = expression.getFieldAccess();
+				if (types.minor() < 11 && access.getSource().hasRecordType()
+						&& expression.getType() == DmnIrScalarType.SCALAR_TYPE_NULL)
+					yield new RuntimeConstant(RuntimeConstantKind.NULL, "null",
+							RuntimeType.scalar(RuntimeTypeKind.NULL));
+				var source = expression(access.getSource(), slots, types, locals, nextSlot);
+				int index = source.type().fieldLayout().stream().filter(f -> f.name().equals(access.getFieldName()))
+						.findFirst().map(f -> f.index()).orElse(-1);
+				yield new RuntimePathExpression(source, access.getFieldName(), index, type);
+			}
+			case GLOBAL_REFERENCE -> new RuntimeValueReference(slots.get(id(expression.getGlobalReference())), type);
+			case UNARY -> new RuntimeUnaryExpression(switch (expression.getUnary().getOperator()) {
+				case UNARY_OPERATOR_POSITIVE -> RuntimeUnaryOperator.POSITIVE;
+				case UNARY_OPERATOR_NEGATE -> RuntimeUnaryOperator.NEGATE;
+				case UNARY_OPERATOR_NOT -> RuntimeUnaryOperator.NOT;
+				default -> throw new IllegalArgumentException("Unsupported unary operator.");
+			}, expression(expression.getUnary().getOperand(), slots, types, locals, nextSlot), type);
+			case BINARY -> new RuntimeBinaryExpression(switch (expression.getBinary().getOperator()) {
+				case BINARY_OPERATOR_ADD -> RuntimeBinaryOperator.ADD;
+				case BINARY_OPERATOR_SUBTRACT -> RuntimeBinaryOperator.SUBTRACT;
+				case BINARY_OPERATOR_MULTIPLY -> RuntimeBinaryOperator.MULTIPLY;
+				case BINARY_OPERATOR_DIVIDE -> RuntimeBinaryOperator.DIVIDE;
+				case BINARY_OPERATOR_POWER -> RuntimeBinaryOperator.POWER;
+				case BINARY_OPERATOR_EQUAL -> RuntimeBinaryOperator.EQUAL;
+				case BINARY_OPERATOR_NOT_EQUAL -> RuntimeBinaryOperator.NOT_EQUAL;
+				case BINARY_OPERATOR_LESS -> RuntimeBinaryOperator.LESS;
+				case BINARY_OPERATOR_LESS_EQUAL -> RuntimeBinaryOperator.LESS_EQUAL;
+				case BINARY_OPERATOR_GREATER -> RuntimeBinaryOperator.GREATER;
+				case BINARY_OPERATOR_GREATER_EQUAL -> RuntimeBinaryOperator.GREATER_EQUAL;
+				case BINARY_OPERATOR_AND -> RuntimeBinaryOperator.AND;
+				case BINARY_OPERATOR_OR -> RuntimeBinaryOperator.OR;
+				default -> throw new IllegalArgumentException("Unsupported binary operator.");
+			}, expression(expression.getBinary().getLeft(), slots, types, locals, nextSlot),
+					expression(expression.getBinary().getRight(), slots, types, locals, nextSlot), type);
+			case CONDITIONAL -> new RuntimeConditionalExpression(
+					expression(expression.getConditional().getCondition(), slots, types, locals, nextSlot),
+					expression(expression.getConditional().getThenExpression(), slots, types, locals, nextSlot),
+					expression(expression.getConditional().getElseExpression(), slots, types, locals, nextSlot), type);
+			case LITERAL -> literal(expression.getLiteral(), type);
+			case CLOSURE_INVOCATION -> {
+				var call = expression.getClosureInvocation();
+				RuntimeExpression target;
+				if (call.hasInline()) {
+					target = closure(call.getInline(), slots, types, locals);
+				} else {
+					var local = locals.get(call.getLocalBindingId());
+					target = new RuntimeLocalReference(local.depth(), local.slot(),
+							RuntimeType.scalar(RuntimeTypeKind.FUNCTION));
+				}
+				var arguments = call.getArgumentsList().stream()
+						.map(argument -> expression(argument, slots, types, locals, nextSlot)).toList();
+				yield new RuntimeInvocationExpression(Optional.empty(), Optional.of(target), List.of(), arguments,
+						type);
+			}
+			case BKM_CALL -> {
+				var call = expression.getBkmCall();
+				List<RuntimeExpression> ordered = new ArrayList<>(Collections.nCopies(call.getArgumentsCount(), null));
+				List<RuntimeContextEntry> temporaries = new ArrayList<>();
+				boolean reordered = false;
+				for (int i = 0; i < call.getArgumentsCount(); i++)
+					reordered |= call.getArguments(i).getParameterPosition() != i + 1;
+				for (var argument : call.getArgumentsList()) {
+					var value = expression(argument.getExpression(), slots, types, locals, nextSlot);
+					if (reordered) {
+						// Evaluate in source order before binding in formal order on every backend.
+						int slot = nextSlot[0]++;
+						temporaries.add(
+								new RuntimeContextEntry("argument " + argument.getParameterPosition(), slot, value));
+						value = new RuntimeLocalReference(0, slot, value.type());
+					}
+					ordered.set(argument.getParameterPosition() - 1, value);
+				}
+				var target = new RuntimeValueReference(slots.get(id(call.getTarget())),
+						RuntimeType.scalar(RuntimeTypeKind.FUNCTION));
+				var invocation = new RuntimeInvocationExpression(Optional.empty(), Optional.of(target), List.of(),
+						ordered, type);
+				if (!reordered)
+					yield invocation;
+				temporaries.add(new RuntimeContextEntry("", -1, invocation));
+				yield new RuntimeContextExpression(temporaries, type);
+			}
+			case BUILTIN_CALL -> {
+				var call = expression.getBuiltinCall();
+				var signature = DmnIrBuiltinSignature.forOperation(call.getOperation()).orElseThrow();
+				var arguments = call.getArgumentsList().stream()
+						.map(argument -> expression(argument, slots, types, locals, nextSlot)).toList();
+				yield new RuntimeFunctionCall(signature.feelName(), arguments, type);
+			}
+			case FILTER -> {
+				var filter = expression.getFilter();
+				var source = expression(filter.getSource(), slots, types, locals, nextSlot);
+				Map<String, Local> child = new HashMap<>(locals);
+				int slot = nextSlot[0]++;
+				child.put(filter.getItemBindingId(), new Local(0, slot));
+				yield new RuntimeFilterExpression(source, slot,
+						expression(filter.getPredicate(), slots, types, child, nextSlot), type);
+			}
+			case LIST -> new RuntimeListExpression(expression.getList().getElementsList().stream()
+					.map(element -> expression(element, slots, types, locals, nextSlot)).toList(), type);
+			case CLOSURE -> closure(expression.getClosure(), slots, types, locals);
+			case CONTEXT_LITERAL -> {
+				var ctx = expression.getContextLiteral();
+				Map<String, Local> child = new HashMap<>(locals);
+				List<RuntimeContextEntry> entries = new ArrayList<>();
+				for (var entry : ctx.getEntriesList()) {
+					int slot = nextSlot[0]++;
+					if (entry.hasClosure()) {
+						var fn = closure(entry.getClosure().getDefinition(), slots, types, child);
+						entries.add(new RuntimeContextEntry(entry.getClosure().getName(), slot, fn));
+					} else {
+						var val = expression(entry.getValue(), slots, types, child, nextSlot);
+						entries.add(new RuntimeContextEntry(entry.getVariable().getName(), slot, val));
+					}
+					child.put(entry.getBindingId(), new Local(0, slot));
+				}
+				yield new RuntimeContextExpression(entries, RuntimeType.scalar(RuntimeTypeKind.CONTEXT));
+			}
+			case RANGE -> {
+				var range = expression.getRange();
+				Optional<RuntimeExpression> lower = range.hasLower()
+						? Optional.of(expression(range.getLower(), slots, types, locals, nextSlot))
+						: Optional.empty();
+				Optional<RuntimeExpression> upper = range.hasUpper()
+						? Optional.of(expression(range.getUpper(), slots, types, locals, nextSlot))
+						: Optional.empty();
+				yield new RuntimeRangeExpression(lower, upper,
+						range.getLowerInclusive() ? RuntimeRangeBoundary.CLOSED : RuntimeRangeBoundary.OPEN,
+						range.getUpperInclusive() ? RuntimeRangeBoundary.CLOSED : RuntimeRangeBoundary.OPEN,
+						RuntimeType.scalar(RuntimeTypeKind.RANGE));
+			}
+			case INSTANCE_OF -> {
+				var inst = expression.getInstanceOf();
+				var targetExpr = expression(inst.getExpression(), slots, types, locals, nextSlot);
+				yield new RuntimeInstanceOfExpression(targetExpr, adaptTypeDescriptor(inst.getTestedType()),
+						RuntimeType.scalar(RuntimeTypeKind.BOOLEAN));
+			}
+			case FOR_EXPRESSION -> {
+				var forExpr = expression.getForExpression();
+				Map<String, Local> child = new HashMap<>(locals);
+				List<RuntimeIteration> iterations = new ArrayList<>();
+				for (var it : forExpr.getIterationsList()) {
+					var src = expression(it.getSource(), slots, types, child, nextSlot);
+					Optional<RuntimeExpression> end = it.hasRangeEnd()
+							? Optional.of(expression(it.getRangeEnd(), slots, types, child, nextSlot))
+							: Optional.empty();
+					int slot = nextSlot[0]++;
+					child.put(it.getBindingId(), new Local(0, slot));
+					iterations.add(new RuntimeIteration(slot, src, end));
+				}
+				int partialSlot = nextSlot[0]++;
+				if (!forExpr.getPartialBindingId().isBlank()) {
+					child.put(forExpr.getPartialBindingId(), new Local(0, partialSlot));
+				}
+				var body = expression(forExpr.getBody(), slots, types, child, nextSlot);
+				yield new RuntimeForExpression(iterations, body, partialSlot,
+						RuntimeType.element(RuntimeTypeKind.LIST, body.type()));
+			}
+			case QUANTIFIED -> {
+				var q = expression.getQuantified();
+				Map<String, Local> child = new HashMap<>(locals);
+				List<RuntimeQuantifiedBinding> bindings = new ArrayList<>();
+				for (var b : q.getBindingsList()) {
+					var src = expression(b.getSource(), slots, types, child, nextSlot);
+					int slot = nextSlot[0]++;
+					child.put(b.getBindingId(), new Local(0, slot));
+					bindings.add(new RuntimeQuantifiedBinding(slot, src));
+				}
+				var satisfies = expression(q.getSatisfies(), slots, types, child, nextSlot);
+				yield new RuntimeQuantifiedExpression(q.getEvery() ? RuntimeQuantifier.EVERY : RuntimeQuantifier.SOME,
+						bindings, satisfies, RuntimeType.scalar(RuntimeTypeKind.BOOLEAN));
+			}
+			case DYNAMIC_INVOCATION -> {
+				var inv = expression.getDynamicInvocation();
+				var target = expression(inv.getTarget(), slots, types, locals, nextSlot);
+				var positional = inv.getPositionalArgumentsList().stream()
+						.map(arg -> expression(arg, slots, types, locals, nextSlot)).toList();
+				var named = inv.getNamedArgumentsList().stream().map(arg -> new RuntimeNamedArgument(arg.getName(),
+						expression(arg.getValue(), slots, types, locals, nextSlot))).toList();
+				yield new RuntimeInvocationExpression(Optional.empty(), Optional.of(target), named, positional, type);
+			}
+			default -> throw new IllegalArgumentException("Unsupported expression in runtime adapter.");
+		};
+	}
+
+	private static RuntimeType adaptTypeDescriptor(DmnIrTypeDescriptor desc) {
+		RuntimeTypeKind kind = RuntimeTypeKind.valueOf(desc.getKind());
+		if (kind == RuntimeTypeKind.LIST || kind == RuntimeTypeKind.RANGE) {
+			return desc.hasElementType()
+					? RuntimeType.element(kind, adaptTypeDescriptor(desc.getElementType()))
+					: RuntimeType.scalar(kind);
+		}
+		if (kind == RuntimeTypeKind.CONTEXT && desc.getFieldsCount() > 0) {
+			List<RuntimeField> fields = new ArrayList<>();
+			for (int i = 0; i < desc.getFieldsCount(); i++) {
+				var f = desc.getFields(i);
+				fields.add(new RuntimeField(i, f.getName(), adaptTypeDescriptor(f.getType())));
+			}
+			return RuntimeType.contextFields(fields);
+		}
+		if (kind == RuntimeTypeKind.FUNCTION && (desc.getParameterTypesCount() > 0 || desc.hasReturnType())) {
+			List<RuntimeType> params = desc.getParameterTypesList().stream()
+					.map(DmnIrRuntimeAdapter::adaptTypeDescriptor).toList();
+			RuntimeType ret = desc.hasReturnType()
+					? adaptTypeDescriptor(desc.getReturnType())
+					: RuntimeType.scalar(RuntimeTypeKind.ANY);
+			return RuntimeType.function(params, ret);
+		}
+		return RuntimeType.scalar(kind);
+	}
+
+	static RuntimeConstant literal(DmnIrLiteral literal, RuntimeType type) {
+		return switch (literal.getValueCase()) {
+			case NULL_VALUE -> new RuntimeConstant(RuntimeConstantKind.NULL, "null", type);
+			case BOOLEAN_VALUE ->
+				new RuntimeConstant(RuntimeConstantKind.BOOLEAN, Boolean.toString(literal.getBooleanValue()), type);
+			case DATE_VALUE -> new RuntimeConstant(RuntimeConstantKind.DATE,
+					DmnIrDates.value(literal.getDateValue()).toString(), type);
+			case TIME_VALUE -> new RuntimeConstant(RuntimeConstantKind.TIME, literal.getTimeValue(), type);
+			case DATE_TIME_VALUE ->
+				new RuntimeConstant(RuntimeConstantKind.DATE_TIME, literal.getDateTimeValue(), type);
+			case DURATION_VALUE -> new RuntimeConstant(RuntimeConstantKind.DURATION, literal.getDurationValue(), type);
+			case STRING_VALUE -> new RuntimeConstant(RuntimeConstantKind.STRING, literal.getStringValue(), type);
+			case NUMBER_VALUE -> {
+				DmnIrDecimal decimal = literal.getNumberValue();
+				// toString round-trips signed scale; do not expand scientific notation.
+				String value = new BigDecimal(new BigInteger(decimal.getUnscaledValue()), decimal.getScale())
+						.toString();
+				yield new RuntimeConstant(RuntimeConstantKind.NUMBER, value, type);
+			}
+			default -> throw new IllegalArgumentException("Unsupported literal in runtime adapter.");
+		};
+	}
+
+	private static ElementId id(DmnIrReference value) {
+		return new ElementId(value.getModelNamespace(), value.getElementId());
+	}
+
+	private record Declaration(ElementId id, DmnIrElementIdentity identity, DmnIrVariable variable,
+			DmnIrDecision decision) {
+	}
+
+	private static <K, V> Map<K, V> immutableMap(Map<K, V> values) {
+		// Map.copyOf would reject legitimate null FEEL results and does not preserve
+		// order.
+		return Collections.unmodifiableMap(new LinkedHashMap<>(values));
+	}
+
+	/**
+	 * Immutable model/binding metadata; evaluation allocates fresh runtime state
+	 * for every call.
+	 */
+	public static final class AdaptedModel {
+		private final VerifiedArtifact source;
+		private final RuntimeModel runtimeModel;
+		private final Map<ElementId, Binding> inputs;
+		private final Map<ElementId, Binding> decisions;
+		private final DmnRuntime runtime = new DmnRuntime();
+
+		private AdaptedModel(VerifiedArtifact source, RuntimeModel runtimeModel, Map<ElementId, Binding> inputs,
+				Map<ElementId, Binding> decisions) {
+			this.source = source;
+			this.runtimeModel = runtimeModel;
+			this.inputs = immutableMap(inputs);
+			this.decisions = immutableMap(decisions);
+		}
+
+		public VerifiedArtifact source() {
+			return source;
+		}
+
+		public RuntimeModel runtimeModel() {
+			return runtimeModel;
+		}
+
+		public Map<ElementId, Binding> inputs() {
+			return inputs;
+		}
+
+		public Map<ElementId, Binding> decisions() {
+			return decisions;
+		}
+
+		/**
+		 * Evaluates all bundled decisions using namespace-qualified source element IDs.
+		 */
+		public Map<ElementId, Object> evaluate(Map<ElementId, ?> inputValues) {
+			Objects.requireNonNull(inputValues, "inputValues");
+			Map<ElementId, ?> snapshot = new LinkedHashMap<>(inputValues);
+			for (ElementId key : snapshot.keySet()) {
+				if (!inputs.containsKey(key)) {
+					throw new IllegalArgumentException("Input identity is not declared by this artifact.");
+				}
+			}
+			Map<Integer, Object> slots = new HashMap<>();
+			for (Binding binding : inputs.values()) {
+				if (!snapshot.containsKey(binding.id())) {
+					throw new IllegalArgumentException("Missing input value for a declared model input.");
+				}
+				Object value = snapshot.get(binding.id());
+				if (binding.type().kind() == RuntimeTypeKind.NULL && value != null) {
+					throw new IllegalArgumentException("A null-typed input requires a null value.");
+				}
+				slots.put(binding.slot(), value);
+			}
+			var evaluated = runtime.evaluate(runtimeModel, slots);
+			Map<ElementId, Object> results = new LinkedHashMap<>();
+			for (Binding binding : decisions.values()) {
+				results.put(binding.id(), evaluated.value(binding.slot()));
+			}
+			return immutableMap(results);
+		}
+	}
+}

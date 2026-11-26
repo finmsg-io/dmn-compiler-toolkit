@@ -99,6 +99,42 @@ public final class JavaExpressionEmitter {
 		return callable.append("))").toString();
 	}
 
+	static String emitField(RuntimeField field, String type) {
+		String base = "new io.finmsg.dmn.ir.RuntimeField(" + field.index() + ", \"" + escapeString(field.name())
+				+ "\", " + type;
+		if (field.constraint().isEmpty())
+			return base + ")";
+		var tests = field.constraint().orElseThrow();
+		var alternatives = tests.tests().stream().map(JavaExpressionEmitter::emitConstraintTest).toList();
+		return base + ", java.util.Optional.of(new io.finmsg.dmn.ir.RuntimeUnaryTests(" + tests.negated() + ", "
+				+ tests.wildcard() + ", java.util.List.of(" + String.join(", ", alternatives) + "))))";
+	}
+
+	private static String emitConstraintTest(RuntimeUnaryTest test) {
+		String ir = "io.finmsg.dmn.ir.";
+		return switch (test) {
+			case RuntimeComparisonUnaryTest comparison -> "new " + ir + "RuntimeComparisonUnaryTest(" + ir
+					+ "RuntimeUnaryTestOperator." + comparison.operator().name() + ", "
+					+ emitConstraintConstant((RuntimeConstant) comparison.endpoint()) + ")";
+			case RuntimeRangeUnaryTest rangeTest -> {
+				var range = rangeTest.range();
+				yield "new " + ir + "RuntimeRangeUnaryTest(new " + ir + "RuntimeRangeExpression("
+						+ "java.util.Optional.of("
+						+ emitConstraintConstant((RuntimeConstant) range.lower().orElseThrow())
+						+ "), java.util.Optional.of("
+						+ emitConstraintConstant((RuntimeConstant) range.upper().orElseThrow()) + "), " + ir
+						+ "RuntimeRangeBoundary." + range.lowerBoundary().name() + ", " + ir + "RuntimeRangeBoundary."
+						+ range.upperBoundary().name() + ", " + emitTypeLiteral(range.type()) + "))";
+			}
+			default -> throw new IllegalArgumentException("Unsupported field constraint.");
+		};
+	}
+
+	private static String emitConstraintConstant(RuntimeConstant constant) {
+		return "new io.finmsg.dmn.ir.RuntimeConstant(io.finmsg.dmn.ir.RuntimeConstantKind." + constant.kind().name()
+				+ ", \"" + escapeString(constant.value()) + "\", " + emitTypeLiteral(constant.type()) + ")";
+	}
+
 	private static String emitTypeLiteral(RuntimeType type) {
 		if (type == null)
 			return "null";
@@ -112,8 +148,7 @@ public final class JavaExpressionEmitter {
 				if (i > 0)
 					sb.append(", ");
 				io.finmsg.dmn.ir.RuntimeField f = type.fieldLayout().get(i);
-				sb.append("new io.finmsg.dmn.ir.RuntimeField(").append(f.index()).append(", \"").append(f.name())
-						.append("\", ").append(emitTypeLiteral(f.type())).append(")");
+				sb.append(emitField(f, emitTypeLiteral(f.type())));
 			}
 			sb.append("))");
 			return sb.toString();

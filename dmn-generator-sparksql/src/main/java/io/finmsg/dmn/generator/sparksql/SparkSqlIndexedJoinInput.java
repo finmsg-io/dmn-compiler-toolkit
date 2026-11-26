@@ -145,12 +145,9 @@ final class SparkSqlIndexedJoinInput {
 		String key = "CASE WHEN " + source
 				+ ".inner IS NULL THEN named_struct('kind','NULL','key',CAST(NULL AS STRING),'invalid',FALSE) ELSE try_element_at(join_selected,1).number END";
 		String match = "CASE WHEN join_d.number.kind = join_key.kind THEN CASE WHEN join_d.number.kind='NULL' THEN TRUE WHEN join_d.number.invalid OR join_key.invalid THEN CAST(raise_error('Invalid FEEL join number') AS BOOLEAN) ELSE join_d.number.key = join_key.key END ELSE FALSE END";
-		String predicate = "CASE WHEN (" + match
-				+ ") THEN CASE WHEN join_d.nullRow THEN CAST(raise_error('Null matched FEEL join row') AS BOOLEAN) ELSE TRUE END ELSE FALSE END";
+		String predicate = "(" + match + ")";
 		String result = "try_element_at(filter(" + source + ".outer, join_d -> " + predicate + "),1).text";
 		result = let("join_key", key, result);
-		result = "CASE WHEN exists(join_selected,join_i -> join_i.nullRow) THEN CAST(raise_error('Null matched FEEL join row') AS STRING) ELSE "
-				+ result + " END";
 		return "CASE WHEN " + source + ".outer IS NULL OR size(" + source + ".outer)=0 THEN CAST(NULL AS STRING) ELSE "
 				+ let("join_selected", selected, result) + " END";
 	}

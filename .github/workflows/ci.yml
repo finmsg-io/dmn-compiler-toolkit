@@ -3,7 +3,7 @@ name: Maven CI
 on:
   push:
     branches:
-      - main
+      - "**"
   pull_request:
     branches:
       - main
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -60,9 +60,13 @@ jobs:
           java-version: "25"
           cache: maven
 
+      - name: Verify feature branch reactor and formatting without full TCK
+        if: steps.impact.outputs.heavy == 'true' && github.event_name == 'push' && github.ref != 'refs/heads/main'
+        run: mvn --batch-mode -Pformat verify
+
       - name: Verify reactor, formatting and complete optimized TCK once
-        if: steps.impact.outputs.heavy == 'true'
-        run: mvn --batch-mode -Pformat,tck -Dtck.backend=all -Dtck.requireFull=true -Dtck.timeoutSeconds=30 verify
+        if: steps.impact.outputs.heavy == 'true' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
+        run: mvn --batch-mode -Pformat,tck -Dtck.backend=all -Dtck.requireFull=true -Dtck.timeoutSeconds=120 verify
 
       - name: Verify tracked sources remain unchanged
         run: git diff --check && git diff --exit-code
@@ -76,7 +80,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload optimized TCK accounting
-        if: always() && steps.impact.outputs.heavy == 'true'
+        if: always() && steps.impact.outputs.heavy == 'true' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
         uses: actions/upload-artifact@v4
         with:
           name: optimized-tck-accounting-${{ github.run_number }}

@@ -51,15 +51,29 @@ final class SparkSqlStaticFunctionLowerer {
 				try {
 					RuntimeExpression expression = lowerer.expression(decision.expression().get(),
 							List.of(new HashMap<>()), 0);
-					RuntimeExpression resultExpression = (RuntimeExpression) lowerer.coerce(expression,
-							decision.type());
-					var candidate = new RuntimeDecision(decision.id(), decision.resultSlot(), decision.type(),
+					boolean tightenedNativeContext = !lowerer.contextFunctions
+							&& decision.type().kind() == RuntimeTypeKind.CONTEXT
+							&& !SparkSqlFeelValueCodec.isNativeType(decision.type()) && expression.type() != null
+							&& expression.type().kind() == RuntimeTypeKind.CONTEXT
+							&& SparkSqlFeelValueCodec.isNativeType(expression.type())
+							&& expression.type().fieldLayout().size() == decision.type().fieldLayout().size();
+					RuntimeExpression resultExpression = tightenedNativeContext
+							? expression
+							: (RuntimeExpression) lowerer.coerce(expression, decision.type());
+					RuntimeType updatedType = tightenedNativeContext
+							|| (!SparkSqlFeelValueCodec.isNativeType(decision.type()) && resultExpression.type() != null
+									&& SparkSqlFeelValueCodec.isNativeType(resultExpression.type())
+									&& (decision.type().kind() == RuntimeTypeKind.ANY
+											|| decision.type().kind() == resultExpression.type().kind()))
+													? resultExpression.type()
+													: decision.type();
+					var candidate = new RuntimeDecision(decision.id(), decision.resultSlot(), updatedType,
 							decision.dependencies(), Optional.of(resultExpression), Optional.empty(),
 							decision.localSlotCount());
 					if (lowerer.contextFunctions && exactNumbersRequired(resultExpression)
 							&& !SparkSqlExactArithmeticInput.supports(model, candidate))
 						throw new Unsupported();
-					if (lowerer.applied || resultExpression != expression) {
+					if (lowerer.applied || resultExpression != expression || !updatedType.equals(decision.type())) {
 						Set<Integer> slots = new HashSet<>();
 						SparkSqlPayloadCodec.walk(resultExpression, node -> {
 							if (node instanceof RuntimeValueReference reference)
@@ -72,9 +86,8 @@ final class SparkSqlStaticFunctionLowerer {
 								.forEach(d -> dependencies.add(d.id()));
 						model.businessKnowledgeModels().stream().filter(b -> slots.contains(b.resultSlot()))
 								.forEach(b -> dependencies.add(b.id()));
-						result = new RuntimeDecision(decision.id(), decision.resultSlot(), decision.type(),
-								dependencies, Optional.of(resultExpression), Optional.empty(),
-								decision.localSlotCount());
+						result = new RuntimeDecision(decision.id(), decision.resultSlot(), updatedType, dependencies,
+								Optional.of(resultExpression), Optional.empty(), decision.localSlotCount());
 					}
 				} catch (Unsupported ignored) {
 					// Keep the original complete function graph for the established fallback.

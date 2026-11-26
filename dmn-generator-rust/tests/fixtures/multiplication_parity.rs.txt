@@ -1,0 +1,114 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+
+const NS: &str = "urn:rust-proof:multiplication";
+
+fn number(coefficient: &str, scale: i32) -> Value {
+    Value::Number {
+        coefficient: coefficient.into(),
+        scale,
+    }
+}
+
+#[test]
+fn matches_java_exactly() {
+    let max = number(&"9".repeat(4096), 0);
+    let max_product = number(&format!("{}8{}1", "9".repeat(4095), "0".repeat(4095)), 0);
+    let max_twice = number(&format!("1{}6{}2", "9".repeat(4095), "0".repeat(4095)), 0);
+    for (a, b, product, twice, zero, select_twice) in [
+        (
+            max.clone(),
+            max,
+            max_product,
+            max_twice,
+            number("0", 0),
+            true,
+        ),
+        (
+            number("999999999", 0),
+            number("999999999", 0),
+            number("999999998000000001", 0),
+            number("1999999996000000002", 0),
+            number("0", 0),
+            true,
+        ),
+        (
+            number("999999999", 0),
+            number("-1000000001", 0),
+            number("-999999999999999999", 0),
+            number("-1999999999999999998", 0),
+            number("0", 0),
+            false,
+        ),
+        (
+            number("-1000000001", 0),
+            number("-1000000001", 0),
+            number("1000000002000000001", 0),
+            number("2000000004000000002", 0),
+            number("0", 0),
+            true,
+        ),
+        (
+            number("1234567890123456789000", 2),
+            number("10", 3),
+            number("12345678901234567890000", 5),
+            number("24691357802469135780000", 5),
+            number("0", 5),
+            true,
+        ),
+        (
+            number("1", 4096),
+            number("1", 4096),
+            number("1", 8192),
+            number("2", 8192),
+            number("0", 8192),
+            true,
+        ),
+        (
+            number("-1", -4096),
+            number("1", -4096),
+            number("-1", -8192),
+            number("-2", -8192),
+            number("0", -8192),
+            false,
+        ),
+        (
+            number("0", 3),
+            number("-4", -2),
+            number("0", 1),
+            number("0", 1),
+            number("0", 1),
+            true,
+        ),
+        (
+            Value::Null,
+            number("12", 1),
+            Value::Null,
+            Value::Null,
+            Value::Null,
+            false,
+        ),
+        (
+            number("12", 1),
+            Value::Null,
+            Value::Null,
+            Value::Null,
+            Value::Null,
+            false,
+        ),
+    ] {
+        let input = BTreeMap::from([((NS, "a"), a), ((NS, "b"), b)]);
+        let selected = if select_twice {
+            twice.clone()
+        } else {
+            product.clone()
+        };
+        let expected = BTreeMap::from([
+            ((NS, "product"), product),
+            ((NS, "twice"), twice),
+            ((NS, "cancelled"), zero),
+            ((NS, "selected"), selected),
+        ]);
+        assert_eq!(evaluate(&input).unwrap(), expected);
+    }
+}

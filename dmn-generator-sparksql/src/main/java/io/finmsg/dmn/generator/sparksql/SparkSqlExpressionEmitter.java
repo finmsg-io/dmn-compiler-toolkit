@@ -1509,6 +1509,10 @@ public final class SparkSqlExpressionEmitter {
 				}
 				return inlineBkm(bkm, inv.positionalArguments(), inv.namedArguments(), bkmBySlot, slotNameResolver);
 			}
+			if (target instanceof RuntimeFunctionDefinition fn && fn.body().isPresent()) {
+				return inlineFunction(fn, inv.type(), inv.positionalArguments(), inv.namedArguments(), bkmBySlot,
+						slotNameResolver);
+			}
 			return emitWithBkms(target, bkmBySlot, slotNameResolver);
 		}
 		return "NULL";
@@ -1520,12 +1524,20 @@ public final class SparkSqlExpressionEmitter {
 		if (bkm.function().isEmpty() || bkm.function().get().body().isEmpty()) {
 			return "NULL";
 		}
-		RuntimeFunctionDefinition fn = bkm.function().get();
+		return inlineFunction(bkm.function().get(), declaredBkmReturnType(bkm), posArgs, namedArgs, bkmBySlot,
+				slotNameResolver);
+	}
+
+	private static String inlineFunction(RuntimeFunctionDefinition fn, RuntimeType expectedReturn,
+			List<RuntimeExpression> posArgs, List<RuntimeNamedArgument> namedArgs, Map<Integer, RuntimeBkm> bkmBySlot,
+			IntFunction<String> slotNameResolver) {
+		if (fn.body().isEmpty()) {
+			return "NULL";
+		}
 		List<RuntimeFunctionParameter> params = fn.parameters();
 		if (posArgs.size() + (namedArgs == null ? 0 : namedArgs.size()) != params.size())
 			return "NULL";
 		Map<Integer, String> paramValues = new HashMap<>();
-		RuntimeType expectedReturn = declaredBkmReturnType(bkm);
 
 		for (int i = 0; i < params.size(); i++) {
 			RuntimeFunctionParameter param = params.get(i);
@@ -3360,7 +3372,10 @@ public final class SparkSqlExpressionEmitter {
 		Object dateLoop = SparkSqlDateLoopProof.value(decision);
 		if (dateLoop != null)
 			return dateLoop;
-		if (decision.type() == null || decision.type().kind() != RuntimeTypeKind.ANY
+		if (decision.type() == null
+				|| !Set.of(RuntimeTypeKind.ANY, RuntimeTypeKind.DATE, RuntimeTypeKind.TIME, RuntimeTypeKind.DATE_TIME,
+						RuntimeTypeKind.DURATION, RuntimeTypeKind.YEARS_MONTHS_DURATION,
+						RuntimeTypeKind.DAYS_TIME_DURATION).contains(decision.type().kind())
 				|| decision.decisionTable().isPresent())
 			return null;
 		RuntimeExpression expression = decision.expression().orElse(null);
@@ -3384,12 +3399,65 @@ public final class SparkSqlExpressionEmitter {
 		}
 		if (expression instanceof RuntimePathExpression path)
 			expression = nativeTemporalPropertyConstant(path);
-		if (!(expression instanceof RuntimeConstant constant)
+		if (!(expression instanceof RuntimeConstant constant) || decision.type().kind() != RuntimeTypeKind.ANY
 				|| !Set.of(RuntimeConstantKind.TIME, RuntimeConstantKind.DATE_TIME, RuntimeConstantKind.DURATION)
 						.contains(constant.kind())
 				|| constant.value().length() > 256)
 			return null;
 		return staticConstantValue(constant);
+	}
+
+	static Object nativeClosedConstantValue(RuntimeModel model, RuntimeDecision decision) {
+		if (decision.decisionTable().isPresent() || decision.expression().isEmpty())
+			return null;
+		if (SparkSqlFeelValueCodec.isNativeType(decision.type()))
+			return null;
+		RuntimeExpression root = decision.expression().get();
+		boolean supportedRoot = (root instanceof RuntimeInvocationExpression inv && inv.function().isEmpty()
+				&& inv.target().orElse(null) instanceof RuntimeValueReference targetRef
+				&& model.businessKnowledgeModels().stream().anyMatch(b -> b.resultSlot() == targetRef.sourceSlot())
+				&& Set.of(RuntimeTypeKind.DATE, RuntimeTypeKind.DATE_TIME, RuntimeTypeKind.LIST)
+						.contains(decision.type().kind()))
+				|| (root instanceof RuntimeContextExpression ctx && !ctx.entries().isEmpty()
+						&& ctx.entries().getLast().name().isEmpty()
+						&& ctx.entries().getLast().expression() instanceof RuntimeListExpression);
+		if (!supportedRoot)
+			return null;
+		Set<Integer> required = SparkSqlDecisionGraph.required(model, decision.id(), true);
+		for (RuntimeInput input : model.inputs()) {
+			if (required.contains(input.id()))
+				return null;
+		}
+		for (RuntimeBkm bkm : model.businessKnowledgeModels()) {
+			if (required.contains(bkm.id()) && (bkm.functionKind() != RuntimeFunctionKind.FEEL
+					|| bkm.function().isEmpty() || bkm.function().get().external()))
+				return null;
+		}
+		boolean[] disallowed = {false};
+		for (RuntimeDecision dep : model.decisions()) {
+			if (!required.contains(dep.id()))
+				continue;
+			if (dep.decisionTable().isPresent())
+				return null;
+			dep.expression().ifPresent(expr -> SparkSqlPayloadCodec.walk(expr, node -> {
+				if (node instanceof RuntimeForExpression || node instanceof RuntimeFilterExpression
+						|| node instanceof RuntimeQuantifiedExpression) {
+					disallowed[0] = true;
+				}
+			}));
+		}
+		if (disallowed[0])
+			return null;
+		try {
+			Object value = new io.finmsg.dmn.runtime.DmnRuntime().evaluate(model, Map.of())
+					.decisionValue(decision.resultSlot());
+			if (value == null)
+				return null;
+			SparkSqlFeelValueCodec.encode(value);
+			return value;
+		} catch (RuntimeException ignored) {
+			return null;
+		}
 	}
 
 	private static boolean boundedTemporalArithmetic(RuntimeExpression expression, int depth, int[] budget) {

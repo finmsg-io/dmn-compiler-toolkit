@@ -1,0 +1,1615 @@
+// ==================== EXTENDED FEEL RUNTIME (TEMPORAL, DYNAMIC OPS, CLOSURES, FOR, INSTANCE OF) ====================
+
+fn is_leap_year(year: i32) -> bool {
+    year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
+}
+
+fn days_in_month(year: i32, month: u32) -> u32 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if is_leap_year(year) => 29,
+        2 => 28,
+        _ => 0,
+    }
+}
+
+// Howard Hinnant's proleptic Gregorian civil-from-days / days-from-civil algorithm (days since 1970-01-01)
+fn ymd_to_days(y: i32, m: u32, d: u32) -> i64 {
+    let mut y = y as i64;
+    let m = m as i64;
+    let d = d as i64;
+    if m <= 2 {
+        y -= 1;
+    }
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let doy = (153 * (m + if m > 2 { -3 } else { 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146097 + doe - 719468
+}
+
+fn days_to_ymd(z: i64) -> (i32, u32, u32) {
+    let z = z + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let mut y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = mp + if mp < 10 { 3 } else { -9 };
+    if m <= 2 {
+        y += 1;
+    }
+    (y as i32, m as u32, d as u32)
+}
+
+// ISO weekday: Monday = 1 .. Sunday = 7
+fn date_weekday(year: i32, month: u32, day: u32) -> u32 {
+    let days = ymd_to_days(year, month, day);
+    // 1970-01-01 was Thursday (4)
+    ((days + 3).rem_euclid(7) + 1) as u32
+}
+
+fn date_day_of_year(year: i32, month: u32, day: u32) -> u32 {
+    let mut doy = day;
+    for m in 1..month {
+        doy += days_in_month(year, m);
+    }
+    doy
+}
+
+fn date_week_of_year(year: i32, month: u32, day: u32) -> u32 {
+    let doy = date_day_of_year(year, month, day) as i32;
+    let dow = date_weekday(year, month, day) as i32;
+    let w = (doy - dow + 10) / 7;
+    if w < 1 {
+        let prev_year = if year == 1 { -1 } else { year - 1 };
+        date_week_of_year(prev_year, 12, 31)
+    } else if w == 53 {
+        let dec31_dow = date_weekday(year, 12, 31) as i32;
+        if dec31_dow < 4 { 1 } else { 53 }
+    } else {
+        w as u32
+    }
+}
+
+fn add_months_to_date(year: i32, month: u32, day: u32, delta_months: i64) -> Option<(i32, u32, u32)> {
+    let total = (year as i64) * 12 + (month as i64 - 1) + delta_months;
+    let new_year = total.div_euclid(12) as i32;
+    let new_month = (total.rem_euclid(12) + 1) as u32;
+    let max_d = days_in_month(new_year, new_month);
+    let new_day = day.min(max_d);
+    if !valid_date(new_year, new_month, new_day) {
+        return None;
+    }
+    Some((new_year, new_month, new_day))
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ParsedTime {
+    hour: u32,
+    min: u32,
+    sec: u32,
+    nanos: u32,
+    offset_secs: Option<i32>,
+    zone: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ParsedDateTime {
+    year: i32,
+    month: u32,
+    day: u32,
+    time: ParsedTime,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum ParsedDuration {
+    YearsMonths(i64),
+    DaysTime(i128), // total nanoseconds
+}
+
+fn parse_offset(s: &str) -> Option<i32> {
+    if s == "Z" || s == "z" {
+        return Some(0);
+    }
+    let bytes = s.as_bytes();
+    if bytes.is_empty() {
+        return None;
+    }
+    let sign = match bytes[0] {
+        b'+' => 1,
+        b'-' => -1,
+        _ => return None,
+    };
+    let rest = &s[1..];
+    let parts: Vec<&str> = rest.split(':').collect();
+    if parts.len() < 2 || parts.len() > 3 {
+        return None;
+    }
+    if parts[0].len() != 2 || parts[1].len() != 2 || (parts.len() == 3 && parts[2].len() != 2) {
+        return None;
+    }
+    let h: i32 = parts[0].parse().ok()?;
+    let m: i32 = parts[1].parse().ok()?;
+    let sec: i32 = if parts.len() == 3 { parts[2].parse().ok()? } else { 0 };
+    if h > 18 || m >= 60 || sec >= 60 {
+        return None;
+    }
+    let total = sign * (h * 3600 + m * 60 + sec);
+    if total.abs() > 18 * 3600 {
+        return None;
+    }
+    Some(total)
+}
+
+fn format_offset(secs: i32) -> String {
+    if secs == 0 {
+        return "Z".into();
+    }
+    let sign = if secs < 0 { '-' } else { '+' };
+    let abs = secs.unsigned_abs();
+    let h = abs / 3600;
+    let m = (abs % 3600) / 60;
+    let s = abs % 60;
+    if s == 0 {
+        format!("{sign}{h:02}:{m:02}")
+    } else {
+        format!("{sign}{h:02}:{m:02}:{s:02}")
+    }
+}
+
+fn iana_zone_offset_secs(zone: &str, year: i32, month: u32, day: u32) -> Option<i32> {
+    // Helper: is US DST active (2nd Sunday of March to 1st Sunday of November, post-2007)
+    let is_us_dst = || -> bool {
+        if month < 3 || month > 11 {
+            return false;
+        }
+        if month > 3 && month < 11 {
+            return true;
+        }
+        let dow1 = date_weekday(year, month, 1); // 1=Mon..7=Sun
+        let first_sun = if dow1 == 7 { 1 } else { 8 - dow1 };
+        if month == 3 {
+            day >= first_sun + 7
+        } else {
+            day < first_sun
+        }
+    };
+    // Helper: is EU DST active (last Sunday of March to last Sunday of October)
+    let is_eu_dst = || -> bool {
+        if month < 3 || month > 10 {
+            return false;
+        }
+        if month > 3 && month < 10 {
+            return true;
+        }
+        let last_day = days_in_month(year, month);
+        let dow_last = date_weekday(year, month, last_day);
+        let last_sun = last_day - (dow_last % 7);
+        if month == 3 {
+            day >= last_sun
+        } else {
+            day < last_sun
+        }
+    };
+    match zone {
+        "Etc/UTC" | "UTC" | "Z" | "GMT" | "Etc/GMT" => Some(0),
+        "Europe/London" => Some(if is_eu_dst() { 3600 } else { 0 }),
+        "Europe/Paris" | "Europe/Berlin" | "Europe/Rome" | "Europe/Madrid" | "Europe/Zurich"
+        | "Europe/Amsterdam" | "Europe/Brussels" | "Europe/Vienna" => {
+            Some(if is_eu_dst() { 7200 } else { 3600 })
+        }
+        "Europe/Sofia" | "Europe/Athens" | "Europe/Helsinki" | "Europe/Bucharest" => {
+            Some(if is_eu_dst() { 10800 } else { 7200 })
+        }
+        "America/Costa_Rica" => Some(-6 * 3600),
+        "America/New_York" | "America/Toronto" | "America/Indiana/Indianapolis" => {
+            Some(if is_us_dst() { -4 * 3600 } else { -5 * 3600 })
+        }
+        "America/Chicago" => Some(if is_us_dst() { -5 * 3600 } else { -6 * 3600 }),
+        "America/Denver" => Some(if is_us_dst() { -6 * 3600 } else { -7 * 3600 }),
+        "America/Los_Angeles" | "America/Vancouver" => {
+            Some(if is_us_dst() { -7 * 3600 } else { -8 * 3600 })
+        }
+        "Asia/Tokyo" | "Asia/Seoul" => Some(9 * 3600),
+        "Asia/Dhaka" => Some(6 * 3600),
+        "Asia/Kolkata" | "Asia/Calcutta" => Some(5 * 3600 + 1800),
+        "Asia/Dubai" => Some(4 * 3600),
+        "Europe/Moscow" => Some(3 * 3600),
+        "Europe/Prague" | "Europe/Warsaw" | "Europe/Stockholm" | "Europe/Oslo" => {
+            Some(if is_eu_dst() { 7200 } else { 3600 })
+        }
+        "America/Sao_Paulo" => Some(-3 * 3600),
+        "Asia/Shanghai" | "Asia/Singapore" | "Asia/Hong_Kong" => Some(8 * 3600),
+        "Australia/Sydney" | "Australia/Melbourne" => {
+            let dst = month >= 10 || month <= 3;
+            Some(if dst { 11 * 3600 } else { 10 * 3600 })
+        }
+        "Pacific/Auckland" => {
+            let dst = month >= 10 || month <= 3;
+            Some(if dst { 13 * 3600 } else { 12 * 3600 })
+        }
+        _ => {
+            if let Some(off) = parse_offset(zone) {
+                Some(off)
+            } else {
+                None
+            }
+        }
+    }
+}
+
+fn parse_time(s: &str) -> Option<ParsedTime> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    let (time_and_off, zone) = if let Some(at) = s.find('@') {
+        let z = s[at + 1..].to_string();
+        if z.is_empty() {
+            return None;
+        }
+        (&s[..at], Some(z))
+    } else {
+        (s, None)
+    };
+    let (time_part, offset_secs) = if let Some(stripped) = time_and_off.strip_suffix('Z') {
+        (stripped, Some(0))
+    } else if let Some(pos) = time_and_off.rfind(|c| c == '+' || c == '-') {
+        let off = parse_offset(&time_and_off[pos..])?;
+        (&time_and_off[..pos], Some(off))
+    } else {
+        (time_and_off, None)
+    };
+    if zone.is_some() && offset_secs.is_some() {
+        return None;
+    }
+    let parts: Vec<&str> = time_part.split(':').collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    if parts[0].len() != 2 || parts[1].len() != 2 {
+        return None;
+    }
+    let hour: u32 = parts[0].parse().ok()?;
+    let min: u32 = parts[1].parse().ok()?;
+    let (sec_str, frac_str) = match parts[2].split_once('.') {
+        Some((a, b)) => (a, Some(b)),
+        None => (parts[2], None),
+    };
+    if sec_str.len() != 2 {
+        return None;
+    }
+    let sec: u32 = sec_str.parse().ok()?;
+    let nanos: u32 = if let Some(frac) = frac_str {
+        if frac.is_empty() || !frac.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        let mut padded = frac.chars().take(9).collect::<String>();
+        while padded.len() < 9 {
+            padded.push('0');
+        }
+        padded.parse().ok()?
+    } else {
+        0
+    };
+    if hour == 24 && min == 0 && sec == 0 && nanos == 0 {
+        return Some(ParsedTime {
+            hour: 0,
+            min: 0,
+            sec: 0,
+            nanos: 0,
+            offset_secs,
+            zone,
+        });
+    }
+    if hour > 23 || min > 59 || sec > 59 {
+        return None;
+    }
+    if let Some(ref z) = zone {
+        iana_zone_offset_secs(z, 1970, 1, 1)?;
+    }
+    Some(ParsedTime {
+        hour,
+        min,
+        sec,
+        nanos,
+        offset_secs,
+        zone,
+    })
+}
+
+fn format_time(t: &ParsedTime) -> String {
+    let mut s = format!("{:02}:{:02}:{:02}", t.hour, t.min, t.sec);
+    if t.nanos > 0 {
+        let frac = format!("{:09}", t.nanos);
+        let trimmed = frac.trim_end_matches('0');
+        s.push('.');
+        s.push_str(trimmed);
+    }
+    if let Some(ref z) = t.zone {
+        s.push('@');
+        s.push_str(z);
+    } else if let Some(off) = t.offset_secs {
+        s.push_str(&format_offset(off));
+    }
+    s
+}
+
+fn parse_date_str(s: &str) -> Option<(i32, u32, u32)> {
+    let s = s.trim();
+    if s.is_empty() || s.starts_with('+') {
+        return None;
+    }
+    let (neg, rest) = match s.strip_prefix('-') {
+        Some(r) => (true, r),
+        None => (false, s),
+    };
+    let parts: Vec<&str> = rest.split('-').collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    if parts[0].len() < 4 || (parts[0].len() > 4 && parts[0].starts_with('0')) || parts[1].len() != 2 || parts[2].len() != 2 {
+        return None;
+    }
+    if !parts.iter().all(|p| p.bytes().all(|b| b.is_ascii_digit())) {
+        return None;
+    }
+    let y_abs: i32 = parts[0].parse().ok()?;
+    let year = if neg { -y_abs } else { y_abs };
+    let month: u32 = parts[1].parse().ok()?;
+    let day: u32 = parts[2].parse().ok()?;
+    if !valid_date(year, month, day) {
+        return None;
+    }
+    Some((year, month, day))
+}
+
+fn parse_datetime(s: &str) -> Option<ParsedDateTime> {
+    let s = s.trim();
+    let (date_part, time_part) = s.split_once('T')?;
+    let (mut year, mut month, mut day) = parse_date_str(date_part)?;
+    let roll_day = time_part.starts_with("24:00:00");
+    let time = parse_time(time_part)?;
+    if roll_day {
+        let next_days = ymd_to_days(year, month, day) + 1;
+        let (ny, nm, nd) = days_to_ymd(next_days);
+        if !valid_date(ny, nm, nd) {
+            return None;
+        }
+        year = ny;
+        month = nm;
+        day = nd;
+    }
+    if let Some(ref z) = time.zone {
+        iana_zone_offset_secs(z, year, month, day)?;
+    }
+    Some(ParsedDateTime {
+        year,
+        month,
+        day,
+        time,
+    })
+}
+
+fn format_date(year: i32, month: u32, day: u32) -> String {
+    if year < 0 {
+        format!("-{:04}-{:02}-{:02}", year.unsigned_abs(), month, day)
+    } else {
+        format!("{:04}-{:02}-{:02}", year, month, day)
+    }
+}
+
+fn format_datetime(dt: &ParsedDateTime) -> String {
+    format!(
+        "{}T{}",
+        format_date(dt.year, dt.month, dt.day),
+        format_time(&dt.time)
+    )
+}
+
+fn time_effective_offset(t: &ParsedTime, year: i32, month: u32, day: u32) -> Option<i32> {
+    if let Some(off) = t.offset_secs {
+        Some(off)
+    } else if let Some(ref z) = t.zone {
+        iana_zone_offset_secs(z, year, month, day)
+    } else {
+        None
+    }
+}
+
+fn time_local_nanos(t: &ParsedTime) -> i128 {
+    ((t.hour as i128) * 3600 + (t.min as i128) * 60 + (t.sec as i128)) * 1_000_000_000
+        + (t.nanos as i128)
+}
+
+fn compare_time_str(a: &str, b: &str) -> Option<Ordering> {
+    let ta = parse_time(a)?;
+    let tb = parse_time(b)?;
+    let oa = time_effective_offset(&ta, 1970, 1, 1);
+    let ob = time_effective_offset(&tb, 1970, 1, 1);
+    match (oa, ob) {
+        (None, None) => Some((time_local_nanos(&ta) / 1_000_000).cmp(&(time_local_nanos(&tb) / 1_000_000))),
+        (Some(fa), Some(fb)) => {
+            let ua = (time_local_nanos(&ta) - (fa as i128) * 1_000_000_000) / 1_000_000;
+            let ub = (time_local_nanos(&tb) - (fb as i128) * 1_000_000_000) / 1_000_000;
+            Some(ua.cmp(&ub))
+        }
+        _ => None,
+    }
+}
+
+fn datetime_utc_nanos(dt: &ParsedDateTime) -> (bool, i128) {
+    let days = ymd_to_days(dt.year, dt.month, dt.day) as i128;
+    let local = days * 86_400_000_000_000 + time_local_nanos(&dt.time);
+    match time_effective_offset(&dt.time, dt.year, dt.month, dt.day) {
+        Some(off) => (true, local - (off as i128) * 1_000_000_000),
+        None => (false, local),
+    }
+}
+
+fn compare_datetime_str(a: &str, b: &str) -> Option<Ordering> {
+    let dta = parse_datetime(a)?;
+    let dtb = parse_datetime(b)?;
+    let (za, na) = datetime_utc_nanos(&dta);
+    let (zb, nb) = datetime_utc_nanos(&dtb);
+    if za != zb {
+        return None;
+    }
+    Some((na / 1_000_000).cmp(&(nb / 1_000_000)))
+}
+
+fn parse_duration(s: &str) -> Option<ParsedDuration> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    let (neg, rest) = if let Some(r) = s.strip_prefix('-') {
+        (true, r)
+    } else if let Some(r) = s.strip_prefix('+') {
+        (false, r)
+    } else {
+        (false, s)
+    };
+    let rest = rest.strip_prefix('P')?;
+    if rest.is_empty() {
+        return None;
+    }
+    let (date_part, time_part) = match rest.split_once('T') {
+        Some((d, t)) => {
+            if t.is_empty() {
+                return None;
+            }
+            (d, Some(t))
+        }
+        None => (rest, None),
+    };
+    let mut years: Option<i64> = None;
+    let mut months: Option<i64> = None;
+    let mut days: Option<i128> = None;
+    let mut hours: Option<i128> = None;
+    let mut mins: Option<i128> = None;
+    let mut secs: Option<i128> = None;
+    let mut nanos: i128 = 0;
+
+    if !date_part.is_empty() {
+        let mut num = String::new();
+        for ch in date_part.chars() {
+            if ch.is_ascii_digit() {
+                num.push(ch);
+            } else {
+                if num.is_empty() {
+                    return None;
+                }
+                match ch {
+                    'Y' => {
+                        if years.is_some() || months.is_some() || days.is_some() {
+                            return None;
+                        }
+                        years = Some(num.parse().ok()?);
+                    }
+                    'M' => {
+                        if months.is_some() || days.is_some() {
+                            return None;
+                        }
+                        months = Some(num.parse().ok()?);
+                    }
+                    'D' => {
+                        if days.is_some() {
+                            return None;
+                        }
+                        days = Some(num.parse().ok()?);
+                    }
+                    _ => return None,
+                }
+                num.clear();
+            }
+        }
+        if !num.is_empty() {
+            return None;
+        }
+    }
+
+    if let Some(tp) = time_part {
+        let mut num = String::new();
+        for ch in tp.chars() {
+            if ch.is_ascii_digit() || ch == '.' {
+                num.push(ch);
+            } else {
+                if num.is_empty() {
+                    return None;
+                }
+                match ch {
+                    'H' => {
+                        if hours.is_some() || mins.is_some() || secs.is_some() || num.contains('.') {
+                            return None;
+                        }
+                        hours = Some(num.parse().ok()?);
+                    }
+                    'M' => {
+                        if mins.is_some() || secs.is_some() || num.contains('.') {
+                            return None;
+                        }
+                        mins = Some(num.parse().ok()?);
+                    }
+                    'S' => {
+                        if secs.is_some() {
+                            return None;
+                        }
+                        if let Some((sec_s, frac_s)) = num.split_once('.') {
+                            if sec_s.is_empty() {
+                                return None;
+                            }
+                            secs = Some(sec_s.parse().ok()?);
+                            if !frac_s.is_empty() {
+                                let mut padded = frac_s.chars().take(9).collect::<String>();
+                                while padded.len() < 9 {
+                                    padded.push('0');
+                                }
+                                nanos = padded.parse().ok()?;
+                            }
+                        } else {
+                            secs = Some(num.parse().ok()?);
+                        }
+                    }
+                    _ => return None,
+                }
+                num.clear();
+            }
+        }
+        if !num.is_empty() {
+            return None;
+        }
+    }
+
+    let has_ym = years.is_some() || months.is_some();
+    let has_dt = days.is_some() || hours.is_some() || mins.is_some() || secs.is_some();
+    if has_ym && has_dt {
+        return None;
+    }
+    if has_ym {
+        let total = years.unwrap_or(0).checked_mul(12)?.checked_add(months.unwrap_or(0))?;
+        Some(ParsedDuration::YearsMonths(if neg { -total } else { total }))
+    } else if has_dt {
+        let total_secs = days.unwrap_or(0) * 86_400
+            + hours.unwrap_or(0) * 3_600
+            + mins.unwrap_or(0) * 60
+            + secs.unwrap_or(0);
+        let total_nanos = total_secs * 1_000_000_000 + nanos;
+        Some(ParsedDuration::DaysTime(if neg {
+            -total_nanos
+        } else {
+            total_nanos
+        }))
+    } else {
+        None
+    }
+}
+
+fn format_ym_duration(total_months: i64) -> String {
+    if total_months == 0 {
+        return "P0M".into();
+    }
+    let neg = total_months < 0;
+    let abs = total_months.unsigned_abs();
+    let y = abs / 12;
+    let m = abs % 12;
+    let mut s = String::new();
+    if neg {
+        s.push('-');
+    }
+    s.push('P');
+    if y > 0 {
+        s.push_str(&format!("{y}Y"));
+    }
+    if m > 0 {
+        s.push_str(&format!("{m}M"));
+    }
+    s
+}
+
+fn format_dt_duration(total_nanos: i128) -> String {
+    if total_nanos == 0 {
+        return "PT0S".into();
+    }
+    let neg = total_nanos < 0;
+    let abs = total_nanos.unsigned_abs();
+    let total_secs = abs / 1_000_000_000;
+    let nanos = (abs % 1_000_000_000) as u32;
+    let d = total_secs / 86_400;
+    let rem = total_secs % 86_400;
+    let h = rem / 3_600;
+    let rem = rem % 3_600;
+    let m = rem / 60;
+    let sec = rem % 60;
+    let mut s = String::new();
+    if neg {
+        s.push('-');
+    }
+    s.push('P');
+    if d > 0 {
+        s.push_str(&format!("{d}D"));
+    }
+    if h > 0 || m > 0 || sec > 0 || nanos > 0 {
+        s.push('T');
+        if h > 0 {
+            s.push_str(&format!("{h}H"));
+        }
+        if m > 0 {
+            s.push_str(&format!("{m}M"));
+        }
+        if sec > 0 || nanos > 0 {
+            if nanos > 0 {
+                let frac = format!("{:09}", nanos);
+                let trimmed = frac.trim_end_matches('0');
+                s.push_str(&format!("{sec}.{trimmed}S"));
+            } else {
+                s.push_str(&format!("{sec}S"));
+            }
+        }
+    }
+    s
+}
+
+fn compare_duration_str(a: &str, b: &str) -> Option<Ordering> {
+    match (parse_duration(a)?, parse_duration(b)?) {
+        (ParsedDuration::YearsMonths(x), ParsedDuration::YearsMonths(y)) => Some(x.cmp(&y)),
+        (ParsedDuration::DaysTime(x), ParsedDuration::DaysTime(y)) => Some(x.cmp(&y)),
+        _ => None,
+    }
+}
+
+fn temporal_time_property(s: &str, name: &str) -> Value {
+    let Some(t) = parse_time(s) else {
+        return Value::Null;
+    };
+    match name {
+        "hour" => Value::Number { coefficient: t.hour.to_string(), scale: 0 },
+        "minute" => Value::Number { coefficient: t.min.to_string(), scale: 0 },
+        "second" => Value::Number { coefficient: t.sec.to_string(), scale: 0 },
+        "time offset" => match time_effective_offset(&t, 1970, 1, 1) {
+            Some(off) => Value::Duration(format_dt_duration((off as i128) * 1_000_000_000)),
+            None => Value::Null,
+        },
+        "timezone" => match t.zone {
+            Some(z) => Value::Text(z),
+            None => Value::Null,
+        },
+        _ => Value::Null,
+    }
+}
+
+fn temporal_datetime_property(s: &str, name: &str) -> Value {
+    let Some(dt) = parse_datetime(s) else {
+        return Value::Null;
+    };
+    match name {
+        "year" => Value::Number { coefficient: dt.year.to_string(), scale: 0 },
+        "month" => Value::Number { coefficient: dt.month.to_string(), scale: 0 },
+        "day" => Value::Number { coefficient: dt.day.to_string(), scale: 0 },
+        "weekday" => Value::Number {
+            coefficient: date_weekday(dt.year, dt.month, dt.day).to_string(),
+            scale: 0,
+        },
+        "hour" => Value::Number { coefficient: dt.time.hour.to_string(), scale: 0 },
+        "minute" => Value::Number { coefficient: dt.time.min.to_string(), scale: 0 },
+        "second" => Value::Number { coefficient: dt.time.sec.to_string(), scale: 0 },
+        "time offset" => match time_effective_offset(&dt.time, dt.year, dt.month, dt.day) {
+            Some(off) => Value::Duration(format_dt_duration((off as i128) * 1_000_000_000)),
+            None => Value::Null,
+        },
+        "timezone" => match dt.time.zone {
+            Some(z) => Value::Text(z),
+            None => Value::Null,
+        },
+        _ => Value::Null,
+    }
+}
+
+fn temporal_duration_property(s: &str, name: &str) -> Value {
+    let Some(d) = parse_duration(s) else {
+        return Value::Null;
+    };
+    match d {
+        ParsedDuration::YearsMonths(total) => match name {
+            "years" => Value::Number { coefficient: (total / 12).to_string(), scale: 0 },
+            "months" => Value::Number { coefficient: (total % 12).to_string(), scale: 0 },
+            _ => Value::Null,
+        },
+        ParsedDuration::DaysTime(total_nanos) => {
+            let sign: i128 = if total_nanos < 0 { -1 } else { 1 };
+            let abs = total_nanos.unsigned_abs();
+            let total_secs = (abs / 1_000_000_000) as i128;
+            let days = total_secs / 86_400;
+            let rem = total_secs % 86_400;
+            let hours = rem / 3_600;
+            let rem = rem % 3_600;
+            let mins = rem / 60;
+            let secs = rem % 60;
+            match name {
+                "days" => Value::Number { coefficient: (sign * days).to_string(), scale: 0 },
+                "hours" => Value::Number { coefficient: (sign * hours).to_string(), scale: 0 },
+                "minutes" => Value::Number { coefficient: (sign * mins).to_string(), scale: 0 },
+                "seconds" => Value::Number { coefficient: (sign * secs).to_string(), scale: 0 },
+                _ => Value::Null,
+            }
+        }
+    }
+}
+
+// ==================== DYNAMIC FEEL OPERATORS ====================
+
+fn feel_pos(value: Value) -> Value {
+    match value {
+        Value::Number { .. } | Value::Duration(_) => value,
+        _ => Value::Null,
+    }
+}
+
+fn feel_neg(value: Value) -> Value {
+    match value {
+        Value::Number { .. } => negate(value),
+        Value::Duration(ref s) => match parse_duration(s) {
+            Some(ParsedDuration::YearsMonths(m)) => Value::Duration(format_ym_duration(-m)),
+            Some(ParsedDuration::DaysTime(n)) => Value::Duration(format_dt_duration(-n)),
+            None => Value::Null,
+        },
+        _ => Value::Null,
+    }
+}
+
+fn add_dt_to_date(year: i32, month: u32, day: u32, nanos: i128) -> Value {
+    let delta_days = nanos.div_euclid(86_400_000_000_000) as i64;
+    let new_days = ymd_to_days(year, month, day) + delta_days;
+    let (ny, nm, nd) = days_to_ymd(new_days);
+    if !valid_date(ny, nm, nd) {
+        return Value::Null;
+    }
+    Value::Date { year: ny, month: nm, day: nd }
+}
+
+fn add_dt_to_time(t: &ParsedTime, nanos: i128) -> Value {
+    let day_ns: i128 = 86_400_000_000_000;
+    let cur = time_local_nanos(t);
+    let wrapped = (cur + nanos).rem_euclid(day_ns);
+    let total_secs = (wrapped / 1_000_000_000) as u32;
+    let rem_nanos = (wrapped % 1_000_000_000) as u32;
+    let out = ParsedTime {
+        hour: total_secs / 3600,
+        min: (total_secs % 3600) / 60,
+        sec: total_secs % 60,
+        nanos: rem_nanos,
+        offset_secs: t.offset_secs,
+        zone: t.zone.clone(),
+    };
+    Value::Time(format_time(&out))
+}
+
+fn add_dt_to_datetime(dt: &ParsedDateTime, nanos: i128) -> Value {
+    let day_ns: i128 = 86_400_000_000_000;
+    let cur = (ymd_to_days(dt.year, dt.month, dt.day) as i128) * day_ns + time_local_nanos(&dt.time);
+    let next = cur + nanos;
+    let new_days = next.div_euclid(day_ns) as i64;
+    let rem_day_ns = next.rem_euclid(day_ns);
+    let (ny, nm, nd) = days_to_ymd(new_days);
+    if !valid_date(ny, nm, nd) {
+        return Value::Null;
+    }
+    let total_secs = (rem_day_ns / 1_000_000_000) as u32;
+    let rem_nanos = (rem_day_ns % 1_000_000_000) as u32;
+    let out = ParsedDateTime {
+        year: ny,
+        month: nm,
+        day: nd,
+        time: ParsedTime {
+            hour: total_secs / 3600,
+            min: (total_secs % 3600) / 60,
+            sec: total_secs % 60,
+            nanos: rem_nanos,
+            offset_secs: dt.time.offset_secs,
+            zone: dt.time.zone.clone(),
+        },
+    };
+    Value::DateTime(format_datetime(&out))
+}
+
+fn feel_add(left: Value, right: Value) -> Value {
+    match (&left, &right) {
+        (Value::Number { .. }, Value::Number { .. }) => decimal_arithmetic(left, right, false),
+        (Value::Text(_), Value::Text(_)) => string_concat(left, right),
+        (Value::Duration(a), Value::Duration(b)) => match (parse_duration(a), parse_duration(b)) {
+            (Some(ParsedDuration::YearsMonths(x)), Some(ParsedDuration::YearsMonths(y))) => {
+                Value::Duration(format_ym_duration(x + y))
+            }
+            (Some(ParsedDuration::DaysTime(x)), Some(ParsedDuration::DaysTime(y))) => {
+                Value::Duration(format_dt_duration(x + y))
+            }
+            _ => Value::Null,
+        },
+        (Value::Date { year, month, day }, Value::Duration(d))
+        | (Value::Duration(d), Value::Date { year, month, day }) => match parse_duration(d) {
+            Some(ParsedDuration::YearsMonths(m)) => match add_months_to_date(*year, *month, *day, m) {
+                Some((ny, nm, nd)) => Value::Date { year: ny, month: nm, day: nd },
+                None => Value::Null,
+            },
+            Some(ParsedDuration::DaysTime(n)) => add_dt_to_date(*year, *month, *day, n),
+            None => Value::Null,
+        },
+        (Value::Time(t), Value::Duration(d)) | (Value::Duration(d), Value::Time(t)) => {
+            match (parse_time(t), parse_duration(d)) {
+                (Some(pt), Some(ParsedDuration::DaysTime(n))) => add_dt_to_time(&pt, n),
+                _ => Value::Null,
+            }
+        }
+        (Value::DateTime(dt), Value::Duration(d)) | (Value::Duration(d), Value::DateTime(dt)) => {
+            match (parse_datetime(dt), parse_duration(d)) {
+                (Some(pdt), Some(ParsedDuration::YearsMonths(m))) => {
+                    match add_months_to_date(pdt.year, pdt.month, pdt.day, m) {
+                        Some((ny, nm, nd)) => Value::DateTime(format_datetime(&ParsedDateTime {
+                            year: ny,
+                            month: nm,
+                            day: nd,
+                            time: pdt.time,
+                        })),
+                        None => Value::Null,
+                    }
+                }
+                (Some(pdt), Some(ParsedDuration::DaysTime(n))) => add_dt_to_datetime(&pdt, n),
+                _ => Value::Null,
+            }
+        }
+        _ => Value::Null,
+    }
+}
+
+fn feel_sub(left: Value, right: Value) -> Value {
+    match (&left, &right) {
+        (Value::Number { .. }, Value::Number { .. }) => decimal_arithmetic(left, right, true),
+        (Value::Duration(_), Value::Duration(_))
+        | (Value::Date { .. }, Value::Duration(_))
+        | (Value::Time(_), Value::Duration(_))
+        | (Value::DateTime(_), Value::Duration(_)) => feel_add(left, feel_neg(right)),
+        (
+            Value::Date { year: y1, month: m1, day: d1 },
+            Value::Date { year: y2, month: m2, day: d2 },
+        ) => {
+            let diff_days = ymd_to_days(*y1, *m1, *d1) - ymd_to_days(*y2, *m2, *d2);
+            Value::Duration(format_dt_duration((diff_days as i128) * 86_400_000_000_000))
+        }
+        (Value::Time(a), Value::Time(b)) => match (parse_time(a), parse_time(b)) {
+            (Some(ta), Some(tb)) => {
+                let oa = time_effective_offset(&ta, 1970, 1, 1);
+                let ob = time_effective_offset(&tb, 1970, 1, 1);
+                match (oa, ob) {
+                    (None, None) => {
+                        Value::Duration(format_dt_duration(time_local_nanos(&ta) - time_local_nanos(&tb)))
+                    }
+                    (Some(fa), Some(fb)) => {
+                        let ua = time_local_nanos(&ta) - (fa as i128) * 1_000_000_000;
+                        let ub = time_local_nanos(&tb) - (fb as i128) * 1_000_000_000;
+                        Value::Duration(format_dt_duration(ua - ub))
+                    }
+                    _ => Value::Null,
+                }
+            }
+            _ => Value::Null,
+        },
+        (Value::DateTime(a), Value::DateTime(b)) => match (parse_datetime(a), parse_datetime(b)) {
+            (Some(dta), Some(dtb)) => {
+                let (za, na) = datetime_utc_nanos(&dta);
+                let (zb, nb) = datetime_utc_nanos(&dtb);
+                if za != zb {
+                    return Value::Null;
+                }
+                Value::Duration(format_dt_duration(na - nb))
+            }
+            _ => Value::Null,
+        },
+        (Value::DateTime(a), Value::Date { year, month, day }) => match parse_datetime(a) {
+            Some(dta) => {
+                let (za, na) = datetime_utc_nanos(&dta);
+                if !za {
+                    return Value::Null;
+                }
+                let dtb = ParsedDateTime {
+                    year: *year,
+                    month: *month,
+                    day: *day,
+                    time: ParsedTime {
+                        hour: 0,
+                        min: 0,
+                        sec: 0,
+                        nanos: 0,
+                        offset_secs: Some(0),
+                        zone: None,
+                    },
+                };
+                let (_, nb) = datetime_utc_nanos(&dtb);
+                Value::Duration(format_dt_duration(na - nb))
+            }
+            None => Value::Null,
+        },
+        (Value::Date { year, month, day }, Value::DateTime(b)) => match parse_datetime(b) {
+            Some(dtb) => {
+                let (zb, nb) = datetime_utc_nanos(&dtb);
+                if !zb {
+                    return Value::Null;
+                }
+                let dta = ParsedDateTime {
+                    year: *year,
+                    month: *month,
+                    day: *day,
+                    time: ParsedTime {
+                        hour: 0,
+                        min: 0,
+                        sec: 0,
+                        nanos: 0,
+                        offset_secs: Some(0),
+                        zone: None,
+                    },
+                };
+                let (_, na) = datetime_utc_nanos(&dta);
+                Value::Duration(format_dt_duration(na - nb))
+            }
+            None => Value::Null,
+        },
+        _ => Value::Null,
+    }
+}
+
+fn feel_mul(left: Value, right: Value) -> Value {
+    match (&left, &right) {
+        (Value::Number { .. }, Value::Number { .. }) => multiply(left, right),
+        (Value::Duration(d), Value::Number { coefficient, scale })
+        | (Value::Number { coefficient, scale }, Value::Duration(d)) => {
+            let Some(factor) = to_f64(coefficient, *scale) else {
+                return Value::Null;
+            };
+            match parse_duration(d) {
+                Some(ParsedDuration::YearsMonths(m)) => {
+                    let res = ((m as f64) * factor).trunc() as i64;
+                    Value::Duration(format_ym_duration(res))
+                }
+                Some(ParsedDuration::DaysTime(n)) => {
+                    let res = ((n as f64) * factor).round() as i128;
+                    Value::Duration(format_dt_duration(res))
+                }
+                None => Value::Null,
+            }
+        }
+        _ => Value::Null,
+    }
+}
+
+fn feel_div(left: Value, right: Value) -> Value {
+    match (&left, &right) {
+        (Value::Number { .. }, Value::Number { .. }) => divide(left, right),
+        (Value::Duration(d), Value::Number { coefficient, scale }) => {
+            if coefficient == "0" || coefficient == "-0" {
+                return Value::Null;
+            }
+            let Some(divisor) = to_f64(coefficient, *scale) else {
+                return Value::Null;
+            };
+            if divisor == 0.0 {
+                return Value::Null;
+            }
+            match parse_duration(d) {
+                Some(ParsedDuration::YearsMonths(m)) => {
+                    let res = ((m as f64) / divisor).trunc() as i64;
+                    Value::Duration(format_ym_duration(res))
+                }
+                Some(ParsedDuration::DaysTime(n)) => {
+                    let res = ((n as f64) / divisor).round() as i128;
+                    Value::Duration(format_dt_duration(res))
+                }
+                None => Value::Null,
+            }
+        }
+        (Value::Duration(a), Value::Duration(b)) => match (parse_duration(a), parse_duration(b)) {
+            (Some(ParsedDuration::YearsMonths(x)), Some(ParsedDuration::YearsMonths(y))) => {
+                if y == 0 {
+                    return Value::Null;
+                }
+                divide(
+                    Value::Number { coefficient: x.to_string(), scale: 0 },
+                    Value::Number { coefficient: y.to_string(), scale: 0 },
+                )
+            }
+            (Some(ParsedDuration::DaysTime(x)), Some(ParsedDuration::DaysTime(y))) => {
+                if y == 0 {
+                    return Value::Null;
+                }
+                divide(
+                    Value::Number { coefficient: x.to_string(), scale: 0 },
+                    Value::Number { coefficient: y.to_string(), scale: 0 },
+                )
+            }
+            _ => Value::Null,
+        },
+        _ => Value::Null,
+    }
+}
+
+// ==================== FILTER, FOR, INSTANCE OF, DYNAMIC INVOCATION ====================
+
+fn eval_filter(
+    source: Value,
+    mut pred: impl FnMut(&Value, &mut FilterBudget) -> Result<Value, &'static str>,
+    products: usize,
+    divisions: usize,
+    budget: &mut FilterBudget,
+) -> Result<Value, &'static str> {
+    let elements = match source {
+        Value::Null => return Ok(Value::Null),
+        Value::List(items) => items,
+        other => vec![other],
+    };
+    budget.charge(elements.len(), products, divisions)?;
+    if elements.is_empty() {
+        // Check if predicate is a numeric index (still returns Null) or boolean (returns empty list)
+        let probe = pred(&Value::Null, budget)?;
+        return Ok(match probe {
+            Value::Number { .. } => Value::Null,
+            _ => Value::List(Vec::new()),
+        });
+    }
+    // Evaluate predicate on first element to distinguish numeric index vs boolean filter
+    let first_res = pred(&elements[0], budget)?;
+    if let Value::Number { coefficient, scale } = first_res {
+        let Some(idx) = to_integer(&coefficient, scale) else {
+            return Ok(Value::Null);
+        };
+        if idx == 0 {
+            return Ok(Value::Null);
+        }
+        let n = elements.len() as i64;
+        let pos = if idx > 0 { idx - 1 } else { n + idx };
+        if pos < 0 || pos >= n {
+            return Ok(Value::Null);
+        }
+        return Ok(elements[pos as usize].clone());
+    }
+    let mut retained = Vec::new();
+    match first_res {
+        Value::Boolean(true) => retained.push(elements[0].clone()),
+        Value::Boolean(false) | Value::Null => {}
+        _ => return Ok(Value::Null),
+    }
+    for el in elements.iter().skip(1) {
+        match pred(el, budget)? {
+            Value::Boolean(true) => retained.push(el.clone()),
+            Value::Boolean(false) | Value::Null => {}
+            _ => return Ok(Value::Null),
+        }
+    }
+    Ok(Value::List(retained))
+}
+
+fn for_iter_values(source: Value) -> Option<Vec<Value>> {
+    match source {
+        Value::Null => Some(Vec::new()),
+        Value::List(items) => Some(items),
+        Value::Range {
+            lower,
+            upper,
+            lower_inclusive,
+            upper_inclusive,
+        } => {
+            if !lower_inclusive || !upper_inclusive {
+                return None;
+            }
+            if let Some(ord) = compare(&lower, &upper) {
+                if ord.is_gt() {
+                    return None;
+                }
+            } else {
+                return None;
+            }
+            for_range_values(*lower, *upper)
+        }
+        other => Some(vec![other]),
+    }
+}
+
+fn for_range_values(start: Value, end: Value) -> Option<Vec<Value>> {
+    match (start, end) {
+        (
+            Value::Number { coefficient: sc, scale: ss },
+            Value::Number { coefficient: ec, scale: es },
+        ) => {
+            let (s, e) = (to_integer(&sc, ss)?, to_integer(&ec, es)?);
+            let mut out = Vec::new();
+            if s <= e {
+                for i in s..=e {
+                    out.push(Value::Number { coefficient: i.to_string(), scale: 0 });
+                }
+            } else {
+                let mut i = s;
+                while i >= e {
+                    out.push(Value::Number { coefficient: i.to_string(), scale: 0 });
+                    i -= 1;
+                }
+            }
+            Some(out)
+        }
+        (
+            Value::Date { year: y1, month: m1, day: d1 },
+            Value::Date { year: y2, month: m2, day: d2 },
+        ) => {
+            let s = ymd_to_days(y1, m1, d1);
+            let e = ymd_to_days(y2, m2, d2);
+            let mut out = Vec::new();
+            if s <= e {
+                for day_idx in s..=e {
+                    let (y, m, d) = days_to_ymd(day_idx);
+                    out.push(Value::Date { year: y, month: m, day: d });
+                }
+            } else {
+                let mut day_idx = s;
+                while day_idx >= e {
+                    let (y, m, d) = days_to_ymd(day_idx);
+                    out.push(Value::Date { year: y, month: m, day: d });
+                    day_idx -= 1;
+                }
+            }
+            Some(out)
+        }
+        _ => None,
+    }
+}
+
+fn eval_instance_of(val: &Value, desc: &TypeDesc) -> Value {
+    Value::Boolean(matches_type_desc(val, desc))
+}
+
+fn matches_type_desc(val: &Value, desc: &TypeDesc) -> bool {
+    match desc.kind {
+        "ANY" | "any" | "Any" => !matches!(val, Value::Null),
+        "NULL" | "null" | "Null" => matches!(val, Value::Null),
+        "BOOLEAN" | "boolean" => matches!(val, Value::Boolean(_)),
+        "NUMBER" | "number" => matches!(val, Value::Number { .. }),
+        "STRING" | "string" => matches!(val, Value::Text(_)),
+        "DATE" | "date" => matches!(val, Value::Date { .. }),
+        "TIME" | "time" => matches!(val, Value::Time(_)),
+        "DATE_TIME" | "date and time" => matches!(val, Value::DateTime(_)),
+        "DAYS_TIME_DURATION" | "days and time duration" | "dayTimeDuration" => matches!(val, Value::Duration(s) if matches!(parse_duration(s), Some(ParsedDuration::DaysTime(_)))),
+        "YEARS_MONTHS_DURATION" | "years and months duration" | "yearMonthDuration" => matches!(val, Value::Duration(s) if matches!(parse_duration(s), Some(ParsedDuration::YearsMonths(_)))),
+        "DURATION" | "duration" => matches!(val, Value::Duration(_)),
+        "RANGE" | "range" => {
+            let Value::Range { lower, upper, .. } = val else {
+                return false;
+            };
+            if let Some(ref et) = desc.element_type {
+                (matches!(**lower, Value::Null) || matches_type_desc(lower, et))
+                    && (matches!(**upper, Value::Null) || matches_type_desc(upper, et))
+            } else {
+                true
+            }
+        }
+        "LIST" | "list" => {
+            let Value::List(items) = val else {
+                return false;
+            };
+            if let Some(ref et) = desc.element_type {
+                items.iter().all(|it| matches_type_desc(it, et))
+            } else {
+                true
+            }
+        }
+        "CONTEXT" | "context" => {
+            let Value::Record(map) = val else {
+                return false;
+            };
+            for (fname, ftype) in &desc.fields {
+                let Some(fv) = map.get(*fname) else {
+                    return false;
+                };
+                if matches!(fv, Value::Null) && !matches!(ftype.kind, "ANY" | "any" | "Any") {
+                    continue;
+                }
+                if !matches_type_desc(fv, ftype) {
+                    return false;
+                }
+            }
+            true
+        }
+        "FUNCTION" | "function" => matches!(val, Value::Function { .. }),
+        _ => false,
+    }
+}
+
+fn coerce_output(value: Value, expected: Type) -> Value {
+    if matches!(value, Value::Null) || matches!(expected, Type::Scalar(1)) {
+        return value;
+    }
+    match expected {
+        Type::Collection(index) => {
+            let elem_ty = collection_element(index);
+            match value {
+                Value::List(items) => {
+                    let mut out = Vec::with_capacity(items.len());
+                    for item in items {
+                        let was_null = matches!(item, Value::Null);
+                        let coerced = coerce_output(item, elem_ty);
+                        if !was_null && matches!(coerced, Value::Null) {
+                            return Value::Null;
+                        }
+                        out.push(coerced);
+                    }
+                    Value::List(out)
+                }
+                other => {
+                    let coerced = coerce_output(other, elem_ty);
+                    if matches!(coerced, Value::Null) {
+                        Value::Null
+                    } else {
+                        Value::List(vec![coerced])
+                    }
+                }
+            }
+        }
+        Type::Record(index) => {
+            let unwrapped = match value {
+                Value::List(mut items) if items.len() == 1 => items.pop().unwrap(),
+                other => other,
+            };
+            let Value::Record(mut map) = unwrapped else {
+                return Value::Null;
+            };
+            for &(fname, fty) in record_fields(index) {
+                let Some(fv) = map.remove(fname) else {
+                    return Value::Null;
+                };
+                let was_null = matches!(fv, Value::Null);
+                let coerced = coerce_output(fv, fty);
+                if !was_null && matches!(coerced, Value::Null) {
+                    return Value::Null;
+                }
+                map.insert(fname.to_string(), coerced);
+            }
+            Value::Record(map)
+        }
+        Type::Scalar(tag) => {
+            let unwrapped = match value {
+                Value::List(mut items) if items.len() == 1 => items.pop().unwrap(),
+                other => other,
+            };
+            match (unwrapped, tag) {
+                (Value::Null, _) => Value::Null,
+                (v @ Value::Boolean(_), 2)
+                | (v @ Value::Number { .. }, 3)
+                | (v @ Value::Text(_), 4)
+                | (v @ Value::Date { .. }, 5)
+                | (v @ Value::Time(_), 6)
+                | (v @ Value::DateTime(_), 7)
+                | (v @ Value::Duration(_), 8) => v,
+                (Value::Date { year, month, day }, 7) => {
+                    Value::DateTime(format!("{}T00:00:00Z", format_date(year, month, day)))
+                }
+                _ => Value::Null,
+            }
+        }
+    }
+}
+
+fn bind_call_args(
+    param_names: &[&str],
+    pos_args: &[Value],
+    named_args: &[(&str, Value)],
+) -> Option<Vec<Value>> {
+    if !named_args.is_empty() {
+        let mut out = vec![Value::Null; param_names.len()];
+        for (name, val) in named_args {
+            let pos = param_names.iter().position(|p| p == name)?;
+            out[pos] = val.clone();
+        }
+        Some(out)
+    } else if pos_args.len() == param_names.len() {
+        Some(pos_args.to_vec())
+    } else {
+        None
+    }
+}
+
+fn call_dynamic(
+    target: Value,
+    pos_args: &[Value],
+    named_args: &[(&str, Value)],
+    filter_budget: &mut FilterBudget,
+) -> Result<Value, &'static str> {
+    match target {
+        Value::Function { id, captures } => {
+            call_function(id, &captures, pos_args, named_args, filter_budget)
+        }
+        _ => Ok(Value::Null),
+    }
+}
+
+fn f64_to_decimal_value(v: f64) -> Value {
+    if !v.is_finite() {
+        return Value::Null;
+    }
+    let s = format!("{v}");
+    parse_decimal_str(&s).unwrap_or(Value::Null)
+}
+
+fn parse_decimal_str(s: &str) -> Option<Value> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    let (neg, rest) = if let Some(r) = s.strip_prefix('-') {
+        (true, r)
+    } else if let Some(r) = s.strip_prefix('+') {
+        (false, r)
+    } else {
+        (false, s)
+    };
+    let (mantissa, exp): (&str, i32) = if let Some(pos) = rest.find(['e', 'E']) {
+        (&rest[..pos], rest[pos + 1..].parse().ok()?)
+    } else {
+        (rest, 0)
+    };
+    let (int_part, frac_part) = match mantissa.split_once('.') {
+        Some((a, b)) => (a, b),
+        None => (mantissa, ""),
+    };
+    if int_part.is_empty() && frac_part.is_empty() {
+        return None;
+    }
+    if !int_part.bytes().all(|b| b.is_ascii_digit()) || !frac_part.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let combined = format!("{int_part}{frac_part}");
+    let stripped = combined.trim_start_matches('0');
+    let scale = (frac_part.len() as i32) - exp;
+    if stripped.is_empty() {
+        return Some(Value::Number { coefficient: "0".into(), scale });
+    }
+    let coef = if neg { format!("-{stripped}") } else { stripped.to_string() };
+    Some(Value::Number { coefficient: coef, scale })
+}
+
+fn eval_external_function(desc: &Value, args: &[Value]) -> Value {
+    let Value::Record(map) = desc else {
+        return Value::Null;
+    };
+    let java_map = match map.get("java") {
+        Some(Value::Record(m)) => m,
+        None => map,
+        _ => return Value::Null,
+    };
+    let class = match java_map.get("class") {
+        Some(Value::Text(s)) => s.as_str(),
+        _ => return Value::Null,
+    };
+    let sig = match java_map.get("method signature") {
+        Some(Value::Text(s)) => s.as_str(),
+        _ => return Value::Null,
+    };
+    let method = sig.split('(').next().unwrap_or("").trim();
+    let param_str = sig
+        .split_once('(')
+        .and_then(|(_, r)| r.strip_suffix(')'))
+        .unwrap_or("")
+        .trim();
+    let sig_params: Vec<&str> = if param_str.is_empty() {
+        Vec::new()
+    } else {
+        param_str.split(',').map(|s| s.trim()).collect()
+    };
+    if sig_params.len() != args.len() {
+        return Value::Null;
+    }
+    let arg_f64 = |i: usize| -> Option<f64> {
+        match args.get(i)? {
+            Value::Number { coefficient, scale } => to_f64(coefficient, *scale),
+            _ => None,
+        }
+    };
+    match (class, method) {
+        ("java.lang.Math", "cos") => arg_f64(0).map(|x| f64_to_decimal_value(x.cos())).unwrap_or(Value::Null),
+        ("java.lang.Math", "sin") => arg_f64(0).map(|x| f64_to_decimal_value(x.sin())).unwrap_or(Value::Null),
+        ("java.lang.Math", "tan") => arg_f64(0).map(|x| f64_to_decimal_value(x.tan())).unwrap_or(Value::Null),
+        ("java.lang.Math", "acos") => arg_f64(0).map(|x| f64_to_decimal_value(x.acos())).unwrap_or(Value::Null),
+        ("java.lang.Math", "asin") => arg_f64(0).map(|x| f64_to_decimal_value(x.asin())).unwrap_or(Value::Null),
+        ("java.lang.Math", "atan") => arg_f64(0).map(|x| f64_to_decimal_value(x.atan())).unwrap_or(Value::Null),
+        ("java.lang.Math", "abs") => arg_f64(0).map(|x| f64_to_decimal_value(x.abs())).unwrap_or(Value::Null),
+        ("java.lang.Math", "sqrt") => arg_f64(0).map(|x| f64_to_decimal_value(x.sqrt())).unwrap_or(Value::Null),
+        ("java.lang.Math", "exp") => arg_f64(0).map(|x| f64_to_decimal_value(x.exp())).unwrap_or(Value::Null),
+        ("java.lang.Math", "log") => arg_f64(0).map(|x| f64_to_decimal_value(x.ln())).unwrap_or(Value::Null),
+        ("java.lang.Math", "log10") => arg_f64(0).map(|x| f64_to_decimal_value(x.log10())).unwrap_or(Value::Null),
+        ("java.lang.Math", "floor") => arg_f64(0).map(|x| f64_to_decimal_value(x.floor())).unwrap_or(Value::Null),
+        ("java.lang.Math", "ceil") => arg_f64(0).map(|x| f64_to_decimal_value(x.ceil())).unwrap_or(Value::Null),
+        ("java.lang.Math", "max") => match (arg_f64(0), arg_f64(1)) {
+            (Some(a), Some(b)) => f64_to_decimal_value(a.max(b)),
+            _ => Value::Null,
+        },
+        ("java.lang.Math", "min") => match (arg_f64(0), arg_f64(1)) {
+            (Some(a), Some(b)) => f64_to_decimal_value(a.min(b)),
+            _ => Value::Null,
+        },
+        ("java.lang.Math", "pow") => match (arg_f64(0), arg_f64(1)) {
+            (Some(a), Some(b)) => f64_to_decimal_value(a.powf(b)),
+            _ => Value::Null,
+        },
+        ("java.lang.Short", "valueOf") => match (sig_params.first().copied(), args.first()) {
+            (Some("short"), Some(Value::Number { coefficient, scale })) => {
+                to_integer(coefficient, *scale)
+                    .filter(|&v| v >= i16::MIN as i64 && v <= i16::MAX as i64)
+                    .map(|v| Value::Number { coefficient: v.to_string(), scale: 0 })
+                    .unwrap_or(Value::Null)
+            }
+            (Some("java.lang.String" | "String"), Some(Value::Text(s))) => s
+                .trim()
+                .parse::<i16>()
+                .ok()
+                .map(|v| Value::Number { coefficient: v.to_string(), scale: 0 })
+                .unwrap_or(Value::Null),
+            _ => Value::Null,
+        },
+        ("java.lang.Byte", "valueOf") => match (sig_params.first().copied(), args.first()) {
+            (Some("byte"), Some(Value::Number { coefficient, scale })) => {
+                to_integer(coefficient, *scale)
+                    .filter(|&v| v >= i8::MIN as i64 && v <= i8::MAX as i64)
+                    .map(|v| Value::Number { coefficient: v.to_string(), scale: 0 })
+                    .unwrap_or(Value::Null)
+            }
+            (Some("java.lang.String" | "String"), Some(Value::Text(s))) => s
+                .trim()
+                .parse::<i8>()
+                .ok()
+                .map(|v| Value::Number { coefficient: v.to_string(), scale: 0 })
+                .unwrap_or(Value::Null),
+            _ => Value::Null,
+        },
+        ("java.lang.Integer", "valueOf") => match (sig_params.first().copied(), args.first()) {
+            (Some("int"), Some(Value::Number { coefficient, scale })) => {
+                to_integer(coefficient, *scale)
+                    .filter(|&v| v >= i32::MIN as i64 && v <= i32::MAX as i64)
+                    .map(|v| Value::Number { coefficient: v.to_string(), scale: 0 })
+                    .unwrap_or(Value::Null)
+            }
+            (Some("java.lang.String" | "String"), Some(Value::Text(s))) => s
+                .trim()
+                .parse::<i32>()
+                .ok()
+                .map(|v| Value::Number { coefficient: v.to_string(), scale: 0 })
+                .unwrap_or(Value::Null),
+            _ => Value::Null,
+        },
+        ("java.lang.Long", "valueOf") => match (sig_params.first().copied(), args.first()) {
+            (Some("long"), Some(Value::Number { coefficient, scale })) => {
+                to_integer(coefficient, *scale)
+                    .map(|v| Value::Number { coefficient: v.to_string(), scale: 0 })
+                    .unwrap_or(Value::Null)
+            }
+            (Some("java.lang.String" | "String"), Some(Value::Text(s))) => s
+                .trim()
+                .parse::<i64>()
+                .ok()
+                .map(|v| Value::Number { coefficient: v.to_string(), scale: 0 })
+                .unwrap_or(Value::Null),
+            _ => Value::Null,
+        },
+        ("java.lang.Float", "valueOf") => match (sig_params.first().copied(), args.first()) {
+            (Some("float"), Some(Value::Number { coefficient, scale })) => {
+                to_f64(coefficient, *scale)
+                    .map(|f| f64_to_decimal_value((f as f32) as f64))
+                    .unwrap_or(Value::Null)
+            }
+            (Some("java.lang.String" | "String"), Some(Value::Text(s))) => s
+                .trim()
+                .parse::<f32>()
+                .ok()
+                .and_then(|f| parse_decimal_str(&format!("{f}")))
+                .unwrap_or(Value::Null),
+            _ => Value::Null,
+        },
+        ("java.lang.Double", "valueOf") => match (sig_params.first().copied(), args.first()) {
+            (Some("double"), Some(Value::Number { coefficient, scale })) => {
+                to_f64(coefficient, *scale)
+                    .map(f64_to_decimal_value)
+                    .unwrap_or(Value::Null)
+            }
+            (Some("java.lang.String" | "String"), Some(Value::Text(s))) => s
+                .trim()
+                .parse::<f64>()
+                .ok()
+                .map(f64_to_decimal_value)
+                .unwrap_or(Value::Null),
+            _ => Value::Null,
+        },
+        ("java.lang.String", "format") => {
+            let Some(Value::Text(fmt)) = args.first() else {
+                return Value::Null;
+            };
+            let varargs: Vec<Value> = match args.get(1) {
+                Some(Value::List(items)) => items.clone(),
+                Some(other) => vec![other.clone()],
+                None => Vec::new(),
+            };
+            let mut out = String::new();
+            let mut chars = fmt.chars().peekable();
+            let mut idx = 0usize;
+            while let Some(c) = chars.next() {
+                if c == '%' {
+                    if let Some(&next) = chars.peek() {
+                        chars.next();
+                        if next == '%' {
+                            out.push('%');
+                            continue;
+                        }
+                        let val = varargs.get(idx).cloned().unwrap_or(Value::Null);
+                        idx += 1;
+                        match val {
+                            Value::Text(s) => out.push_str(&s),
+                            Value::Boolean(b) => out.push_str(&b.to_string()),
+                            Value::Number { coefficient, scale } => {
+                                if let Some(i) = to_integer(&coefficient, scale) {
+                                    out.push_str(&i.to_string());
+                                } else if let Some(f) = to_f64(&coefficient, scale) {
+                                    out.push_str(&format!("{f}"));
+                                }
+                            }
+                            Value::Null => out.push_str("null"),
+                            _ => {}
+                        }
+                        continue;
+                    }
+                }
+                out.push(c);
+            }
+            Value::Text(out)
+        }
+        ("java.lang.String", "valueOf") => match (sig_params.first().copied(), args.first()) {
+            (Some("double" | "float" | "int" | "long" | "short" | "byte"), Some(Value::Number { coefficient, scale })) => {
+                let Some(f) = to_f64(coefficient, *scale) else { return Value::Null; };
+                if matches!(sig_params[0], "int" | "long" | "short" | "byte") {
+                    Value::Text(format!("{}", f.trunc() as i64))
+                } else {
+                    let s = format!("{f}");
+                    if !s.contains('.') { Value::Text(format!("{s}.0")) } else { Value::Text(s) }
+                }
+            }
+            (Some("boolean"), Some(Value::Boolean(b))) => Value::Text(b.to_string()),
+            (Some("char"), Some(Value::Text(s))) if s.chars().count() == 1 => Value::Text(s.clone()),
+            (Some("java.lang.Object" | "Object"), Some(v)) => match v {
+                Value::Null => Value::Text("null".into()),
+                Value::Text(s) => Value::Text(s.clone()),
+                Value::Boolean(b) => Value::Text(b.to_string()),
+                Value::Number { coefficient, scale } => {
+                    let Some(f) = to_f64(coefficient, *scale) else { return Value::Null; };
+                    Value::Text(format!("{f}"))
+                }
+                _ => Value::Null,
+            },
+            _ => Value::Null,
+        },
+        _ => Value::Null,
+    }
+}

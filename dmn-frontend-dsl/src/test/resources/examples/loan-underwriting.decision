@@ -1,0 +1,51 @@
+model "Loan Underwriting"
+namespace "urn:example:dsl:policy"
+id "loan-underwriting"
+
+import Rates from "rates.decision" namespace "urn:example:dsl:rates"
+
+type tApplicant {
+  Age: number constraint >= 0
+  Score: number
+}
+
+type tScores list<number>
+
+input Applicant: tApplicant
+input Principal: number
+input AnnualRate: number
+
+decision RiskTier: string
+  requires Applicant
+  table first {
+    when Applicant.Score: number | Applicant.Age: number => result: string default "HIGH"
+    | >= 700 | >= 21 | => "LOW"
+    | [600 .. 699] | >= 18 | => "MEDIUM"
+    | - | - | => "HIGH"
+  }
+
+decision MonthlyInterest: number
+  requires Principal, AnnualRate
+  uses Rates.MonthlyRate#bkm_MonthlyRate
+  = Principal * Rates.MonthlyRate(AnnualRate)
+
+decision Approved: boolean
+  requires RiskTier, MonthlyInterest
+  = RiskTier != "HIGH" and MonthlyInterest <= 1000
+
+test "Low risk approved" {
+  given Applicant = { Age: 30, Score: 750 }
+  given Principal = 120000
+  given AnnualRate = 0.06
+  expect RiskTier = "LOW"
+  expect MonthlyInterest = 600
+  expect Approved = true
+}
+
+test "High interest declined" {
+  given Applicant = { Age: 25, Score: 650 }
+  given Principal = 300000
+  given AnnualRate = 0.06
+  expect RiskTier = "MEDIUM"
+  expect Approved = false
+}

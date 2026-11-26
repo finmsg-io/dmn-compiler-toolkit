@@ -24,12 +24,85 @@ final class GrpcTckExecution implements AutoCloseable {
 	private static Host host;
 	private final String route;
 	private final URLClassLoader loader;
+	private final boolean ownsLoader;
 
 	private GrpcTckExecution(DmnEvaluationServiceGrpc.DmnEvaluationServiceImplBase service, URLClassLoader loader,
-			String route) throws Exception {
+			String route, boolean ownsLoader) throws Exception {
 		this.route = route;
 		this.loader = loader;
+		this.ownsLoader = ownsLoader;
 		transport().services.put(route, service);
+	}
+
+	static <K> Map<K, GrpcTckExecution> prepareBatch(Map<K, DmnCompilationResult> compilations) throws Exception {
+		if (compilations.isEmpty())
+			return Map.of();
+		String pkg = "io.finmsg.dmn.tck.grpcgen";
+		Path directory = Files.createTempDirectory("dmn-grpc-tck-batch-");
+		record Unit<K>(K key, String name, List<Path> files) {
+		}
+		List<Unit<K>> units = Collections.synchronizedList(new ArrayList<>());
+		compilations.entrySet().parallelStream().forEach(entry -> {
+			try {
+				String name = "GrpcTck" + IDS.incrementAndGet();
+				var engine = new DmnJavaGenerator().generate(entry.getValue().optimizedRuntimeModel().orElseThrow(),
+						DmnJavaGeneratorOptions.of(pkg, name + "Engine"));
+				var handler = new DmnGrpcGenerator().generate(entry.getValue(), pkg + "." + name + "Engine",
+						DmnGrpcGeneratorOptions.of(pkg, name + "Service"));
+				var sources = new LinkedHashMap<String, String>();
+				sources.putAll(engine.sources());
+				sources.putAll(handler.sources());
+				List<Path> files = new ArrayList<>(sources.size());
+				for (var source : sources.entrySet()) {
+					Path file = directory.resolve(source.getKey().replace('.', '/') + ".java");
+					Files.createDirectories(file.getParent());
+					Files.writeString(file, source.getValue(), java.nio.charset.StandardCharsets.UTF_8);
+					files.add(file);
+				}
+				units.add(new Unit<>(entry.getKey(), name, files));
+			} catch (Exception ignored) {
+				// Fall back to per-model preparation on demand.
+			}
+		});
+		int batchSize = 40;
+		List<List<Unit<K>>> batches = new ArrayList<>();
+		for (int i = 0; i < units.size(); i += batchSize) {
+			batches.add(units.subList(i, Math.min(i + batchSize, units.size())));
+		}
+		List<Unit<K>> compiled = Collections.synchronizedList(new ArrayList<>());
+		String classpath = System.getProperty("java.class.path");
+		batches.parallelStream().forEach(batch -> {
+			try {
+				Path argFile = Files.createTempFile(directory, "javac-grpc-", ".args");
+				StringBuilder sb = new StringBuilder();
+				for (var u : batch) {
+					for (Path f : u.files()) {
+						sb.append('"').append(f.toAbsolutePath().toString().replace('\\', '/')).append("\"\n");
+					}
+				}
+				Files.writeString(argFile, sb.toString(), java.nio.charset.StandardCharsets.UTF_8);
+				var diagnostics = new java.io.ByteArrayOutputStream();
+				int exit = ToolProvider.getSystemJavaCompiler().run(null, null, diagnostics, "-encoding", "UTF-8",
+						"-classpath", classpath, "-d", directory.toString(), "@" + argFile.toAbsolutePath());
+				if (exit == 0) {
+					compiled.addAll(batch);
+				}
+			} catch (Exception ignored) {
+			}
+		});
+		var loader = new URLClassLoader(new URL[]{directory.toUri().toURL()}, GrpcTckExecution.class.getClassLoader());
+		Map<K, GrpcTckExecution> results = new ConcurrentHashMap<>();
+		for (var u : compiled) {
+			try {
+				var service = (DmnEvaluationServiceGrpc.DmnEvaluationServiceImplBase) loader
+						.loadClass(pkg + "." + u.name() + "Service")
+						.getDeclaredConstructor(io.finmsg.dmn.runtime.ExternalJavaPolicy.class)
+						.newInstance(OfficialExternalJavaPolicy.POLICY);
+				results.put(u.key(), new GrpcTckExecution(service, loader, u.name(), false));
+			} catch (Throwable ignored) {
+			}
+		}
+		return results;
 	}
 
 	static GrpcTckExecution prepare(DmnCompilationResult compilation) throws Exception {
@@ -60,7 +133,7 @@ final class GrpcTckExecution implements AutoCloseable {
 					.loadClass(pkg + "." + name + "Service")
 					.getDeclaredConstructor(io.finmsg.dmn.runtime.ExternalJavaPolicy.class)
 					.newInstance(OfficialExternalJavaPolicy.POLICY);
-			return new GrpcTckExecution(service, loader, name);
+			return new GrpcTckExecution(service, loader, name, true);
 		} catch (Throwable failure) {
 			loader.close();
 			throw failure;
@@ -130,6 +203,7 @@ final class GrpcTckExecution implements AutoCloseable {
 	public void close() throws Exception {
 		if (host != null)
 			host.services.remove(route);
-		loader.close();
+		if (ownsLoader)
+			loader.close();
 	}
 }

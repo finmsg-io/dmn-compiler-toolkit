@@ -8,6 +8,8 @@ import sys
 
 def needs_heavy(paths):
     for path in paths:
+        if path in {".github/workflows/ci.yml", "tools/ci_impact.py"}:
+            return True
         if path.startswith(("docs/", "prompts/", "tools/", ".github/")):
             continue
         if path in {"mkdocs.yml", "requirements-docs.txt"}:

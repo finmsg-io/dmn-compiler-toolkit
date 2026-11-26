@@ -31,31 +31,54 @@ public final class TckTestCaseReader {
 
 	public List<TckTestCase> read(InputStream input) throws IOException {
 		try {
-			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-			factory.setNamespaceAware(true);
-			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-			factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-			factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-			factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-			factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-			Element root = factory.newDocumentBuilder().parse(input).getDocumentElement();
+			Element root = parseRoot(input);
 			List<TckTestCase> result = new ArrayList<>();
 			for (Element testCase : children(root, "testCase")) {
 				java.util.Set<String> expectedErrors = new java.util.LinkedHashSet<>();
 				for (Element resultNode : children(testCase, "resultNode"))
 					if ("true".equals(resultNode.getAttribute("errorResult")))
 						expectedErrors.add(requiredAttribute(resultNode, "name"));
+				Map<String, String> inputNamespaces = new LinkedHashMap<>();
+				for (Element inputNode : children(testCase, "inputNode")) {
+					String namespace = inputNode.getAttribute("namespace");
+					if (!namespace.isBlank())
+						inputNamespaces.put(requiredAttribute(inputNode, "name"), namespace);
+				}
 				String invocableName = testCase.getAttribute("invocableName");
 				String type = testCase.getAttribute("type");
 				result.add(new TckTestCase(requiredAttribute(testCase, "id"), testCase.getAttribute("name"),
 						namedValues(testCase, "inputNode"), namedValues(testCase, "resultNode"), expectedErrors,
 						invocableName.isBlank() ? java.util.Optional.empty() : java.util.Optional.of(invocableName),
-						type.isBlank() ? java.util.Optional.empty() : java.util.Optional.of(type)));
+						type.isBlank() ? java.util.Optional.empty() : java.util.Optional.of(type), inputNamespaces));
 			}
 			return List.copyOf(result);
 		} catch (ParserConfigurationException | SAXException exception) {
 			throw new IOException("Invalid TCK test-case XML", exception);
 		}
+	}
+
+	java.util.Optional<String> readModelName(Path path) throws IOException {
+		try (InputStream input = Files.newInputStream(path)) {
+			var names = children(parseRoot(input), "modelName");
+			if (names.size() > 1)
+				throw new IOException("Multiple modelName elements");
+			return names.isEmpty()
+					? java.util.Optional.empty()
+					: java.util.Optional.of(names.getFirst().getTextContent().trim()).filter(name -> !name.isEmpty());
+		} catch (ParserConfigurationException | SAXException exception) {
+			throw new IOException("Invalid TCK test-case XML", exception);
+		}
+	}
+
+	private static Element parseRoot(InputStream input) throws ParserConfigurationException, SAXException, IOException {
+		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+		factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+		factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+		factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+		factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+		return factory.newDocumentBuilder().parse(input).getDocumentElement();
 	}
 
 	private static Map<String, TckValue> namedValues(Element testCase, String elementName) throws IOException {

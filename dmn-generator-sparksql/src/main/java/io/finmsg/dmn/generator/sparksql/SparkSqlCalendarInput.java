@@ -28,8 +28,10 @@ final class SparkSqlCalendarInput {
 		} else
 			return null;
 		name = name.toLowerCase(Locale.ROOT);
+		var calendarInputKinds = Set.of(RuntimeTypeKind.ANY, RuntimeTypeKind.DATE, RuntimeTypeKind.DATE_TIME);
 		if (!Set.of("day of year", "day of week", "month of year", "week of year").contains(name) || args.size() != 1
-				|| !(args.getFirst() instanceof RuntimeValueReference ref) || ref.type().kind() != RuntimeTypeKind.ANY)
+				|| !(args.getFirst() instanceof RuntimeValueReference ref)
+				|| !calendarInputKinds.contains(ref.type().kind()))
 			return null;
 		RuntimeTypeKind result = name.equals("day of year") || name.equals("week of year")
 				? RuntimeTypeKind.NUMBER
@@ -37,7 +39,7 @@ final class SparkSqlCalendarInput {
 		if (decision.type().kind() != RuntimeTypeKind.ANY && decision.type().kind() != result)
 			return null;
 		return model.inputs().stream()
-				.anyMatch(i -> i.valueSlot() == ref.sourceSlot() && i.type().kind() == RuntimeTypeKind.ANY)
+				.anyMatch(i -> i.valueSlot() == ref.sourceSlot() && calendarInputKinds.contains(i.type().kind()))
 						? ref.sourceSlot()
 						: null;
 	}

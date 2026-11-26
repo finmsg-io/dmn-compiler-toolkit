@@ -66,4 +66,5 @@ message ListExpressionText {
 message FunctionDefinitionText {
   repeated InformationItem parameters = 1;
   ExpressionText body = 2;
+  string source_kind = 3;
 }

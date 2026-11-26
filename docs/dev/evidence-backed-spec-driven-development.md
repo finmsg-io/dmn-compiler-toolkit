@@ -202,6 +202,15 @@ Milestone: <plan item>
 <a id="contents-section-13"></a>
 ## Process guardrails
 
+Current usage rule (2026-11-15): stop new implementation at weekly remaining <=7%
+OR five-hour remaining <=20%, then finish the verification, full Spark TCK and
+handover checkpoint in `prompts/generall-prompt.md` in the repository.
+Also run the full pinned end-to-end Rust TCK at least at the end of each five-hour
+usage session and at usage checkpoints, before handover. Report current whole-suite
+counts and the delta against the preceding full run; focused results are insufficient.
+Historical usage thresholds below do not override this rule. Current Rust work
+and evidence are in `prompts/actual-task.md` in the repository.
+
 ### Spark SQL continuation handover — 2026-10-04 continuation
 
 2026-10-10 native context batch checkpoint: **3,391/3,391 full TCK passes (100.00%); 2,388 native (87.96% of 2,715 executable), 327 fallback (12.04%), 676 provisional expected model rejections separately; zero failures/execution errors/compilation errors; Maven exit 0**. Total-suite rates separately: native 70.42%, fallback 9.64%. Delta from native-literal-properties-full: **+32 native/-32 fallback/+1.18 percentage points** (17 context construction, 14 context merge, one coercion case). Combined today versus pushed 603f9bb: **+64 native/-64 fallback**. The minimum 95% milestone needs **192 additional native passes**. Three generator source/test files remain changed, together with all five canonical handovers; preserve the existing calendar/property changes. Sources are uncommitted. Implementation stopped under the task usage rule at **13% five-hour / 33% weekly remaining**; only verification/handover continued. No commit/push/reset/clean in this continuation. This record supersedes older current-state and in-progress notes below.

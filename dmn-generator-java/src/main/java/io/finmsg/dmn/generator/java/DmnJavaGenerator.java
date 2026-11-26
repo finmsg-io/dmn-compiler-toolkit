@@ -25,6 +25,7 @@ public final class DmnJavaGenerator {
 		sb.append("import java.math.BigDecimal;\n");
 		sb.append("import java.time.*;\n");
 		sb.append("import java.util.*;\n");
+		sb.append("import io.finmsg.dmn.runtime.DmnEvaluationException;\n");
 		sb.append("import io.finmsg.dmn.runtime.RuntimeRangeValue;\n");
 		sb.append("import io.finmsg.dmn.ir.RuntimeRangeBoundary;\n");
 		sb.append("import io.finmsg.dmn.ir.RuntimeType;\n");
@@ -54,8 +55,8 @@ public final class DmnJavaGenerator {
 		sb.append("      System.arraycopy(inputSlots, 0, slots, 0, Math.min(inputSlots.length, SLOT_COUNT));\n");
 		sb.append("    }\n\n");
 		for (RuntimeInput in : model.inputs()) {
-			sb.append("    slots[").append(in.valueSlot()).append("] = coerce(slots[").append(in.valueSlot())
-					.append("], ").append(emitTypeConstant(in.type())).append(");\n");
+			sb.append("    slots[").append(in.valueSlot()).append("] = io.finmsg.dmn.runtime.DmnRuntime.bind(slots[")
+					.append(in.valueSlot()).append("], ").append(emitTypeConstant(in.type())).append(");\n");
 		}
 		sb.append("\n");
 
@@ -142,8 +143,7 @@ public final class DmnJavaGenerator {
 					if (i > 0)
 						sb.append(", ");
 					io.finmsg.dmn.ir.RuntimeField f = type.fieldLayout().get(i);
-					sb.append("new RuntimeField(").append(f.index()).append(", \"").append(f.name()).append("\", ")
-							.append(emitTypeConstant(f.type())).append(")");
+					sb.append(JavaExpressionEmitter.emitField(f, emitTypeConstant(f.type())));
 				}
 				sb.append("))");
 				yield sb.toString();
@@ -198,14 +198,15 @@ public final class DmnJavaGenerator {
 
 		if (decision.decisionTable().isPresent()) {
 			RuntimeDecisionTable table = decision.decisionTable().get();
-			sb.append("    return coerce(evaluate_table_").append(decision.resultSlot()).append("(slots), ")
-					.append(emitTypeConstant(decision.type())).append(");\n");
+			sb.append("    return io.finmsg.dmn.runtime.DmnRuntime.bind(evaluate_table_").append(decision.resultSlot())
+					.append("(slots), ").append(emitTypeConstant(decision.type())).append(");\n");
 			sb.append("  }\n\n");
 			sb.append("  private Object evaluate_table_").append(decision.resultSlot()).append("(Object[] slots) {\n");
 			generateDecisionTableBody(sb, table, bkmBySlot);
 		} else if (decision.expression().isPresent()) {
 			RuntimeExpression expr = decision.expression().get();
-			sb.append("    return coerce(").append(JavaExpressionEmitter.emitWithBkms(expr, bkmBySlot)).append(", ")
+			sb.append("    return io.finmsg.dmn.runtime.DmnRuntime.bind(")
+					.append(JavaExpressionEmitter.emitWithBkms(expr, bkmBySlot)).append(", ")
 					.append(emitTypeConstant(decision.type())).append(");\n");
 		} else {
 			sb.append("    return slots[").append(decision.resultSlot()).append("];\n");
@@ -228,6 +229,13 @@ public final class DmnJavaGenerator {
 				|| table.hitPolicy() == RuntimeHitPolicy.OUTPUT_ORDER || table.hitPolicy() == RuntimeHitPolicy.PRIORITY;
 		if (isMultiMatch) {
 			sb.append("    List<Object> matches = new ArrayList<>();\n");
+		}
+
+		boolean unique = table.hitPolicy() == RuntimeHitPolicy.UNIQUE;
+		boolean any = table.hitPolicy() == RuntimeHitPolicy.ANY;
+		if (unique || any) {
+			sb.append("    int matchCount = 0;\n");
+			sb.append("    Object firstMatch = null;\n");
 		}
 
 		sb.append("\n    // Match Decision Table Rules (Hit Policy: ").append(table.hitPolicy()).append(")\n");
@@ -266,6 +274,12 @@ public final class DmnJavaGenerator {
 			}
 			if (isMultiMatch) {
 				sb.append("      matches.add(").append(outExpr).append(");\n");
+			} else if (unique || any) {
+				sb.append("      Object result = ").append(outExpr).append(";\n");
+				sb.append("      if (matchCount++ == 0) firstMatch = result;\n");
+				if (any)
+					sb.append("      else if (!Boolean.TRUE.equals(equal(firstMatch, result))) "
+							+ "throw new DmnEvaluationException(\"ANY table produced different outputs\");\n");
 			} else {
 				sb.append("      return ").append(outExpr).append(";\n");
 			}
@@ -275,7 +289,8 @@ public final class DmnJavaGenerator {
 		String defaultExpr = null;
 		if (table.outputs().size() == 1 && table.outputs().get(0).defaultValue().isPresent()) {
 			defaultExpr = JavaExpressionEmitter.emitWithBkms(table.outputs().get(0).defaultValue().get(), bkmBySlot);
-		} else if (table.outputs().size() > 1 && table.outputs().stream().anyMatch(o -> o.defaultValue().isPresent())) {
+		} else if (table.outputs().size() > 1
+				&& (!isMultiMatch || table.outputs().stream().anyMatch(o -> o.defaultValue().isPresent()))) {
 			StringBuilder ctxSb = new StringBuilder("createContext(new Object[][]{");
 			for (int o = 0; o < table.outputs().size(); o++) {
 				if (o > 0)
@@ -305,6 +320,11 @@ public final class DmnJavaGenerator {
 				sb.append("    return Collections.unmodifiableList(new ArrayList<>(matches));\n");
 			}
 		} else {
+			if (unique)
+				sb.append("    if (matchCount > 1) throw new DmnEvaluationException(")
+						.append("\"UNIQUE table matched \" + matchCount + \" rules\");\n");
+			if (unique || any)
+				sb.append("    if (matchCount > 0) return firstMatch;\n");
 			sb.append("    return ").append(defaultExpr != null ? defaultExpr : "null").append(";\n");
 		}
 	}
@@ -358,8 +378,8 @@ public final class DmnJavaGenerator {
 	private static String emitUnaryTest(String inputVar, RuntimeUnaryTest test) {
 		return switch (test) {
 			case RuntimeComparisonUnaryTest comparison -> switch (comparison.operator()) {
-				case EQUAL -> "Boolean.TRUE.equals(equal(" + inputVar + ", "
-						+ JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
+				case EQUAL ->
+					"testEqualsOrContains(" + inputVar + ", " + JavaExpressionEmitter.emit(comparison.endpoint()) + ")";
 				case NOT_EQUAL -> "Boolean.TRUE.equals(notEqual(" + inputVar + ", "
 						+ JavaExpressionEmitter.emit(comparison.endpoint()) + "))";
 				case LESS -> "Boolean.TRUE.equals(less(" + inputVar + ", "
@@ -588,6 +608,7 @@ public final class DmnJavaGenerator {
 						    return Boolean.TRUE.equals(equal(input, expected));
 						  }
 						  private static java.time.LocalDate parseDate(String s) {
+						    if (s != null && s.startsWith("+")) s = s.substring(1);
 						    return io.finmsg.dmn.runtime.DmnRuntime.parseFeelDate(s);
 						  }
 						  private static Object parseTime(String s) {
@@ -627,7 +648,7 @@ public final class DmnJavaGenerator {
 						        }
 						        return 0;
 						      });
-						      return List.copyOf(copy);
+						      return Collections.unmodifiableList(copy);
 						    }
 						    if (domainObj instanceof List<?> domain && !domain.isEmpty()) {
 						      List<Object> copy = new ArrayList<>(matches);
@@ -635,7 +656,7 @@ public final class DmnJavaGenerator {
 						        int idx = domain.indexOf(val);
 						        return idx < 0 ? Integer.MAX_VALUE : idx;
 						      }));
-						      return List.copyOf(copy);
+						      return Collections.unmodifiableList(copy);
 						    }
 						    return matches;
 						  }
@@ -770,6 +791,7 @@ public final class DmnJavaGenerator {
 						    return map;
 						  }
 						  private static Object aggregate(List<Object> matches, String agg) {
+						    if ("COUNT".equalsIgnoreCase(agg)) return BigDecimal.valueOf(matches == null ? 0 : matches.size());
 						    if (matches == null || matches.isEmpty()) return null;
 						    if ("SUM".equalsIgnoreCase(agg)) {
 						      BigDecimal sum = BigDecimal.ZERO;
@@ -793,7 +815,7 @@ public final class DmnJavaGenerator {
 						      }
 						      return max;
 						    }
-						    return List.copyOf(matches);
+						    return Collections.unmodifiableList(matches);
 						  }
 						  private static Boolean quantifiedPredicate(Object value) {
 						    return value == null ? false : value instanceof Boolean bool ? bool : null;
@@ -898,6 +920,10 @@ public final class DmnJavaGenerator {
 						    if (target == null) return null;
 						    Object res = null;
 						    if (target instanceof FeelCallable fc) {
+						      if ((named == null || named.isEmpty()) && args != null && !fc.parameterNames().isEmpty()
+						          && args.size() != fc.parameterNames().size()) {
+						        return null;
+						      }
 						      res = fc.call(args, named);
 						    } else if (target instanceof java.util.function.BiFunction<?, ?, ?> bf && args != null && args.size() >= 2) {
 						      res = ((java.util.function.BiFunction<Object, Object, Object>) bf).apply(args.get(0), args.get(1));
@@ -956,7 +982,9 @@ public final class DmnJavaGenerator {
 						    if (obj instanceof java.time.OffsetDateTime odt) return odt.toLocalDate();
 						    if (obj instanceof java.time.ZonedDateTime zdt) return zdt.toLocalDate();
 						    if (obj instanceof io.finmsg.dmn.runtime.DmnRuntime.NamedZoneDateTime nzdt) return nzdt.value().toLocalDate();
-						    try { return java.time.LocalDate.parse(String.valueOf(obj)); } catch (Exception e) { return null; }
+						    String s = String.valueOf(obj);
+						    if (s.startsWith("+")) s = s.substring(1);
+						    return io.finmsg.dmn.runtime.DmnRuntime.parseFeelDate(s);
 						  }
 						  private static Object builtin(String name, List<Object> args) {
 						    if ("substring before".equals(name)) return io.finmsg.dmn.runtime.DmnRuntime.feelSubstringBefore(args);
@@ -1088,7 +1116,7 @@ public final class DmnJavaGenerator {
 						          return c != null ? c : 0;
 						        });
 						      }
-						      return List.copyOf(copy);
+						      return Collections.unmodifiableList(copy);
 						    }
 						    if ("sublist".equals(name) && args.size() >= 2 && args.get(0) instanceof List<?> list) {
 						      int start = toBigDecimal(args.get(1)).intValue();
@@ -1106,7 +1134,7 @@ public final class DmnJavaGenerator {
 						      for (Object item : list) {
 						        if (result.stream().noneMatch(existing -> Boolean.TRUE.equals(equal(existing, item)))) result.add(item);
 						      }
-						      return List.copyOf(result);
+						      return Collections.unmodifiableList(result);
 						    }
 						    if ("list replace".equals(name) && args.size() >= 3 && args.get(0) != null) {
 						      List<Object> copy = new ArrayList<>(args.get(0) instanceof List<?> list ? (List<Object>) list : Collections.singletonList(args.get(0)));
@@ -1180,10 +1208,14 @@ public final class DmnJavaGenerator {
 						     return io.finmsg.dmn.runtime.DmnRuntime.feelSubstring(s, start, len);
 						   }
 						   if ("upper case".equals(name) && args.size() == 1) {
-						     return args.get(0) == null ? null : stringValue(args.get(0)).toUpperCase();
+						     Object v = args.get(0);
+						     if (v instanceof List<?> l) v = l.size() == 1 ? l.get(0) : null;
+						     return v instanceof CharSequence ? v.toString().toUpperCase() : null;
 						   }
 						   if ("lower case".equals(name) && args.size() == 1) {
-						     return args.get(0) == null ? null : stringValue(args.get(0)).toLowerCase();
+						     Object v = args.get(0);
+						     if (v instanceof List<?> l) v = l.size() == 1 ? l.get(0) : null;
+						     return v instanceof CharSequence ? v.toString().toLowerCase() : null;
 						   }
 						   if ("string".equals(name) && args.size() == 1) {
 						     return args.get(0) == null ? null : stringValue(args.get(0));
@@ -1244,7 +1276,7 @@ public final class DmnJavaGenerator {
 						     if (!(args.get(0) instanceof List<?> l)) return null;
 						     List<Object> copy = new ArrayList<>(l);
 						     Collections.reverse(copy);
-						     return List.copyOf(copy);
+						     return Collections.unmodifiableList(copy);
 						   }
 						   if ("append".equals(name) && args.size() >= 2) {
 						     List<Object> result = new ArrayList<>();
@@ -1317,8 +1349,8 @@ public final class DmnJavaGenerator {
 						     return BigDecimal.valueOf(Math.sqrt(var.doubleValue()));
 						   }
 						   if ("insert before".equals(name) && args.size() == 3) {
-						     if (!(args.get(0) instanceof List<?> list)) return null;
-						     int pos = ((Number) args.get(1)).intValue();
+						     if (!(args.get(0) instanceof List<?> list) || !(args.get(1) instanceof Number posNum)) return null;
+						     int pos = posNum.intValue();
 						     Object newItem = args.get(2);
 						     int idx = pos > 0 ? pos - 1 : list.size() + pos;
 						     if (idx < 0 || idx > list.size()) return null;
@@ -1327,8 +1359,8 @@ public final class DmnJavaGenerator {
 						     return copy;
 						   }
 						   if ("remove".equals(name) && args.size() == 2) {
-						     if (!(args.get(0) instanceof List<?> list)) return null;
-						     int pos = ((Number) args.get(1)).intValue();
+						     if (!(args.get(0) instanceof List<?> list) || !(args.get(1) instanceof Number posNum)) return null;
+						     int pos = posNum.intValue();
 						     int idx = pos > 0 ? pos - 1 : list.size() + pos;
 						     if (idx < 0 || idx >= list.size()) return null;
 						     List<Object> copy = new ArrayList<>(list);

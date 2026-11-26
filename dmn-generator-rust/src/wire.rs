@@ -1,0 +1,346 @@
+//! Strict preflight for the admitted scalar shapes. Prost discards unknown fields.
+
+pub const MAX_BYTES: usize = 4 * 1024 * 1024;
+const MAX_DEPTH: usize = 64;
+const MAX_FIELDS: usize = 200_000;
+const MAX_MESSAGES: usize = 50_000;
+const MAX_STRING: usize = 16_384;
+const MAX_MODELS: usize = 128;
+const MAX_DECLARATIONS: usize = 10_000;
+const MAX_REFERENCES: usize = 50_000;
+
+#[derive(Clone, Copy)]
+enum Message {
+    Artifact,
+    Version,
+    Model,
+    Identity,
+    Import,
+    Input,
+    Decision,
+    DecisionService,
+    Variable,
+    Expression,
+    Unary,
+    Binary,
+    Conditional,
+    Record,
+    RecordField,
+    TypeReference,
+    FieldAccess,
+    LocalReference,
+    Context,
+    ContextLiteral,
+    LocalBinding,
+    Literal,
+    Decimal,
+    Date,
+    Reference,
+    Collection,
+    List,
+    Filter,
+    Builtin,
+    Bkm,
+    Parameter,
+    BkmCall,
+    Argument,
+    Closure,
+    ClosureBinding,
+    ClosureCall,
+    Table,
+    TableInput,
+    TableOutput,
+    Rule,
+    Tests,
+    Test,
+    Comparison,
+    Range,
+    RangeExpression,
+    InstanceOfExpression,
+    TypeDescriptor,
+    TypeField,
+    ForExpression,
+    ForIteration,
+    QuantifiedExpression,
+    DynamicInvocation,
+    NamedArgument,
+}
+
+#[derive(Clone, Copy)]
+enum Field {
+    Text,
+    Integer,
+    Boolean,
+    Nested(Message),
+}
+
+fn field(message: Message, tag: u32) -> Option<(Field, bool, bool)> {
+    use Field::*;
+    use Message::*;
+    // Each rule specifies wire type, repetition, and membership in the message's oneof.
+    let rule = match (message, tag) {
+        (Artifact, 1) => (Nested(Version), false, false),
+        (Artifact, 2 | 4) => (Text, false, false),
+        (Artifact, 3) => (Text, true, false),
+        (Artifact, 5) => (Nested(Model), true, false),
+        (Artifact, 6) | (Decision, 3) => (Nested(Reference), true, false),
+        (Version, 1 | 2) | (Variable, 3) | (Expression, 1) | (Decimal, 2) => {
+            (Integer, false, false)
+        }
+        (Model | Input | Decision, 1) => (Nested(Identity), false, false),
+        (Model, 2) | (Identity | Reference | Variable, 1 | 2) | (Import, 1..=3) | (Decimal, 1) => {
+            (Text, false, false)
+        }
+        (Model, 3) => (Nested(Import), true, false),
+        (Model, 4) => (Nested(Input), true, false),
+        (Model, 5) => (Nested(Decision), true, false),
+        (LocalBinding, 4) => (Nested(ClosureBinding), false, false),
+        (ClosureBinding, 1 | 2) => (Text, false, false),
+        (ClosureBinding, 3) => (Nested(Closure), false, false),
+        (Closure, 1) => (Nested(Parameter), true, false),
+        (Closure, 2) => (Nested(TypeReference), false, false),
+        (Closure, 3) => (Text, true, false),
+        (Closure, 4) => (Nested(Expression), false, false),
+        (Closure, 5) => (Boolean, false, false),
+        (Expression, 16) => (Nested(ClosureCall), false, true),
+        (Expression, 17) => (Nested(Closure), false, true),
+        (Expression, 18) => (Nested(ContextLiteral), false, true),
+        (ContextLiteral, 1) => (Nested(LocalBinding), true, false),
+        (Expression, 19) => (Nested(RangeExpression), false, true),
+        (RangeExpression, 1 | 2) => (Nested(Expression), false, false),
+        (RangeExpression, 3 | 4) => (Boolean, false, false),
+        (Expression, 20) => (Nested(InstanceOfExpression), false, true),
+        (InstanceOfExpression, 1) => (Nested(Expression), false, false),
+        (InstanceOfExpression, 2) => (Nested(TypeDescriptor), false, false),
+        (TypeDescriptor, 1) => (Text, false, false),
+        (TypeDescriptor, 2 | 5) => (Nested(TypeDescriptor), false, false),
+        (TypeDescriptor, 3) => (Nested(TypeField), true, false),
+        (TypeDescriptor, 4) => (Nested(TypeDescriptor), true, false),
+        (TypeField, 1) => (Text, false, false),
+        (TypeField, 2) => (Nested(TypeDescriptor), false, false),
+        (Expression, 21) => (Nested(ForExpression), false, true),
+        (ForExpression, 1) => (Nested(ForIteration), true, false),
+        (ForExpression, 2) => (Text, false, false),
+        (ForExpression, 3) => (Nested(Expression), false, false),
+        (ForIteration, 1 | 2) => (Text, false, false),
+        (ForIteration, 3 | 4) => (Nested(Expression), false, false),
+        (Expression, 22) => (Nested(QuantifiedExpression), false, true),
+        (QuantifiedExpression, 1) => (Boolean, false, false),
+        (QuantifiedExpression, 2) => (Nested(ForIteration), true, false),
+        (QuantifiedExpression, 3) => (Nested(Expression), false, false),
+        (Expression, 23) => (Nested(DynamicInvocation), false, true),
+        (DynamicInvocation, 1) => (Nested(Expression), false, false),
+        (DynamicInvocation, 2) => (Nested(Expression), true, false),
+        (DynamicInvocation, 3) => (Nested(NamedArgument), true, false),
+        (NamedArgument, 1) => (Text, false, false),
+        (NamedArgument, 2) => (Nested(Expression), false, false),
+        (Model, 9) => (Nested(DecisionService), true, false),
+        (DecisionService, 1) => (Nested(Identity), false, false),
+        (DecisionService, 2) => (Nested(Variable), false, false),
+        (DecisionService, 3..=6) => (Nested(Reference), true, false),
+        (ClosureCall, 1) => (Text, false, true),
+        (ClosureCall, 2) => (Nested(Closure), false, true),
+        (ClosureCall, 3) => (Nested(Expression), true, false),
+        (Model, 8) => (Nested(Bkm), true, false),
+        (Bkm, 1) => (Nested(Identity), false, false),
+        (Bkm, 2) => (Nested(Parameter), true, false),
+        (Bkm, 3) | (Parameter, 2) => (Nested(Variable), false, false),
+        (Bkm, 4) | (Argument, 2) => (Nested(Expression), false, false),
+        (Bkm, 5) | (Decision, 6) => (Nested(Reference), true, false),
+        (Parameter, 1) => (Text, false, false),
+        (Expression, 15) => (Nested(BkmCall), false, true),
+        (BkmCall, 1) => (Nested(Reference), false, false),
+        (BkmCall, 2) => (Nested(Argument), true, false),
+        (Argument, 1) => (Integer, false, false),
+        (Model, 7) => (Nested(Collection), true, false),
+        (Collection, 1) => (Nested(Identity), false, false),
+        (Collection, 2) => (Integer, false, false),
+        (Collection, 3) => (Nested(Reference), false, false),
+        (Collection, 4) => (Nested(Reference), false, false),
+        (Variable, 5) | (Expression, 11) => (Nested(Reference), false, false),
+        (TypeReference, 3) => (Nested(Reference), false, true),
+        (Expression, 14) => (Nested(Builtin), false, true),
+        (Builtin, 1) => (Integer, false, false),
+        (Builtin, 2) => (Nested(Expression), true, false),
+        (Expression, 13) => (Nested(Filter), false, true),
+        (Filter, 1 | 3) => (Nested(Expression), false, false),
+        (Filter, 2) => (Text, false, false),
+        (Expression, 12) => (Nested(List), false, true),
+        (List, 1) => (Nested(Expression), true, false),
+        (Model, 6) => (Nested(Record), true, false),
+        (Variable, 4) | (Expression, 7) => (Nested(Reference), false, false),
+        (Record, 1) => (Nested(Identity), false, false),
+        (Record, 2) => (Nested(RecordField), true, false),
+        (RecordField, 1 | 2) | (FieldAccess, 2) => (Text, false, false),
+        (RecordField, 4) => (Nested(Tests), false, false),
+        (RecordField, 3) => (Nested(TypeReference), false, false),
+        (TypeReference, 1) => (Integer, false, true),
+        (TypeReference, 2) => (Nested(Reference), false, true),
+        (Expression, 9) => (Nested(LocalReference), false, true),
+        (Expression, 10) => (Nested(Context), false, true),
+        (LocalReference | LocalBinding, 1) => (Text, false, false),
+        (Context, 1) => (Nested(LocalBinding), true, false),
+        (Context, 2) | (LocalBinding, 3) => (Nested(Expression), false, false),
+        (LocalBinding, 2) => (Nested(Variable), false, false),
+        (Expression, 8) => (Nested(FieldAccess), false, true),
+        (FieldAccess, 1) => (Nested(Expression), false, false),
+        (Input | Decision, 2) => (Nested(Variable), false, false),
+        (Decision, 5) => (Nested(Table), false, false),
+        (Table | TableInput | TableOutput | Rule, 1) => (Text, false, false),
+        (Table, 2) | (TableInput, 4) | (TableOutput, 3) | (Comparison, 1) => {
+            (Integer, false, false)
+        }
+        (Table, 3) => (Nested(TableInput), true, false),
+        (Table, 4) => (Nested(TableOutput), true, false),
+        (Table, 5) => (Nested(Rule), true, false),
+        (TableInput | TableOutput, 2) => (Text, false, false),
+        (TableInput, 3) | (TableOutput, 4) | (Comparison, 2) | (Range, 1 | 2) => {
+            (Nested(Expression), false, false)
+        }
+        (Rule, 2) => (Nested(Tests), true, false),
+        (Rule, 3) => (Nested(Expression), true, false),
+        (Tests, 1 | 2) | (Range, 3 | 4) => (Boolean, false, false),
+        (Tests, 3) => (Nested(Test), true, false),
+        (Test, 1) => (Nested(Comparison), false, true),
+        (Test, 2) => (Nested(Range), false, true),
+        (Decision, 4) => (Nested(Expression), false, false),
+        (Expression, 2) => (Nested(Literal), false, true),
+        (Expression, 3) => (Nested(Reference), false, true),
+        (Expression, 4) => (Nested(Unary), false, true),
+        (Expression, 5) => (Nested(Binary), false, true),
+        (Expression, 6) => (Nested(Conditional), false, true),
+        (Unary | Binary, 1) => (Integer, false, false),
+        (Unary, 2) | (Binary, 2 | 3) | (Conditional, 1..=3) => (Nested(Expression), false, false),
+        (Literal, 1) => (Integer, false, true),
+        (Literal, 2) => (Boolean, false, true),
+        (Literal, 3) => (Text, false, true),
+        (Literal, 5) => (Nested(Date), false, true),
+        (Date, 1..=3) => (Integer, false, false),
+        (Literal, 4) => (Nested(Decimal), false, true),
+        (Literal, 6 | 7 | 8) => (Text, false, true),
+        _ => return None,
+    };
+    Some(rule)
+}
+
+#[derive(Default)]
+struct Budget {
+    fields: usize,
+    messages: usize,
+    models: usize,
+    declarations: usize,
+    references: usize,
+}
+
+pub fn verify(bytes: &[u8]) -> Result<(), &'static str> {
+    if bytes.len() > MAX_BYTES {
+        return Err("artifact exceeds byte budget");
+    }
+    message(bytes, Message::Artifact, 1, &mut Budget::default())
+}
+
+fn message(
+    mut bytes: &[u8],
+    kind: Message,
+    depth: usize,
+    budget: &mut Budget,
+) -> Result<(), &'static str> {
+    budget.messages += 1;
+    match kind {
+        Message::Model => budget.models += 1,
+        Message::Input
+        | Message::Decision
+        | Message::Record
+        | Message::RecordField
+        | Message::Filter
+        | Message::Closure
+        | Message::Bkm
+        | Message::Parameter
+        | Message::Collection
+        | Message::LocalBinding
+        | Message::TableInput
+        | Message::TableOutput
+        | Message::Rule => budget.declarations += 1,
+        Message::Reference | Message::LocalReference => budget.references += 1,
+        _ => {}
+    }
+    if depth > MAX_DEPTH
+        || budget.messages > MAX_MESSAGES
+        || budget.models > MAX_MODELS
+        || budget.declarations > MAX_DECLARATIONS
+        || budget.references > MAX_REFERENCES
+    {
+        return Err("artifact exceeds message budget");
+    }
+    let mut seen = 0u32;
+    let mut oneof = false;
+    while !bytes.is_empty() {
+        budget.fields += 1;
+        if budget.fields > MAX_FIELDS {
+            return Err("artifact exceeds field budget");
+        }
+        let key = u32::try_from(varint(&mut bytes)?).map_err(|_| "invalid field tag")?;
+        let tag = key >> 3;
+        let (field, repeated, choice) = field(kind, tag).ok_or("field outside scalar profile")?;
+        let bit = 1 << tag;
+        if (!repeated && seen & bit != 0) || (choice && oneof) {
+            return Err("duplicate field or oneof choice");
+        }
+        if matches!(
+            (kind, tag),
+            (Message::Closure, 3) | (Message::ClosureCall, 1)
+        ) {
+            budget.references += 1;
+            if budget.references > MAX_REFERENCES {
+                return Err("artifact exceeds message budget");
+            }
+        }
+        seen |= bit;
+        oneof |= choice;
+        match (field, key & 7) {
+            (Field::Text, 2) => {
+                let text = delimited(&mut bytes)?;
+                if text.len() > MAX_STRING {
+                    return Err("artifact exceeds string budget");
+                }
+                std::str::from_utf8(text).map_err(|_| "invalid UTF-8")?;
+            }
+            (Field::Nested(child), 2) => {
+                message(delimited(&mut bytes)?, child, depth + 1, budget)?;
+            }
+            (Field::Integer, 0) => {
+                u32::try_from(varint(&mut bytes)?).map_err(|_| "scalar exceeds wire range")?;
+            }
+            (Field::Boolean, 0) => {
+                if varint(&mut bytes)? > 1 {
+                    return Err("invalid boolean encoding");
+                }
+            }
+            _ => return Err("wrong wire type"),
+        }
+    }
+    Ok(())
+}
+
+fn delimited<'a>(bytes: &mut &'a [u8]) -> Result<&'a [u8], &'static str> {
+    let len = usize::try_from(varint(bytes)?).map_err(|_| "invalid field length")?;
+    let (value, rest) = bytes.split_at_checked(len).ok_or("truncated field")?;
+    *bytes = rest;
+    Ok(value)
+}
+
+fn varint(bytes: &mut &[u8]) -> Result<u64, &'static str> {
+    let mut value = 0;
+    for shift in (0..64).step_by(7) {
+        let (&byte, rest) = bytes.split_first().ok_or("truncated varint")?;
+        *bytes = rest;
+        if shift == 63 && byte > 1 {
+            return Err("varint exceeds 64 bits");
+        }
+        value |= u64::from(byte & 0x7f) << shift;
+        if byte < 0x80 {
+            return Ok(value);
+        }
+    }
+    Err("invalid varint")
+}

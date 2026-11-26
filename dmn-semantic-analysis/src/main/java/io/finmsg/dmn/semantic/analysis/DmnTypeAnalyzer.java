@@ -16,7 +16,17 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 	private static final TypeReference ANY = builtin(BuiltinType.BUILTIN_TYPE_ANY);
 	private static final TypeReference NUMBER = builtin(BuiltinType.BUILTIN_TYPE_NUMBER);
 	private static final TypeReference NULL = builtin(BuiltinType.BUILTIN_TYPE_NULL);
-	private final FeelTypeAnalyzer feelTypes = new FeelTypeAnalyzer();
+	private final FeelTypeAnalyzer feelTypes;
+	private final boolean portableFunctionTyping;
+
+	public DmnTypeAnalyzer() {
+		this(false);
+	}
+
+	DmnTypeAnalyzer(boolean portableFunctionTyping) {
+		this.portableFunctionTyping = portableFunctionTyping;
+		this.feelTypes = new FeelTypeAnalyzer(new BuiltinFeelFunctionRegistry(), portableFunctionTyping);
+	}
 
 	@Override
 	public DmnSemanticAnalysisResult analyze(Definitions parsedModel) {
@@ -167,7 +177,13 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 			TypeReference inferred = logicType(typedLogic);
 			// Declared types are enforced by the runtime's FEEL coercion boundary.
 
-			return decision.toBuilder().setLogic(typedLogic).build();
+			var builder = decision.toBuilder().setLogic(typedLogic);
+			if (declared.getKindCase() == TypeReference.KindCase.KIND_NOT_SET
+					&& inferred.getKindCase() != TypeReference.KindCase.KIND_NOT_SET) {
+				builder.setVariable(decision.getVariable().toBuilder().setType(inferred));
+				addSymbol(decision.getNode(), inferred);
+			}
+			return builder.build();
 		}
 
 		private BusinessKnowledgeModel typeBkm(BusinessKnowledgeModel bkm) {
@@ -212,8 +228,18 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 						type = element.getDecision().getVariable().getType();
 					}
 					case BUSINESS_KNOWLEDGE_MODEL -> {
-						name = element.getBusinessKnowledgeModel().getNode().getName();
-						type = element.getBusinessKnowledgeModel().getVariable().getType();
+						var bkm = element.getBusinessKnowledgeModel();
+						name = bkm.getNode().getName();
+						type = bkm.getVariable().getType();
+						if (portableFunctionTyping && !type.hasFunction()
+								&& type.getKindCase() != TypeReference.KindCase.KIND_NOT_SET
+								&& (bkm.getFunction().getKind() == FunctionKind.FUNCTION_KIND_FEEL
+										|| bkm.getFunction().getKind() == FunctionKind.FUNCTION_KIND_UNSPECIFIED)) {
+							var signature = FunctionTypeReference.newBuilder().setReturnType(type);
+							for (var parameter : bkm.getFunction().getFormalParametersList())
+								signature.addParameterType(parameter.getType());
+							type = TypeReference.newBuilder().setFunction(signature).build();
+						}
 					}
 					case DECISION_SERVICE -> {
 						name = element.getDecisionService().getNode().getName();
@@ -799,7 +825,9 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 					for (InformationItem parameter : function.getParametersList()) {
 						type.addParameterType(parameter.getType());
 					}
-					type.setReturnType(expressionParsedType(function.getBody()));
+					type.setReturnType("Java".equalsIgnoreCase(function.getSourceKind())
+							? ANY
+							: expressionParsedType(function.getBody()));
 					yield TypeReference.newBuilder().setFunction(type).build();
 				}
 				case RELATION -> {
@@ -845,6 +873,10 @@ public final class DmnTypeAnalyzer implements DmnSemanticPass<DmnSemanticAnalysi
 				return !resolved.equals(actual) && assignable(resolved, expected);
 			}
 			if (isDuration(actual) && isDuration(expected)) {
+				return true;
+			}
+			if (actual.hasBuiltin() && actual.getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE && expected.hasBuiltin()
+					&& expected.getBuiltin() == BuiltinType.BUILTIN_TYPE_DATE_AND_TIME) {
 				return true;
 			}
 			if (actual.hasList() && expected.hasList()) {

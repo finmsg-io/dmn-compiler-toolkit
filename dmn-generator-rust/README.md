@@ -1,0 +1,222 @@
+# DMNIR Rust generator
+
+This initial-profile generator consumes DMNIR 0.0 scalar artifacts, scalar expressions from
+DMNIR 0.1, named records and field access from DMNIR 0.2, local contexts
+from DMNIR 0.3, civil dates from DMNIR 0.4, decision tables from DMNIR 0.5,
+scalar record field constraints from DMNIR 0.6, and named scalar collections
+from DMNIR 0.7, scalar filters from DMNIR 0.8, fixed builtins from DMNIR 0.9, named FEEL BKMs from DMNIR 0.10, and captured FEEL closures from DMNIR 0.11. It verifies the wire
+and model graph, then writes a standalone Rust library crate. The artifact is
+the only model input to the generator.
+
+From this directory, use the pinned Rust 1.99.1 toolchain.
+
+```console
+cargo test --locked --offline
+cargo run --locked --offline -- tests/fixtures/scalar-0.0.dmnir target/generated-example
+cargo test --offline --manifest-path target/generated-example/Cargo.toml
+```
+
+Run `cargo fetch --locked` once to populate a fresh dependency cache. The generator
+compiles bindings from the toolkit's DMNIR schema using a pinned vendored Protobuf
+compiler. The generated crate uses only the Rust standard library. Its output directory
+must be new.
+
+The TCK audit discovers all numbered `-test-NN.xml` files and honors their declared
+model names and input namespaces. Numeric comparisons use exact decimal equality
+(including equivalent coefficients/scales), without rounding results to force a pass.
+The runner compiles at most 32 generated groups per batch, disables incremental
+compilation for that harness, and retains each batch log beside the case ledger.
+
+The built-in profile additionally supports exact string-to-number conversion (operation 25),
+including named separator arguments and decimal scientific notation. Parsing uses decimal
+digits directly and bounds coefficient length and absolute scale to 4,096.
+
+Call `generated_dmn::evaluate` with a `BTreeMap` keyed by model namespace and input
+element ID. Provide every declared input, including explicit `Value::Null`. Decision
+results use the same namespace and element ID convention. Numeric values preserve
+the decimal coefficient string and signed scale, with no floating-point conversion.
+
+The parity tests run the generator twice on each checked-in Java-produced artifact,
+compare the generated files, and build and execute the generated crates offline.
+`tests/fixtures/ExportFixture.java`, `tests/fixtures/ExportExpressionFixture.java`,
+`tests/fixtures/ExportArithmeticFixture.java`, `tests/fixtures/ExportMultiplicationFixture.java`,
+`tests/fixtures/ExportDivisionFixture.java`, and `tests/fixtures/ExportRecordFixture.java`
+regenerate the artifacts and check
+the expected values against the Java adapter.
+Run each in Java source-file mode with the `dmn-compiler` Maven test classpath and
+the fixture output path as the first argument. The arithmetic exporter accepts
+a second output path for the historical multiplication fixture. The multiplication
+exporter requires a second output path for the historical division fixture. The
+division exporter takes the artifact path, a TSV path for the expected Java
+vectors, and a path for the unsupported power artifact.
+
+The `Rust artifact parity` GitHub Actions workflow runs this test in a pinned
+Rust container. It checks out the generator, fixture and schema, checks that
+Java is absent, and runs Cargo offline after fetching the locked dependencies.
+
+The verifier accepts scalar literals and resolved scalar references in bundled models.
+Schema 0.1 additionally admits unary plus, negation, `not`, equality and inequality,
+numeric and string ordering, `and`, `or`, conditionals, and numeric addition,
+subtraction, multiplication, and division. Addition and subtraction use the greater
+operand scale. Logical operators also accept non-boolean scalar operands and treat
+them as null using FEEL three-valued logic; short-circuit behavior is preserved.
+Older consumers can reject these newly admitted signatures. Multiplication adds the operand scales. Division uses DECIMAL128
+rounding and returns null for a zero divisor. All four propagate nulls.
+The verifier limits additive chains to 128 operations across expressions and
+decision dependencies. It rejects graphs that could exceed 32,768 coefficient
+digits, absolute scale 8,192 for multiplication, or 8,388,608 base-10⁹ limb products.
+Division has a separate 8,388,608-limb-visit budget and permits division-derived
+scales through 32,768. General floating-point powers and profiles above 0.11 remain outside the subset.
+
+Schema 0.2 adds `Value::Record(BTreeMap<String, Value>)` for nested record inputs
+and results. All declared fields must be present with the expected types.
+Explicit nulls are accepted, and additional fields are preserved. Invalid
+typed inputs return an evaluation error. Record types retain their qualified
+identities during verification. Recursive types and expanded layouts above
+50,000 nodes or 32 levels are rejected before generation.
+
+Schema 0.3 adds sequential typed local bindings and a final context result.
+Bindings use decision-local identities and lexical visibility. Nested contexts
+may shadow names while retaining references to visible outer bindings.
+Forward references, escaped locals, duplicate binding IDs and incompatible types
+are rejected. Local numeric values retain arithmetic bounds. Generated contexts
+evaluate each binding once in order using Rust block expressions.
+`tests/fixtures/ExportContextFixture.java` verifies and wraps the record artifact
+in contexts, then checks Java parity. Pass the record artifact and context output
+paths as arguments using the Java test classpath described above.
+
+Schema 0.4 adds `Value::Date { year: i32, month: u32, day: u32 }` for civil
+dates, including date fields, locals, conditionals, equality and ordering.
+The proleptic Gregorian calendar permits years -999,999,999 through 999,999,999,
+excluding zero. Invalid calendar dates and string-valued date inputs are rejected.
+No timezone or clock conversion occurs. Time-of-day, offsets and durations are
+outside this profile. The generated crate remains dependency-free.
+`tests/fixtures/ExportDateFixture.java` produces the date artifact and Java
+expected TSV vectors. Its arguments are the artifact and TSV output paths.
+
+Schema 0.5 supports UNIQUE, FIRST and ANY decision tables with scalar or named
+record results. Inputs are evaluated once. Rules use scalar comparisons, ranges,
+alternatives, negation and wildcards. All matching rows are evaluated in order,
+as in the Java adapter. UNIQUE rejects multiple matches, and ANY rejects unequal
+results using numeric value equality across decimal scales. FIRST returns the
+first match. No matches use each output's default expression or null, including
+null-valued fields in record results. Policy conflicts return an evaluation error.
+The verifier checks column counts, result shape, IDs, types, dependencies and
+all cells, including inactive rules and defaults. Context expressions are rejected
+inside table cells. Scalar output bounds propagate to later decisions.
+`tests/fixtures/ExportTableFixture.java` writes table artifacts and Java vectors
+to the directory supplied as its argument.
+
+Schema 0.6 validates scalar record field constraints at input and decision-result
+binding, recursively through nested records. Endpoints must be constant literals
+compatible with the field type. Null scalar fields must satisfy their constraint,
+while a null record skips its nested fields. Violations return the static error
+`field constraint violated`. Typed input structure and scalar checks still apply.
+`tests/fixtures/ExportConstraintFixture.java` takes the table artifact, constrained
+artifact output path and Java expected-vector TSV output path as arguments.
+
+Schema 0.7 adds `Value::List(Vec<Value>)` for ordered scalar collections.
+Named collection types retain their namespace-qualified identities. Elements
+may be Boolean, number, string or date, with explicit null elements allowed.
+List inputs require a list with correctly typed elements. Empty and null lists
+remain distinct, and order and duplicates are preserved. Collections may appear
+in record fields, local bindings, references and conditional results. List
+constructors are checked before generation, including unselected branches.
+Nested collections, record elements, filters and builtins are outside this profile.
+Collections contribute two levels/nodes to the existing type-depth/expansion budgets.
+`tests/fixtures/ExportCollectionFixture.java` produces the collection artifact and
+Java expected-vector TSV using those two output paths as arguments.
+
+Schema 0.8 adds scalar collection filters with resolved item IDs and boolean
+predicates. Only a true result retains an element; false or null drops it.
+Null sources return null, empty sources remain empty, and order and duplicates
+are preserved. Predicates may capture outer locals and declared dependencies.
+Chained filters are supported. Filters and boxed contexts inside predicates are
+rejected, and each item binding is visible only in its predicate.
+Numeric element bounds propagate through list construction, references and
+filter items. Generated evaluation permits at most 50,000 total filter element
+visits. It charges repeated predicate multiplication/division against the existing
+8,388,608-unit budgets, reserving the static graph cost and charging additional
+iterations using the verifier's conservative operand bounds. A limit violation
+returns `filter evaluation budget exceeded` before predicate iteration.
+Builtins belong to DMNIR 0.9, described below.
+`tests/fixtures/ExportFilterFixture.java` writes the filter artifact, Java-vector
+TSV and constant-predicate visit-budget artifact to its three argument paths.
+
+Schema 0.9 supports `abs(number)`, `string length(string)` and
+`contains(string, string)` with exact static signatures. Null input values
+propagate to null results. Absolute value preserves coefficient trailing zeros
+and scale, with no floating-point conversion. String length counts Unicode code
+points, including supplementary characters and separate combining marks.
+Contains uses a literal substring match and accepts an empty needle.
+Calls can appear in admitted expressions, contexts, filters and table cells.
+The verifier preserves operand bounds through abs and bounds string-length
+results before admitting downstream numeric operations. Unknown operations,
+wrong arity and incompatible argument/result types are rejected.
+`tests/fixtures/ExportBuiltinFixture.java` writes the artifact and Java expected
+TSV vectors to its two argument paths.
+
+Schema 0.10 adds resolved named FEEL BKMs with explicit knowledge dependencies.
+Calls evaluate each argument once in source order, then map values to their
+one-based formal positions. Imports, formal types and nominal result types are
+verified. BKM scopes contain only parameters and their own locals; caller locals
+and undeclared global values are unavailable. Scalar, record and collection
+parameters/results are supported within the admitted expression subset.
+Knowledge graphs must be acyclic with depth at most 32. Unused BKM bodies are
+verified too. Calls are emitted as Rust blocks with propagated numeric bounds.
+Verification limits expanded expressions to 50,000 nodes and 32 expression levels,
+including declaration validation and call expansion. Existing arithmetic and
+filter budgets apply inside calls. Lazy expressions and table defaults propagate
+called-function errors while retaining their lazy behavior. Closures are described below.
+`tests/fixtures/ExportBkmFixture.java` derives Java-verified artifacts from the
+collection artifact and writes Java expected vectors. Arguments are the BKM
+artifact path, TSV output path, directory for lazy/default fixtures, and original
+collection artifact path.
+
+Schema 0.11 supports context-local closure bindings and inline closure calls.
+Capture lists must contain visible value-binding IDs in strict UTF-8 byte order,
+and every declared capture must be used. Calls see only their captures and typed
+parameters, with declared BKM knowledge retained. Captured values keep their
+identities when names are shadowed. Arguments evaluate once in order, and exact
+numeric bounds propagate through captures, parameters and results.
+Nested closure definitions/calls are rejected within closure bodies, matching
+the Java profile. Calls remain bounded by the existing expanded-node/depth and
+runtime filter-work limits. Closures are emitted as private Rust blocks, so the
+public generated Value API is unchanged.
+`tests/fixtures/ExportClosureFixture.java` derives Java-verified closure artifacts
+from the BKM fixture. Arguments are the closure artifact, TSV vectors and
+original BKM artifact paths.
+
+The full Traffic Violation fixture is produced from the repository's original DMN
+model, including its allowed-values constraint. Java and generated Rust compare
+321 input vectors covering the complete fine table and suspension context,
+195 result cases and 126 expected domain failures. This is full-model fixture
+parity, not a whole-TCK Rust conformance result.
+`tests/fixtures/ExportTrafficViolationFixture.java` takes the original DMN path,
+artifact output path and TSV output path as arguments.
+
+The closure/BKM interoperability fixture checks used numeric, record and collection
+parameters, multiple captures, BKM calls inside closure bodies and a dynamic
+numeric caller. Java and generated Rust agree for 24 nullable/empty input vectors.
+`tests/fixtures/ExportClosureInteropFixture.java` takes artifact and TSV output
+paths followed by the original BKM artifact path.
+
+The declared initial Rust profile is implemented. Constant integer powers are
+admitted when both operands are exact integers, the base magnitude is at most
+2^53, the exponent is 0 through 53, and the result magnitude is at most 2^53.
+The generator evaluates them with checked integer arithmetic and preserves the
+Java `BigDecimal.valueOf(Math.pow(...))` coefficient/scale representation. Java
+specifies exact results for exactly representable integer powers.
+[Java Math.pow contract](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Math.html#pow(double,double))
+Dynamic, fractional, negative-exponent and out-of-domain powers are rejected
+before output is created. `ExportPowerFixture.java` writes the admitted artifact
+and Java expected vectors to its two output arguments.
+
+The release boundary is the explicitly admitted DMNIR 0.0–0.11 subset. General
+FEEL/DMN conformance, time-of-day/durations, additional table policies, more
+builtins, higher-order/nested closures and newer wire profiles remain separate
+scope. Unsupported inputs are rejected before generation. The test suite checks
+Java value/error parity, deterministic output, offline generated-crate builds,
+wire/model rejection limits and preservation of existing output directories.
+A complete Traffic Violation fixture is included. Whole-TCK Rust coverage has
+not been measured; the Spark TCK result is reported separately.

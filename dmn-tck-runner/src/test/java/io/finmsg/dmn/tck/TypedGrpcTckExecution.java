@@ -27,6 +27,7 @@ final class TypedGrpcTckExecution implements AutoCloseable {
 	private static final AtomicInteger IDS = new AtomicInteger();
 	private static Host host;
 	private final URLClassLoader loader;
+	private final boolean ownsLoader;
 	private final Descriptors.FileDescriptor schema;
 	private final RuntimeModel model;
 	private final Map<String, Integer> inputSlots;
@@ -35,10 +36,11 @@ final class TypedGrpcTckExecution implements AutoCloseable {
 	}
 	private final Map<String, Invocation> invocations;
 
-	private TypedGrpcTckExecution(URLClassLoader loader, Descriptors.FileDescriptor schema, RuntimeModel model,
-			ServerServiceDefinition service, Map<String, Integer> inputSlots, Map<String, Invocation> invocations)
-			throws Exception {
+	private TypedGrpcTckExecution(URLClassLoader loader, boolean ownsLoader, Descriptors.FileDescriptor schema,
+			RuntimeModel model, ServerServiceDefinition service, Map<String, Integer> inputSlots,
+			Map<String, Invocation> invocations) throws Exception {
 		this.loader = loader;
+		this.ownsLoader = ownsLoader;
 		this.schema = schema;
 		this.model = model;
 		this.inputSlots = inputSlots;
@@ -47,6 +49,144 @@ final class TypedGrpcTckExecution implements AutoCloseable {
 		transport().services.put(serviceName, service);
 		service.getMethods().forEach(
 				method -> transportUnchecked().methods.put(method.getMethodDescriptor().getFullMethodName(), method));
+	}
+
+	static <K> Map<K, TypedGrpcTckExecution> prepareBatch(Map<K, DmnCompilationResult> compilations,
+			ExternalJavaPolicy policy) throws Exception {
+		if (compilations.isEmpty())
+			return Map.of();
+		Path directory = Files.createTempDirectory("dmn-typed-grpc-tck-batch-");
+		Path protocBin = tool("protoc-", "typed.grpc.protoc");
+		Path grpcPlugin = tool("protoc-gen-grpc-java-", "typed.grpc.plugin");
+		Path sharedProtoPath = Path.of("../dmn-grpc/src/main/proto/io/finmsg/dmn/grpc").toAbsolutePath();
+
+		record Unit<K>(K key, DmnCompilationResult compilation, TypedGrpcGeneratorOptions options, Path workDir,
+				List<Path> javaFiles) {
+		}
+		List<Unit<K>> units = Collections.synchronizedList(new ArrayList<>());
+		AtomicInteger protocDone = new AtomicInteger();
+		int totalModels = compilations.size();
+		System.out.printf("[INFO] [typed-grpc] Running protoc on %d models...%n", totalModels);
+		System.out.flush();
+		compilations.entrySet().parallelStream().forEach(entry -> {
+			try {
+				int id = IDS.incrementAndGet();
+				var options = new TypedGrpcGeneratorOptions("finmsg.dmn.typed.n" + id, "io.finmsg.dmn.tck.typedgen",
+						"TypedModel" + id + "Proto", "TypedModel" + id + "Service");
+				var generated = new DmnTypedGrpcGenerator()
+						.generate(entry.getValue().optimizedRuntimeModel().orElseThrow(), options);
+				Path modelDir = directory.resolve("m" + id);
+				Files.createDirectories(modelDir);
+				Path proto = modelDir.resolve(generated.protoFileName());
+				Files.writeString(proto, generated.protoContent(), java.nio.charset.StandardCharsets.UTF_8);
+				run(List.of(protocBin.toString(), "--proto_path=" + modelDir, "--proto_path=" + sharedProtoPath,
+						"--java_out=" + modelDir, "--grpc-java_out=" + modelDir,
+						"--plugin=protoc-gen-grpc-java=" + grpcPlugin, proto.toString()), modelDir);
+				for (var source : generated.javaSources().entrySet()) {
+					Path file = modelDir.resolve(source.getKey().replace('.', '/') + ".java");
+					Files.createDirectories(file.getParent());
+					Files.writeString(file, source.getValue(), java.nio.charset.StandardCharsets.UTF_8);
+				}
+				List<Path> javaFiles = new ArrayList<>();
+				try (var files = Files.walk(modelDir)) {
+					files.filter(f -> f.toString().endsWith(".java")).forEach(javaFiles::add);
+				}
+				units.add(new Unit<>(entry.getKey(), entry.getValue(), options, modelDir, javaFiles));
+			} catch (Exception ignored) {
+				// Fall back to per-model preparation on demand.
+			} finally {
+				int done = protocDone.incrementAndGet();
+				if (done % 25 == 0 || done == totalModels) {
+					System.out.printf("[INFO] [typed-grpc] protoc %d/%d done%n", done, totalModels);
+					System.out.flush();
+				}
+			}
+		});
+
+		int batchSize = 15;
+		List<List<Unit<K>>> batches = new ArrayList<>();
+		for (int i = 0; i < units.size(); i += batchSize) {
+			batches.add(units.subList(i, Math.min(i + batchSize, units.size())));
+		}
+		List<Path> batchClassDirs = Collections.synchronizedList(new ArrayList<>());
+		List<Unit<K>> compiled = Collections.synchronizedList(new ArrayList<>());
+		String classpath = System.getProperty("java.class.path");
+		AtomicInteger batchIndex = new AtomicInteger();
+		ExecutorService javacPool = Executors.newFixedThreadPool(2);
+		try {
+			List<Future<?>> futures = new ArrayList<>();
+			for (int b = 0; b < batches.size(); b++) {
+				int batchNo = b + 1;
+				List<Unit<K>> batch = batches.get(b);
+				futures.add(javacPool.submit(() -> {
+					long t0 = System.nanoTime();
+					try {
+						Path batchOut = directory.resolve("classes-" + batchNo);
+						Files.createDirectories(batchOut);
+						Path argFile = Files.createTempFile(directory, "javac-typed-", ".args");
+						StringBuilder sb = new StringBuilder();
+						for (var u : batch) {
+							for (Path f : u.javaFiles()) {
+								sb.append('"').append(f.toAbsolutePath().toString().replace('\\', '/')).append("\"\n");
+							}
+						}
+						Files.writeString(argFile, sb.toString(), java.nio.charset.StandardCharsets.UTF_8);
+						var diagnostics = new java.io.ByteArrayOutputStream();
+						int exit = ToolProvider.getSystemJavaCompiler().run(null, null, diagnostics, "-encoding",
+								"UTF-8", "-classpath", classpath, "-d", batchOut.toString(),
+								"@" + argFile.toAbsolutePath());
+						long ms = (System.nanoTime() - t0) / 1_000_000L;
+						int done = batchIndex.incrementAndGet();
+						System.out.printf("[INFO] [typed-grpc] javac batch %d/%d (%d models) exit=%d in %d ms%n", done,
+								batches.size(), batch.size(), exit, ms);
+						System.out.flush();
+						if (exit == 0) {
+							batchClassDirs.add(batchOut);
+							compiled.addAll(batch);
+						}
+					} catch (Exception ignored) {
+					}
+				}));
+			}
+			for (Future<?> f : futures) {
+				f.get();
+			}
+		} finally {
+			javacPool.shutdownNow();
+		}
+		URL[] urls = new URL[batchClassDirs.size()];
+		for (int i = 0; i < batchClassDirs.size(); i++) {
+			urls[i] = batchClassDirs.get(i).toUri().toURL();
+		}
+		var loader = new URLClassLoader(urls, TypedGrpcTckExecution.class.getClassLoader());
+		Map<K, TypedGrpcTckExecution> results = new ConcurrentHashMap<>();
+		AtomicInteger boundCount = new AtomicInteger();
+		int compiledTotal = compiled.size();
+		System.out.printf("[INFO] [typed-grpc] Binding %d compiled services...%n", compiledTotal);
+		System.out.flush();
+		compiled.parallelStream().forEach(u -> {
+			try {
+				var schema = (Descriptors.FileDescriptor) loader
+						.loadClass(u.options().javaPackage() + "." + u.options().outerClassName())
+						.getMethod("getDescriptor").invoke(null);
+				var service = (BindableService) loader
+						.loadClass(u.options().javaPackage() + "." + u.options().serviceName() + "Handler")
+						.getConstructor(ExternalJavaPolicy.class).newInstance(policy);
+				results.put(u.key(),
+						new TypedGrpcTckExecution(loader, false, schema,
+								u.compilation().optimizedRuntimeModel().orElseThrow().model(), service.bindService(),
+								u.compilation().compiledModel().orElseThrow().inputSlots(),
+								invocationMetadata(u.compilation())));
+			} catch (Throwable ignored) {
+			} finally {
+				int done = boundCount.incrementAndGet();
+				if (done % 25 == 0 || done == compiledTotal) {
+					System.out.printf("[INFO] [typed-grpc] bound %d/%d services%n", done, compiledTotal);
+					System.out.flush();
+				}
+			}
+		});
+		return results;
 	}
 
 	static TypedGrpcTckExecution prepare(DmnCompilationResult compilation, ExternalJavaPolicy policy) {
@@ -87,7 +227,7 @@ final class TypedGrpcTckExecution implements AutoCloseable {
 				var service = (BindableService) loader
 						.loadClass(options.javaPackage() + "." + options.serviceName() + "Handler")
 						.getConstructor(ExternalJavaPolicy.class).newInstance(policy);
-				return new TypedGrpcTckExecution(loader, schema,
+				return new TypedGrpcTckExecution(loader, true, schema,
 						compilation.optimizedRuntimeModel().orElseThrow().model(), service.bindService(),
 						compilation.compiledModel().orElseThrow().inputSlots(), invocationMetadata(compilation));
 			} catch (Throwable failure) {
@@ -294,6 +434,7 @@ final class TypedGrpcTckExecution implements AutoCloseable {
 			host.services.remove(serviceName);
 			host.methods.keySet().removeIf(method -> method.startsWith(serviceName + "/"));
 		}
-		loader.close();
+		if (ownsLoader)
+			loader.close();
 	}
 }

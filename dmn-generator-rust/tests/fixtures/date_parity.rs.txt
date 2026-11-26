@@ -1,0 +1,58 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+const NS: &str = "urn:rust-proof:dates";
+fn decode(value: &str) -> Value {
+    match value {
+        "N" => Value::Null,
+        "T" => Value::Boolean(true),
+        "F" => Value::Boolean(false),
+        _ => {
+            let parts: Vec<_> = value[1..].split(',').collect();
+            Value::Date {
+                year: parts[0].parse().unwrap(),
+                month: parts[1].parse().unwrap(),
+                day: parts[2].parse().unwrap(),
+            }
+        }
+    }
+}
+fn inputs(date: Value, field: Value) -> BTreeMap<(&'static str, &'static str), Value> {
+    BTreeMap::from([
+        ((NS, "input"), date),
+        (
+            (NS, "record"),
+            Value::Record(BTreeMap::from([("When".into(), field)])),
+        ),
+    ])
+}
+#[test]
+fn dates_match_java_vectors() {
+    let mut count = 0;
+    for line in include_str!("date_vectors.tsv").lines() {
+        let columns: Vec<_> = line.split('\t').collect();
+        let values = evaluate(&inputs(decode(columns[0]), decode(columns[1]))).unwrap();
+        assert_eq!(values[&(NS, columns[2])], decode(columns[3]), "{line}");
+        count += 1;
+    }
+    assert_eq!(count, 494);
+}
+#[test]
+fn invalid_date_inputs_are_rejected_at_each_level() {
+    for (year, month, day) in [
+        (0, 1, 1),
+        (1900, 2, 29),
+        (2023, 2, 29),
+        (-100, 2, 29),
+        (2024, 0, 1),
+        (2024, 13, 1),
+        (2024, 1, 0),
+        (2024, 4, 31),
+        (-1_000_000_000, 1, 1),
+        (1_000_000_000, 1, 1),
+    ] {
+        let invalid = Value::Date { year, month, day };
+        assert!(evaluate(&inputs(invalid.clone(), Value::Null)).is_err());
+        assert!(evaluate(&inputs(Value::Null, invalid)).is_err());
+    }
+    assert!(evaluate(&inputs(Value::Text("2024-02-29".into()), Value::Null)).is_err());
+}

@@ -1,0 +1,134 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+const NS: &str = "https://github.com/kiegroup/drools/kie-dmn/_A4BCA8B8-CF08-433F-93B2-A2598F19ECFF";
+fn number(text: &str) -> Value {
+    let parts: Vec<_> = text.split('.').collect();
+    let digits = parts.concat();
+    let coefficient = digits.trim_start_matches('0');
+    Value::Number {
+        coefficient: if coefficient.is_empty() {
+            "0".into()
+        } else {
+            coefficient.into()
+        },
+        scale: parts.get(1).map_or(0, |s| s.len() as i32),
+    }
+}
+fn record(fields: impl IntoIterator<Item = (&'static str, Value)>) -> Value {
+    Value::Record(fields.into_iter().map(|(k, v)| (k.into(), v)).collect())
+}
+fn encode(value: &Value) -> String {
+    match value {
+        Value::Null => "N".into(),
+        Value::Text(text) => format!("S{text}"),
+        Value::Number { coefficient, scale } => format!("D{coefficient},{scale}"),
+        Value::Record(fields) => format!(
+            "R{}",
+            fields
+                .iter()
+                .map(|(k, v)| format!("{k}:{}", encode(v)))
+                .collect::<Vec<_>>()
+                .join("|")
+        ),
+        _ => panic!("unexpected traffic result"),
+    }
+}
+#[test]
+fn full_traffic_violation_matches_java_boundaries_and_domain_errors() {
+    let mut count = 0;
+    let mut errors = 0;
+    for line in include_str!("traffic_violation_vectors.tsv").lines() {
+        let c: Vec<_> = line.split('\t').collect();
+        let scenario: usize = c[3].parse().unwrap();
+        let kind = match c[0] {
+            "0" => Value::Text("speed".into()),
+            "1" => Value::Text("parking".into()),
+            "2" => Value::Text("driving under the influence".into()),
+            "3" => Value::Text("other".into()),
+            _ => Value::Null,
+        };
+        let actual = match c[1] {
+            "-1" => "49",
+            "0" => "50",
+            "9.999" => "59.999",
+            "10" => "60",
+            "29.999" => "79.999",
+            "30" => "80",
+            "30.001" => "80.001",
+            _ => panic!(),
+        };
+        let driver = if scenario == 1 {
+            Value::Null
+        } else {
+            record([
+                ("Name", Value::Text("Example".into())),
+                ("Age", number("40")),
+                ("State", Value::Text("Example".into())),
+                ("City", Value::Text("Example".into())),
+                (
+                    "Points",
+                    if c[2] == "null" || scenario == 6 {
+                        Value::Null
+                    } else {
+                        number(c[2])
+                    },
+                ),
+            ])
+        };
+        let violation = if scenario == 2 {
+            Value::Null
+        } else {
+            record([
+                ("Code", Value::Text("example".into())),
+                (
+                    "Date",
+                    if scenario == 3 {
+                        Value::Null
+                    } else {
+                        Value::Date {
+                            year: 2024,
+                            month: 1,
+                            day: 1,
+                        }
+                    },
+                ),
+                ("Type", kind),
+                (
+                    "SpeedLimit",
+                    if scenario == 5 {
+                        Value::Null
+                    } else {
+                        number("50")
+                    },
+                ),
+                (
+                    "ActualSpeed",
+                    if scenario == 4 {
+                        Value::Null
+                    } else {
+                        number(actual)
+                    },
+                ),
+            ])
+        };
+        let result = evaluate(&BTreeMap::from([
+            ((NS, "_1F9350D7-146D-46F1-85D8-15B5B68AF22A"), driver),
+            ((NS, "_1929CBD5-40E0-442D-B909-49CEDE0101DC"), violation),
+        ]));
+        if c[4] == "ERROR" {
+            assert_eq!(result, Err("field constraint violated"), "{line}");
+            errors += 1;
+        } else {
+            let result = result.unwrap();
+            let actual = format!(
+                "fine={};suspend={}",
+                encode(&result[&(NS, "_4055D956-1C47-479C-B3F4-BAEB61F1C929")]),
+                encode(&result[&(NS, "_8A408366-D8E9-4626-ABF3-5F69AA01F880")])
+            );
+            assert_eq!(actual, c[4], "{line}");
+        }
+        count += 1;
+    }
+    assert_eq!(count, 321);
+    assert_eq!(errors, 126);
+}

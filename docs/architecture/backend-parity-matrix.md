@@ -1,6 +1,6 @@
 # Backend Capability and Parity Matrix
 
-Status: implementation-aligned reference. Reviewed: 2026-10-26, source `f2af395`.
+Status: implementation-aligned reference. Reviewed: 2026-11-24 (pinned TCK `5cd912f281831bc535e710aba435e16de198028a`, 3,407 cases).
 This page describes representations, verified behavior and capability boundaries;
 it does not turn aggregate TCK results into guarantees for every possible model.
 
@@ -9,9 +9,11 @@ it does not turn aggregate TCK results into guarantees for every possible model.
 | Component | Execution | Reflection and fallback boundary |
 | --- | --- | --- |
 | Interpreter (`dmn-runtime`) | JVM Runtime IR evaluation with lexical frames | Model-defined Java descriptors use the explicit, default-deny external Java policy. |
-| Java generator (`dmn-generator-java`) | Java source compiled to a JVM engine | Comparator calls use generated `FeelCallable` or the two-argument BKM adapter. External Java calls retain the runtime policy boundary. |
+| Java generator (`dmn-generator-java`) | Direct or portable DMNIR Java source compiled to a JVM engine | Comparator calls use generated `FeelCallable` or the two-argument BKM adapter. External Java calls retain the runtime policy boundary. |
+| Standalone Rust generator (`dmn-generator-rust`) | Standalone Rust crate generated from portable `.dmnir` Protobuf | Zero JVM dependency, zero DMN XML or FEEL parsing at runtime; deterministic decimal/temporal runtime. |
+| Generic & Typed gRPC (`dmn-grpc`) | Generated Java engines served over real Netty HTTP/2 Protobuf RPCs | Generic `Evaluate` API and model-specific typed Protobuf/gRPC services share the generated Java engine and policy boundary. |
 | Spark generator (`dmn-generator-sparksql`) | Native CTE queries with optional decision-level JVM fallback | Routing is chosen before execution. Native temporal SQL uses Spark `try_reflect` with generator-selected JDK factories; permitted model-selected literal Java calls have a separate policy check. |
-| Optimizer (`dmn-optimizer`) | Compile-time IR transformations, not a fourth execution backend | Bounded folding and simplification; backend conformance is measured after optimization. |
+| Optimizer (`dmn-optimizer`) | Compile-time IR transformations, not a separate execution backend | Bounded folding and simplification; backend conformance is measured after optimization. |
 
 Module responsibilities are described in the [module catalog](../modules.md).
 The [external Java and comparator hardening evidence](../dev/slices/security-correctness-hardening-task-2026-10-24.md)
@@ -62,16 +64,17 @@ for the applicable tests rather than interpreting this table as a new certificat
 
 ## Conformance evidence
 
-The [public TCK record](../tck-conformance.md) owns current figures and provenance:
+The [public TCK record](../tck-conformance.md) owns current figures and provenance (2026-11-24, pinned TCK revision `5cd912f281831bc535e710aba435e16de198028a`, **3,407 cases**):
 
-- Optimized Spark SQL: **3,391/3,391 native passes (100%)**. Fallback passes: **0**;
-  failed cases: **0**; compilation blocks: **0**; unexpected errors: **0**; unknown
-  routes: **0**. Every official case executed and matched its expected results.
-- Interpreter and generated-Java results have separately dated checkpoints. They
-  are not silently combined with the Spark run into one three-backend execution.
-- [Retained Spark ledger](../assets/tck-accounting-sparksql-native.json): pinned TCK
-  revision `20274cd2ba9cad805db6114f331c743f4b2603a1`, optimized hybrid configuration,
-  measured with Spark 4.2.0 and JDK 25. Hybrid was allowed but unused.
+- **All 7 backends pass 3,407 / 3,407 (100.00%)** (`23,849 / 23,849` total executions, `0` failures, `0` errors):
+  - Standalone Rust (`dmnir -> rust`): **3,407 / 3,407 (100.00%)**
+  - Portable DMNIR Java (`dmnir -> java`): **3,407 / 3,407 (100.00%)** (`75.58 s`)
+  - Java Interpreter (`optimized-interpreter`): **3,407 / 3,407 (100.00%)** (`36.05 s`)
+  - Direct Generated Java (`optimized-generated-java`): **3,407 / 3,407 (100.00%)**
+  - Optimized Spark SQL (`optimized-generated-sparksql-hybrid`): **3,407 / 3,407 native (100.00%)** (**0 fallback**, `0` compilation blocks, `0` unknown routes, `409.2 s`)
+  - Generic gRPC (`optimized-generated-grpc`): **3,407 / 3,407 (100.00%)** (`3,407` RPCs, `84.20 s`)
+  - Typed gRPC (`optimized-generated-typed-grpc`): **3,407 / 3,407 (100.00%)** (`3,510` RPCs, `0` unsupported, `999.2 s`)
+- [Historical retained Spark ledger](../assets/tck-accounting-sparksql-native.json): pinned TCK revision `20274cd2ba9cad805db6114f331c743f4b2603a1` (3,391 cases), Spark 4.2.0 and JDK 25.
 
 This establishes self-verified conformance for that pinned inventory. Databricks,
 Photon, streaming deployments, arbitrary model combinations and performance need

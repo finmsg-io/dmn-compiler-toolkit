@@ -8,7 +8,8 @@
 - [v1.0.0 MVP: TCK 100%, Core Optimizers, and Benchmarks](#contents-section-3)
 - [v1.1.0: Incubating Module Graduation & Cloud Data Engine Ecosystem](#contents-section-4)
 - [Decision Authoring DSL and Canonical Model (IDEA-004)](#contents-section-5)
-- [DMN XML Synthesis & Export from Optimized IR (DMN 1.5/1.6)](#contents-section-6)
+- [DMN XML Synthesis from Structured DMNIR (Default DMN 1.6)](#contents-section-6)
+- [v1.2.0: Portable Structured DMNIR and Authoring](#contents-section-7)
 <!-- generated-toc:end -->
 
 
@@ -93,18 +94,33 @@
 <a id="contents-section-5"></a>
 ## Decision Authoring DSL and Canonical Model (IDEA-004)
 
-- [ ] Design and implement concise textual `.decision` DSL grammar for authoring decision models without DMN XML boilerplate
-- [ ] Establish authoring-preserving Canonical Decision Model intermediate representation
-- [ ] Bi-directional lossless compilation: `.decision` DSL $\rightarrow$ Canonical Model $\rightarrow$ Standards-Compliant DMN XML
-- [ ] Direct compilation: `.decision` DSL $\rightarrow$ Runtime IR $\rightarrow$ Interpreters & Code Generators
-- [ ] Embedded policy tests & invariant examples within DSL specifications
+- [x] Design and implement concise textual `.decision` DSL grammar (`DecisionDsl.g4` in `dmn-frontend-dsl`) for authoring decision models without DMN XML boilerplate
+- [x] Lower the shared source semantic model into authoritative typed, resolved, structured DMNIR with interchange metadata ([ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md))
+- [x] Generate valid, behaviorally equivalent normalized DMN 1.3 / 1.5 / 1.6 XML from DMNIR; original source syntax, comments and diagrams are not guaranteed
+- [x] Direct compilation: `.decision` DSL $\rightarrow$ Runtime IR / DMNIR $\rightarrow$ Interpreters & Code Generators
+- [x] Embedded policy tests & invariant examples (`test { given ... expect ... }`) within DSL specifications
+- [x] Standalone compiler CLI (`dmn-compiler-*-cli.jar` with `check`, `format`, `test`, `compile`, `export`)
 - [ ] Standalone Language Server Protocol (LSP) engine for IDE syntax highlighting, diagnostics, and auto-completion
-- [ ] Standalone compiler CLI binary (`dmnc`)
 
 <a id="contents-section-6"></a>
-## DMN XML Synthesis & Export from Optimized IR (DMN 1.5/1.6)
+## DMN XML Synthesis from Structured DMNIR (Default DMN 1.6)
 
-- [ ] Reverse lowering and decompiler pass: Runtime IR / Optimized Model $\rightarrow$ Standards-Compliant DMN 1.5 / 1.6 XML
-- [ ] Synthesize normalized decision tables, boxed expressions, and FEEL logic from folded / simplified IR trees
-- [ ] Retain and reconstruct semantic metadata (item definitions, input data, decision topology) into standard DMN XML
-- [ ] Deterministic round-trip interchange with third-party visual DMN modelers and BPMN/DMN workflow engines
+- [x] Synthesize standards-conforming DMN XML from the authoritative structured DMNIR graph; default to 1.6 and explicitly validate selected-version support (1.3 / 1.5 / 1.6 verified across 151/151 TCK artifacts, 3,407/3,407 cases each)
+- [x] Preserve exportable structured decision tables, boxed expressions and resolved FEEL logic; derive aggressive target-specific optimizations locally
+- [x] Retain stable identities, namespaces, declarations, imports and decision topology needed for source-independent DMN export
+- [x] Deterministic round-trip interchange verified across official TCK and multi-file `dmn-models` suites
+
+<a id="contents-section-7"></a>
+## v1.2.0: Portable Structured DMNIR and Authoring
+
+- [x] Select one authoritative structured Protobuf DMNIR with portable interchange metadata; user approved Option A on 2026-11-03 ([ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md)). This is an architecture decision, not implementation evidence.
+- [x] Implement portable structured DMNIR schemas `0.0`–`0.11` in `dmn-ir-protobuf` and bounded wire decoding / semantic graph validation in `dmn-ir-codec`
+- [x] Adapt verified DMNIR into Java Runtime IR and prove full 3,407/3,407 TCK parity (`dmnir -> java`) with direct compilation
+- [x] Generate DMN 1.3 / 1.5 / 1.6 XML from `.dmnir` artifacts alone (`DmnIrScalarDmnExporter`) and verify 3,407/3,407 TCK round-trip parity plus multi-file `dmn-models` suites
+- [x] Deliver concise `.decision` DSL (`dmn-frontend-dsl`, ANTLR4 `DecisionDsl.g4`), canonical formatter, diagnostics, inline `test` blocks, and standalone CLI (`dmn-compiler-*-cli.jar`) through shared semantics; see [Authoring DSL guide](dsl.md)
+- [x] Prove independent standalone Rust generation and execution (`dmn-generator-rust`) across all 3,407/3,407 pinned official TCK cases with zero JVM runtime dependency
+- [x] Revalidate all 7 execution backends on pinned TCK revision `5cd912f2...` (3,407/3,407 each = 23,849 passing outcomes) and full 15-module Maven reactor verification (`mvn -Pformat verify`)
+- [ ] Stabilize `v1` wire compatibility contract and canonical content hashing (post-1.2.0)
+
+Detailed delivery scope, dependencies and acceptance scenarios are in the repository's
+`prompts/details/release-1.2-dmnir-work-package.md`.

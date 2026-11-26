@@ -15,7 +15,8 @@ final class SparkSqlCalendarArithmetic {
 	private record Item(String name, String function, int slot, boolean shifted, long days, long months) {
 	}
 	private static List<Item> plan(RuntimeModel model, RuntimeDecision decision) {
-		if (decision.decisionTable().isPresent() || decision.type().kind() != RuntimeTypeKind.ANY
+		if (decision.decisionTable().isPresent()
+				|| !Set.of(RuntimeTypeKind.ANY, RuntimeTypeKind.CONTEXT).contains(decision.type().kind())
 				|| !(decision.expression().orElse(null) instanceof RuntimeContextExpression context)
 				|| context.entries().isEmpty() || context.entries().size() > 16)
 			return List.of();

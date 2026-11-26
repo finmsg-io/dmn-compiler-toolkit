@@ -41,6 +41,8 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Guides:
+      - Authoring DSL (.decision): dsl.md
+      - Experimental Portable DMNIR: dmnir.md
       - Enterprise Architect Guide: guides/architect-guide.md
       - Java Developer Guide: guides/developer-guide.md
       - DMN Modeler & Analyst Guide: guides/modeler-guide.md

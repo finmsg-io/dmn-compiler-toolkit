@@ -30,22 +30,21 @@ The project compiles DMN models into an internal semantic representation that ca
 - [Project](#contents-section-14)
 <!-- generated-toc:end -->
 
-The project is a feature-rich DMN 1.5/1.6 compiler platform.
+The project is a feature-rich DMN 1.3 / 1.5 / 1.6 compiler platform with a portable Protobuf middle-end IR (`DMNIR`) and concise `.decision` authoring DSL.
 
 Current status & focus:
 
-- Default reactor includes the interpreter, Java and Spark SQL generators, gRPC, and consumer smoke tests
-- Optimized Spark SQL: **3,391/3,391 official TCK cases executed natively (100%), zero fallback, failures or errors**; [pinned suite and evidence](docs/tck-conformance.md)
-- Generic gRPC Evaluate: **3,391/3,391 official TCK cases passed (100%) over real HTTP/2 and binary protobuf**, with 3,391 completed RPC responses and zero failures, errors or compilation blocks. Generated Java executes every case, including direct BKM/service invocation; [retained evidence and scope](docs/tck-conformance.md#generic-grpc-checkpoint-2026-10-27).
-- Model-specific typed gRPC: **3,391/3,391 official TCK cases passed (100%)**, using
-  3,494 completed typed RPCs over HTTP/2/protobuf. Exact decimals, explicit nulls,
-  nested lists and direct invocations are verified; [typed evidence and the
-  required client regeneration](docs/tck-conformance.md#typed-grpc-checkpoint-2026-10-29).
-- Optimized interpreter and generated Java also have recorded 3,391/3,391 passing checkpoints
+- **100.00% self-verified conformance across all 7 execution backends** (**3,407 / 3,407** pinned official OMG DMN TCK cases each on revision `5cd912f281831bc535e710aba435e16de198028a`, zero failures, errors, or compilation blocks); see the [TCK conformance record](docs/tck-conformance.md):
+  - **Portable DMNIR Java (`dmnir -> java`)**: **3,407 / 3,407 (100.00%)** via 151 deduplicated `.dmnir` Protobuf artifacts + batch `javac`
+  - **Standalone Rust (`dmnir -> rust`)**: **3,407 / 3,407 (100.00%)** directly from `.dmnir` with zero JVM runtime dependency
+  - **Java Interpreter (`optimized-interpreter`)** & **Direct Generated Java (`optimized-generated-java`)**: **3,407 / 3,407 (100.00%)** each
+  - **Spark SQL (`optimized-generated-sparksql-hybrid`)**: **3,407 / 3,407 native (100.00%, 0 fallback)**
+  - **Generic gRPC (`optimized-generated-grpc`)**: **3,407 / 3,407 (100.00%)** over real HTTP/2 and binary Protobuf
+  - **Model-specific Typed gRPC (`optimized-generated-typed-grpc`)**: **3,407 / 3,407 (100.00%)** across 3,510 completed typed RPCs
+- **DMNIR → DMN 1.3 / 1.5 / 1.6 XML regeneration**: **3,407 / 3,407 (100.00%)** round-trip parity on each of DMN 1.3, 1.5, and 1.6 (151 / 151 artifacts) plus multi-file `dmn-models` suites
+- **`.decision` Authoring DSL & CLI (`dmn-frontend-dsl`, `dmn-compiler-1.2.0-cli.jar`)**: ANTLR4 grammar (`DecisionDsl.g4`), canonical formatter, inline `test` blocks, and `check` / `format` / `test` / `compile` / `export` CLI; see the [Authoring DSL guide](docs/dsl.md)
 - Static optimization passes (`dmn-optimizer`) enabled by default through `DmnCompiler`
-- Spark SQL conformance is self-verified against the pinned suite; broader native model coverage remains bounded
 - TCK and benchmarks isolated behind opt-in verification profiles to preserve fast builds
-- Near-term focus: production hardening and an early Tier-1 release
 
 <a id="contents-section-2"></a>
 ## Architecture
@@ -70,21 +69,26 @@ The architecture separates parsing, semantic analysis, optimization, and runtime
 | Module | Description |
 |---|---|
 | `dmn-protobuf` | Protobuf definitions and generated Java classes for the semantic model |
-| `dmn-frontend-xml` | Namespace-aware DMN XML reader and semantic round-trip writer based on VTD-XML |
+| `dmn-ir-protobuf` | Portable structured DMNIR Protobuf schema (`0.0`–`0.11`) and generated Java bindings |
+| `dmn-ir-codec` | Bounded wire decoding and semantic graph verification for portable DMNIR artifacts |
+| `dmn-frontend-xml` | Namespace-aware DMN 1.3/1.5/1.6 XML reader and semantic round-trip writer based on VTD-XML |
+| `dmn-frontend-dsl` | ANTLR4-backed `.decision` authoring DSL parser (`DecisionDsl.g4`), canonical formatter, and DMN 1.6 protobuf lowerer |
 | `dmn-feel-parser` | ANTLR4 parser for DMN FEEL expressions |
 | `dmn-semantic-analysis` | Reference resolution, type analysis, DMN validation, and dependency ordering |
 | `dmn-runtime-ir` | Immutable Runtime IR with structural, constant, and value-reference lowering |
 | `dmn-runtime` | Deterministic interpreter for executable Runtime IR |
-| `dmn-compiler` | Compiler orchestration and resolver-independent model-source contracts |
-| `dmn-generator-java` | High-performance Java source code generator directly from Runtime IR |
-| `dmn-tck-runner` | Opt-in OMG DMN TCK runner for strict interpreter, Java, Spark SQL and generic gRPC conformance |
-| `dmn-benchmarks` | Opt-in JMH microbenchmarks & DataFaker reference model workloads |
 | `dmn-optimizer` | Constant folding, algebraic simplification, and rule pruning passes |
+| `dmn-compiler` | Compiler orchestration, DMNIR producer/adapter/XML exporter, inline test runner, and standalone CLI (`dmn-compiler-*-cli.jar`) |
+| `dmn-generator-java` | High-performance Java source code generator directly from Runtime IR |
+| `dmn-generator-sparksql` | Spark SQL CTE generator with verified native execution of all 3,407 pinned official TCK cases |
 | `dmn-grpc` | Generic and strongly-typed Protobuf schema & gRPC service adapter generator |
-| `dmn-generator-sparksql` | Spark SQL CTE generator with verified native execution of all 3,391 pinned official TCK cases |
+| `dmn-smoke-test` | Downstream consumer integration smoke tests |
+| `dmn-generator-rust` | Standalone Rust crate generating zero-JVM Rust code directly from `.dmnir` (3,407/3,407 TCK cases) |
+| `dmn-tck` / `dmn-tck-runner` | Opt-in pre-compiled `.dmnir` archive (151 artifacts) and OMG DMN TCK runner across all 7 backends |
+| `dmn-benchmarks` | Opt-in JMH microbenchmarks & DataFaker reference model workloads |
 | `dmn-models` | Opt-in benchmark models and streaming ingestion fixtures |
 
-Planned modules include further optimization and native code generation backends.
+Planned modules include Go/C++ code generators and IDE/LSP tooling.
 
 <a id="contents-section-4"></a>
 ## Requirements
@@ -135,34 +139,6 @@ Snapshot and release artifacts are published to GitHub Packages.
 
 Repository:
 
-
-<a id="contents-section-6"></a>
-## Generate FEEL parser sources
-
-The FEEL parser module generates Java sources from ANTLR grammars.
-
-```bash
-mvn -Pgenerate-code clean verify
-```
-
-<a id="contents-section-7"></a>
-## Use a single module
-
-Example:
-
-```bash
-mvn -pl dmn-feel-parser -am test
-```
-
-`-am` also builds required upstream modules.
-
-<a id="contents-section-8"></a>
-## GitHub Packages
-
-Snapshot and release artifacts are published to GitHub Packages.
-
-Repository:
-
 ```text
 https://maven.pkg.github.com/finmsg-io/dmn-compiler-toolkit
 ```
@@ -184,7 +160,7 @@ Example dependency:
 <dependency>
     <groupId>io.finmsg.dmn</groupId>
     <artifactId>dmn-compiler</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -246,6 +222,8 @@ Key references are the [architecture overview](docs/architecture.md), the normat
 [ADR index](docs/architecture/adr/generall-adr.md), and the project
 [glossary](docs/glossary.md).
 
+For commercial strategy, market sizing, and the Strategyzer Business Model Canvas (v2.0), see [`dmn-compiler-toolkit-business-model-canvas`](https://github.com/finmsg-io/dmn-compiler-toolkit-business-model-canvas). For incubation tracks and research proposals, see [`dmn-compiler-toolkit-ideation`](https://github.com/finmsg-io/dmn-compiler-toolkit-ideation).
+
 Install MkDocs:
 
 ```bash
@@ -273,7 +251,9 @@ mkdocs build
 - [x] Generate pure Spark / Databricks SQL CTE queries (`dmn-generator-sparksql`)
 - [x] Generate dynamic and strongly-typed gRPC services (`dmn-grpc`)
 - [x] Add multi-file DMN sample suites and Java streaming ingestion API (`dmn-models`)
-- [ ] Add native language code-generation backends (Rust, Go, C++)
+- [x] Add portable Protobuf DMNIR (`dmn-ir-protobuf`, `dmn-ir-codec`), DMN 1.3/1.5/1.6 XML regeneration, and standalone Rust generator (`dmn-generator-rust`, 3,407/3,407 TCK cases)
+- [x] Add `.decision` Authoring DSL (`dmn-frontend-dsl`), inline tests, and standalone CLI (`dmn-compiler-1.2.0-cli.jar`)
+- [ ] Add additional native language backends (Go, C++) and IDE/LSP plugins
 
 <a id="contents-section-13"></a>
 ## License
@@ -284,3 +264,6 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 ## Project
 
 Developed under the `finmsg.io` GitHub organization.
+
+- **Commercial Strategy & Business Model Canvas:** [`dmn-compiler-toolkit-business-model-canvas`](https://github.com/finmsg-io/dmn-compiler-toolkit-business-model-canvas)
+- **Product Ideation & Research Proposals:** [`dmn-compiler-toolkit-ideation`](https://github.com/finmsg-io/dmn-compiler-toolkit-ideation)

@@ -1,0 +1,506 @@
+use std::fs;
+use std::path::Path;
+use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+const FIXTURE: &[u8] = include_bytes!("fixtures/scalar-0.0.dmnir");
+const GENERATOR: &str = env!("CARGO_BIN_EXE_dmn-generator-rust");
+
+#[test]
+fn java_logical_scalar_artifact_generates_offline_rust() {
+    verify_parity(
+        "logical-scalars",
+        include_bytes!("fixtures/logical-scalars-0.1.dmnir"),
+        include_str!("fixtures/logical_scalar_parity.rs.txt"),
+        &[],
+    );
+}
+
+#[test]
+fn java_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "scalar",
+        FIXTURE,
+        include_str!("fixtures/generated_parity.rs.txt"),
+        &[],
+    );
+}
+
+#[test]
+fn java_expression_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "expressions",
+        include_bytes!("fixtures/comparisons-0.1.dmnir"),
+        include_str!("fixtures/expression_parity.rs.txt"),
+        &[],
+    );
+}
+
+#[test]
+fn java_arithmetic_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "arithmetic",
+        include_bytes!("fixtures/arithmetic-0.1.dmnir"),
+        include_str!("fixtures/arithmetic_parity.rs.txt"),
+        &[],
+    );
+}
+
+#[test]
+fn java_multiplication_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "multiplication",
+        include_bytes!("fixtures/multiplication-0.1.dmnir"),
+        include_str!("fixtures/multiplication_parity.rs.txt"),
+        &[],
+    );
+}
+
+#[test]
+fn java_division_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "division",
+        include_bytes!("fixtures/division-0.1.dmnir"),
+        include_str!("fixtures/division_parity.rs.txt"),
+        &[(
+            "division_vectors.tsv",
+            include_str!("fixtures/division_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn java_record_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "records",
+        include_bytes!("fixtures/records-0.2.dmnir"),
+        include_str!("fixtures/record_parity.rs.txt"),
+        &[],
+    );
+}
+
+#[test]
+fn java_context_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "contexts",
+        include_bytes!("fixtures/contexts-0.3.dmnir"),
+        include_str!("fixtures/record_parity.rs.txt"),
+        &[],
+    );
+}
+
+#[test]
+fn java_date_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "dates",
+        include_bytes!("fixtures/dates-0.4.dmnir"),
+        include_str!("fixtures/date_parity.rs.txt"),
+        &[(
+            "date_vectors.tsv",
+            include_str!("fixtures/date_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn java_tables_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "tables",
+        include_bytes!("fixtures/tables-0.5.dmnir"),
+        include_str!("fixtures/table_parity.rs.txt"),
+        &[(
+            "table_vectors.tsv",
+            include_str!("fixtures/tables_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn java_tables_unique_conflict_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "tables-unique-conflict",
+        include_bytes!("fixtures/tables-unique-conflict-0.5.dmnir"),
+        include_str!("fixtures/table_parity.rs.txt"),
+        &[(
+            "table_vectors.tsv",
+            include_str!("fixtures/tables-unique-conflict_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn java_tables_any_conflict_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "tables-any-conflict",
+        include_bytes!("fixtures/tables-any-conflict-0.5.dmnir"),
+        include_str!("fixtures/table_parity.rs.txt"),
+        &[(
+            "table_vectors.tsv",
+            include_str!("fixtures/tables-any-conflict_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn java_constraint_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "constraints",
+        include_bytes!("fixtures/constraints-0.6.dmnir"),
+        include_str!("fixtures/constraint_parity.rs.txt"),
+        &[(
+            "constraint_vectors.tsv",
+            include_str!("fixtures/constraint_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn java_collection_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "collections",
+        include_bytes!("fixtures/collections-0.7.dmnir"),
+        include_str!("fixtures/collection_parity.rs.txt"),
+        &[(
+            "collection_vectors.tsv",
+            include_str!("fixtures/collection_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn java_filter_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "filters",
+        include_bytes!("fixtures/filters-0.8.dmnir"),
+        include_str!("fixtures/filter_parity.rs.txt"),
+        &[(
+            "filter_vectors.tsv",
+            include_str!("fixtures/filter_vectors.tsv"),
+        )],
+    );
+}
+#[test]
+fn filter_visits_are_bounded_in_generated_rust() {
+    verify_parity(
+        "filter-visits",
+        include_bytes!("fixtures/filter-visits-0.8.dmnir"),
+        include_str!("fixtures/filter_visit_parity.rs.txt"),
+        &[],
+    );
+}
+
+#[test]
+fn java_builtin_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "builtins",
+        include_bytes!("fixtures/builtins-0.9.dmnir"),
+        include_str!("fixtures/builtin_parity.rs.txt"),
+        &[(
+            "builtin_vectors.tsv",
+            include_str!("fixtures/builtin_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn java_bkm_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "bkms",
+        include_bytes!("fixtures/bkms-0.10.dmnir"),
+        include_str!("fixtures/bkm_parity.rs.txt"),
+        &[("bkm_vectors.tsv", include_str!("fixtures/bkm_vectors.tsv"))],
+    );
+}
+#[test]
+fn bkm_lazy_errors_propagate_in_generated_rust() {
+    verify_parity(
+        "bkm-lazy",
+        include_bytes!("fixtures/bkms-lazy-0.10.dmnir"),
+        include_str!("fixtures/bkm_lazy_parity.rs.txt"),
+        &[],
+    );
+}
+#[test]
+fn bkm_default_errors_propagate_in_generated_rust() {
+    verify_parity(
+        "bkm-default",
+        include_bytes!("fixtures/bkms-default-0.10.dmnir"),
+        include_str!("fixtures/bkm_default_parity.rs.txt"),
+        &[],
+    );
+}
+
+#[test]
+fn java_closure_artifact_generates_deterministic_offline_rust() {
+    verify_parity(
+        "closures",
+        include_bytes!("fixtures/closures-0.11.dmnir"),
+        include_str!("fixtures/closure_parity.rs.txt"),
+        &[(
+            "closure_vectors.tsv",
+            include_str!("fixtures/closure_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn full_traffic_violation_generates_deterministic_offline_rust() {
+    verify_parity(
+        "traffic-violation",
+        include_bytes!("fixtures/traffic-violation-0.6.dmnir"),
+        include_str!("fixtures/traffic_violation_parity.rs.txt"),
+        &[(
+            "traffic_violation_vectors.tsv",
+            include_str!("fixtures/traffic_violation_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn closure_bkm_interoperability_generates_deterministic_offline_rust() {
+    verify_parity(
+        "closure-interop",
+        include_bytes!("fixtures/closure-interop-0.11.dmnir"),
+        include_str!("fixtures/closure_interop_parity.rs.txt"),
+        &[(
+            "closure_interop_vectors.tsv",
+            include_str!("fixtures/closure_interop_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn exact_integer_powers_match_java() {
+    verify_parity(
+        "powers",
+        include_bytes!("fixtures/powers-0.1.dmnir"),
+        include_str!("fixtures/power_parity.rs.txt"),
+        &[(
+            "power_vectors.tsv",
+            include_str!("fixtures/power_vectors.tsv"),
+        )],
+    );
+}
+
+#[test]
+fn generated_literal_replacement_handles_unicode_and_empty_patterns() {
+    let directory = scratch("literal-replacement");
+    let artifact = directory.join("input.dmnir");
+    fs::write(&artifact, include_bytes!("fixtures/builtins-0.9.dmnir")).unwrap();
+    let output = directory.join("crate");
+    assert!(
+        Command::new(GENERATOR)
+            .args([&artifact, &output])
+            .status()
+            .unwrap()
+            .success()
+    );
+    let lib = output.join("lib.rs");
+    let mut source = fs::read_to_string(&lib).unwrap();
+    source.push_str(
+        r#"
+#[cfg(test)] mod replacement_regressions {
+    use super::*;
+
+    #[test] fn number_text_preserves_decimal_precision() {
+        let text = |s: &str| Value::Text(s.into());
+        assert_eq!(builtin_number_from_string(text("9.007.199.254.740.993,0001"), text("."), text(",")),
+            Value::Number { coefficient: "90071992547409930001".into(), scale: 4 });
+        assert_eq!(builtin_number_from_string(text(" -001.25e2 "), Value::Null, Value::Null),
+            Value::Number { coefficient: "-125".into(), scale: 0 });
+        for bad in ["", ".", "1.2.3", "NaN", "Infinity", "1e2147483647"] {
+            assert_eq!(builtin_number_from_string(text(bad), Value::Null, Value::Null), Value::Null);
+        }
+        assert_eq!(builtin_number_from_string(text("1,234"), text(","), text(",")), Value::Null);
+    }
+    #[test] fn literal_case_insensitive_replacement() {
+        assert_eq!(feel_replace_impl("\u{130}x", "x", "!", "qi"), Some("\u{130}!".into()));
+        assert_eq!(feel_replace_impl("aA", "A", "$1", "qi"), Some("$1$1".into()));
+        assert_eq!(feel_replace_impl("abc", "", "!", "qi"), None);
+        assert_eq!(feel_replace_impl("", "", "!", "q"), None);
+    }
+    #[test] fn aggregate_builtins_evaluate_correctly() {
+        let num = |c: &str, scale| Value::Number { coefficient: c.into(), scale };
+        let list = Value::List(vec![num("1", 0), num("2", 0), num("3", 0)]);
+        assert_eq!(builtin_sum(list.clone()), num("6", 0));
+        assert_eq!(builtin_min(list.clone()), num("1", 0));
+        assert_eq!(builtin_max(list.clone()), num("3", 0));
+        assert_eq!(builtin_mean(list.clone()), num("2", 0));
+        assert_eq!(builtin_median(list), num("2", 0));
+        let even = Value::List(vec![num("1", 0), num("2", 0), num("3", 0), num("4", 0)]);
+        assert_eq!(builtin_median(even), num("25", 1));
+        assert_eq!(builtin_sum(Value::List(vec![])), Value::Null);
+        assert_eq!(builtin_sum(Value::List(vec![num("1", 0), Value::Null])), Value::Null);
+        assert_eq!(builtin_all(Value::List(vec![Value::Boolean(true), Value::Boolean(true)])), Value::Boolean(true));
+        assert_eq!(builtin_all(Value::List(vec![Value::Boolean(true), Value::Boolean(false)])), Value::Boolean(false));
+        assert_eq!(builtin_all(Value::List(vec![Value::Boolean(true), Value::Null])), Value::Null);
+        assert_eq!(builtin_all(Value::List(vec![Value::Boolean(false), Value::Null])), Value::Boolean(false));
+        assert_eq!(builtin_all(Value::List(vec![])), Value::Boolean(true));
+        assert_eq!(builtin_any(Value::List(vec![Value::Boolean(false), Value::Boolean(true)])), Value::Boolean(true));
+        assert_eq!(builtin_any(Value::List(vec![Value::Boolean(false), Value::Boolean(false)])), Value::Boolean(false));
+        assert_eq!(builtin_any(Value::List(vec![Value::Boolean(false), Value::Null])), Value::Null);
+        assert_eq!(builtin_any(Value::List(vec![Value::Boolean(true), Value::Null])), Value::Boolean(true));
+        assert_eq!(builtin_any(Value::List(vec![])), Value::Boolean(false));
+        assert_eq!(builtin_product(Value::List(vec![num("2", 0), num("3", 0), num("4", 0)])), num("24", 0));
+        assert_eq!(builtin_product(Value::List(vec![])), Value::Null);
+        assert_eq!(builtin_product(Value::List(vec![num("1", 0), Value::Null])), Value::Null);
+        assert_eq!(builtin_sqrt(num("4", 0)), num("2", 0));
+        assert_eq!(builtin_sqrt(num("0", 0)), num("0", 0));
+        assert_eq!(builtin_sqrt(num("-1", 0)), Value::Null);
+        assert_eq!(builtin_exp(num("0", 0)), num("1", 0));
+        assert_eq!(builtin_exp(Value::Null), Value::Null);
+        assert_eq!(builtin_log(num("1", 0)), num("0", 0));
+        assert_eq!(builtin_log(num("0", 0)), Value::Null);
+        assert_eq!(builtin_log(num("-1", 0)), Value::Null);
+        assert_eq!(builtin_string_join(Value::List(vec![Value::Text("a".into()), Value::Text("b".into())]), Value::Text(",".into())), Value::Text("a,b".into()));
+        assert_eq!(builtin_string_join(Value::List(vec![Value::Text("a".into()), Value::Null, Value::Text("b".into())]), Value::Text("X".into())), Value::Text("aXb".into()));
+        assert_eq!(builtin_string_join(Value::List(vec![]), Value::Text("X".into())), Value::Text("".into()));
+        assert_eq!(builtin_string_join(Value::Text("a".into()), Value::Text("X".into())), Value::Text("a".into()));
+        assert_eq!(builtin_string_join(Value::List(vec![Value::Text("a".into())]), Value::Null), Value::Text("a".into()));
+        assert_eq!(builtin_string_join(Value::Null, Value::Text("X".into())), Value::Null);
+        assert_eq!(builtin_split(Value::Text("John Doe".into()), Value::Text(r"\s".into())), Value::List(vec![Value::Text("John".into()), Value::Text("Doe".into())]));
+        assert_eq!(builtin_split(Value::Text("a;b;c;;".into()), Value::Text(";".into())), Value::List(vec![Value::Text("a".into()), Value::Text("b".into()), Value::Text("c".into()), Value::Text("".into()), Value::Text("".into())]));
+        assert_eq!(builtin_split(Value::Null, Value::Text(";".into())), Value::Null);
+        assert_eq!(builtin_split(Value::Text("foo".into()), Value::Null), Value::Null);
+    }
+}
+"#,
+    );
+    fs::write(lib, source).unwrap();
+    let result = Command::new(env!("CARGO"))
+        .args(["test", "--offline", "--quiet"])
+        .current_dir(output)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "STDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+}
+
+fn verify_parity(label: &str, fixture: &[u8], test: &str, data: &[(&str, &str)]) {
+    let directory = scratch(label);
+    let artifact = directory.join("input.dmnir");
+    fs::write(&artifact, fixture).unwrap();
+    let first = directory.join("first");
+    let second = directory.join("second");
+    for output in [&first, &second] {
+        let result = Command::new(GENERATOR)
+            .args([&artifact, output])
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+    for file in ["Cargo.toml", "lib.rs"] {
+        assert_eq!(
+            fs::read(first.join(file)).unwrap(),
+            fs::read(second.join(file)).unwrap()
+        );
+    }
+    fs::create_dir(first.join("tests")).unwrap();
+    fs::write(first.join("tests/parity.rs"), test).unwrap();
+    for (name, content) in data {
+        fs::write(first.join("tests").join(name), content).unwrap();
+    }
+    let result = Command::new(env!("CARGO"))
+        .args(["test", "--offline", "--quiet"])
+        .current_dir(&first)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "STDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+}
+
+#[test]
+fn rejects_bad_and_unsupported_artifacts_before_writing() {
+    let directory = scratch("rejections");
+    let mut duplicate = FIXTURE.to_vec();
+    duplicate.extend(FIXTURE);
+    let oversized = vec![0; 4 * 1024 * 1024 + 1];
+    let mut unsupported = FIXTURE.to_vec();
+    unsupported[3] = 99;
+    for (label, bytes) in [
+        ("truncated", [0x0a, 0x10].as_slice()),
+        ("duplicate", duplicate.as_slice()),
+        ("oversized", oversized.as_slice()),
+        ("unsupported", unsupported.as_slice()),
+    ] {
+        let artifact = directory.join(format!("{label}.dmnir"));
+        let output = directory.join(label);
+        fs::write(&artifact, bytes).unwrap();
+        let result = Command::new(GENERATOR)
+            .args([&artifact, &output])
+            .output()
+            .unwrap();
+        assert!(!result.status.success(), "{label} was accepted");
+        assert!(!output.exists(), "{label} produced output");
+    }
+}
+
+#[test]
+fn rejects_adversarial_wire_and_preserves_existing_output() {
+    let directory = scratch("adversarial");
+    let mut unknown = FIXTURE.to_vec();
+    unknown.extend([0x78, 0]);
+    let mut models = Vec::new();
+    for _ in 0..129 {
+        models.extend([0x2a, 0]);
+    }
+    let mut text = vec![0x12, 0x81, 0x80, 0x01];
+    text.extend(vec![b'a'; 16_385]);
+    for (name, bytes) in [
+        ("unknown", unknown),
+        ("invalid-utf8", vec![0x12, 1, 0xff]),
+        ("varint", vec![0x80; 11]),
+        ("models", models),
+        ("string", text),
+    ] {
+        let artifact = directory.join(format!("{name}.dmnir"));
+        let output = directory.join(name);
+        fs::write(&artifact, bytes).unwrap();
+        let result = Command::new(GENERATOR)
+            .args([&artifact, &output])
+            .output()
+            .unwrap();
+        assert!(!result.status.success(), "{name}");
+        assert!(!output.exists(), "{name}");
+    }
+    let artifact = directory.join("valid.dmnir");
+    fs::write(&artifact, FIXTURE).unwrap();
+    let output = directory.join("existing");
+    fs::create_dir(&output).unwrap();
+    fs::write(output.join("lib.rs"), "preserve").unwrap();
+    let result = Command::new(GENERATOR)
+        .args([&artifact, &output])
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    assert_eq!(
+        fs::read_to_string(output.join("lib.rs")).unwrap(),
+        "preserve"
+    );
+    assert!(!output.join("Cargo.toml").exists());
+    assert!(!Command::new(GENERATOR).output().unwrap().status.success());
+}
+
+fn scratch(label: &str) -> std::path::PathBuf {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/artifact-tests");
+    fs::create_dir_all(&root).unwrap();
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let path = root.join(format!("{label}-{}-{nonce}", std::process::id()));
+    fs::create_dir(&path).unwrap();
+    path
+}

@@ -1,0 +1,96 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+fn encode(value: &Value) -> String {
+    match value {
+        Value::Null => "N".into(),
+        Value::Boolean(true) => "T".into(),
+        Value::Boolean(false) => "F".into(),
+        Value::Text(text) => format!("S{text}"),
+        Value::Number { coefficient, scale } => format!("D{coefficient},{scale}"),
+        Value::Record(fields) => format!(
+            "R{}",
+            fields
+                .iter()
+                .map(|(k, v)| format!("{k}:{}", encode(v)))
+                .collect::<Vec<_>>()
+                .join("|")
+        ),
+        _ => panic!("unexpected date result"),
+    }
+}
+#[test]
+fn constraints_match_java_input_and_result_binding() {
+    let mut count = 0;
+    for line in include_str!("constraint_vectors.tsv").lines() {
+        let columns: Vec<_> = line.split('\t').collect();
+        let scenario: usize = columns[1].parse().unwrap();
+        let number = |n: &str| Value::Number {
+            coefficient: n.into(),
+            scale: 0,
+        };
+        let details = if scenario == 5 {
+            Value::Null
+        } else {
+            Value::Record(BTreeMap::from([(
+                "Score".into(),
+                if scenario == 7 {
+                    Value::Null
+                } else {
+                    number(if scenario == 1 { "11" } else { "5" })
+                },
+            )]))
+        };
+        let profile = if scenario == 6 {
+            Value::Null
+        } else {
+            Value::Record(BTreeMap::from([
+                ("Details".into(), details),
+                (
+                    "Code".into(),
+                    Value::Text(if scenario == 2 { "blocked" } else { "ok" }.into()),
+                ),
+                ("Enabled".into(), Value::Boolean(scenario != 3)),
+                (
+                    "When".into(),
+                    if scenario == 8 {
+                        Value::Null
+                    } else if scenario == 4 {
+                        Value::Date {
+                            year: 2023,
+                            month: 12,
+                            day: 31,
+                        }
+                    } else {
+                        Value::Date {
+                            year: 2024,
+                            month: 2,
+                            day: 29,
+                        }
+                    },
+                ),
+            ]))
+        };
+        let input = if columns[0] == "null" {
+            Value::Null
+        } else {
+            number(columns[0])
+        };
+        let actual = evaluate(&BTreeMap::from([
+            (("urn:rust-proof:tables", "input"), input),
+            (("urn:rust-proof:tables", "profile-input"), profile),
+        ]));
+        if columns[2] == "ERROR" {
+            assert!(actual.is_err(), "{line}");
+        } else {
+            let results = actual.unwrap();
+            let actual = results
+                .iter()
+                .map(|((_, id), value)| format!("{id}={}", encode(value)))
+                .collect::<Vec<_>>()
+                .join(";");
+            assert_eq!(actual, columns[2], "{line}");
+        }
+        count += 1;
+    }
+    assert_eq!(count, 63);
+}

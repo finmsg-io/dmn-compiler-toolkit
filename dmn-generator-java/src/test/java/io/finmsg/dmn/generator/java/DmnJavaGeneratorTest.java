@@ -3,6 +3,9 @@ package io.finmsg.dmn.generator.java;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.finmsg.dmn.compiler.*;
+import io.finmsg.dmn.compiler.dmnir.DmnIrRuntimeAdapter;
+import io.finmsg.dmn.dmnir.codec.DmnIrArtifactReader;
+import io.finmsg.dmn.dmnir.proto.v0.*;
 import io.finmsg.dmn.ir.*;
 import io.finmsg.dmn.runtime.DmnEvaluationResult;
 import io.finmsg.dmn.runtime.DmnRuntime;
@@ -17,6 +20,749 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class DmnJavaGeneratorTest {
+	@Test
+	void portableDatesGenerateJavaForABundledNestedPolicy(@TempDir Path tempDir) throws Exception {
+		String calendar = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="calendar" name="Calendar" namespace="urn:date:calendar">
+				<itemDefinition id="permit" name="tPermit"><itemComponent name="Expiry"><typeRef>date</typeRef></itemComponent></itemDefinition>
+				<decision id="cutoff" name="Cutoff"><variable name="Cutoff" typeRef="date"/><literalExpression><text>date("0001-01-01")</text></literalExpression></decision></definitions>
+				""";
+		String policy = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" xmlns:cal="urn:date:calendar" id="policy" name="Policy" namespace="urn:date:policy">
+				<import name="cal" namespace="urn:date:calendar" locationURI="calendar.dmn" importType="DMN"/>
+				<itemDefinition id="applicant" name="tApplicant"><itemComponent name="Permit"><typeRef>cal:tPermit</typeRef></itemComponent></itemDefinition>
+				<inputData id="input" name="Applicant"><variable name="Applicant" typeRef="tApplicant"/></inputData>
+				<decision id="answer" name="Answer"><variable name="Answer" typeRef="date"/><informationRequirement><requiredInput href="#input"/></informationRequirement><informationRequirement><requiredDecision href="urn:date:calendar#cutoff"/></informationRequirement>
+				<context><contextEntry><variable name="Expiry" typeRef="date"/><literalExpression><text>Applicant.Permit.Expiry</text></literalExpression></contextEntry>
+				<contextEntry><literalExpression><text>if Expiry &gt;= cal.Cutoff then Expiry else null</text></literalExpression></contextEntry></context></decision></definitions>
+				""";
+		var imported = new DmnSource(DmnSourceId.of("memory:/calendar.dmn"),
+				calendar.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var source = new DmnSource(DmnSourceId.of("memory:/policy.dmn"),
+				policy.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var verified = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source,
+				new InMemoryDmnModelResolver(List.of(imported)));
+		var adapted = new DmnIrRuntimeAdapter().adapt(verified);
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(adapted.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("artifact"), generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var bundle = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarDmnExporter().export(verified);
+		var sources = bundle.documents().entrySet().stream()
+				.map(e -> new DmnSource(DmnSourceId.of("memory:/" + e.getKey()),
+						e.getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+				.toList();
+		var compiled = compiler.compile(
+				new DmnSource(DmnSourceId.of("memory:/" + bundle.rootDocument()),
+						bundle.documents().get(bundle.rootDocument())
+								.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+				new InMemoryDmnModelResolver(sources));
+		assertThat(compiled.isSuccess()).as(compiled.diagnostics().toString()).isTrue();
+		var roundtrip = compiled.optimizedRuntimeModel().orElseThrow();
+		var regenerated = generator.generate(roundtrip);
+		var exportedEngine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("exported"),
+				regenerated.mainClassName(), regenerated.mainSource()).getDeclaredConstructor().newInstance();
+		for (Object date : Arrays.asList(java.time.LocalDate.of(-1, 1, 1), java.time.LocalDate.of(1, 1, 1),
+				java.time.LocalDate.of(10000, 1, 1), java.time.LocalDate.MAX, null, "10000-01-01")) {
+			Map<String, Object> permit = new LinkedHashMap<>();
+			permit.put("Expiry", date);
+			var applicant = Map.of("Permit", permit);
+			var input = adapted.inputs().values().iterator().next();
+			var expected = adapted.evaluate(Map.of(input.id(), applicant));
+			Object[] slots = new Object[adapted.runtimeModel().valueSlotCount()];
+			slots[input.slot()] = applicant;
+			var actual = engine.evaluate(slots);
+			for (var binding : adapted.decisions().values())
+				assertThat(actual[binding.slot()]).isEqualTo(expected.get(binding.id()));
+			Object[] exportedSlots = new Object[roundtrip.model().valueSlotCount()];
+			exportedSlots[compiled.compiledModel().orElseThrow().inputSlots().get("Applicant")] = applicant;
+			Object exported = exportedEngine.evaluate(exportedSlots)[compiled.compiledModel().orElseThrow()
+					.decisionSlots().get("Answer")];
+			assertThat(exported)
+					.isEqualTo(expected.get(new DmnIrRuntimeAdapter.ElementId("urn:date:policy", "answer")));
+		}
+	}
+	@Test
+	void portableTableGeneratesJavaForComposedPolicy(@TempDir Path tempDir) throws Exception {
+		assertComposedPolicy(tempDir, false);
+	}
+
+	@Test
+	void portableJavaEnforcesImportedInputAndTableResultConstraints(@TempDir Path tempDir) throws Exception {
+		assertComposedPolicy(tempDir, true);
+	}
+
+	private void assertComposedPolicy(Path tempDir, boolean constrained) throws Exception {
+		String calendar = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="calendar" name="Calendar" namespace="urn:tables:calendar">
+				<itemDefinition id="permit" name="tPermit"><itemComponent name="Expiry"><typeRef>date</typeRef></itemComponent></itemDefinition>
+				<decision id="cutoff" name="Cutoff"><variable name="Cutoff" typeRef="date"/><literalExpression><text>date("2024-02-01")</text></literalExpression></decision>
+				</definitions>
+				""";
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" xmlns:cal="urn:tables:calendar" id="model" name="Policy" namespace="urn:generated:tables">
+				<import name="cal" namespace="urn:tables:calendar" locationURI="calendar.dmn" importType="DMN"/>
+				<itemDefinition id="applicant" name="tApplicant"><itemComponent name="Permit"><typeRef>cal:tPermit</typeRef></itemComponent></itemDefinition>
+				<itemDefinition id="outcome" name="tOutcome"><itemComponent name="Fee"><typeRef>number</typeRef></itemComponent>
+				<itemComponent name="Reason"><typeRef>string</typeRef></itemComponent></itemDefinition>
+				<inputData id="input" name="Applicant"><variable name="Applicant" typeRef="tApplicant"/></inputData>
+				<decision id="decision" name="Outcome"><variable name="Outcome" typeRef="tOutcome"/>
+				<informationRequirement><requiredInput href="#input"/></informationRequirement>
+				<informationRequirement><requiredDecision href="urn:tables:calendar#cutoff"/></informationRequirement>
+				<decisionTable hitPolicy="FIRST">
+				<input><inputExpression typeRef="date"><text>Applicant.Permit.Expiry</text></inputExpression></input>
+				<output name="Fee" typeRef="number"><defaultOutputEntry><text>100</text></defaultOutputEntry></output>
+				<output name="Reason" typeRef="string"/>
+				<rule><inputEntry><text>[cal.Cutoff .. date("2024-03-01")), date("2024-04-01")</text></inputEntry>
+				<outputEntry><text>0</text></outputEntry><outputEntry><text>"preferred"</text></outputEntry></rule>
+				<rule><inputEntry><text>not(&lt; cal.Cutoff, null)</text></inputEntry>
+				<outputEntry><text>30</text></outputEntry><outputEntry><text>"regular"</text></outputEntry></rule>
+				</decisionTable></decision>
+				<decision id="answer" name="Answer"><variable name="Answer" typeRef="number"/>
+				<informationRequirement><requiredDecision href="#decision"/></informationRequirement>
+				<context><contextEntry><variable name="Base Fee" typeRef="number"/><literalExpression><text>Outcome.Fee</text></literalExpression></contextEntry>
+				<contextEntry><literalExpression><text>if Outcome.Reason = null then Base Fee else Base Fee + 5</text></literalExpression></contextEntry></context>
+				</decision></definitions>
+				""";
+		if (constrained) {
+			calendar = calendar.replace("<typeRef>date</typeRef>",
+					"""
+							<typeRef>date</typeRef><allowedValues><text>[date("2024-01-01") .. date("2024-04-01")), null</text></allowedValues>
+							""");
+			xml = xml.replace("<typeRef>number</typeRef>",
+					"<typeRef>number</typeRef><typeConstraint><text>[-1 .. 100)</text></typeConstraint>");
+		}
+		var imported = new DmnSource(DmnSourceId.of("memory:/calendar.dmn"),
+				calendar.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var source = new DmnSource(DmnSourceId.of("memory:/tables.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var artifact = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source,
+				new InMemoryDmnModelResolver(List.of(imported)));
+		var model = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.artifact().toByteArray()));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var input = model.inputs().values().iterator().next();
+		for (var date : Arrays.asList(java.time.LocalDate.of(2024, 1, 1), java.time.LocalDate.of(2024, 2, 1),
+				java.time.LocalDate.of(2024, 2, 29), java.time.LocalDate.of(2024, 3, 1),
+				java.time.LocalDate.of(2024, 4, 1), null)) {
+			Map<String, Object> permit = new HashMap<>();
+			permit.put("Expiry", date);
+			var applicant = Map.of("Permit", permit);
+			Object[] slots = new Object[model.runtimeModel().valueSlotCount()];
+			slots[input.slot()] = applicant;
+			if (constrained && (date == null || date.getMonthValue() == 1 || date.getMonthValue() == 4)) {
+				var expected = org.junit.jupiter.api.Assertions.assertThrows(
+						io.finmsg.dmn.runtime.DmnEvaluationException.class,
+						() -> model.evaluate(Map.of(input.id(), applicant)));
+				org.assertj.core.api.Assertions.assertThatThrownBy(() -> engine.evaluate(slots))
+						.isInstanceOf(expected.getClass()).hasMessage(expected.getMessage());
+				continue;
+			}
+			var expected = model.evaluate(Map.of(input.id(), applicant));
+			Object[] actual = engine.evaluate(slots);
+			for (var decision : model.decisions().values())
+				assertThat(actual[decision.slot()]).isEqualTo(expected.get(decision.id()));
+		}
+	}
+
+	@Test
+	void portableCollectionsGenerateOrderedListValues(@TempDir Path tempDir) throws Exception {
+		assertPortableListGeneration(tempDir, null);
+	}
+
+	@Test
+	void portableFiltersGenerateScopedPredicates(@TempDir Path tempDir) throws Exception {
+		assertPortableListGeneration(tempDir, "item");
+	}
+
+	@Test
+	void portableBuiltinsGenerateWithinScopedPredicates(@TempDir Path tempDir) throws Exception {
+		assertPortableListGeneration(tempDir, "abs(-item)");
+	}
+
+	@Test
+	void portableBkmsGenerateResolvedCallsAndBindReorderedArguments(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/"
+				  id="model" name="Functions" namespace="urn:generated:bkms">
+				<inputData id="amount" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<businessKnowledgeModel id="subtract" name="Subtract">
+				  <variable name="Subtract" typeRef="number"/>
+				  <encapsulatedLogic kind="FEEL">
+				    <formalParameter name="Left" typeRef="number"/><formalParameter name="Right" typeRef="number"/>
+				    <literalExpression><text>if Left = null then 0 else Left - Right</text></literalExpression>
+				  </encapsulatedLogic>
+				</businessKnowledgeModel>
+				<decision id="difference" name="Difference"><variable name="Difference" typeRef="number"/>
+				  <informationRequirement><requiredInput href="#amount"/></informationRequirement>
+				  <knowledgeRequirement><requiredKnowledge href="#subtract"/></knowledgeRequirement>
+				  <literalExpression><text>Subtract(Right: Amount, Left: 10)</text></literalExpression>
+				</decision>
+				<decision id="nullable" name="Nullable"><variable name="Nullable" typeRef="number"/>
+				  <knowledgeRequirement><requiredKnowledge href="#subtract"/></knowledgeRequirement>
+				  <literalExpression><text>Subtract(null, 3)</text></literalExpression>
+				</decision>
+				</definitions>
+				""";
+		var source = new DmnSource(DmnSourceId.of("memory:/bkms.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var artifact = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source);
+		var model = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.artifact().toByteArray()));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var input = model.inputs().values().iterator().next();
+		var slots = new Object[model.runtimeModel().valueSlotCount()];
+		slots[input.slot()] = new BigDecimal("3");
+		var direct = model.evaluate(Map.of(input.id(), slots[input.slot()]));
+		var results = engine.evaluate(slots);
+		for (var decision : model.decisions().values()) {
+			var expected = decision.id().elementId().equals("difference") ? new BigDecimal("7") : BigDecimal.ZERO;
+			assertThat(direct.get(decision.id())).isEqualTo(expected);
+			assertThat(results[decision.slot()]).isEqualTo(expected);
+		}
+	}
+
+	@Test
+	void portableClosuresGenerateCapturedAndImmediateCalls(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/"
+				  id="model" name="Closures" namespace="urn:generated:closures">
+				<inputData id="base" name="Base"><variable name="Base" typeRef="number"/></inputData>
+				<decision id="result" name="Result"><variable name="Result" typeRef="number"/>
+				  <informationRequirement><requiredInput href="#base"/></informationRequirement>
+				  <context>
+				    <contextEntry><variable name="Saved" typeRef="number"/><literalExpression><text>Base</text></literalExpression></contextEntry>
+				    <contextEntry><variable name="Adjust"/>
+				      <functionDefinition kind="FEEL"><formalParameter name="Delta" typeRef="number"/>
+				        <literalExpression><text>if Delta = null then Saved else Saved + Delta</text></literalExpression>
+				      </functionDefinition>
+				    </contextEntry>
+				    <contextEntry><literalExpression><text>Adjust(null) + Adjust(2) + (function(x: number) x + Saved)(1)</text></literalExpression></contextEntry>
+				  </context>
+				</decision></definitions>
+				""";
+		var source = new DmnSource(DmnSourceId.of("memory:/closures.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var artifact = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source);
+		var model = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.artifact().toByteArray()));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var input = model.inputs().values().iterator().next();
+		var result = model.decisions().values().iterator().next();
+		for (var base : Arrays.asList(BigDecimal.TEN, null)) {
+			var inputs = new HashMap<DmnIrRuntimeAdapter.ElementId, Object>();
+			inputs.put(input.id(), base);
+			var slots = new Object[model.runtimeModel().valueSlotCount()];
+			slots[input.slot()] = base;
+			var expected = base == null ? null : new BigDecimal("33");
+			assertThat(model.evaluate(inputs).get(result.id())).isEqualTo(expected);
+			assertThat(engine.evaluate(slots)[result.slot()]).isEqualTo(expected);
+		}
+	}
+
+	@Test
+	void portableBuiltinsGenerateExactDecimalAndUnicodeResults(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/"
+				  id="model" name="Builtins" namespace="urn:generated:builtins">
+				<inputData id="number" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<inputData id="string" name="Source Text"><variable name="Source Text" typeRef="string"/></inputData>
+				<inputData id="search" name="Search Text"><variable name="Search Text" typeRef="string"/></inputData>
+				<decision id="magnitude" name="Magnitude"><variable name="Magnitude" typeRef="number"/>
+				  <informationRequirement><requiredInput href="#number"/></informationRequirement>
+				  <literalExpression><text>abs(Amount) + 0</text></literalExpression></decision>
+				<decision id="length" name="Length"><variable name="Length" typeRef="number"/>
+				  <informationRequirement><requiredInput href="#string"/></informationRequirement>
+				  <literalExpression><text>string length(Source Text)</text></literalExpression></decision>
+				<decision id="match" name="Match"><variable name="Match" typeRef="boolean"/>
+				  <informationRequirement><requiredInput href="#string"/></informationRequirement>
+				  <informationRequirement><requiredInput href="#search"/></informationRequirement>
+				  <literalExpression><text>contains(Source Text, Search Text)</text></literalExpression></decision>
+				</definitions>
+				""";
+		var source = new DmnSource(DmnSourceId.of("memory:/builtins.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var artifact = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source);
+		assertThat(artifact.artifact().getSchemaVersion().getMinor()).isEqualTo(9);
+		var model = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.artifact().toByteArray()));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		record Vector(BigDecimal amount, String text, String search, BigDecimal magnitude, BigDecimal length,
+				Boolean match) {
+		}
+		var exact = new BigDecimal("12345678901234567890.0000125");
+		for (var vector : List.of(
+				new Vector(exact.negate(), "A\uD83D\uDE00e\u0301", "\u00e9", exact, BigDecimal.valueOf(4), false),
+				new Vector(BigDecimal.ZERO, "", "", BigDecimal.ZERO, BigDecimal.ZERO, true),
+				new Vector(null, null, "", null, null, null),
+				new Vector(null, "A", null, null, BigDecimal.ONE, null))) {
+			var slots = new Object[model.runtimeModel().valueSlotCount()];
+			var inputs = new HashMap<DmnIrRuntimeAdapter.ElementId, Object>();
+			for (var input : model.inputs().values()) {
+				var value = switch (input.id().elementId()) {
+					case "number" -> vector.amount();
+					case "string" -> vector.text();
+					case "search" -> vector.search();
+					default -> throw new AssertionError(input);
+				};
+				slots[input.slot()] = value;
+				inputs.put(input.id(), value);
+			}
+			var interpreted = model.evaluate(inputs);
+			var compiled = engine.evaluate(slots);
+			for (var decision : model.decisions().values()) {
+				var expected = switch (decision.id().elementId()) {
+					case "magnitude" -> vector.magnitude();
+					case "length" -> vector.length();
+					case "match" -> vector.match();
+					default -> throw new AssertionError(decision);
+				};
+				assertThat(interpreted.get(decision.id())).isEqualTo(expected);
+				assertThat(compiled[decision.slot()]).isEqualTo(expected);
+			}
+		}
+	}
+
+	private void assertPortableListGeneration(Path tempDir, String comparisonOperand) throws Exception {
+		String types = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="catalog" name="Catalog" namespace="urn:generated:list-types">
+				<itemDefinition id="fees" name="tFees" isCollection="true"><typeRef>number</typeRef></itemDefinition>
+				</definitions>
+				""";
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" xmlns:catalog="urn:generated:list-types"
+					id="model" name="Policy" namespace="urn:generated:collections">
+				<import name="catalog" namespace="urn:generated:list-types" locationURI="catalog.dmn" importType="DMN"/>
+				<inputData id="amount" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<decision id="fee" name="Fee"><variable name="Fee" typeRef="number"/>
+				<informationRequirement><requiredInput href="#amount"/></informationRequirement>
+				<decisionTable hitPolicy="FIRST"><input><inputExpression typeRef="number"><text>Amount</text></inputExpression></input>
+				<output typeRef="number"><defaultOutputEntry><text>0</text></defaultOutputEntry></output>
+				<rule><inputEntry><text>&gt; 0</text></inputEntry><outputEntry><text>30.125</text></outputEntry></rule>
+				</decisionTable></decision>
+				<decision id="answer" name="Answer"><variable name="Answer" typeRef="catalog:tFees"/>
+				<informationRequirement><requiredDecision href="#fee"/></informationRequirement>
+				<context><contextEntry><variable name="History" typeRef="catalog:tFees"/>
+				<literalExpression><text>[Fee, Fee, null]</text></literalExpression></contextEntry>
+				<contextEntry><literalExpression><text>if Fee &gt; 0 then History else []</text></literalExpression></contextEntry>
+				</context></decision></definitions>
+				""";
+		if (comparisonOperand != null)
+			xml = xml
+					.replace("<context><contextEntry><variable name=\"History\"",
+							"<context><contextEntry><variable name=\"Cutoff\" typeRef=\"number\"/>"
+									+ "<literalExpression><text>Fee</text></literalExpression></contextEntry>"
+									+ "<contextEntry><variable name=\"History\"")
+					.replace("[Fee, Fee, null]",
+							"[Fee, Fee, null][item = null or " + comparisonOperand + " &gt;= Cutoff][true]");
+		var imported = new DmnSource(DmnSourceId.of("memory:/catalog.dmn"),
+				types.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var source = new DmnSource(DmnSourceId.of("memory:/policy.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var artifact = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source,
+				new InMemoryDmnModelResolver(List.of(imported)));
+		var model = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.artifact().toByteArray()));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var input = model.inputs().values().iterator().next();
+		var answer = model.decisions().values().stream().filter(binding -> binding.variableName().equals("Answer"))
+				.findFirst().orElseThrow();
+		for (int amount : List.of(0, 1)) {
+			Object[] slots = new Object[model.runtimeModel().valueSlotCount()];
+			slots[input.slot()] = amount;
+			Object expected = amount == 0
+					? List.of()
+					: Arrays.asList(new BigDecimal("30.125"), new BigDecimal("30.125"), null);
+			assertThat(engine.evaluate(slots)[answer.slot()]).isEqualTo(expected);
+			assertThat(model.evaluate(Map.of(input.id(), amount)).get(answer.id())).isEqualTo(expected);
+		}
+	}
+
+	@Test
+	void portableTrafficViolationGeneratesBothDecisions(@TempDir Path tempDir) throws Exception {
+		DmnSource source;
+		try (var fixture = Objects.requireNonNull(getClass().getResourceAsStream("/TrafficViolation.dmn"))) {
+			source = new DmnSource(DmnSourceId.of("memory:/traffic-violation.dmn"), fixture.readAllBytes());
+		}
+		var model = new DmnIrRuntimeAdapter()
+				.adapt(new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source));
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var driver = Map.of("Name", "Example", "Age", 40, "State", "Example", "City", "Example", "Points", 17);
+		var violation = new HashMap<String, Object>(
+				Map.of("Code", "example", "Date", java.time.LocalDate.of(2024, 1, 1), "Type", "speed", "SpeedLimit",
+						BigDecimal.valueOf(50), "ActualSpeed", BigDecimal.valueOf(60)));
+		Map<DmnIrRuntimeAdapter.ElementId, Object> inputs = new HashMap<>();
+		Object[] slots = new Object[model.runtimeModel().valueSlotCount()];
+		for (var binding : model.inputs().values()) {
+			Object value = binding.variableName().equals("Driver") ? driver : violation;
+			inputs.put(binding.id(), value);
+			slots[binding.slot()] = value;
+		}
+		var expected = model.evaluate(inputs);
+		var actual = engine.evaluate(slots);
+		for (var binding : model.decisions().values())
+			assertThat(actual[binding.slot()]).isEqualTo(expected.get(binding.id()));
+		violation.put("Type", "other");
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> engine.evaluate(slots))
+				.isInstanceOf(io.finmsg.dmn.runtime.DmnEvaluationException.class)
+				.hasMessage("Field constraint violated at /Type");
+	}
+
+	@Test
+	void portableJavaEnforcesSingleResultHitPoliciesAndRetainsNullFields(@TempDir Path tempDir) throws Exception {
+		String table = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="model" name="Policy" namespace="urn:generated:table-policies">
+				<itemDefinition id="outcome" name="tOutcome"><itemComponent name="Fee"><typeRef>number</typeRef></itemComponent>
+				<itemComponent name="Reason"><typeRef>string</typeRef></itemComponent></itemDefinition>
+				<inputData id="input" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<decision id="answer" name="Outcome"><variable name="Outcome" typeRef="tOutcome"/>
+				<informationRequirement><requiredInput href="#input"/></informationRequirement>
+				<decisionTable hitPolicy="%s">
+				<input><inputExpression typeRef="number"><text>Amount</text></inputExpression></input>
+				<output name="Fee" typeRef="number"/><output name="Reason" typeRef="string"/>
+				<rule><inputEntry><text>&gt; 0</text></inputEntry><outputEntry><text>1</text></outputEntry><outputEntry><text>null</text></outputEntry></rule>
+				<rule><inputEntry><text>&gt; 1</text></inputEntry><outputEntry><text>%d</text></outputEntry><outputEntry><text>null</text></outputEntry></rule>
+				</decisionTable></decision></definitions>
+				""";
+		for (String policy : List.of("UNIQUE", "ANY")) {
+			for (int secondFee : List.of(1, 2)) {
+				var source = new DmnSource(DmnSourceId.of("memory:/policy.dmn"),
+						table.formatted(policy, secondFee).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+				var model = new DmnIrRuntimeAdapter()
+						.adapt(new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source));
+				var generated = generator.generate(new RuntimeIrOptimizer().optimize(model.runtimeModel()));
+				var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve(policy + secondFee),
+						generated.mainClassName(), generated.mainSource()).getDeclaredConstructor().newInstance();
+				var input = model.inputs().values().iterator().next();
+				var decision = model.decisions().values().iterator().next();
+				for (int amount : List.of(0, 1, 2)) {
+					Object[] slots = new Object[model.runtimeModel().valueSlotCount()];
+					slots[input.slot()] = amount;
+					if (amount == 2 && (policy.equals("UNIQUE") || secondFee != 1)) {
+						var expected = org.junit.jupiter.api.Assertions.assertThrows(
+								io.finmsg.dmn.runtime.DmnEvaluationException.class,
+								() -> model.evaluate(Map.of(input.id(), amount)));
+						org.assertj.core.api.Assertions.assertThatThrownBy(() -> engine.evaluate(slots))
+								.isInstanceOf(expected.getClass()).hasMessage(expected.getMessage());
+					} else {
+						var expected = model.evaluate(Map.of(input.id(), amount)).get(decision.id());
+						assertThat(engine.evaluate(slots)[decision.slot()]).isEqualTo(expected);
+					}
+				}
+			}
+		}
+	}
+
+	@Test
+	void portableLocalBindingsGenerateExecutableJava(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="model" name="Locals" namespace="urn:generated:locals">
+				<inputData id="input" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<decision id="answer" name="Answer"><variable name="Answer" typeRef="number"/><informationRequirement><requiredInput href="#input"/></informationRequirement>
+				<context><contextEntry><variable name="Base" typeRef="number"/><literalExpression><text>Amount + 1</text></literalExpression></contextEntry>
+				<contextEntry><variable name="Total" typeRef="number"/><context><contextEntry><variable name="Bonus" typeRef="number"/><literalExpression><text>2</text></literalExpression></contextEntry>
+				<contextEntry><literalExpression><text>Base + Bonus</text></literalExpression></contextEntry></context></contextEntry>
+				<contextEntry><literalExpression><text>Total</text></literalExpression></contextEntry></context></decision></definitions>
+				""";
+		var verified = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(new DmnSource(
+				DmnSourceId.of("memory:/locals.dmn"), xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		var adapted = new DmnIrRuntimeAdapter().adapt(verified);
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(adapted.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("artifact"), generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var bundle = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarDmnExporter().export(verified);
+		var compiled = compiler.compile(new DmnSource(DmnSourceId.of("memory:/exported.dmn"),
+				bundle.documents().get(bundle.rootDocument()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compiled.isSuccess()).as(compiled.diagnostics().toString()).isTrue();
+		var roundtrip = compiled.optimizedRuntimeModel().orElseThrow();
+		var regenerated = generator.generate(roundtrip);
+		var exportedEngine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("exported"),
+				regenerated.mainClassName(), regenerated.mainSource()).getDeclaredConstructor().newInstance();
+		for (Object amount : Arrays.asList(BigDecimal.ZERO, new BigDecimal("9007199254740993.0001"), null,
+				BigDecimal.TEN)) {
+			Map<DmnIrRuntimeAdapter.ElementId, Object> inputs = new HashMap<>();
+			inputs.put(adapted.inputs().keySet().iterator().next(), amount);
+			var expected = adapted.evaluate(inputs).values().iterator().next();
+			Object[] slots = new Object[adapted.runtimeModel().valueSlotCount()];
+			slots[adapted.inputs().values().iterator().next().slot()] = amount;
+			Object actual = engine.evaluate(slots)[adapted.decisions().values().iterator().next().slot()];
+			Object[] exportedSlots = new Object[roundtrip.model().valueSlotCount()];
+			exportedSlots[roundtrip.model().inputs().getFirst().valueSlot()] = amount;
+			Object exported = exportedEngine.evaluate(exportedSlots)[roundtrip.model().decisions().getFirst()
+					.resultSlot()];
+			if (expected instanceof BigDecimal n) {
+				assertThat((BigDecimal) actual).isEqualByComparingTo(n);
+				assertThat((BigDecimal) exported).isEqualByComparingTo(n);
+			} else {
+				assertThat(actual).isEqualTo(expected);
+				assertThat(exported).isEqualTo(expected);
+			}
+		}
+	}
+	@Test
+	void portableRecordsGenerateExecutableJavaAndExportedDmn(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="model" name="Records" namespace="urn:example:generated-records">
+				<itemDefinition id="driver-type" name="tDriver"><itemComponent name="Name"><typeRef>string</typeRef></itemComponent><itemComponent name="Points"><typeRef>number</typeRef></itemComponent></itemDefinition>
+				<itemDefinition id="fine-type" name="tFine"><itemComponent name="Points"><typeRef>number</typeRef></itemComponent></itemDefinition>
+				<inputData id="Driver" name="Driver"><variable name="Driver" typeRef="tDriver"/></inputData>
+				<inputData id="Fine" name="Fine"><variable name="Fine" typeRef="tFine"/></inputData>
+				<decision id="Total" name="Total"><variable name="Total" typeRef="number"/>
+				<informationRequirement><requiredInput href="#Driver"/></informationRequirement><informationRequirement><requiredInput href="#Fine"/></informationRequirement>
+				<literalExpression><text>Driver.Points + Fine.Points</text></literalExpression></decision>
+				<decision id="Copy" name="Copy"><variable name="Copy" typeRef="tDriver"/><informationRequirement><requiredInput href="#Driver"/></informationRequirement>
+				<literalExpression><text>Driver</text></literalExpression></decision></definitions>
+				""";
+		var verified = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(new DmnSource(
+				DmnSourceId.of("memory:/records.dmn"), xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		var adapted = new DmnIrRuntimeAdapter().adapt(verified);
+		assertThat(verified.artifact().getSchemaVersion().getMinor()).isEqualTo(2);
+		var generated = generator.generate(new RuntimeIrOptimizer().optimize(adapted.runtimeModel()));
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("artifact"), generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var bundle = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarDmnExporter().export(verified);
+		var compiled = compiler.compile(new DmnSource(DmnSourceId.of("memory:/" + bundle.rootDocument()),
+				bundle.documents().get(bundle.rootDocument()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertThat(compiled.isSuccess()).as(compiled.diagnostics().toString()).isTrue();
+		var facade = compiled.compiledModel().orElseThrow();
+		var regenerated = generator.generate(compiled.optimizedRuntimeModel().orElseThrow());
+		var exportedEngine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("exported"),
+				regenerated.mainClassName(), regenerated.mainSource()).getDeclaredConstructor().newInstance();
+		Map<String, Object> nullable = new LinkedHashMap<>();
+		nullable.put("Name", "Synthetic");
+		nullable.put("Points", null);
+		for (var driver : List.of(Map.of("Name", "Synthetic", "Points", new BigDecimal("15.0001")),
+				Map.of("Name", "Synthetic", "Points", new BigDecimal("15"), "Extra", true), nullable,
+				Map.of("Missing", BigDecimal.ONE))) {
+			Map<String, Object> inputs = Map.of("Driver", driver, "Fine", Map.of("Points", new BigDecimal("7")));
+			Map<DmnIrRuntimeAdapter.ElementId, Object> addressed = new LinkedHashMap<>();
+			Object[] slots = new Object[adapted.runtimeModel().valueSlotCount()];
+			for (var binding : adapted.inputs().values()) {
+				addressed.put(binding.id(), inputs.get(binding.variableName()));
+				slots[binding.slot()] = inputs.get(binding.variableName());
+			}
+			var expected = adapted.evaluate(addressed);
+			var actual = engine.evaluate(slots);
+			Object[] exportedSlots = new Object[facade.optimizedModel().model().valueSlotCount()];
+			facade.inputSlots().forEach((name, slot) -> exportedSlots[slot] = inputs.get(name));
+			var reexecuted = exportedEngine.evaluate(exportedSlots);
+			for (var binding : adapted.decisions().values()) {
+				Object value = expected.get(binding.id());
+				Object first = actual[binding.slot()];
+				Object second = reexecuted[facade.decisionSlots().get(binding.variableName())];
+				if (value instanceof BigDecimal n) {
+					assertThat((BigDecimal) first).isEqualByComparingTo(n);
+					assertThat((BigDecimal) second).isEqualByComparingTo(n);
+				} else if (value instanceof Map<?, ?> map) {
+					assertThat(new LinkedHashMap<>((Map<?, ?>) first)).isEqualTo(new LinkedHashMap<>(map));
+					assertThat(new LinkedHashMap<>((Map<?, ?>) second)).isEqualTo(new LinkedHashMap<>(map));
+				} else {
+					assertThat(first).isEqualTo(value);
+					assertThat(second).isEqualTo(value);
+				}
+			}
+		}
+	}
+
+	@Test
+	void structuredPortableArtifactGeneratesExecutableJavaAndDmnParity(@TempDir Path tempDir) throws Exception {
+		String[][] examples = {{"(A + B) * (-B) + A ** 2", "number"},
+				{"if A - B >= 10 then \"Yes\" else \"No\"", "string"},
+				{"not(Flag) or ((A = B) and (A <= B))", "boolean"}, {"if Flag then A / B else A ** B", "number"}};
+		for (int i = 0; i < examples.length; i++) {
+			String xml = """
+					<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="model" name="Expressions" namespace="urn:example:generated-expressions">
+					<inputData id="A" name="A"><variable name="A" typeRef="number"/></inputData>
+					<inputData id="B" name="B"><variable name="B" typeRef="number"/></inputData>
+					<inputData id="Flag" name="Flag"><variable name="Flag" typeRef="boolean"/></inputData>
+					<decision id="result" name="Result"><variable name="Result" typeRef="%s"/>
+					<informationRequirement><requiredInput href="#A"/></informationRequirement>
+					<informationRequirement><requiredInput href="#B"/></informationRequirement>
+					<informationRequirement><requiredInput href="#Flag"/></informationRequirement>
+					<literalExpression><text>%s</text></literalExpression></decision></definitions>
+					"""
+					.formatted(examples[i][1], examples[i][0].replace("<", "&lt;"));
+			var source = new DmnSource(DmnSourceId.of("memory:/expressions.dmn"),
+					xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			var verified = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source);
+			assertThat(verified.artifact().getSchemaVersion().getMinor()).isEqualTo(1);
+			if (i == 0) {
+				var artifact = verified.artifact().toBuilder();
+				var decision = artifact.getModelsBuilder(0).getDecisionsBuilder(0);
+				var operand = decision.getExpression();
+				decision.setExpression(DmnIrExpression.newBuilder().setType(operand.getType())
+						.setUnary(DmnIrUnaryExpression.newBuilder()
+								.setOperator(DmnIrUnaryOperator.UNARY_OPERATOR_POSITIVE).setOperand(operand)));
+				verified = new DmnIrArtifactReader().read(artifact.build().toByteArray());
+			}
+			var adapted = new DmnIrRuntimeAdapter()
+					.adapt(new DmnIrArtifactReader().read(verified.artifact().toByteArray()));
+			var optimized = new RuntimeIrOptimizer().optimize(adapted.runtimeModel());
+			var generated = generator.generate(optimized);
+			assertThat(generator.generate(optimized).mainSource()).isEqualTo(generated.mainSource());
+			var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("artifact-" + i),
+					generated.mainClassName(), generated.mainSource()).getDeclaredConstructor().newInstance();
+			var bundle = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarDmnExporter().export(verified);
+			var exported = compiler.compile(new DmnSource(DmnSourceId.of("memory:/" + bundle.rootDocument()),
+					bundle.documents().get(bundle.rootDocument()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+			assertThat(exported.isSuccess()).as(exported.diagnostics().toString()).isTrue();
+			var exportedIr = exported.optimizedRuntimeModel().orElseThrow();
+			var generatedAgain = generator.generate(exportedIr);
+			var exportedEngine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("dmn-" + i),
+					generatedAgain.mainClassName(), generatedAgain.mainSource()).getDeclaredConstructor().newInstance();
+			for (boolean flag : List.of(true, false)) {
+				Map<String, Object> inputs = Map.of("A", new BigDecimal("19.00000000000000001"), "B",
+						new BigDecimal(flag ? "2" : "0"), "Flag", flag);
+				Map<DmnIrRuntimeAdapter.ElementId, Object> addressed = new LinkedHashMap<>();
+				Object[] slots = new Object[adapted.runtimeModel().valueSlotCount()];
+				for (var binding : adapted.inputs().values()) {
+					addressed.put(binding.id(), inputs.get(binding.variableName()));
+					slots[binding.slot()] = inputs.get(binding.variableName());
+				}
+				Object expected = adapted.evaluate(addressed).values().iterator().next();
+				Object actual = engine.evaluate(slots)[adapted.decisions().values().iterator().next().slot()];
+				if (expected instanceof BigDecimal n)
+					assertThat((BigDecimal) actual).isEqualByComparingTo(n);
+				else
+					assertThat(actual).isEqualTo(expected);
+				Object[] exportedSlots = new Object[exportedIr.model().valueSlotCount()];
+				// Emitted declarations are sorted by stable identity: A, B, Flag.
+				exportedSlots[0] = inputs.get("A");
+				exportedSlots[1] = inputs.get("B");
+				exportedSlots[2] = inputs.get("Flag");
+				Object reexecuted = exportedEngine.evaluate(exportedSlots)[exportedIr.model().decisions().getFirst()
+						.resultSlot()];
+				if (expected instanceof BigDecimal n)
+					assertThat((BigDecimal) reexecuted).isEqualByComparingTo(n);
+				else
+					assertThat(reexecuted).isEqualTo(expected);
+			}
+		}
+	}
+
+	@Test
+	void producedArtifactGeneratesExecutableJava(@TempDir Path tempDir) throws Exception {
+		String xml = """
+				<definitions xmlns="https://www.omg.org/spec/DMN/20240513/MODEL/" id="model" name="Produced" namespace="urn:example:produced">
+				<inputData id="input" name="Amount"><variable name="Amount" typeRef="number"/></inputData>
+				<decision id="copy" name="Copy"><variable name="Copy" typeRef="number"/>
+				<informationRequirement><requiredInput href="#input"/></informationRequirement>
+				<literalExpression><text>Amount</text></literalExpression></decision>
+				<decision id="precise" name="Precise"><variable name="Precise" typeRef="number"/>
+				<literalExpression><text>9007199254740993.0001</text></literalExpression></decision>
+				</definitions>
+				""";
+		var source = new DmnSource(DmnSourceId.of("memory:/produced.dmn"),
+				xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		byte[] bytes = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarProducer().produce(source).artifact().toByteArray();
+		var adapted = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(bytes));
+		var optimized = new RuntimeIrOptimizer().optimize(adapted.runtimeModel());
+		var generated = generator.generate(optimized);
+		assertThat(generator.generate(optimized).mainSource()).isEqualTo(generated.mainSource());
+		var engine = (GeneratedDecisionEngine) compileJavaSource(tempDir, generated.mainClassName(),
+				generated.mainSource()).getDeclaredConstructor().newInstance();
+		var input = adapted.inputs().values().iterator().next();
+		Object[] slots = new Object[adapted.runtimeModel().valueSlotCount()];
+		slots[input.slot()] = new BigDecimal("42.00");
+		var values = engine.evaluate(slots);
+		var expected = adapted.evaluate(Map.of(input.id(), new BigDecimal("42.00")));
+		for (var binding : adapted.decisions().values())
+			assertThat((BigDecimal) values[binding.slot()])
+					.isEqualByComparingTo((BigDecimal) expected.get(binding.id()));
+
+		var bundle = new io.finmsg.dmn.compiler.dmnir.DmnIrScalarDmnExporter().export(adapted.source());
+		var exportedSource = new DmnSource(DmnSourceId.of("memory:/" + bundle.rootDocument()),
+				bundle.documents().get(bundle.rootDocument()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		var recompiled = compiler.compile(exportedSource);
+		assertThat(recompiled.isSuccess()).as(recompiled.diagnostics().toString()).isTrue();
+		var exportedIr = recompiled.optimizedRuntimeModel().orElseThrow();
+		var regenerated = generator.generate(exportedIr);
+		var exportedEngine = (GeneratedDecisionEngine) compileJavaSource(tempDir.resolve("exported"),
+				regenerated.mainClassName(), regenerated.mainSource()).getDeclaredConstructor().newInstance();
+		Object[] exportedSlots = new Object[exportedIr.model().valueSlotCount()];
+		int exportedInput = exportedIr.model().inputs().getFirst().valueSlot();
+		exportedSlots[exportedInput] = new BigDecimal("42.00");
+		var exportedValues = exportedEngine.evaluate(exportedSlots);
+		var interpreted = runtime.evaluate(exportedIr.model(), Map.of(exportedInput, new BigDecimal("42.00")));
+		for (var decision : exportedIr.model().decisions())
+			assertThat((BigDecimal) exportedValues[decision.resultSlot()])
+					.isEqualByComparingTo((BigDecimal) interpreted.value(decision.resultSlot()));
+	}
+
+	@Test
+	void verifiedPortableArtifactGeneratesCompilableJavaWithScalarParity(@TempDir Path tempDir) throws Exception {
+		String namespace = "urn:example:portable";
+		var inputRef = DmnIrReference.newBuilder().setModelNamespace(namespace).setElementId("input").build();
+		var root = DmnIrModel.newBuilder()
+				.setIdentity(DmnIrElementIdentity.newBuilder().setId("model").setName("Portable"))
+				.setNamespace(namespace)
+				.addInputs(DmnIrInput.newBuilder()
+						.setIdentity(DmnIrElementIdentity.newBuilder().setId("input").setName("Amount"))
+						.setVariable(DmnIrVariable.newBuilder().setId("input-var").setName("Amount")
+								.setType(DmnIrScalarType.SCALAR_TYPE_NUMBER)))
+				.addDecisions(DmnIrDecision.newBuilder()
+						.setIdentity(DmnIrElementIdentity.newBuilder().setId("alias").setName("Alias"))
+						.setVariable(DmnIrVariable.newBuilder().setId("alias-var").setName("Alias")
+								.setType(DmnIrScalarType.SCALAR_TYPE_NUMBER))
+						.addDependencies(inputRef).setExpression(DmnIrExpression.newBuilder()
+								.setType(DmnIrScalarType.SCALAR_TYPE_NUMBER).setGlobalReference(inputRef)));
+		root.addDecisions(portableLiteral("precise", DmnIrScalarType.SCALAR_TYPE_NUMBER,
+				DmnIrLiteral.newBuilder().setNumberValue(
+						DmnIrDecimal.newBuilder().setUnscaledValue("90071992547409930000000000000000001").setScale(19))
+						.build()));
+		root.addDecisions(portableLiteral("exponent", DmnIrScalarType.SCALAR_TYPE_NUMBER, DmnIrLiteral.newBuilder()
+				.setNumberValue(DmnIrDecimal.newBuilder().setUnscaledValue("1").setScale(-30)).build()));
+		root.addDecisions(portableLiteral("empty", DmnIrScalarType.SCALAR_TYPE_STRING,
+				DmnIrLiteral.newBuilder().setStringValue("").build()));
+		root.addDecisions(portableLiteral("text", DmnIrScalarType.SCALAR_TYPE_STRING,
+				DmnIrLiteral.newBuilder().setStringValue("quote\" newline\nbackslash\\ Unicode é").build()));
+		root.addDecisions(portableLiteral("false", DmnIrScalarType.SCALAR_TYPE_BOOLEAN,
+				DmnIrLiteral.newBuilder().setBooleanValue(false).build()));
+		root.addDecisions(portableLiteral("nullable", DmnIrScalarType.SCALAR_TYPE_NUMBER,
+				DmnIrLiteral.newBuilder().setNullValue(DmnIrNull.NULL_VALUE).build()));
+		var artifact = DmnIrArtifact.newBuilder()
+				.setSchemaVersion(DmnIrSchemaVersion.newBuilder().setMajor(0).setMinor(0))
+				.setSemanticsVersion(DmnIrArtifactReader.SEMANTICS_VERSION)
+				.addRequiredCapabilities(DmnIrArtifactReader.SCALAR_CAPABILITY).setRootModelNamespace(namespace)
+				.addModels(root);
+		for (String id : List.of("alias", "precise", "exponent", "empty", "text", "false", "nullable")) {
+			artifact.addEvaluationOrder(DmnIrReference.newBuilder().setModelNamespace(namespace).setElementId(id));
+		}
+		var adapted = new DmnIrRuntimeAdapter().adapt(new DmnIrArtifactReader().read(artifact.build().toByteArray()));
+		var optimized = new RuntimeIrOptimizer().optimize(adapted.runtimeModel());
+		var options = DmnJavaGeneratorOptions.of("io.finmsg.dmn.generated", "PortableScalarModel");
+		var generated = generator.generate(optimized, options);
+		assertThat(generator.generate(optimized, options).mainSource()).isEqualTo(generated.mainSource());
+		Class<?> compiled = compileJavaSource(tempDir, generated.mainClassName(), generated.mainSource());
+		var engine = (GeneratedDecisionEngine) compiled.getDeclaredConstructor().newInstance();
+		var inputId = new DmnIrRuntimeAdapter.ElementId(namespace, "input");
+		Object[] inputSlots = new Object[adapted.runtimeModel().valueSlotCount()];
+		inputSlots[adapted.inputs().get(inputId).slot()] = new BigDecimal("123.4500");
+		Object[] generatedValues = engine.evaluate(inputSlots);
+		var expected = adapted.evaluate(Map.of(inputId, new BigDecimal("123.4500")));
+		for (var binding : adapted.decisions().values()) {
+			Object referenceValue = expected.get(binding.id());
+			Object generatedValue = generatedValues[binding.slot()];
+			if (referenceValue instanceof BigDecimal left && generatedValue instanceof BigDecimal right) {
+				assertThat(right).isEqualByComparingTo(left);
+			} else {
+				assertThat(generatedValue).isEqualTo(referenceValue);
+			}
+		}
+	}
+
+	private static DmnIrDecision portableLiteral(String id, DmnIrScalarType type, DmnIrLiteral value) {
+		return DmnIrDecision.newBuilder().setIdentity(DmnIrElementIdentity.newBuilder().setId(id).setName(id))
+				.setVariable(DmnIrVariable.newBuilder().setId(id + "-var").setName(id).setType(type))
+				.setExpression(DmnIrExpression.newBuilder().setType(type).setLiteral(value)).build();
+	}
+
 	@Test
 	void invalidRuntimePredicatesAndUnconstrainedDurationsPreserveParity(@TempDir Path tempDir) throws Exception {
 		List<String> expressions = List.of("duration(null)", "duration(\"\")", "duration(2017)", "duration(\"P\")",

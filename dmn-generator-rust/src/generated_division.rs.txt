@@ -1,0 +1,119 @@
+fn divide(left: Value, right: Value) -> Value {
+    const PRECISION: usize = 34;
+    let (
+        Value::Number {
+            coefficient: left,
+            scale: left_scale,
+        },
+        Value::Number {
+            coefficient: right,
+            scale: right_scale,
+        },
+    ) = (left, right)
+    else {
+        return Value::Null;
+    };
+    if right == "0" {
+        return Value::Null;
+    }
+    let preferred_scale = left_scale - right_scale;
+    if left == "0" {
+        return Value::Number {
+            coefficient: left,
+            scale: preferred_scale,
+        };
+    }
+
+    let negative = left.starts_with('-') ^ right.starts_with('-');
+    let mut exponent =
+        left.trim_start_matches('-').len() as i32 - right.trim_start_matches('-').len() as i32;
+    let mut remainder = decimal_limbs(&left);
+    let mut divisor = decimal_limbs(&right);
+    if exponent >= 0 {
+        shift_decimal(&mut divisor, exponent as usize);
+    } else {
+        shift_decimal(&mut remainder, (-exponent) as usize);
+    }
+    if compare_limbs(&remainder, &divisor).is_lt() {
+        multiply_limb_small(&mut remainder, 10);
+        exponent -= 1;
+    }
+
+    let mut digits = Vec::with_capacity(PRECISION + 1);
+    for index in 0..=PRECISION {
+        let mut digit = 0;
+        while !compare_limbs(&remainder, &divisor).is_lt() {
+            subtract_limbs(&mut remainder, &divisor);
+            digit += 1;
+        }
+        digits.push(digit);
+        if remainder.is_empty() || index == PRECISION {
+            break;
+        }
+        multiply_limb_small(&mut remainder, 10);
+    }
+
+    let mut scale = preferred_scale + digits.len().min(PRECISION) as i32 - 1 - exponent;
+    if digits.len() > PRECISION {
+        let guard = digits.pop().expect("division generated a guard digit");
+        let last = digits[PRECISION - 1];
+        if guard > 5 || guard == 5 && (!remainder.is_empty() || last % 2 == 1) {
+            if let Some(position) = digits.iter().rposition(|&digit| digit != 9) {
+                digits[position] += 1;
+                digits[position + 1..].fill(0);
+            } else {
+                digits.fill(0);
+                digits[0] = 1;
+                scale -= 1;
+            }
+        }
+    } else {
+        let padding = ((preferred_scale - scale).max(0) as usize).min(PRECISION - digits.len());
+        digits.resize(digits.len() + padding, 0);
+        scale += padding as i32;
+    }
+    let mut coefficient = String::with_capacity(digits.len() + usize::from(negative));
+    if negative {
+        coefficient.push('-');
+    }
+    coefficient.extend(digits.into_iter().map(|digit| char::from(b'0' + digit)));
+    Value::Number { coefficient, scale }
+}
+
+fn shift_decimal(limbs: &mut Vec<u64>, places: usize) {
+    multiply_limb_small(limbs, 10u64.pow((places % 9) as u32));
+    let whole_limbs = places / 9;
+    limbs.resize(limbs.len() + whole_limbs, 0);
+    limbs.rotate_right(whole_limbs);
+}
+
+fn multiply_limb_small(limbs: &mut Vec<u64>, factor: u64) {
+    let mut carry = 0;
+    for limb in limbs.iter_mut() {
+        let value = *limb * factor + carry;
+        *limb = value % DECIMAL_LIMB_BASE;
+        carry = value / DECIMAL_LIMB_BASE;
+    }
+    if carry != 0 {
+        limbs.push(carry);
+    }
+}
+
+fn compare_limbs(left: &[u64], right: &[u64]) -> Ordering {
+    left.len()
+        .cmp(&right.len())
+        .then_with(|| left.iter().rev().cmp(right.iter().rev()))
+}
+
+fn subtract_limbs(left: &mut Vec<u64>, right: &[u64]) {
+    let mut borrow = 0;
+    for (index, limb) in left.iter_mut().enumerate() {
+        let delta = right.get(index).copied().unwrap_or(0) + borrow;
+        borrow = u64::from(*limb < delta);
+        *limb = *limb + borrow * DECIMAL_LIMB_BASE - delta;
+    }
+    debug_assert_eq!(borrow, 0);
+    while left.last() == Some(&0) {
+        left.pop();
+    }
+}

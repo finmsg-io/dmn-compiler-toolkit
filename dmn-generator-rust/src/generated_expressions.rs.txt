@@ -1,0 +1,575 @@
+use std::cmp::Ordering;
+
+const DECIMAL_LIMB_BASE: u64 = 1_000_000_000;
+
+fn decimal_arithmetic(left: Value, right: Value, subtract: bool) -> Value {
+    let (
+        Value::Number {
+            coefficient: left,
+            scale: left_scale,
+        },
+        Value::Number {
+            coefficient: right,
+            scale: right_scale,
+        },
+    ) = (left, right)
+    else {
+        return Value::Null;
+    };
+    let scale = left_scale.max(right_scale);
+    let left_negative = left.starts_with('-');
+    let right_negative = right.starts_with('-') ^ subtract;
+    let left_digits = left.trim_start_matches('-');
+    let right_digits = right.trim_start_matches('-');
+    let subtract_magnitudes = left_negative != right_negative;
+    let right_is_larger = subtract_magnitudes
+        && compare_decimal(left_digits, left_scale, right_digits, right_scale).is_lt();
+    let (first, first_scale, second, second_scale, negative) = if right_is_larger {
+        (
+            right_digits,
+            right_scale,
+            left_digits,
+            left_scale,
+            right_negative,
+        )
+    } else {
+        (
+            left_digits,
+            left_scale,
+            right_digits,
+            right_scale,
+            left_negative,
+        )
+    };
+    let first_padding = (scale - first_scale) as usize;
+    let second_padding = (scale - second_scale) as usize;
+    let width = (first.len() + first_padding).max(second.len() + second_padding);
+    let mut first = aligned_digits(first, first_padding);
+    let mut second = aligned_digits(second, second_padding);
+    let second_sign = if subtract_magnitudes { -1 } else { 1 };
+    let mut carry = 0i8;
+    let mut digits = Vec::with_capacity(width + 2);
+    for _ in 0..width {
+        let digit = first.next().unwrap_or(0) + second_sign * second.next().unwrap_or(0) + carry;
+        digits.push(b'0' + digit.rem_euclid(10) as u8);
+        carry = digit.div_euclid(10);
+    }
+    debug_assert!(carry >= 0);
+    if carry > 0 {
+        digits.push(b'0' + carry as u8);
+    }
+    while digits.len() > 1 && digits.last() == Some(&b'0') {
+        digits.pop();
+    }
+    if negative && digits.as_slice() != b"0" {
+        digits.push(b'-');
+    }
+    digits.reverse();
+    Value::Number {
+        coefficient: String::from_utf8(digits).expect("arithmetic emits ASCII digits"),
+        scale,
+    }
+}
+
+fn aligned_digits(digits: &str, padding: usize) -> impl Iterator<Item = i8> + '_ {
+    std::iter::repeat_n(0, padding).chain(digits.bytes().rev().map(|digit| (digit - b'0') as i8))
+}
+
+fn multiply(left: Value, right: Value) -> Value {
+    use std::fmt::Write as _;
+    let (
+        Value::Number {
+            coefficient: left,
+            scale: left_scale,
+        },
+        Value::Number {
+            coefficient: right,
+            scale: right_scale,
+        },
+    ) = (left, right)
+    else {
+        return Value::Null;
+    };
+    let scale = left_scale + right_scale;
+    if left == "0" || right == "0" {
+        return Value::Number {
+            coefficient: "0".into(),
+            scale,
+        };
+    }
+    let negative = left.starts_with('-') ^ right.starts_with('-');
+    let left = decimal_limbs(&left);
+    let right = decimal_limbs(&right);
+    let mut product = vec![0; left.len() + right.len()];
+    for (i, a) in left.into_iter().enumerate() {
+        let mut carry = 0;
+        for (j, b) in right.iter().enumerate() {
+            let value = a * b + product[i + j] + carry;
+            product[i + j] = value % DECIMAL_LIMB_BASE;
+            carry = value / DECIMAL_LIMB_BASE;
+        }
+        product[i + right.len()] = carry;
+    }
+    let mut digits = product.into_iter().rev().skip_while(|limb| *limb == 0);
+    let leading = digits
+        .next()
+        .expect("nonzero factors yield a nonzero product");
+    let mut coefficient = String::new();
+    if negative {
+        coefficient.push('-');
+    }
+    write!(coefficient, "{leading}").unwrap();
+    for limb in digits {
+        write!(coefficient, "{limb:09}").unwrap();
+    }
+    Value::Number { coefficient, scale }
+}
+
+fn decimal_limbs(coefficient: &str) -> Vec<u64> {
+    coefficient
+        .trim_start_matches('-')
+        .as_bytes()
+        .rchunks(9)
+        .map(|digits| {
+            digits
+                .iter()
+                .fold(0, |limb, digit| limb * 10 + u64::from(digit - b'0'))
+        })
+        .collect()
+}
+
+fn negate(value: Value) -> Value {
+    if let Value::Number {
+        mut coefficient,
+        scale,
+    } = value
+    {
+        if coefficient.starts_with('-') {
+            coefficient.remove(0);
+        } else if coefficient != "0" {
+            coefficient.insert(0, '-');
+        }
+        Value::Number { coefficient, scale }
+    } else {
+        Value::Null
+    }
+}
+
+fn not(value: Value) -> Value {
+    match value {
+        Value::Boolean(value) => Value::Boolean(!value),
+        _ => Value::Null,
+    }
+}
+
+fn and(
+    left: Value,
+    right: impl FnOnce() -> Result<Value, &'static str>,
+) -> Result<Value, &'static str> {
+    Ok(match left {
+        Value::Boolean(false) => Value::Boolean(false),
+        Value::Boolean(true) => logical_value(right()?),
+        _ => match right()? {
+            Value::Boolean(false) => Value::Boolean(false),
+            _ => Value::Null,
+        },
+    })
+}
+fn or(
+    left: Value,
+    right: impl FnOnce() -> Result<Value, &'static str>,
+) -> Result<Value, &'static str> {
+    Ok(match left {
+        Value::Boolean(true) => Value::Boolean(true),
+        Value::Boolean(false) => logical_value(right()?),
+        _ => match right()? {
+            Value::Boolean(true) => Value::Boolean(true),
+            _ => Value::Null,
+        },
+    })
+}
+
+fn logical_value(value: Value) -> Value {
+    match value {
+        Value::Boolean(_) => value,
+        _ => Value::Null,
+    }
+}
+
+fn equal(left: Value, right: Value) -> Value {
+    match (&left, &right) {
+        (Value::Null, Value::Null) => Value::Boolean(true),
+        (Value::Null, _) | (_, Value::Null) => Value::Boolean(false),
+        (Value::Boolean(a), Value::Boolean(b)) => Value::Boolean(a == b),
+        (Value::List(a), Value::List(b)) => {
+            if a.len() != b.len() {
+                return Value::Boolean(false);
+            }
+            for (x, y) in a.iter().zip(b.iter()) {
+                if !matches!(equal(x.clone(), y.clone()), Value::Boolean(true)) {
+                    return Value::Boolean(false);
+                }
+            }
+            Value::Boolean(true)
+        }
+        (Value::Record(a), Value::Record(b)) => {
+            if a.len() != b.len() {
+                return Value::Boolean(false);
+            }
+            for (k, v1) in a {
+                let Some(v2) = b.get(k) else {
+                    return Value::Boolean(false);
+                };
+                if !matches!(equal(v1.clone(), v2.clone()), Value::Boolean(true)) {
+                    return Value::Boolean(false);
+                }
+            }
+            Value::Boolean(true)
+        }
+        (
+            Value::Range {
+                lower: l1,
+                upper: u1,
+                lower_inclusive: li1,
+                upper_inclusive: ui1,
+            },
+            Value::Range {
+                lower: l2,
+                upper: u2,
+                lower_inclusive: li2,
+                upper_inclusive: ui2,
+            },
+        ) => {
+            let eff_li1 = !matches!(**l1, Value::Null) && *li1;
+            let eff_li2 = !matches!(**l2, Value::Null) && *li2;
+            let eff_ui1 = !matches!(**u1, Value::Null) && *ui1;
+            let eff_ui2 = !matches!(**u2, Value::Null) && *ui2;
+            Value::Boolean(
+                eff_li1 == eff_li2
+                    && eff_ui1 == eff_ui2
+                    && matches!(equal((**l1).clone(), (**l2).clone()), Value::Boolean(true))
+                    && matches!(equal((**u1).clone(), (**u2).clone()), Value::Boolean(true)),
+            )
+        }
+        (Value::Time(_), Value::Time(_)) | (Value::DateTime(_), Value::DateTime(_)) => {
+            match compare(&left, &right) {
+                Some(order) => Value::Boolean(order.is_eq()),
+                None => Value::Boolean(false),
+            }
+        }
+        _ => match compare(&left, &right) {
+            Some(order) => Value::Boolean(order.is_eq()),
+            None => Value::Null,
+        },
+    }
+}
+
+fn ordered(left: Value, right: Value, predicate: fn(Ordering) -> bool) -> Value {
+    compare(&left, &right).map_or(Value::Null, |order| Value::Boolean(predicate(order)))
+}
+
+fn compare(left: &Value, right: &Value) -> Option<Ordering> {
+    match (left, right) {
+        (
+            Value::Date {
+                year: a,
+                month: b,
+                day: c,
+            },
+            Value::Date {
+                year: x,
+                month: y,
+                day: z,
+            },
+        ) => Some((a, b, c).cmp(&(x, y, z))),
+        (Value::Text(a), Value::Text(b)) => Some(a.encode_utf16().cmp(b.encode_utf16())),
+        (
+            Value::Number {
+                coefficient: a,
+                scale: a_scale,
+            },
+            Value::Number {
+                coefficient: b,
+                scale: b_scale,
+            },
+        ) => Some(compare_decimal(a, *a_scale, b, *b_scale)),
+        (Value::Time(a), Value::Time(b)) => compare_time_str(a, b),
+        (Value::DateTime(a), Value::DateTime(b)) => compare_datetime_str(a, b),
+        (Value::Duration(a), Value::Duration(b)) => compare_duration_str(a, b),
+        _ => None,
+    }
+}
+
+fn compare_decimal(left: &str, left_scale: i32, right: &str, right_scale: i32) -> Ordering {
+    fn sign(coefficient: &str) -> i8 {
+        match coefficient.as_bytes()[0] {
+            b'-' => -1,
+            b'0' => 0,
+            _ => 1,
+        }
+    }
+    let left_sign = sign(left);
+    let right_sign = sign(right);
+    match left_sign.cmp(&right_sign) {
+        Ordering::Equal if left_sign != 0 => {
+            let left = left.trim_start_matches('-');
+            let right = right.trim_start_matches('-');
+            let magnitude = (left.len() as i32 - left_scale)
+                .cmp(&(right.len() as i32 - right_scale))
+                .then_with(|| {
+                    let width = left.len().max(right.len());
+                    padded(left, width).cmp(padded(right, width))
+                });
+            if left_sign < 0 {
+                magnitude.reverse()
+            } else {
+                magnitude
+            }
+        }
+        order => order,
+    }
+}
+
+fn padded(digits: &str, width: usize) -> impl Iterator<Item = u8> + '_ {
+    digits
+        .bytes()
+        .chain(std::iter::repeat_n(b'0', width - digits.len()))
+}
+
+fn string_concat(left: Value, right: Value) -> Value {
+    match (left, right) {
+        (Value::Text(mut a), Value::Text(b)) => {
+            a.push_str(&b);
+            Value::Text(a)
+        }
+        _ => Value::Null,
+    }
+}
+
+fn to_integer(coefficient: &str, scale: i32) -> Option<i64> {
+    if coefficient == "0" || coefficient == "-0" {
+        return Some(0);
+    }
+    let is_neg = coefficient.starts_with('-');
+    let digits = coefficient.trim_start_matches('-');
+    if scale <= 0 {
+        let mut s = String::new();
+        if is_neg {
+            s.push('-');
+        }
+        s.push_str(digits);
+        for _ in 0..(-scale) {
+            s.push('0');
+        }
+        s.parse::<i64>().ok()
+    } else {
+        let places = scale as usize;
+        if digits.len() <= places {
+            if digits.bytes().all(|b| b == b'0') {
+                Some(0)
+            } else {
+                None
+            }
+        } else {
+            let split = digits.len() - places;
+            if digits.as_bytes()[split..].iter().all(|&b| b == b'0') {
+                let mut s = String::new();
+                if is_neg {
+                    s.push('-');
+                }
+                s.push_str(&digits[..split]);
+                s.parse::<i64>().ok()
+            } else {
+                None
+            }
+        }
+    }
+}
+
+fn trim_decimal_precision(val: Value, max_prec: usize) -> Value {
+    let Value::Number {
+        mut coefficient,
+        mut scale,
+    } = val
+    else {
+        return val;
+    };
+    while coefficient.len() > 1 && coefficient.ends_with('0') && scale > 0 {
+        coefficient.pop();
+        scale -= 1;
+    }
+    let is_neg = coefficient.starts_with('-');
+    let digits = coefficient.trim_start_matches('-');
+    if digits.len() <= max_prec {
+        return Value::Number { coefficient, scale };
+    }
+    let excess = digits.len() - max_prec;
+    let keep = &digits[..max_prec];
+    let next_digit = digits.as_bytes()[max_prec];
+    scale -= excess as i32;
+    let round_up = next_digit >= b'5';
+    if round_up {
+        let mut bytes = keep.as_bytes().to_vec();
+        let mut carry = true;
+        for b in bytes.iter_mut().rev() {
+            if *b == b'9' {
+                *b = b'0';
+            } else {
+                *b += 1;
+                carry = false;
+                break;
+            }
+        }
+        let mut res = String::new();
+        if is_neg {
+            res.push('-');
+        }
+        if carry {
+            res.push('1');
+            scale += 1;
+        }
+        res.push_str(std::str::from_utf8(&bytes).unwrap());
+        Value::Number {
+            coefficient: res,
+            scale,
+        }
+    } else {
+        let mut res = String::new();
+        if is_neg {
+            res.push('-');
+        }
+        res.push_str(keep);
+        Value::Number {
+            coefficient: res,
+            scale,
+        }
+    }
+}
+
+fn to_f64(coef: &str, scale: i32) -> Option<f64> {
+    let mut s = String::new();
+    let is_neg = coef.starts_with('-');
+    let digits = coef.trim_start_matches('-');
+    if is_neg {
+        s.push('-');
+    }
+    if scale <= 0 {
+        s.push_str(digits);
+        for _ in 0..(-scale) {
+            s.push('0');
+        }
+    } else {
+        let places = scale as usize;
+        if places >= digits.len() {
+            s.push_str("0.");
+            for _ in 0..(places - digits.len()) {
+                s.push('0');
+            }
+            s.push_str(digits);
+        } else {
+            let split = digits.len() - places;
+            s.push_str(&digits[..split]);
+            s.push('.');
+            s.push_str(&digits[split..]);
+        }
+    }
+    s.parse::<f64>().ok()
+}
+
+fn from_f64(val: f64) -> Value {
+    if !val.is_finite() {
+        return Value::Null;
+    }
+    let s = format!("{val:.15}");
+    let s = s.trim_end_matches('0');
+    let s = if s.ends_with('.') {
+        s.trim_end_matches('.')
+    } else {
+        s
+    };
+    if let Some(dot) = s.find('.') {
+        let scale = (s.len() - dot - 1) as i32;
+        let mut coef = String::with_capacity(s.len() - 1);
+        coef.push_str(&s[..dot]);
+        coef.push_str(&s[dot + 1..]);
+        Value::Number {
+            coefficient: coef,
+            scale,
+        }
+    } else {
+        Value::Number {
+            coefficient: s.to_string(),
+            scale: 0,
+        }
+    }
+}
+
+fn power(left: Value, right: Value) -> Value {
+    let (
+        Value::Number {
+            coefficient: left_coef,
+            scale: left_scale,
+        },
+        Value::Number {
+            coefficient: right_coef,
+            scale: right_scale,
+        },
+    ) = (&left, &right)
+    else {
+        return Value::Null;
+    };
+    if let Some(exp) = to_integer(right_coef, *right_scale) {
+        if exp == 0 {
+            return Value::Number {
+                coefficient: "1".into(),
+                scale: 0,
+            };
+        }
+        let (positive_exp, invert) = if exp < 0 {
+            (exp.unsigned_abs(), true)
+        } else {
+            (exp as u64, false)
+        };
+        let mut base = left.clone();
+        let mut e = positive_exp;
+        let mut acc = Value::Number {
+            coefficient: "1".into(),
+            scale: 0,
+        };
+        while e > 0 {
+            if e % 2 == 1 {
+                acc = multiply(acc, base.clone());
+                acc = trim_decimal_precision(acc, 34);
+            }
+            e /= 2;
+            if e > 0 {
+                base = multiply(base.clone(), base);
+                base = trim_decimal_precision(base, 34);
+            }
+        }
+        if invert {
+            divide(
+                Value::Number {
+                    coefficient: "1".into(),
+                    scale: 0,
+                },
+                acc,
+            )
+        } else {
+            acc
+        }
+    } else {
+        let base_f = to_f64(left_coef, *left_scale);
+        let exp_f = to_f64(right_coef, *right_scale);
+        if let (Some(b), Some(e)) = (base_f, exp_f) {
+            let res = b.powf(e);
+            if res.is_finite() {
+                from_f64(res)
+            } else {
+                Value::Null
+            }
+        } else {
+            Value::Null
+        }
+    }
+}

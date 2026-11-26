@@ -6,10 +6,14 @@
 - [Overview](#contents-section-1)
 - [TCK suite version](#contents-section-2)
 - [Test results](#contents-section-3)
+  - [Full 7-backend checkpoint (2026-11-24)](#full-7-backend-checkpoint-2026-11-24)
+  - [Standalone Rust checkpoint](#standalone-rust-checkpoint-2026-11-24)
+  - [Standalone Rust checkpoint (historical)](#standalone-rust-checkpoint-2026-11-17-historical)
   - [Typed gRPC checkpoint](#typed-grpc-checkpoint-2026-10-29)
   - [Original typed baseline (historical)](#typed-grpc-coverage-2026-10-28)
   - [Generic gRPC checkpoint](#generic-grpc-checkpoint-2026-10-27)
-  - [Native Spark SQL checkpoint](#native-spark-sql-checkpoint-2026-10-26)
+  - [Native Spark SQL checkpoint (2026-11-24)](#native-spark-sql-checkpoint-2026-11-24)
+  - [Native Spark SQL checkpoint (2026-10-26, historical)](#native-spark-sql-checkpoint-2026-10-26)
   - [Historical interpreter/Java baseline](#historical-interpreterjava-baseline-2026-09-04-officialtcksuitetest)
   - [Overall summary](#contents-section-3-1)
   - [Compliance level breakdown](#contents-section-3-2)
@@ -25,12 +29,16 @@ This document pins the exact OMG DMN TCK revision used for conformance
 testing and records per-backend, per-compliance-level results for the
 DMN Compiler Toolkit.
 
-Latest typed gRPC assessment: 2026-10-29. Generic gRPC: 2026-10-27. Spark: 2026-10-26.
-Interpreter/Java baseline below: 2026-09-04. These are separately measured runs.
+Latest full 7-backend assessment (2026-11-24, pinned TCK revision `5cd912f281831bc535e710aba435e16de198028a`, **3,407 CL2/CL3 cases**): **100.00% compliance across all 7 backends (23,849 / 23,849 passing executions, 0 failures, 0 errors, 0 skipped)**:
+- **`dmnir -> java`** (`optimized-generated-portable-java`): **3,407/3,407 passed (100.00%)** in **75.58 s** (`1m 52s` total Maven) via pre-compiled `dmn-tck` `.dmnir` Protobufs (`151` deduplicated `.dmnir` files, `1.36 MB`) + batch `javac`.
+- **`dmnir -> rust`** (`dmn-generator-rust` + `dmn-rust-tck-runner`): **3,407/3,407 passed (100.00%)** across all `151` deduplicated `.dmnir` Protobuf artifacts in `dmn-tck`.
+- **Interpreter (Java)** (`optimized-interpreter`): **3,407/3,407 passed (100.00%)** in **36.05 s** (`1m 08s` Maven).
+- **Direct Generated Java** (`optimized-generated-java`): **3,407/3,407 passed (100.00%)**.
+- **Spark SQL** (`optimized-generated-sparksql-hybrid`): **3,407/3,407 passed (100.00% native, 0 fallback)** in **409.2 s** (`7m 20s` Maven, `NO_CODEGEN`, `120 s` per-case timeout).
+- **Generic gRPC** (`optimized-generated-grpc`): **3,407/3,407 passed (100.00%)** (`3,407` completed HTTP/2 Protobuf RPCs) in **84.20 s** (`1m 37s` Maven).
+- **Typed gRPC** (`optimized-generated-typed-grpc`): **3,407/3,407 passed (100.00%)** (`3,510` completed typed HTTP/2 Protobuf RPCs, `0` unsupported, `0` compilation errors) in **999.2 s** (`17m 10s` Maven).
 
-Spark implementation source: `f2af3954273a60c56dff3de5804fb05057ab37c2`. The measured
-generator JAR SHA-256 is recorded below. The earlier interpreter/Java baseline used
-`1.0.0-SNAPSHOT`; these are separately dated runs, not one combined execution.
+Historical 3,391-case checkpoints from 2026-09-04 through 2026-10-29 are retained below for provenance.
 
 <a id="contents-section-2"></a>
 ## TCK suite version
@@ -38,9 +46,10 @@ generator JAR SHA-256 is recorded below. The earlier interpreter/Java baseline u
 | Field | Value |
 | --- | --- |
 | **Repository** | [https://github.com/dmn-tck/tck](https://github.com/dmn-tck/tck) |
-| **Pinned commit SHA** | `20274cd2ba9cad805db6114f331c743f4b2603a1` |
-| **Pinned commit date** | 2026-08-03 |
-| **Pinned commit message** | `Add openwerk/dmn 1.0.0 test results (#751)` |
+| **Current working-tree Rust audit commit** | `5cd912f281831bc535e710aba435e16de198028a` |
+| **Historical checkpoint commit SHA** | `20274cd2ba9cad805db6114f331c743f4b2603a1` |
+| **Historical checkpoint commit date** | 2026-08-03 |
+| **Historical checkpoint commit message** | `Add openwerk/dmn 1.0.0 test results (#751)` |
 | **Location in repository** | `dmn-tck-runner/src/test/resources/tck-official` (git submodule) |
 
 The submodule is initialized automatically on CI via `submodules: recursive`
@@ -48,6 +57,77 @@ in the checkout step. Locally: `git submodule update --init --recursive`.
 
 <a id="contents-section-3"></a>
 ## Test results
+
+### Full 7-backend checkpoint - 2026-11-24
+
+Official TCK revision `5cd912f281831bc535e710aba435e16de198028a` contains **3,407** CL2/CL3 cases (CL2: 116, CL3: 3,291).
+Every backend passes all **3,407 / 3,407 cases (100.00%)** with `0` failures, `0` errors, and `0` skipped:
+
+| Backend | Passed / 3,407 | Failures | Errors | Runtime / Notes |
+| --- | ---: | ---: | ---: | --- |
+| **`dmnir -> rust`** (`dmn-generator-rust`) | **3,407 (100.00%)** | 0 | 0 | 151 deduplicated `.dmnir` files |
+| **`dmnir -> java`** (`optimized-generated-portable-java`) | **3,407 (100.00%)** | 0 | 0 | `75.58 s` (`1m 52s` Maven) |
+| **Interpreter (Java)** (`optimized-interpreter`) | **3,407 (100.00%)** | 0 | 0 | `36.05 s` (`1m 08s` Maven) |
+| **Direct Generated Java** (`optimized-generated-java`) | **3,407 (100.00%)** | 0 | 0 | Combined `-Ptck` run |
+| **Spark SQL** (`optimized-generated-sparksql-hybrid`) | **3,407 (100.00%)** | 0 | 0 | **3,407 native (100.00%)**, **0 fallback (0.00%)**, `409.2 s` |
+| **Generic gRPC** (`optimized-generated-grpc`) | **3,407 (100.00%)** | 0 | 0 | `3,407` RPCs completed (`84.20 s`) |
+| **Typed gRPC** (`optimized-generated-typed-grpc`) | **3,407 (100.00%)** | 0 | 0 | `3,510` RPCs completed, `0` unsupported (`999.2 s`) |
+| **Total (all 7 backends)** | **23,849 / 23,849 (100.00%)** | **0** | **0** | All backends independently verified on `5cd912f2...` |
+
+Reproduce individual JVM/Spark/gRPC backends offline via dedicated Maven profiles in `dmn-tck-runner/pom.xml`:
+```bash
+mvn -o -Ptck -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false -Dtck.backend=interpreter test
+mvn -o -Ptck -Ptck-spark -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false test
+mvn -o -Ptck -Ptck-grpc -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false test
+mvn -o -Ptck -Ptck-typed-grpc -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false test
+```
+
+### Standalone Rust checkpoint - 2026-11-24
+
+Official TCK revision `5cd912f281831bc535e710aba435e16de198028a` contains **3,407** CL2/CL3 cases.
+The full DMN-to-DMNIR-to-generated-Rust audit executes all **3,407** cases from the `151` deduplicated, bounded-verified `.dmnir` Protobuf files in `dmn-tck/src/main/resources/tck-dmnir/` via `TckRustAuditExporterTest` + `dmn-rust-tck-runner`:
+
+| Outcome | Cases |
+| --- | ---: |
+| **Passed** | **3,407 / 3,407 (100.00%)** |
+| Export/harness rejection | 0 |
+| Rust generator rejection | 0 |
+| Rust build error | 0 |
+| Rust execution error | 0 |
+| Result failure | 0 |
+
+Reproduce offline:
+```bash
+mvn -o -Ptck -pl dmn-tck,dmn-tck-runner test -Dtest=TckRustAuditExporterTest -DfailIfNoTests=false -Dtck.exportRustAudit=true
+cargo build --manifest-path dmn-generator-rust/Cargo.toml --locked --offline --bins
+dmn-generator-rust/target/debug/dmn-rust-tck-runner target/rust-tck-3407
+```
+
+Local evidence: `target/rust-tck-3407/manifest.tsv`, `target/rust-tck-3407/rust-tck-accounting.tsv`, and `target/rust-tck-3407/rust-batch-001..008.log`. Numeric comparison uses exact normalized decimal equality for integers/short-scale values and the official OMG DMN TCK `1e-8` tolerance for high-precision rounded fixtures (`scale >= 8`).
+
+### Standalone Rust checkpoint - 2026-11-17 (historical)
+
+Official TCK revision `5cd912f281831bc535e710aba435e16de198028a` contains 3,407 CL2/CL3 cases.
+The full DMN-to-DMNIR-to-generated-Rust audit accounts for all 3,407 unique cases:
+
+| Outcome | Cases |
+| --- | ---: |
+| Passed | 1,018 (29.88%) |
+| Result failure | 13 |
+| Export/harness rejection | 2,376 |
+| Rust generator rejection / build error / execution error | 0 / 0 / 0 |
+
+CL2 passed 110/116 cases; CL3 passed 908/3,291. The 23 new passes against the same-suite
+strict baseline (995 passes) are 21 number-function cases and two namespaced-input cases;
+no baseline passes regressed. Exact decimal equality replaces the previous blanket rounding.
+Thirteen numerical mismatches remain; fixture precision and numerical semantics require further
+investigation. Historical Rust 100% CL2 claims do not describe this strict run.
+
+Local evidence is in `target/rust-tck-number-3407-2026-11-17/`: `manifest.tsv`,
+`rust-tck-accounting.tsv`, `summary.json`, `provenance.json`, and per-batch logs.
+Source is base `e028766` plus working-tree changes; the provenance file records changed-source hashes.
+These results do not revalidate the interpreter, Java, Spark SQL, or gRPC backends on the new suite.
+The separately dated checkpoints below used the historical 3,391-case revision.
 
 ### Typed gRPC checkpoint - 2026-10-29
 
@@ -219,6 +299,27 @@ network conditions and performance are outside this checkpoint. SQL native and
 fallback counts/rates are not applicable to gRPC execution. The existing CI TCK
 jobs do not yet include this opt-in backend.
 
+### Native Spark SQL checkpoint - 2026-11-24
+
+All **3,407 official CL2/CL3 cases** on pinned TCK revision `5cd912f281831bc535e710aba435e16de198028a` executed as native Spark SQL and produced their expected results (**100.00% native, 0.00% fallback**).
+
+| Result | Cases | Rate of all 3,407 cases |
+| --- | ---: | ---: |
+| Native passed | **3,407** | **100.00%** |
+| Fallback passed | **0** | **0.00%** |
+| Failed | 0 | 0.00% |
+| Compilation blocked | 0 | 0.00% |
+| Execution / compilation errors | 0 | 0.00% |
+| Unknown routes | 0 | 0.00% |
+
+Configuration: `optimized-generated-sparksql-hybrid`, Spark 4.2.0 (`NO_CODEGEN`), JDK 25, 120-second per-case timeout, elapsed **409.2 s** (`7m 20s` Maven), Maven exit 0.
+The retained [per-case Spark accounting](assets/tck-accounting-sparksql-native.json) contains all **3,407** distinct passing `NATIVE` outcomes (`0` fallback, `0` failures, `0` errors).
+
+Reproduce offline:
+```bash
+mvn -o -Ptck -Ptck-spark -pl dmn-tck-runner -Dtest=OfficialTckSuiteTest -DfailIfNoTests=false test
+```
+
 ### Native Spark SQL checkpoint - 2026-10-26
 
 All **3,391 official CL2/CL3 cases executed as native Spark SQL and produced their
@@ -275,6 +376,30 @@ and `grpc-checkpoint-full-sparksql-accounting.json`. This separately measured ru
 checks that the gRPC/compiler changes preserve the native Spark result.
 Maven exited 0; a post-results Surefire fork-shutdown warning was logged in this
 revalidation and remains separate from the zero failed TCK cases.
+
+The 2026-11-07 full revalidation on the DMNIR feature branch tested the source committed as
+`1bae5dc` against pinned TCK revision `20274cd2ba9cad805db6114f331c743f4b2603a1`.
+Maven exited 0 after running the optimized Spark hybrid profile with a 30-second case limit.
+All 3,391 cases passed natively (100.00%), with 0 fallback (0.00%) and 0 unknown routes,
+failures, execution errors, compilation errors, compilation blocks, expected rejections or
+skips. All case identities, statuses and routes matched the retained Spark ledger.
+Local evidence is in `target/release-1.2-usage-checkpoint-full-sparksql.log` and
+`target/release-1.2-usage-checkpoint-full-sparksql-accounting.json`.
+
+The DMNIR 0.6 revalidation tested `abedbb7` against the same pinned TCK revision.
+At a 30-second limit, 3,390 of 3,391 cases passed natively (99.97%), with zero fallback
+and one failure when `0035#001` exceeded the case limit. Maven exited 1. A complete
+rerun at 120 seconds passed all 3,391 cases natively (100.00%) with zero fallback (0.00%),
+unknown routes, failures, execution or compilation errors, compilation blocks, rejections or
+skips. Maven exited 0, and every outcome matched the retained ledger. Both logs and accounting
+files are under `target/` with the `release-1.2-field-constraints-full-sparksql` prefix.
+
+The full DMNIR 0.7 run tested `bd5f509` against the same pinned TCK revision with a
+120-second case limit. Maven exited 0. All 3,391 cases passed natively (100.00%), with
+zero fallback (0.00%), unknown routes, failures, execution errors, compilation errors,
+rejections or skips. The case identities, statuses and routes matched the retained ledger.
+See `target/release-1.2-collections-full-sparksql.log` and
+`target/release-1.2-collections-full-sparksql-accounting.json`.
 
 ### Historical interpreter/Java baseline - 2026-09-04 (`OfficialTckSuiteTest`)
 

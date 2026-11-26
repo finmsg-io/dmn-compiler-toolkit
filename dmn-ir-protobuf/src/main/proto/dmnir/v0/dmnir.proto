@@ -1,0 +1,540 @@
+syntax = "proto3";
+
+package io.finmsg.dmn.dmnir.v0;
+
+option java_package = "io.finmsg.dmn.dmnir.proto.v0";
+option java_multiple_files = true;
+option java_outer_classname = "DmnIrProtos";
+
+// Experimental profiles 0.0 through 0.8 of ADR-0026. Not a stable v1 wire contract.
+// No semantic-protobuf imports, FEEL source, original XML or second logic graph.
+// Parsing these messages does NOT validate an executable model. A bounded verifier
+// must check versions, capabilities, declarations, types, references and ordering.
+message DmnIrArtifact {
+  DmnIrSchemaVersion schema_version = 1;
+  string semantics_version = 2;
+  repeated string required_capabilities = 3;
+  string root_model_namespace = 4;
+  repeated DmnIrModel models = 5;
+  // Resolved decision identities, in validated dependency order across models.
+  // This is a derived schedule, not a second representation of decision logic.
+  repeated DmnIrReference evaluation_order = 6;
+}
+
+message DmnIrSchemaVersion {
+  // Explicit presence distinguishes experimental major zero from a missing version.
+  optional uint32 major = 1;
+  optional uint32 minor = 2;
+}
+
+message DmnIrModel {
+  DmnIrElementIdentity identity = 1;
+  // The business model namespace, NOT the DMN standard's XML vocabulary URI.
+  string namespace = 2;
+  repeated DmnIrImport imports = 3;
+  repeated DmnIrInput inputs = 4;
+  repeated DmnIrDecision decisions = 5;
+  repeated DmnIrRecordDefinition record_definitions = 6;
+  repeated DmnIrCollectionDefinition collection_definitions = 7;
+  repeated DmnIrBkm bkms = 8;
+  repeated DmnIrDecisionService decision_services = 9;
+}
+
+message DmnIrDecisionService {
+  DmnIrElementIdentity identity = 1;
+  DmnIrVariable variable = 2;
+  repeated DmnIrReference output_decisions = 3;
+  repeated DmnIrReference encapsulated_decisions = 4;
+  repeated DmnIrReference input_decisions = 5;
+  repeated DmnIrReference input_data = 6;
+}
+
+message DmnIrElementIdentity {
+  string id = 1;
+  string name = 2;
+}
+
+message DmnIrImport {
+  // References a bundled model; no external source retrieval is required.
+  string model_namespace = 1;
+  // Local import alias, distinct from the imported model's display name.
+  string name = 2;
+  // Optional interchange hint; never an executable loading instruction.
+  optional string location_uri = 3;
+}
+
+message DmnIrVariable {
+  // DMN information-item identity may differ from its owning DRG element.
+  optional string id = 1;
+  string name = 2;
+  DmnIrScalarType type = 3;
+  // Select exactly one scalar, record, or collection type.
+  DmnIrReference record_type = 4;
+  DmnIrReference collection_type = 5;
+}
+
+message DmnIrInput {
+  DmnIrElementIdentity identity = 1;
+  DmnIrVariable variable = 2;
+}
+
+message DmnIrDecision {
+  DmnIrElementIdentity identity = 1;
+  DmnIrVariable variable = 2;
+  repeated DmnIrReference dependencies = 3;
+  DmnIrExpression expression = 4;
+  DmnIrDecisionTable decision_table = 5;
+  repeated DmnIrReference knowledge_dependencies = 6;
+}
+
+message DmnIrBkm {
+  DmnIrElementIdentity identity = 1;
+  repeated DmnIrBkmParameter parameters = 2;
+  DmnIrVariable variable = 3;
+  DmnIrExpression body = 4;
+  repeated DmnIrReference knowledge_dependencies = 5;
+}
+
+message DmnIrBkmParameter {
+  string binding_id = 1;
+  DmnIrVariable variable = 2;
+}
+
+message DmnIrBkmCall {
+  DmnIrReference target = 1;
+  repeated DmnIrBkmArgument arguments = 2;
+}
+
+message DmnIrBkmArgument {
+  // One-based formal parameter position. Arguments remain in evaluation order.
+  uint32 parameter_position = 1;
+  DmnIrExpression expression = 2;
+}
+
+enum DmnIrTableHitPolicy {
+  TABLE_HIT_POLICY_UNSPECIFIED = 0;
+  TABLE_HIT_POLICY_UNIQUE = 1;
+  TABLE_HIT_POLICY_FIRST = 2;
+  TABLE_HIT_POLICY_ANY = 3;
+  TABLE_HIT_POLICY_RULE_ORDER = 4;
+  TABLE_HIT_POLICY_OUTPUT_ORDER = 5;
+  TABLE_HIT_POLICY_COLLECT = 6;
+  TABLE_HIT_POLICY_COLLECT_SUM = 7;
+  TABLE_HIT_POLICY_COLLECT_MIN = 8;
+  TABLE_HIT_POLICY_COLLECT_MAX = 9;
+  TABLE_HIT_POLICY_COLLECT_COUNT = 10;
+}
+
+message DmnIrDecisionTable {
+  optional string id = 1;
+  DmnIrTableHitPolicy hit_policy = 2;
+  repeated DmnIrTableInput inputs = 3;
+  repeated DmnIrTableOutput outputs = 4;
+  repeated DmnIrTableRule rules = 5;
+}
+
+message DmnIrTableInput {
+  optional string id = 1;
+  optional string label = 2;
+  DmnIrExpression expression = 3;
+  DmnIrScalarType type = 4;
+}
+
+message DmnIrTableOutput {
+  optional string id = 1;
+  optional string name = 2;
+  DmnIrScalarType type = 3;
+  DmnIrExpression default_expression = 4;
+}
+
+message DmnIrTableRule {
+  optional string id = 1;
+  repeated DmnIrUnaryTests input_entries = 2;
+  repeated DmnIrExpression output_entries = 3;
+}
+
+message DmnIrUnaryTests {
+  bool wildcard = 1;
+  bool negated = 2;
+  repeated DmnIrUnaryTest tests = 3;
+}
+
+message DmnIrUnaryTest {
+  oneof test {
+    DmnIrTestComparison comparison = 1;
+    DmnIrTestRange range = 2;
+  }
+}
+
+message DmnIrTestComparison {
+  DmnIrBinaryOperator operator = 1;
+  DmnIrExpression endpoint = 2;
+}
+
+message DmnIrTestRange {
+  DmnIrExpression lower = 1;
+  DmnIrExpression upper = 2;
+  bool lower_inclusive = 3;
+  bool upper_inclusive = 4;
+}
+
+message DmnIrReference {
+  // Fully resolved identity, independent of source aliases and execution slots.
+  string model_namespace = 1;
+  string element_id = 2;
+}
+
+enum DmnIrScalarType {
+  SCALAR_TYPE_UNSPECIFIED = 0;
+  SCALAR_TYPE_NULL = 1;
+  SCALAR_TYPE_BOOLEAN = 2;
+  SCALAR_TYPE_NUMBER = 3;
+  SCALAR_TYPE_STRING = 4;
+  SCALAR_TYPE_DATE = 5;
+  SCALAR_TYPE_TIME = 6;
+  SCALAR_TYPE_DATE_TIME = 7;
+  SCALAR_TYPE_DURATION = 8;
+}
+
+message DmnIrExpression {
+  DmnIrScalarType type = 1;
+  // Schema 0.2: mutually exclusive with a supported scalar type.
+  DmnIrReference record_type = 7;
+  DmnIrReference collection_type = 11;
+  // Other structured operations arrive in later slices. An unset/unknown node
+  // must be rejected by the verifier, never treated as an implicit null literal.
+  oneof node {
+    DmnIrLiteral literal = 2;
+    DmnIrReference global_reference = 3;
+    // These nodes require schema 0.1 and dmnir.scalar-expressions.
+    DmnIrUnaryExpression unary = 4;
+    DmnIrBinaryExpression binary = 5;
+    DmnIrConditionalExpression conditional = 6;
+    DmnIrFieldAccess field_access = 8;
+    DmnIrLocalReference local_reference = 9;
+    DmnIrContextExpression context = 10;
+    DmnIrListExpression list = 12;
+    DmnIrFilterExpression filter = 13;
+    DmnIrBuiltinCall builtin_call = 14;
+    DmnIrBkmCall bkm_call = 15;
+    DmnIrClosureInvocation closure_invocation = 16;
+    DmnIrClosure closure = 17;
+    DmnIrContextLiteral context_literal = 18;
+    DmnIrRangeExpression range = 19;
+    DmnIrInstanceOfExpression instance_of = 20;
+    DmnIrForExpression for_expression = 21;
+    DmnIrQuantifiedExpression quantified = 22;
+    DmnIrDynamicInvocation dynamic_invocation = 23;
+  }
+}
+
+message DmnIrDynamicInvocation {
+  DmnIrExpression target = 1;
+  repeated DmnIrExpression positional_arguments = 2;
+  repeated DmnIrNamedArgument named_arguments = 3;
+}
+
+message DmnIrNamedArgument {
+  string name = 1;
+  DmnIrExpression value = 2;
+}
+
+message DmnIrTypeReference {
+  oneof kind {
+    DmnIrScalarType scalar_type = 1;
+    DmnIrReference record_type = 2;
+    DmnIrReference collection_type = 3;
+  }
+}
+
+message DmnIrCollectionDefinition {
+  DmnIrElementIdentity identity = 1;
+  DmnIrScalarType element_type = 2;
+  DmnIrReference record_type = 3;
+  DmnIrReference collection_type = 4;
+}
+
+message DmnIrFilterExpression {
+  DmnIrExpression source = 1;
+  string item_binding_id = 2;
+  DmnIrExpression predicate = 3;
+}
+
+enum DmnIrBuiltinOperation {
+  BUILTIN_OPERATION_UNSPECIFIED = 0;
+  BUILTIN_OPERATION_ABS_NUMBER = 1;
+  BUILTIN_OPERATION_STRING_LENGTH = 2;
+  BUILTIN_OPERATION_CONTAINS_STRING = 3;
+  BUILTIN_OPERATION_MODULO = 4;
+  BUILTIN_OPERATION_FLOOR = 5;
+  BUILTIN_OPERATION_CEILING = 6;
+  BUILTIN_OPERATION_EVEN = 7;
+  BUILTIN_OPERATION_ODD = 8;
+  BUILTIN_OPERATION_DECIMAL = 9;
+  BUILTIN_OPERATION_ROUND_UP = 10;
+  BUILTIN_OPERATION_ROUND_DOWN = 11;
+  BUILTIN_OPERATION_ROUND_HALF_UP = 12;
+  BUILTIN_OPERATION_ROUND_HALF_DOWN = 13;
+  BUILTIN_OPERATION_UPPER_CASE = 14;
+  BUILTIN_OPERATION_LOWER_CASE = 15;
+  BUILTIN_OPERATION_SUBSTRING = 16;
+  BUILTIN_OPERATION_SUBSTRING_BEFORE = 17;
+  BUILTIN_OPERATION_SUBSTRING_AFTER = 18;
+  BUILTIN_OPERATION_STARTS_WITH = 19;
+  BUILTIN_OPERATION_ENDS_WITH = 20;
+  BUILTIN_OPERATION_MATCHES = 21;
+  BUILTIN_OPERATION_REPLACE = 22;
+  BUILTIN_OPERATION_SPLIT = 23;
+  BUILTIN_OPERATION_STRING_JOIN = 24;
+  BUILTIN_OPERATION_NUMBER_FROM_STRING = 25;
+  BUILTIN_OPERATION_SUM_NUMBER_LIST = 26;
+  BUILTIN_OPERATION_MIN_NUMBER_LIST = 27;
+  BUILTIN_OPERATION_MAX_NUMBER_LIST = 28;
+  BUILTIN_OPERATION_MEAN_NUMBER_LIST = 29;
+  BUILTIN_OPERATION_MEDIAN_NUMBER_LIST = 30;
+  BUILTIN_OPERATION_ALL_BOOLEAN_LIST = 31;
+  BUILTIN_OPERATION_ANY_BOOLEAN_LIST = 32;
+  BUILTIN_OPERATION_SQRT = 33;
+  BUILTIN_OPERATION_PRODUCT_NUMBER_LIST = 34;
+  BUILTIN_OPERATION_EXP = 35;
+  BUILTIN_OPERATION_LOG = 36;
+  BUILTIN_OPERATION_STRING_FROM = 37;
+  BUILTIN_OPERATION_SUBLIST = 38;
+  BUILTIN_OPERATION_APPEND = 39;
+  BUILTIN_OPERATION_CONCATENATE = 40;
+  BUILTIN_OPERATION_INSERT_BEFORE = 41;
+  BUILTIN_OPERATION_REMOVE = 42;
+  BUILTIN_OPERATION_REVERSE = 43;
+  BUILTIN_OPERATION_INDEX_OF = 44;
+  BUILTIN_OPERATION_DISTINCT_VALUES = 45;
+  BUILTIN_OPERATION_FLATTEN = 46;
+  BUILTIN_OPERATION_UNION = 47;
+  BUILTIN_OPERATION_LIST_CONTAINS = 48;
+  BUILTIN_OPERATION_COUNT = 49;
+  BUILTIN_OPERATION_MODE = 50;
+  BUILTIN_OPERATION_GET_VALUE = 51;
+  BUILTIN_OPERATION_CONTEXT_PUT = 52;
+  BUILTIN_OPERATION_CONTEXT_MERGE = 53;
+  BUILTIN_OPERATION_LIST_REPLACE = 54;
+  BUILTIN_OPERATION_RANGE = 55;
+  BUILTIN_OPERATION_SORT = 56;
+  BUILTIN_OPERATION_DATE = 57;
+  BUILTIN_OPERATION_TIME = 58;
+  BUILTIN_OPERATION_DATE_AND_TIME = 59;
+  BUILTIN_OPERATION_DURATION = 60;
+  BUILTIN_OPERATION_YEARS_AND_MONTHS_DURATION = 61;
+  BUILTIN_OPERATION_DAY_OF_YEAR = 62;
+  BUILTIN_OPERATION_DAY_OF_WEEK = 63;
+  BUILTIN_OPERATION_MONTH_OF_YEAR = 64;
+  BUILTIN_OPERATION_WEEK_OF_YEAR = 65;
+  BUILTIN_OPERATION_STDDEV = 66;
+  BUILTIN_OPERATION_NOW = 67;
+  BUILTIN_OPERATION_TODAY = 68;
+  BUILTIN_OPERATION_GET_ENTRIES = 69;
+  BUILTIN_OPERATION_CONTEXT = 70;
+  BUILTIN_OPERATION_IS = 71;
+  BUILTIN_OPERATION_BEFORE = 72;
+  BUILTIN_OPERATION_AFTER = 73;
+  BUILTIN_OPERATION_MEETS = 74;
+  BUILTIN_OPERATION_MET_BY = 75;
+  BUILTIN_OPERATION_OVERLAPS = 76;
+  BUILTIN_OPERATION_OVERLAPS_BEFORE = 77;
+  BUILTIN_OPERATION_OVERLAPS_AFTER = 78;
+  BUILTIN_OPERATION_FINISHES = 79;
+  BUILTIN_OPERATION_FINISHED_BY = 80;
+  BUILTIN_OPERATION_INCLUDES = 81;
+  BUILTIN_OPERATION_DURING = 82;
+  BUILTIN_OPERATION_STARTS = 83;
+  BUILTIN_OPERATION_STARTED_BY = 84;
+  BUILTIN_OPERATION_COINCIDES = 85;
+}
+
+message DmnIrBuiltinCall {
+  DmnIrBuiltinOperation operation = 1;
+  repeated DmnIrExpression arguments = 2;
+}
+
+message DmnIrListExpression {
+  repeated DmnIrExpression elements = 1;
+}
+
+message DmnIrRecordDefinition {
+  DmnIrElementIdentity identity = 1;
+  repeated DmnIrRecordField fields = 2;
+}
+
+message DmnIrRecordField {
+  optional string id = 1;
+  string name = 2;
+  DmnIrTypeReference type = 3;
+  DmnIrUnaryTests constraint = 4;
+}
+
+message DmnIrFieldAccess {
+  DmnIrExpression source = 1;
+  string field_name = 2;
+}
+
+// Binding IDs are decision-local identities, never runtime frame/slot addresses.
+message DmnIrLocalReference {
+  string binding_id = 1;
+}
+message DmnIrLocalBinding {
+  string binding_id = 1;
+  DmnIrVariable variable = 2;
+  DmnIrExpression value = 3;
+  DmnIrClosureBinding closure = 4;
+}
+
+message DmnIrClosureBinding {
+  string name = 1;
+  optional string id = 2;
+  DmnIrClosure definition = 3;
+}
+
+message DmnIrClosure {
+  repeated DmnIrBkmParameter parameters = 1;
+  DmnIrTypeReference result_type = 2;
+  repeated string captured_binding_ids = 3;
+  DmnIrExpression body = 4;
+  bool external = 5;
+}
+
+message DmnIrClosureInvocation {
+  oneof target {
+    string local_binding_id = 1;
+    DmnIrClosure inline = 2;
+  }
+  repeated DmnIrExpression arguments = 3;
+}
+message DmnIrContextExpression {
+  repeated DmnIrLocalBinding bindings = 1;
+  DmnIrExpression result = 2;
+}
+
+message DmnIrContextLiteral {
+  repeated DmnIrLocalBinding entries = 1;
+}
+
+message DmnIrRangeExpression {
+  DmnIrExpression lower = 1;
+  DmnIrExpression upper = 2;
+  bool lower_inclusive = 3;
+  bool upper_inclusive = 4;
+}
+
+message DmnIrTypeField {
+  string name = 1;
+  DmnIrTypeDescriptor type = 2;
+}
+
+message DmnIrTypeDescriptor {
+  string kind = 1;
+  DmnIrTypeDescriptor element_type = 2;
+  repeated DmnIrTypeField fields = 3;
+  repeated DmnIrTypeDescriptor parameter_types = 4;
+  DmnIrTypeDescriptor return_type = 5;
+}
+
+message DmnIrInstanceOfExpression {
+  DmnIrExpression expression = 1;
+  DmnIrTypeDescriptor tested_type = 2;
+}
+
+message DmnIrForIteration {
+  string binding_id = 1;
+  string variable_name = 2;
+  DmnIrExpression source = 3;
+  DmnIrExpression range_end = 4;
+}
+
+message DmnIrForExpression {
+  repeated DmnIrForIteration iterations = 1;
+  string partial_binding_id = 2;
+  DmnIrExpression body = 3;
+}
+
+message DmnIrQuantifiedExpression {
+  bool every = 1;
+  repeated DmnIrForIteration bindings = 2;
+  DmnIrExpression satisfies = 3;
+}
+
+message DmnIrUnaryExpression {
+  DmnIrUnaryOperator operator = 1;
+  DmnIrExpression operand = 2;
+}
+
+message DmnIrBinaryExpression {
+  DmnIrBinaryOperator operator = 1;
+  DmnIrExpression left = 2;
+  DmnIrExpression right = 3;
+}
+
+message DmnIrConditionalExpression {
+  DmnIrExpression condition = 1;
+  DmnIrExpression then_expression = 2;
+  DmnIrExpression else_expression = 3;
+}
+
+// Numeric identities are portable contracts, never Java enum ordinals.
+enum DmnIrUnaryOperator {
+  UNARY_OPERATOR_UNSPECIFIED = 0;
+  UNARY_OPERATOR_POSITIVE = 1;
+  UNARY_OPERATOR_NEGATE = 2;
+  UNARY_OPERATOR_NOT = 3;
+}
+
+enum DmnIrBinaryOperator {
+  BINARY_OPERATOR_UNSPECIFIED = 0;
+  BINARY_OPERATOR_ADD = 1;
+  BINARY_OPERATOR_SUBTRACT = 2;
+  BINARY_OPERATOR_MULTIPLY = 3;
+  BINARY_OPERATOR_DIVIDE = 4;
+  BINARY_OPERATOR_POWER = 5;
+  BINARY_OPERATOR_EQUAL = 6;
+  BINARY_OPERATOR_NOT_EQUAL = 7;
+  BINARY_OPERATOR_LESS = 8;
+  BINARY_OPERATOR_LESS_EQUAL = 9;
+  BINARY_OPERATOR_GREATER = 10;
+  BINARY_OPERATOR_GREATER_EQUAL = 11;
+  BINARY_OPERATOR_AND = 12;
+  BINARY_OPERATOR_OR = 13;
+}
+
+message DmnIrLiteral {
+  // Oneof presence preserves explicit null, false, empty string and numeric zero.
+  oneof value {
+    DmnIrNull null_value = 1;
+    bool boolean_value = 2;
+    string string_value = 3;
+    DmnIrDecimal number_value = 4;
+    DmnIrDate date_value = 5;
+    string time_value = 6;
+    string date_time_value = 7;
+    string duration_value = 8;
+  }
+}
+
+enum DmnIrNull {
+  NULL_VALUE = 0;
+}
+
+// Timezone-free proleptic Gregorian civil date. All components require presence.
+// Semantic year range is -999999999 through 999999999, excluding year zero.
+message DmnIrDate {
+  optional sint32 year = 1;
+  optional uint32 month = 2;
+  optional uint32 day = 3;
+}
+
+message DmnIrDecimal {
+  // Exact value = unscaled_value * 10^(-scale), without binary floating point.
+  // Integer grammar: 0|-?[1-9][0-9]* (ASCII); no plus, leading zeros or negative zero.
+  // Preserve trailing coefficient zeros and signed scale: numeric equality does
+  // not imply byte identity. Canonical content hashing is a separate contract.
+  string unscaled_value = 1;
+  // Presence is mandatory even for zero. Resource limits are verifier policy;
+  // consumers must bound coefficient length and scale before numeric expansion.
+  optional sint32 scale = 2;
+}

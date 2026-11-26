@@ -1,0 +1,159 @@
+fn table_compare(candidate: &Value, endpoint: Value, op: i32) -> bool {
+    match op {
+        6 => {
+            if let Value::Range {
+                lower,
+                upper,
+                lower_inclusive,
+                upper_inclusive,
+            } = endpoint
+            {
+                return table_range_open(candidate, *lower, *upper, lower_inclusive, upper_inclusive);
+            }
+            if matches!(equal(candidate.clone(), endpoint.clone()), Value::Boolean(true)) {
+                return true;
+            }
+            if let Value::List(items) = endpoint {
+                return items
+                    .into_iter()
+                    .any(|it| matches!(equal(candidate.clone(), it), Value::Boolean(true)));
+            }
+            false
+        }
+        7 => !table_compare(candidate, endpoint, 6),
+        _ => compare(candidate, &endpoint).is_some_and(|order| match op {
+            8 => order.is_lt(),
+            9 => order.is_le(),
+            10 => order.is_gt(),
+            11 => order.is_ge(),
+            _ => false,
+        }),
+    }
+}
+fn table_range_open(
+    candidate: &Value,
+    lower: Value,
+    upper: Value,
+    lower_inclusive: bool,
+    upper_inclusive: bool,
+) -> bool {
+    let low_ok = match &lower {
+        Value::Null => true,
+        _ => compare(candidate, &lower).is_some_and(|order| {
+            if lower_inclusive { order.is_ge() } else { order.is_gt() }
+        }),
+    };
+    let high_ok = match &upper {
+        Value::Null => true,
+        _ => compare(candidate, &upper).is_some_and(|order| {
+            if upper_inclusive { order.is_le() } else { order.is_lt() }
+        }),
+    };
+    low_ok && high_ok
+}
+fn table_range(
+    candidate: &Value,
+    lower: Value,
+    upper: Value,
+    lower_inclusive: bool,
+    upper_inclusive: bool,
+) -> bool {
+    compare(&lower, &upper).is_some_and(|order| !order.is_gt())
+        && compare(candidate, &lower).is_some_and(|order| {
+            if lower_inclusive {
+                order.is_ge()
+            } else {
+                order.is_gt()
+            }
+        })
+        && compare(candidate, &upper).is_some_and(|order| {
+            if upper_inclusive {
+                order.is_le()
+            } else {
+                order.is_lt()
+            }
+        })
+}
+fn table_result(
+    rows: Vec<Vec<Value>>,
+    policy: i32,
+    names: &[&str],
+    defaults: impl FnOnce() -> Result<Vec<Value>, &'static str>,
+) -> Result<Value, &'static str> {
+    if policy == 7 {
+        if rows.is_empty() {
+            return Ok(defaults()?.into_iter().next().unwrap_or(Value::Null));
+        }
+        let mut sum = Value::Number { coefficient: "0".into(), scale: 0 };
+        for row in rows {
+            let val = row.into_iter().next().unwrap();
+            sum = decimal_arithmetic(sum, val, false);
+        }
+        return Ok(sum);
+    }
+    if policy == 8 {
+        if rows.is_empty() {
+            return Ok(defaults()?.into_iter().next().unwrap_or(Value::Null));
+        }
+        let mut min: Option<Value> = None;
+        for row in rows {
+            let val = row.into_iter().next().unwrap();
+            min = match min {
+                None => Some(val),
+                Some(cur) => if compare(&val, &cur).is_some_and(|o| o.is_lt()) { Some(val) } else { Some(cur) },
+            };
+        }
+        return Ok(min.unwrap_or(Value::Null));
+    }
+    if policy == 9 {
+        if rows.is_empty() {
+            return Ok(defaults()?.into_iter().next().unwrap_or(Value::Null));
+        }
+        let mut max: Option<Value> = None;
+        for row in rows {
+            let val = row.into_iter().next().unwrap();
+            max = match max {
+                None => Some(val),
+                Some(cur) => if compare(&val, &cur).is_some_and(|o| o.is_gt()) { Some(val) } else { Some(cur) },
+            };
+        }
+        return Ok(max.unwrap_or(Value::Null));
+    }
+    if policy == 10 {
+        return Ok(Value::Number { coefficient: rows.len().to_string(), scale: 0 });
+    }
+    let make_item = |values: Vec<Value>| {
+        if values.len() == 1 {
+            values.into_iter().next().unwrap()
+        } else {
+            Value::Record(
+                names
+                    .iter()
+                    .zip(values)
+                    .map(|(name, value)| ((*name).into(), value))
+                    .collect(),
+            )
+        }
+    };
+    if (4..=6).contains(&policy) {
+        return Ok(Value::List(rows.into_iter().map(make_item).collect()));
+    }
+    if policy == 1 && rows.len() > 1 {
+        return Err("UNIQUE table matched multiple rules");
+    }
+    if policy == 3
+        && !rows.is_empty()
+        && rows.iter().skip(1).any(|row| {
+            row.iter()
+                .zip(&rows[0])
+                .any(|(a, b)| !matches!(equal(a.clone(), b.clone()), Value::Boolean(true)))
+        })
+    {
+        return Err("ANY table produced different outputs");
+    }
+    let values = match rows.into_iter().next() {
+        Some(values) => values,
+        None => defaults()?,
+    };
+    Ok(make_item(values))
+}

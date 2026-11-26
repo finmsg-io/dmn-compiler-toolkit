@@ -20,8 +20,16 @@ final class RuntimeExpressionLowerer {
 		if (type.kind() == RuntimeTypeKind.NULL && !expression.hasLiteral())
 			return new RuntimeConstant(RuntimeConstantKind.NULL, "null", type);
 		return switch (expression.getNodeCase()) {
-			case LITERAL -> new RuntimeConstant(constantKind(expression.getLiteral().getKind()),
-					expression.getLiteral().getValue(), type);
+			case LITERAL -> {
+				var literal = expression.getLiteral();
+				if (literal.getKind() == LiteralKind.LITERAL_KIND_DATE) {
+					String value = normalizeDateLiteral(literal.getValue());
+					yield value == null
+							? new RuntimeConstant(RuntimeConstantKind.NULL, "null", type)
+							: new RuntimeConstant(RuntimeConstantKind.DATE, value, type);
+				}
+				yield new RuntimeConstant(constantKind(literal.getKind()), literal.getValue(), type);
+			}
 			case NAME -> {
 				var bindingOpt = bindings.stream().filter(value -> value.referencePath().equals(path)).findFirst();
 				if (bindingOpt.isEmpty()) {
@@ -439,6 +447,20 @@ final class RuntimeExpressionLowerer {
 		};
 	}
 
+	private static String normalizeDateLiteral(String text) {
+		if (text == null || !text.matches("-?(?:[0-9]{4}|[1-9][0-9]{4,8})-[0-9]{2}-[0-9]{2}"))
+			return null;
+		try {
+			int endYear = text.indexOf('-', text.startsWith("-") ? 1 : 0);
+			int year = Integer.parseInt(text.substring(0, endYear));
+			return year == 0
+					? null
+					: java.time.LocalDate.of(year, Integer.parseInt(text.substring(endYear + 1, endYear + 3)),
+							Integer.parseInt(text.substring(endYear + 4))).toString();
+		} catch (java.time.DateTimeException | NumberFormatException invalid) {
+			return null;
+		}
+	}
 	static RuntimeConstantKind constantKind(LiteralKind kind) {
 		return switch (kind) {
 			case LITERAL_KIND_NULL -> RuntimeConstantKind.NULL;

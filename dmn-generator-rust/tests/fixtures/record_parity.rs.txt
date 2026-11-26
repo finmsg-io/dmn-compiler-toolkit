@@ -1,0 +1,126 @@
+use generated_dmn::{Value, evaluate};
+use std::collections::BTreeMap;
+
+const NS: &str = "urn:rust-proof:records";
+
+fn record(fields: impl IntoIterator<Item = (&'static str, Value)>) -> Value {
+    Value::Record(
+        fields
+            .into_iter()
+            .map(|(name, value)| (name.into(), value))
+            .collect(),
+    )
+}
+
+#[test]
+fn matches_java_nested_record_and_field_outputs() {
+    let amount = Value::Number {
+        coefficient: "12500".into(),
+        scale: 3,
+    };
+    for vector in 0..5 {
+        let money = record([
+            (
+                "Amount",
+                if vector == 3 {
+                    Value::Null
+                } else {
+                    amount.clone()
+                },
+            ),
+            ("Label", Value::Text("Grüezi 🌍".into())),
+            ("Extra", Value::Text("retained".into())),
+        ]);
+        let balance = if vector == 2 {
+            Value::Null
+        } else {
+            money.clone()
+        };
+        let account = if vector == 1 {
+            Value::Null
+        } else {
+            record([("Balance", balance), ("Active", Value::Boolean(true))])
+        };
+        let applicant = if vector == 0 {
+            Value::Null
+        } else {
+            record([
+                ("Account", account),
+                ("Name", Value::Text("Example".into())),
+            ])
+        };
+        for use_balance in [false, true] {
+            let input = BTreeMap::from([
+                ((NS, "applicant"), applicant.clone()),
+                ((NS, "use"), Value::Boolean(use_balance)),
+            ]);
+            let balance = if vector <= 2 {
+                Value::Null
+            } else {
+                money.clone()
+            };
+            let expected_amount = if vector <= 3 {
+                Value::Null
+            } else {
+                amount.clone()
+            };
+            assert_eq!(
+                evaluate(&input).unwrap(),
+                BTreeMap::from([
+                    ((NS, "balance"), balance.clone()),
+                    ((NS, "amount"), expected_amount.clone()),
+                    (
+                        (NS, "chosen"),
+                        if use_balance { balance } else { Value::Null }
+                    ),
+                    (
+                        (NS, "selected"),
+                        if use_balance {
+                            expected_amount.clone()
+                        } else {
+                            Value::Null
+                        }
+                    ),
+                    (
+                        (NS, "adjusted"),
+                        if vector <= 3 {
+                            Value::Null
+                        } else {
+                            Value::Number {
+                                coefficient: "13750".into(),
+                                scale: 3,
+                            }
+                        }
+                    ),
+                ])
+            );
+        }
+    }
+}
+
+#[test]
+fn rejects_invalid_typed_record_inputs() {
+    let input = |applicant| {
+        BTreeMap::from([
+            ((NS, "applicant"), applicant),
+            ((NS, "use"), Value::Boolean(true)),
+        ])
+    };
+    assert_eq!(
+        evaluate(&input(Value::Boolean(true))),
+        Err("record input type mismatch")
+    );
+    assert_eq!(
+        evaluate(&input(record([("Name", Value::Text("Example".into()))]))),
+        Err("missing record input field")
+    );
+    let bad_money = record([("Amount", Value::Boolean(true)), ("Label", Value::Null)]);
+    let account = record([("Balance", bad_money), ("Active", Value::Null)]);
+    assert_eq!(
+        evaluate(&input(record([
+            ("Account", account),
+            ("Name", Value::Null)
+        ]))),
+        Err("input type mismatch")
+    );
+}

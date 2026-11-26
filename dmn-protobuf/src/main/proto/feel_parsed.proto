@@ -66,6 +66,7 @@ message ListExpressionParsed {
 message FunctionDefinitionParsed {
   repeated InformationItem parameters = 1;
   ExpressionParsed body = 2;
+  string source_kind = 3;
 }
 
 //
