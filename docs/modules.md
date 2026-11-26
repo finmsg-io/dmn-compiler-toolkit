@@ -116,7 +116,7 @@ Definitions model = new DmnDslReader().read(dslSource);
 String formatted = new DmnDslReader().format(dslSource);
 ```
 
-Supports models, namespaces, imports, record/collection/constrained item definitions, inputs, BKMs, literal decisions, and decision tables with bounded parsing and source-positioned diagnostics. Because it produces the same `Definitions` protobuf as `dmn-frontend-xml`, `.decision` sources flow directly through `DmnCompiler`, `DmnFeelParser`, `DmnModelSetSemanticAnalyzer`, `DmnOptimizer`, portable DMNIR, Java/Rust/Spark/gRPC backends, and DMN 1.3/1.5/1.6 XML export.
+Supports models, namespaces, imports, record/collection/constrained item definitions, inputs, BKMs, literal decisions, decision tables, and inline `test` blocks with bounded parsing and source-positioned diagnostics. Because it produces the same `Definitions` protobuf as `dmn-frontend-xml`, `.decision` sources flow directly through `DmnCompiler`, `DmnFeelParser`, `DmnModelSetSemanticAnalyzer`, `DmnOptimizer`, portable DMNIR, Java/Rust/Spark/gRPC backends, and DMN 1.3/1.5/1.6 XML export. See the [Authoring DSL guide](dsl.md) for syntax, inline tests, and the runnable CLI (`dmn-compiler-*-cli.jar`).
 
 
 <a id="contents-section-3"></a>
