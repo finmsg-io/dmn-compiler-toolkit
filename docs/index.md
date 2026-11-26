@@ -30,15 +30,17 @@ The implemented pipeline is:
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
 flowchart TD
-    XML["DMN XML Source Graph"] --> Facade["DmnCompiler Facade / Model Resolver"]
-    Facade --> XMLReader["Definitions with FEEL text (DmnXmlReader)"]
-    XMLReader --> FeelParser["Definitions with parsed FEEL AST (DmnFeelParser)"]
-    FeelParser --> SemAnalysis["Semantic-analysis result and diagnostics (DmnSemanticAnalyzer)"]
+    SRC["DMN 1.3/1.5/1.6 XML or .decision DSL"] --> Facade["DmnCompiler Facade / Model Resolver"]
+    Facade --> Frontend["Definitions with FEEL text (DmnXmlReader / DmnDslReader)"]
+    Frontend --> FeelParser["Definitions with parsed FEEL AST (DmnFeelParser)"]
+    FeelParser --> SemAnalysis["Semantic-analysis result & diagnostics (DmnSemanticAnalyzer)"]
     SemAnalysis --> Lowerer["Immutable Runtime IR (RuntimeIrLowerer)"]
     Lowerer --> Optimizer["Static Optimizer Pass (dmn-optimizer)"]
-    Optimizer --> Interp["Process-local Interpreter<br/>(dmn-runtime)"]
-    Optimizer --> JavaGen["Java Generator<br/>(dmn-generator-java)"]
-    Optimizer --> JMH["JMH Benchmarks<br/>(dmn-benchmarks)"]
+    Optimizer --> DMNIR["Portable DMNIR Protobuf (.dmnir)"]
+    Optimizer --> Interp["Process-local Interpreter (dmn-runtime)"]
+    Optimizer --> JavaGen["Java / Spark SQL / gRPC Generators"]
+    DMNIR --> RustGen["Standalone Rust Generator (dmn-generator-rust)"]
+    DMNIR --> DmnExport["DMN 1.3/1.5/1.6 XML Exporter"]
 ```
 
 Cross-model compilation, Runtime IR lowering, optimization, process-local interpretation, Java

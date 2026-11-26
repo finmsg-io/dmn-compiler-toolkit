@@ -53,8 +53,8 @@ Renames are expanded to deletion/addition so moving a product file into docs can
 hide its removal. Feature-branch pushes do not duplicate the PR run; open a PR to
 start verification. Newer commits cancel obsolete runs on the same ref.
 
-A product CI run now builds the reactor once instead of four times. All three
-backends still execute all 3,391 official cases; filters and compilation rejection
+A product CI run now builds the reactor once instead of four times. All configured
+backends still execute all 3,407 official cases; filters and compilation rejection
 are not accepted as passes. Release verification similarly combines packaging and
 TCK checks into one clean build. Signing/publication remains a separate protected
 job rebuilding the verified tag.

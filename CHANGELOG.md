@@ -9,16 +9,37 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-11-26
+
+### Added
+
+- **100% official OMG DMN TCK compliance across all 7 execution backends (3,407 / 3,407 cases each on pinned TCK revision `5cd912f281831bc535e710aba435e16de198028a`):**
+  - **Portable DMNIR Java (`dmnir -> java`)**: 3,407 / 3,407 (100.00%) via 151 deduplicated, bounded-verified `.dmnir` Protobuf artifacts (`dmn-tck`, 1.36 MB) and parallel batch `javac`.
+  - **Standalone Rust (`dmnir -> rust`)**: 3,407 / 3,407 (100.00%) compiled and executed directly from `.dmnir` artifacts with zero JVM runtime dependency (`dmn-generator-rust`).
+  - **Java Interpreter (`optimized-interpreter`)** & **Direct Generated Java (`optimized-generated-java`)**: 3,407 / 3,407 (100.00%) each.
+  - **Spark SQL (`optimized-generated-sparksql-hybrid`)**: 3,407 / 3,407 native (100.00%, 0 fallback).
+  - **Generic gRPC (`optimized-generated-grpc`)**: 3,407 / 3,407 (100.00%) over real HTTP/2 and binary Protobuf.
+  - **Model-specific Typed gRPC (`optimized-generated-typed-grpc`)**: 3,407 / 3,407 (100.00%) across 3,510 completed typed RPCs.
+- **Portable Structured DMNIR (`dmn-ir-protobuf`, `dmn-ir-codec`, schemas `0.0`–`0.11`)**: Typed, resolved, bounded-verified binary Protobuf IR supporting scalars, expressions, named records, boxed contexts, temporals, decision tables, field constraints, collections, filters, built-in calls, named FEEL BKMs, inline closures, and decision services ([ADR-0026](docs/architecture/adr/adr-0026-structured-portable-dmnir.md)).
+- **Artifact-only DMN 1.3 / 1.5 / 1.6 XML Regeneration (`DmnIrScalarDmnExporter`)**: Synthesizes conforming DMN XML (default DMN 1.6, plus DMN 1.5 and DMN 1.3) directly from `.dmnir` without original source XML; verified across all 151 TCK artifacts (3,407 / 3,407 cases on each of DMN 1.3, 1.5, and 1.6 = 10,221 round-trip executions) and multi-file `dmn-models` suites (`discount-calculation`, `loan-approval`, `order-fulfillment`, `data-quality`).
+- **`.decision` Authoring DSL (`dmn-frontend-dsl`) & Runnable CLI (`dmn-compiler-1.2.0-cli.jar`)**:
+  - IDE-ready ANTLR4 grammar (`DecisionDsl.g4`), canonical formatter, bounded parser with `line:column` diagnostics, DMN 1.6 `Definitions` protobuf lowerer, and `DmnModelLoader` auto-dispatch alongside `.dmn` XML.
+  - Inline `test` blocks executed by `DmnDslTestRunner` and stripped from production `.dmnir` payloads (byte-identical artifacts with vs. without tests).
+  - Standalone shaded CLI (`DmnDslCli`) supporting `check`, `format [--write]`, `test`, `compile --out <model.dmnir>`, and `export --out <dir> [--dmn-version 1.6|1.5|1.3]`. See the [Authoring DSL guide](docs/dsl.md).
+
 ### Changed
 
 - CI performs one full reactor/TCK build per product change, replacing four
-  reactor builds; all three optimized backends retain the full official inventory.
+  reactor builds; all optimized backends retain the full 3,407-case official inventory.
   PR and main checks replace duplicate feature-branch push runs. Documentation
   and repository-tooling changes use lightweight checks; release verification
   combines packaging and TCK into one clean build.
 - Release workflows use checksum-verified Maven 3.9.12 and require Central API
   `PUBLISHED` status, addressing the initial 1.1.0 upload rejection and false-green
   upload result without changing the release tag.
+- Release reactor version: `1.2.0`.
+
+---
 
 ## [1.1.0] — 2026-10-30
 

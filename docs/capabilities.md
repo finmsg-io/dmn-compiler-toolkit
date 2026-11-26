@@ -17,9 +17,11 @@ This page is the canonical summary of product maturity. Detailed module ownershi
 | Generic gRPC generation | Incubating | Independently measured 3,407/3,407 official passes over HTTP/2/protobuf (`3,407` RPCs); deployment assurance and compatibility remain separate |
 | Model-specific typed gRPC generation | Incubating | Independently measured 3,407/3,407 passes through 3,510 typed RPCs (`0` unsupported); deployment assurance remains separate |
 | Spark SQL generation | Incubating | Independently measured 3,407/3,407 native official passes (100.00%), zero fallback; broader models and deployments remain bounded |
+| DMNIR → DMN 1.3 / 1.5 / 1.6 XML regeneration (`DmnIrScalarDmnExporter`) | Established | Artifact-only XML synthesis verified across all 151 TCK artifacts (3,407/3,407 cases on each of DMN 1.3, 1.5, and 1.6) plus multi-file `dmn-models` suites |
+| `.decision` Authoring DSL & standalone CLI (`dmn-frontend-dsl`, `dmn-compiler-*-cli.jar`) | Incubating | ANTLR4 grammar (`DecisionDsl.g4`), canonical formatter, inline `test` blocks, `check`/`format`/`test`/`compile`/`export` CLI, and DSL ↔ DMNIR ↔ DMN 1.3/1.5/1.6 parity tests; see [Authoring DSL guide](dsl.md) |
 | Data-quality and multi-file model suites | Established examples | Implemented reference assets and multi-file Java streaming ingestion |
 | Go and C++ generators | Planned | No implementation claim |
-| Standalone CLI and LSP | Planned | No implementation claim |
+| Language Server (LSP) and IDE plugins | Planned | ANTLR4 grammar (`DecisionDsl.g4`) is ready for reuse; LSP/IDE plugins are not yet implemented |
 
 Maturity labels describe evidence, compatibility, and supportability—not merely whether source code
 exists. Claims for an individual release must link to evidence produced from that release.

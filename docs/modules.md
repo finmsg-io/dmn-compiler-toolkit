@@ -64,23 +64,21 @@ Schema 0.2 adds named acyclic records and resolved field access while preserving
 identity, optional field IDs and declaration order. Runtime field indexes remain derived locally.
 
 Schema 0.3 adds ordered boxed contexts and decision-local binding identities, with runtime slots
-derived by consumers. Schema 0.4 adds Gregorian dates. Schema 0.5 adds typed decision tables, 0.6 adds scalar field constraints, 0.7 adds named scalar collections, and 0.8 adds boolean filters.
-The separate codec validates profiles 0.0 through 0.8, and the compiler layer adapts verified artifacts to Runtime IR and synthesizes DMN 1.6 for its admitted
-subset. Broader DMN synthesis and Rust generation remain subsequent slices. The `v0` namespace
-is experimental and does not establish stable `v1` compatibility or canonical content hashing.
+derived by consumers. Schema 0.4 adds Gregorian dates, 0.5 adds typed decision tables, 0.6 adds scalar field constraints, 0.7 adds named scalar collections, 0.8 adds boolean filters, 0.9 adds built-in calls, 0.10 adds named FEEL BKMs, and 0.11 adds inline FEEL closures and temporal/collection/boxed-expression coverage across all 3,407 pinned official TCK cases.
+The separate codec validates profiles 0.0 through 0.11, and the compiler layer adapts verified artifacts to Runtime IR (`dmnir -> java`), feeds standalone Rust generation (`dmn-generator-rust`), and synthesizes conforming DMN 1.3/1.5/1.6 XML (`DmnIrScalarDmnExporter`, default DMN 1.6). The `v0` namespace remains pre-`v1` and does not yet establish stable `v1` wire compatibility or canonical content hashing.
 See [ADR-0026](architecture/adr/adr-0026-structured-portable-dmnir.md) for the accepted architecture.
 
 <a id="portable-dmnir-codec"></a>
 ## `dmn-ir-codec`
 
-Bounded reader and verifier for the experimental schemas 0.0 through 0.8. Its production dependencies
+Bounded reader and verifier for portable DMNIR schemas 0.0 through 0.11. Its production dependencies
 are `dmn-ir-protobuf` and `protobuf-java`; existing execution modules do not depend on it.
 The reader performs an allocation-bounded wire scan, generated decoding and semantic graph
 checks before returning an immutable verified-artifact wrapper. Imports are resolved only
 against bundled models; location hints are never fetched.
 
-See the [experimental DMNIR reader guide](dmnir.md) for the public API, exact default budgets,
-strict compatibility policy, scalar typing rules, diagnostics and limitations.
+See the [portable DMNIR guide](dmnir.md) for the public API, exact default budgets,
+strict compatibility policy, typing rules, diagnostics and limitations.
 
 <a id="contents-section-2"></a>
 ## `dmn-frontend-xml`
@@ -254,8 +252,7 @@ Provides a conformance runner for OMG DMN Technology Compatibility Kit (TCK) tes
 `DmnToolkitTckEngine` decodes TCK test case definitions (`TckTestCaseReader`), feeds input values into `DmnCompiler` and `DmnRuntime` / `DmnJavaGenerator`, and asserts spec conformance across decision tables, expressions, and model relationships.
 
 Embeds the official vendor-neutral [OMG DMN TCK repository](https://dmn-tck.github.io/tck/) (`https://github.com/dmn-tck/tck.git`) as a submodule:
-- **Current executed set**: 3,391 cases across 146 XML test files, evaluated through both
-  optimized interpreter and optimized generated Java (6,782 passing backend outcomes).
+- **Current executed set**: 3,407 cases across 151 deduplicated `.dmnir` / XML test models, evaluated across all 7 backends (23,849 passing backend outcomes) plus DMNIR → DMN 1.3/1.5/1.6 XML round-trip (10,221 additional passing executions).
 - **Accounting**: every terminal outcome is retained in the machine-readable report; only
   `PASSED` counts toward conformance. The authoritative revision and detailed evidence are
   maintained in the [TCK conformance record](tck-conformance.md).
@@ -284,9 +281,13 @@ Provides structured multi-file DMN model directory suites (`loan-approval`, `ord
 
 
 <a id="contents-section-16"></a>
-## Planned modules
+## Standalone & Planned modules
+
+- **Implemented standalone crate (`dmn-generator-rust`)**: Rust 2024 crate consuming portable `.dmnir` Protobuf artifacts without any JVM runtime dependency; verified at **3,407 / 3,407 (100.00%)** pinned official TCK cases and 63/63 unit/parity tests (`cargo test --locked --offline`).
+- **Planned modules**:
 
 ```text
-dmn-generator-rust
 dmn-generator-go
+dmn-generator-cpp
+dmn-lsp
 ```

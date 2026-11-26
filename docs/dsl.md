@@ -118,12 +118,12 @@ The `dmn-compiler` module packages a standalone runnable CLI JAR (`dmn-compiler-
 mvn package -pl dmn-compiler -am -DskipTests
 ```
 
-This produces `dmn-compiler/target/dmn-compiler-1.1.0-cli.jar` without modifying the thin library artifact `dmn-compiler-1.1.0.jar`.
+This produces `dmn-compiler/target/dmn-compiler-1.2.0-cli.jar` without modifying the thin library artifact `dmn-compiler-1.2.0.jar`.
 
 ### CLI commands
 
 ```bash
-CLI="dmn-compiler/target/dmn-compiler-1.1.0-cli.jar"
+CLI="dmn-compiler/target/dmn-compiler-1.2.0-cli.jar"
 
 # 1. Parse, resolve imports, and compile
 java -jar "$CLI" check dmn-frontend-dsl/src/test/resources/examples/loan-underwriting.decision

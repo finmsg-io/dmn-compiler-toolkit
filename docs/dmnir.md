@@ -1,7 +1,7 @@
 # Experimental portable DMNIR
 
-The `dmn-ir-protobuf` module defines the experimental structured scalar wire contract.
-`dmn-ir-codec` adds bounded decoding and validation for five exact experimental profiles:
+The `dmn-ir-protobuf` module defines the structured portable DMNIR wire contract (`dmnir/v0/dmnir.proto`).
+`dmn-ir-codec` adds bounded decoding and validation for exact versioned profiles `0.0` through `0.11`:
 
 | Schema | Semantics | Required capabilities, in order |
 | --- | --- | --- |
@@ -23,11 +23,10 @@ The reader validates without executing. `DmnIrRuntimeAdapter` in `dmn-compiler` 
 executes scalar process-local Runtime IR from a verified artifact. `DmnIrScalarProducer` produces
 this profile from supported DMN source models across DMN versions 1.3, 1.5, and 1.6.
 `DmnIrScalarDmnExporter` synthesizes conforming DMN XML (supporting 1.3, 1.5, and 1.6, default 1.6)
-for explicitly admitted profiles; the generated DMN is a working, semantically equivalent model
+from verified `.dmnir` artifacts (verified across all 151 official TCK artifacts — 3,407/3,407 cases on each version); the generated DMN is a working, semantically equivalent model
 that may be optimized or canonicalized differently from the source.
-DSL authoring, Rust generation, broader DMN export,
-canonical hashing and stable wire compatibility
-remain later delivery work.
+Standalone Rust generation (`dmn-generator-rust`) consumes the same `.dmnir` artifacts with 3,407/3,407 TCK compliance, and `.decision` authoring flows into the same pipeline (see [Authoring DSL](dsl.md)).
+Canonical content hashing and stable `v1` wire compatibility remain future work.
 
 ## Produce an artifact from DMN
 
