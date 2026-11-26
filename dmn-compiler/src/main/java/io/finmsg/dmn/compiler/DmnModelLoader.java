@@ -1,5 +1,8 @@
 package io.finmsg.dmn.compiler;
 
+import io.finmsg.dmn.frontend.dsl.DmnDslParseException;
+import io.finmsg.dmn.frontend.dsl.DmnDslReadOptions;
+import io.finmsg.dmn.frontend.dsl.DmnDslReader;
 import io.finmsg.dmn.frontend.xml.dmn.DmnReadOptions;
 import io.finmsg.dmn.frontend.xml.dmn.DmnReadResult;
 import io.finmsg.dmn.frontend.xml.dmn.DmnXmlReader;
@@ -17,13 +20,19 @@ import java.util.Optional;
 /** Loads and parses a bounded graph of location-addressable DMN imports. */
 public final class DmnModelLoader {
 	private final DmnXmlReader xmlReader;
+	private final DmnDslReader dslReader;
 
 	public DmnModelLoader() {
-		this(new DmnXmlReader());
+		this(new DmnXmlReader(), new DmnDslReader());
 	}
 
 	DmnModelLoader(DmnXmlReader xmlReader) {
+		this(xmlReader, new DmnDslReader());
+	}
+
+	DmnModelLoader(DmnXmlReader xmlReader, DmnDslReader dslReader) {
 		this.xmlReader = Objects.requireNonNull(xmlReader, "xmlReader");
+		this.dslReader = Objects.requireNonNull(dslReader, "dslReader");
 	}
 
 	public DmnModelLoadResult load(DmnSource root, DmnModelResolver resolver) {
@@ -174,6 +183,14 @@ public final class DmnModelLoader {
 		}
 
 		private Definitions parse(DmnSource source) {
+			if (DmnDslReader.isDslSource(source.id().toString(), source.content())) {
+				try {
+					return dslReader.read(source.content(), DmnDslReadOptions.defaults());
+				} catch (DmnDslParseException e) {
+					throw new DmnModelLoadException(
+							"Cannot parse DMN DSL source " + source.id() + ": " + e.getMessage(), e);
+				}
+			}
 			DmnReadOptions readOptions = DmnReadOptions.defaults().withSystemId(source.id().toString());
 			DmnReadResult result = xmlReader.readResult(source.content(), readOptions);
 			if (result.model().isPresent() && !result.hasErrors()) {

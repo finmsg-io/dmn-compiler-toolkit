@@ -51,6 +51,7 @@
         <module>dmn-ir-protobuf</module>
         <module>dmn-ir-codec</module>
         <module>dmn-frontend-xml</module>
+        <module>dmn-frontend-dsl</module>
         <module>dmn-feel-parser</module>
         <module>dmn-semantic-analysis</module>
         <module>dmn-runtime-ir</module>

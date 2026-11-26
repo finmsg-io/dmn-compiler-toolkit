@@ -136,8 +136,8 @@ Dedicated fast Maven TCK profiles in `dmn-tck-runner/pom.xml`:
 - `-Ptck -Ptck-dmn-roundtrip -Dtest=TckDmnIrDmnXmlRoundTripTest` (DMNIR -> DMN 1.3/1.5/1.6 XML round-trip + `dmn-models`, `29.67 s`)
 
 Remaining Release 1.2 follow-up items:
-1. ~~**DMNIR -> DMN XML regeneration (`dmn-generator`, default DMN 1.6)** and DMN 1.3/1.5/1.6 round-trip verification.~~ **DONE (2026-11-25): 151/151 artifacts, 3,407/3,407 TCK cases on DMN 1.3, 1.5, and 1.6 + `dmn-models` (`discount-calculation`, `loan-approval`, `order-fulfillment`).**
-2. **DSL authoring / parity** and full multi-module reactor regression check.
+1. ~~**DMNIR -> DMN XML regeneration (`dmn-generator`, default DMN 1.6)** and DMN 1.3/1.5/1.6 round-trip verification.~~ **DONE (2026-11-25): 151/151 artifacts, 3,407/3,407 TCK cases on DMN 1.3, 1.5, and 1.6 + `dmn-models` (`discount-calculation`, `loan-approval`, `order-fulfillment`, `data-quality`).**
+2. ~~**DSL authoring / parity** and full multi-module reactor regression check.~~ **DONE (2026-11-26): Added `dmn-frontend-dsl` module (`.decision` parser, canonical formatter, DMN 1.6 `Definitions` lowerer, `DmnModelLoader` integration, end-to-end DSL ↔ DMNIR ↔ DMN 1.3/1.5/1.6 XML parity tests), full 15-module reactor green, 63/63 Rust tests green, 73/73 Python tool tests + `verify_documentation.py` (3,407 cases) green.**
 
 Usage accounting is unavailable.
 Detailed historical Rust commands and caveats: [work package, section 52](details/release-1.2-dmnir-work-package.md#52-current-rust-tck-handover-2026-11-17-strict-3407-case-audit).

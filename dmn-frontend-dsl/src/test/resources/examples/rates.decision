@@ -1,0 +1,6 @@
+model "Rates Library"
+namespace "urn:example:dsl:rates"
+id "rates-lib"
+
+bkm MonthlyRate id "bkm_MonthlyRate"(annualRate: number): number
+  = annualRate / 12

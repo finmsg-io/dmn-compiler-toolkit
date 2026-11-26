@@ -7,6 +7,7 @@
 - [dmn-ir-protobuf](#portable-dmnir)
 - [dmn-ir-codec](#portable-dmnir-codec)
 - [dmn-frontend-xml](#contents-section-2)
+- [dmn-frontend-dsl](#dmn-frontend-dsl)
 - [dmn-feel-parser](#contents-section-3)
 - [dmn-semantic-analysis](#contents-section-4)
 - [dmn-runtime-ir](#contents-section-5)
@@ -101,6 +102,21 @@ io.finmsg.dmn.frontend.xml.dmn.writer
 Reader and writer coverage is symmetric for the XML-representable portion of the current protobuf model. This includes imports, item definitions and constraints, all modeled DRG elements, decision tables, invocations, boxed expressions, documentation, structured extensions, namespace/version preservation, and prefixed-DMN output.
 
 QName `typeRef` values are resolved in element scope, stored by namespace URI, and written using an existing or collision-free declared prefix. DMNDI, artifacts, business-context metadata, and deeper arbitrary extension trees require protobuf model extensions and are not part of the current round-trip claim.
+
+
+<a id="dmn-frontend-dsl"></a>
+## `dmn-frontend-dsl`
+
+ANTLR4-backed parser (`DecisionDsl.g4`), canonical formatter, and `Definitions` protobuf lowerer for concise `.decision` authoring DSL files (targeting DMN 1.6 by default). The `.g4` grammar also serves as the single source of truth for IDE plugins (IntelliJ `antlr4-intellij-adaptor` and VS Code ANTLR4 / LSP).
+
+Primary entry point:
+
+```java
+Definitions model = new DmnDslReader().read(dslSource);
+String formatted = new DmnDslReader().format(dslSource);
+```
+
+Supports models, namespaces, imports, record/collection/constrained item definitions, inputs, BKMs, literal decisions, and decision tables with bounded parsing and source-positioned diagnostics. Because it produces the same `Definitions` protobuf as `dmn-frontend-xml`, `.decision` sources flow directly through `DmnCompiler`, `DmnFeelParser`, `DmnModelSetSemanticAnalyzer`, `DmnOptimizer`, portable DMNIR, Java/Rust/Spark/gRPC backends, and DMN 1.3/1.5/1.6 XML export.
 
 
 <a id="contents-section-3"></a>
